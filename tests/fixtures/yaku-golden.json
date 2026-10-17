@@ -1,5 +1,6 @@
 [
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m2",
@@ -55,6 +56,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m2",
@@ -116,6 +118,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -207,6 +210,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -286,6 +290,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -365,6 +370,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -444,6 +450,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -499,6 +506,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -578,6 +586,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -663,6 +672,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -748,6 +758,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -844,6 +855,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m3",
@@ -917,6 +929,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -1020,6 +1033,7 @@
   }
  },
  {
+  "maxSplit": false,
   "hand": [
    "m1",
    "m1",
@@ -1105,6 +1119,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -1184,6 +1199,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m8",
    "m9",
@@ -1275,6 +1291,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m3",
@@ -1354,6 +1371,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -1433,6 +1451,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m3",
@@ -1512,6 +1531,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -1591,6 +1611,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -1664,6 +1685,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -1725,6 +1747,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -1804,6 +1827,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -1895,6 +1919,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -1974,6 +1999,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -2059,6 +2085,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "z1",
    "z1",
@@ -2114,6 +2141,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m5",
    "m5"
@@ -2220,6 +2248,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m5",
    "m5",
@@ -2315,6 +2344,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s5",
    "s5"
@@ -2409,6 +2439,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m5",
    "m5"
@@ -2503,6 +2534,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -2582,6 +2614,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -2668,6 +2701,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -2760,6 +2794,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -2846,6 +2881,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -2932,6 +2968,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s1",
    "s1",
@@ -2981,6 +3018,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s1",
    "s1",
@@ -3023,6 +3061,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s1",
    "s1",
@@ -3072,6 +3111,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s1",
    "s1",
@@ -3121,6 +3161,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s1",
    "s1",
@@ -3163,6 +3204,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m9",
    "p1",
@@ -3218,6 +3260,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -3297,6 +3340,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -3376,6 +3420,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -3437,6 +3482,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -3498,6 +3544,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -3578,6 +3625,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -3652,6 +3700,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m9",
    "p1",
@@ -3707,6 +3756,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -3762,6 +3812,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "z1",
    "z2",
@@ -3811,6 +3862,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "z5",
    "z5",
@@ -3860,6 +3912,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -3915,6 +3968,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s1",
    "s1",
@@ -3964,6 +4018,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s1",
    "s1",
@@ -4013,6 +4068,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "z5",
    "z5",
@@ -4062,6 +4118,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "z3",
    "z3",
@@ -4117,6 +4174,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -4172,6 +4230,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m7",
    "m7",
@@ -4227,6 +4286,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -4294,6 +4354,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -4361,6 +4422,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -4416,6 +4478,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "z1",
    "z1",
@@ -4471,6 +4534,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m2",
@@ -4526,6 +4590,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -4611,6 +4676,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -4660,6 +4726,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s1",
    "s1",
@@ -4745,6 +4812,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -4812,6 +4880,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -4891,6 +4960,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -4933,6 +5003,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -4994,6 +5065,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s1",
    "s2",
@@ -5055,6 +5127,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -5128,6 +5201,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -5201,6 +5275,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -5274,6 +5349,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -5341,6 +5417,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -5420,6 +5497,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -5493,6 +5571,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -5566,6 +5645,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -5639,6 +5719,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "z5",
    "z5",
@@ -5718,6 +5799,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "p5",
    "p5"
@@ -5804,6 +5886,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "p5",
    "p5"
@@ -5968,6 +6051,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "p5",
    "p5"
@@ -6048,6 +6132,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m7",
    "m7",
@@ -6103,6 +6188,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m7",
    "m7",
@@ -6158,6 +6244,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m7",
    "m7",
@@ -6213,6 +6300,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "p7",
    "p7",
@@ -6264,6 +6352,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m7",
    "m7",
@@ -6349,6 +6438,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m7",
    "m7",
@@ -6404,6 +6494,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m3",
@@ -6465,6 +6556,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -6556,6 +6648,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m3",
@@ -6605,6 +6698,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -6660,6 +6754,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -6739,6 +6834,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -6818,6 +6914,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -6897,6 +6994,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -6976,6 +7074,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -7049,6 +7148,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -7110,6 +7210,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -7171,6 +7272,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m3",
@@ -7232,6 +7334,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "p8",
    "p8",
@@ -7321,6 +7424,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m3",
@@ -7400,6 +7504,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "p2",
    "p3",
@@ -7483,6 +7588,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "p2",
    "p3",
@@ -7554,6 +7660,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "p2",
    "p3",
@@ -7612,6 +7719,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "p2",
    "p3",
@@ -7683,6 +7791,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m3",
@@ -7766,6 +7875,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m1",
@@ -7821,6 +7931,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m2",
    "m3",
@@ -7889,6 +8000,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "p6",
    "p7",
@@ -7969,6 +8081,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "s9",
    "s9",
@@ -8085,6 +8198,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
@@ -8140,6 +8254,7 @@
   }
  },
  {
+  "maxSplit": true,
   "hand": [
    "m1",
    "m2",
