@@ -5957,6 +5957,307 @@
   "hand": [
    "m7",
    "m7",
+   "p7",
+   "p7",
+   "p7",
+   "s7",
+   "s7",
+   "s7",
+   "z2",
+   "z2",
+   "z2",
+   "z4",
+   "z4",
+   "m7"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m7",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 71,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "三七之花",
+     "fu": 70,
+     "id": "three_seven_flower",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 70000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m7",
+   "m7",
+   "p7",
+   "p7",
+   "p7",
+   "s7",
+   "s7",
+   "s7",
+   "z2",
+   "z2",
+   "z2",
+   "z4",
+   "z4",
+   "m7"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m7",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 71,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "三七之花",
+     "fu": 70,
+     "id": "three_seven_flower",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m7",
+   "m7",
+   "p7",
+   "p7",
+   "p7",
+   "s7",
+   "s7",
+   "s7",
+   "m5",
+   "m5",
+   "m5",
+   "z1",
+   "z1",
+   "m7"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m7",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 71,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "三七之花",
+     "fu": 70,
+     "id": "three_seven_flower",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "p7",
+   "p7",
+   "s7",
+   "s7",
+   "s7",
+   "z2",
+   "z2",
+   "z2",
+   "m5",
+   "m5",
+   "m5",
+   "z4",
+   "z4",
+   "p7"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "m7",
+     "m7",
+     "m7"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p7",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "not_formed",
+   "totalFu": null,
+   "handType": null,
+   "yaku": [],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m7",
+   "m7",
+   "p7",
+   "p7",
+   "p7",
+   "s7",
+   "s7",
+   "s7",
+   "m1",
+   "m2",
+   "m3",
+   "z4",
+   "z4",
+   "m7"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m7",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 20,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "三色同刻",
+     "fu": 5,
+     "id": "three_color_ko",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "卡七",
+     "fu": 1,
+     "id": "kachi_7",
+     "isBonus": false
+    },
+    {
+     "name": "门前自摸",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "卡七自摸加成",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m7",
+   "m7",
    "m7",
    "p7",
    "p7",
