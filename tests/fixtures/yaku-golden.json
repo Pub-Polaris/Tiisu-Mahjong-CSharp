@@ -919,6 +919,194 @@
  {
   "hand": [
    "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m2",
+   "m3",
+   "m3",
+   "m3",
+   "p1",
+   "p2",
+   "p3",
+   "p9",
+   "p9",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 29,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "同高（一般高）",
+     "fu": 4,
+     "id": "same_high",
+     "isBonus": false
+    },
+    {
+     "name": "二色同顺",
+     "fu": 3,
+     "id": "two_color_straight",
+     "isBonus": false
+    },
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "纯全带幺",
+     "fu": 7,
+     "id": "pure_fully_terminal",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m2",
+   "m3",
+   "m3",
+   "m3",
+   "p1",
+   "p2",
+   "p3",
+   "p9",
+   "p9",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 18,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "一色三节高",
+     "fu": 3,
+     "id": "one_color_triple",
+     "isBonus": false
+    },
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
    "m2",
    "m4",
    "m5",
