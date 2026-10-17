@@ -4472,7 +4472,7 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 14,
+   "totalFu": 16,
    "handType": "standard_hand",
    "yaku": [
     {
@@ -4497,6 +4497,12 @@
      "name": "缺七",
      "fu": 1,
      "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双双逢",
+     "fu": 2,
+     "id": "double_even_ko",
      "isBonus": false
     },
     {
@@ -6985,6 +6991,372 @@
      "name": "双色双老少",
      "fu": 2,
      "id": "two_color_double_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "p2",
+   "p3",
+   "z5",
+   "z5",
+   "p1"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "m2",
+     "m2",
+     "m2"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "p4",
+     "p4",
+     "p4"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "s6",
+     "s6",
+     "s6"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 8,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双双逢",
+     "fu": 2,
+     "id": "double_even_ko",
+     "isBonus": false
+    },
+    {
+     "name": "三双逢",
+     "fu": 4,
+     "id": "triple_even_ko",
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "p2",
+   "p3",
+   "z5",
+   "z5",
+   "p1"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "m2",
+     "m2",
+     "m2"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "m4",
+     "m4",
+     "m4"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "m6",
+     "m6",
+     "m6"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 5,
+   "handType": null,
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "p2",
+   "p3",
+   "z5",
+   "z5",
+   "p1"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "m3",
+     "m3",
+     "m3"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "p5",
+     "p5",
+     "p5"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "s7",
+     "s7",
+     "s7"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 0,
+   "handType": null,
+   "yaku": [],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "p2",
+   "p3",
+   "z5",
+   "z5",
+   "p1"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "m2",
+     "m2",
+     "m2"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "p6",
+     "p6",
+     "p6"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "s8",
+     "s8",
+     "s8"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 3,
+   "handType": null,
+   "yaku": [
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双双逢",
+     "fu": 2,
+     "id": "double_even_ko",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m2",
+   "m3",
+   "z5",
+   "z5",
+   "m1"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "p4",
+     "p4",
+     "p4"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "s6",
+     "s6",
+     "s6"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "m8",
+     "m8",
+     "m8"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 8,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双双逢",
+     "fu": 2,
+     "id": "double_even_ko",
+     "isBonus": false
+    },
+    {
+     "name": "三双逢",
+     "fu": 4,
+     "id": "triple_even_ko",
      "isBonus": false
     },
     {
