@@ -80,3 +80,16 @@ python scripts\gen_golden_random.py -n 10000     # 随机语料（种子 2026101
 ```
 
 > 每条语料带 `maxSplit` 字段（缺省 true）：验证台的「高目优先」用例会临时关掉开关做对照，必须如实记录。
+
+## M1 移植踩坑（C# 复刻 JS 时实际踩到）
+
+| 坑 | 说明 |
+|---|---|
+| 字牌 `num` 是字符串 | JS 里 `tile.num` 对字牌是 `'1'..'7'`，C# 若统一转 int 会让数牌比较误吃字牌。`two_color_ko` / `three_color_ko` / `one_color_triple` / `three_kingdoms` / `north_south_self` / `_tokureiBonus` 都要显式排除字牌 |
+| 合成字牌 `z9` | 验证台用 `ytBuild('z',99)` 造过 `z9`，语料里真的存在 → `Tile` 的字牌范围放宽到 1..9、计数槽 36 格，不要断言「字牌只有 7 种」 |
+| `isChidaichi` 的 `extra` | 是「**非万子的张数**」（含字牌），不是「非万子数牌张数」 |
+| 高目枚举顺序 | `splitStandardAll` 的产出顺序必须与 JS 一致，否则「并列取先出现」会漂 |
+| 门槛与奖赏 | 先判 `totalFu < 7` 返回 `no_yaku`，再叠加嵌张/边张/单钓/双碰/筋和 |
+
+以上已由 10115 条语料验证；改判役后按上文重生成即可回归。
+
