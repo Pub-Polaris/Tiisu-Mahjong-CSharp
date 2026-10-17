@@ -2316,6 +2316,100 @@
  },
  {
   "hand": [
+   "s5",
+   "s5"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "m1",
+     "m1",
+     "m1"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "m9",
+     "m9",
+     "m9"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "p1",
+     "p1",
+     "p1"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "p9",
+     "p9",
+     "p9"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 8,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "对对和",
+     "fu": 3,
+     "id": "all_pungs",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全碰刻",
+     "fu": 2,
+     "id": "all_pon",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
    "m5",
    "m5"
   ],
