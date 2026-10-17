@@ -1,0 +1,7248 @@
+[
+ {
+  "hand": [
+   "m2",
+   "m2",
+   "m2",
+   "p5",
+   "p5",
+   "p5",
+   "s8",
+   "s8",
+   "s8",
+   "m1",
+   "m2",
+   "m3",
+   "z1",
+   "z1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "三国将",
+     "fu": 14,
+     "id": "three_kingdoms",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m2",
+   "m2",
+   "m2",
+   "p5",
+   "p5",
+   "p5",
+   "s8",
+   "s8",
+   "s8",
+   "z1",
+   "z1"
+  ],
+  "melds": [
+   {
+    "type": "chi",
+    "tiles": [
+     "m1",
+     "m2",
+     "m3"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 12,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "三国将",
+     "fu": 10,
+     "id": "three_kingdoms",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 7000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "m5",
+   "m5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 29,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "清一色",
+     "fu": 14,
+     "id": "fully_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "门前自摸",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p2",
+   "p3",
+   "p4",
+   "s5",
+   "s5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 12,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "门前自摸",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m4",
+   "m5",
+   "m6",
+   "z1",
+   "z1",
+   "z1",
+   "z5",
+   "z5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 17,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "同高（一般高）",
+     "fu": 4,
+     "id": "same_high",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z2",
+   "z2",
+   "z2",
+   "z5",
+   "z5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "south",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "南役牌",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m5",
+   "m5",
+   "z5",
+   "z5",
+   "z5",
+   "z6",
+   "z6",
+   "z6",
+   "z7",
+   "z7",
+   "z7",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 29,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "大三元",
+     "fu": 28,
+     "id": "big_three_dragons",
+     "isBonus": false
+    },
+    {
+     "name": "边张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z1",
+   "z1",
+   "z1",
+   "z2",
+   "z2"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z2",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 18,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z1",
+   "z1",
+   "m4"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "z5",
+     "z5",
+     "z5"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 14,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 4,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 3,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "白役牌",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "m5",
+   "m5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 25,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "清一色",
+     "fu": 14,
+     "id": "fully_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m5",
+   "m5",
+   "m4"
+  ],
+  "melds": [
+   {
+    "type": "chi",
+    "tiles": [
+     "m7",
+     "m8",
+     "m9"
+    ]
+   },
+   {
+    "type": "chi",
+    "tiles": [
+     "m2",
+     "m3",
+     "m4"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 23,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "清一色",
+     "fu": 13,
+     "id": "fully_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 3,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m2",
+   "m3",
+   "m4",
+   "m4",
+   "m6",
+   "m5",
+   "m6",
+   "m7",
+   "p2",
+   "p3",
+   "p4",
+   "s8",
+   "s8",
+   "m5"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 8,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "断幺九",
+     "fu": 2,
+     "id": "all_simple",
+     "isBonus": false
+    },
+    {
+     "name": "二色同顺",
+     "fu": 3,
+     "id": "two_color_straight",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "嵌张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p2",
+   "p3",
+   "p4",
+   "s8",
+   "s8",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 12,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "门前自摸",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "边张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m8",
+   "m9",
+   "m4",
+   "m5",
+   "m6",
+   "m1",
+   "m2",
+   "m3",
+   "p2",
+   "p3",
+   "p4",
+   "s8",
+   "s8",
+   "m7"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m7",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 14,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "卡七",
+     "fu": 1,
+     "id": "kachi_7",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "门前自摸",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "卡七自摸加成",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "边张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m2",
+   "m3",
+   "m4",
+   "m4",
+   "m6",
+   "m5",
+   "m6",
+   "m7",
+   "p2",
+   "p3",
+   "p4",
+   "s8",
+   "s8",
+   "m5"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 12,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "断幺九",
+     "fu": 2,
+     "id": "all_simple",
+     "isBonus": false
+    },
+    {
+     "name": "二色同顺",
+     "fu": 3,
+     "id": "two_color_straight",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "门前自摸",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "嵌张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z1",
+   "z1",
+   "z1",
+   "z5",
+   "z5"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 18,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "m2",
+   "m2",
+   "p2",
+   "p3",
+   "p4",
+   "m2"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m2",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 11,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p2",
+   "p3",
+   "s5",
+   "s5"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 11,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "二色同顺",
+     "fu": 3,
+     "id": "two_color_straight",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "s5",
+   "s5",
+   "s5",
+   "z7",
+   "z7",
+   "m9"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m9",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 24,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "全带赤",
+     "fu": 14,
+     "id": "chidaichi",
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 20300,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m3",
+   "m3",
+   "p4",
+   "p4",
+   "p5",
+   "p5",
+   "p6",
+   "p6",
+   "z7",
+   "z7"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z7",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 11,
+   "handType": "seven_pairs",
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "七对子",
+     "fu": 7,
+     "id": null,
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m4",
+   "m5",
+   "m6",
+   "z1",
+   "z1",
+   "z1",
+   "z5",
+   "z5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 17,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "同高（一般高）",
+     "fu": 4,
+     "id": "same_high",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "m5",
+   "m5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 29,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "清一色",
+     "fu": 14,
+     "id": "fully_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "门前自摸",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z5",
+   "z5",
+   "m4"
+  ],
+  "melds": [
+   {
+    "type": "chi",
+    "tiles": [
+     "p3",
+     "p4",
+     "p5"
+    ]
+   }
+  ],
+  "selfDraw": true,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 11,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 3,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "自摸",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m7",
+   "m8",
+   "p1",
+   "p2",
+   "p3",
+   "s1",
+   "s2",
+   "s3",
+   "s9",
+   "s9",
+   "m9"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m9",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 18,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "二色同顺",
+     "fu": 3,
+     "id": "two_color_straight",
+     "isBonus": false
+    },
+    {
+     "name": "三色同顺",
+     "fu": 4,
+     "id": "three_color_straight",
+     "isBonus": false
+    },
+    {
+     "name": "纯全带幺",
+     "fu": 7,
+     "id": "pure_fully_terminal",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "z1",
+   "z1",
+   "z2",
+   "z2",
+   "z2",
+   "z5",
+   "z5",
+   "z5",
+   "z6",
+   "z6",
+   "z6",
+   "z7",
+   "z7",
+   "z1"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 30,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "四暗刻",
+     "fu": 28,
+     "id": "four_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m5",
+   "m5"
+  ],
+  "melds": [
+   {
+    "type": "chi",
+    "tiles": [
+     "m1",
+     "m2",
+     "m3"
+    ]
+   },
+   {
+    "type": "chi",
+    "tiles": [
+     "m4",
+     "m5",
+     "m6"
+    ]
+   },
+   {
+    "type": "chi",
+    "tiles": [
+     "m7",
+     "m8",
+     "m9"
+    ]
+   },
+   {
+    "type": "chi",
+    "tiles": [
+     "p2",
+     "p3",
+     "p4"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 11,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 3,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全数筋和",
+     "fu": 1,
+     "id": "all_number_jin",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "全食顺",
+     "fu": 1,
+     "id": "all_chi",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m5",
+   "m5",
+   "m5",
+   "m5",
+   "m5"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "m1",
+     "m1",
+     "m1"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "m2",
+     "m2",
+     "m2"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "z1",
+     "z1",
+     "z1"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 15,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "对对和",
+     "fu": 3,
+     "id": "all_pungs",
+     "isBonus": false
+    },
+    {
+     "name": "混一色",
+     "fu": 4,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m5",
+   "m5"
+  ],
+  "melds": [
+   {
+    "type": "chi",
+    "tiles": [
+     "m1",
+     "m2",
+     "m3"
+    ]
+   },
+   {
+    "type": "chi",
+    "tiles": [
+     "m4",
+     "m5",
+     "m6"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "z1",
+     "z1",
+     "z1"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "z2",
+     "z2",
+     "z2"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 12,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 4,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z1",
+   "z1",
+   "z1",
+   "z5",
+   "z5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 17,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z1",
+   "z1",
+   "z1",
+   "z5",
+   "z5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east",
+   "rinshanGun": true
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 18,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "岭上炮",
+     "fu": 1,
+     "id": "rinshan_gun",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z1",
+   "z1",
+   "z1",
+   "z5",
+   "z5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east",
+   "rinshanFlower": true
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 22,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "岭上花",
+     "fu": 1,
+     "id": "rinshan_flower",
+     "isBonus": false
+    },
+    {
+     "name": "门前自摸",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z1",
+   "z1",
+   "z1",
+   "z5",
+   "z5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east",
+   "kanRiichi": true
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 18,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "杠立",
+     "fu": 1,
+     "id": "kan_riichi",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z1",
+   "z1",
+   "z1",
+   "z5",
+   "z5",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east",
+   "renhe": true
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 24,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "人和",
+     "fu": 7,
+     "id": "renhe",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 7000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "s1",
+   "s1",
+   "s2",
+   "s2",
+   "s3",
+   "s3",
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m3",
+   "m3",
+   "p1",
+   "p1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 14,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "水中月",
+     "fu": 14,
+     "id": "moon_in_water",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "s1",
+   "s1",
+   "s2",
+   "s2",
+   "s3",
+   "s3",
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m3",
+   "m3",
+   "p1",
+   "p4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "not_formed",
+   "totalFu": null,
+   "handType": null,
+   "yaku": [],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "s1",
+   "s1",
+   "s2",
+   "s2",
+   "s3",
+   "s3",
+   "s1",
+   "s1",
+   "s2",
+   "s2",
+   "s3",
+   "s3",
+   "p1",
+   "p1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 70,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "纯正水中月",
+     "fu": 70,
+     "id": "pure_moon_in_water",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": 70000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "s1",
+   "s1",
+   "s2",
+   "s2",
+   "s3",
+   "s3",
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m3",
+   "m3",
+   "p5",
+   "p5"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 14,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "镜中花",
+     "fu": 14,
+     "id": "flower_in_mirror",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "s1",
+   "s1",
+   "s2",
+   "s2",
+   "s3",
+   "s3",
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m3",
+   "m3",
+   "p5",
+   "p6"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p6",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "not_formed",
+   "totalFu": null,
+   "handType": null,
+   "yaku": [],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m9",
+   "p1",
+   "p9",
+   "s1",
+   "s9",
+   "z1",
+   "z2",
+   "z3",
+   "z4",
+   "z5",
+   "z6",
+   "z7",
+   "m1",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 28,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "国士无双",
+     "fu": 28,
+     "id": "thirteen_orphans",
+     "isBonus": false
+    },
+    {
+     "name": "特例加计",
+     "fu": 0,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m3",
+   "m3",
+   "m4",
+   "m4",
+   "m5",
+   "m5",
+   "m6",
+   "m6"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m6",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 28,
+   "handType": "seven_pairs",
+   "yaku": [
+    {
+     "name": "清一色",
+     "fu": 14,
+     "id": "fully_flush",
+     "isBonus": false
+    },
+    {
+     "name": "四归一",
+     "fu": 2,
+     "id": "four_same",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "七对子",
+     "fu": 7,
+     "id": null,
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z7",
+   "z7",
+   "z7",
+   "p5",
+   "p5"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 25,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "全带赤",
+     "fu": 14,
+     "id": "chidaichi",
+     "isBonus": false
+    },
+    {
+     "name": "中役牌",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 21000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "s2",
+   "s2",
+   "s2",
+   "p5",
+   "p5"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 6,
+   "handType": null,
+   "yaku": [
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z2",
+   "z2",
+   "z2",
+   "z4",
+   "z4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "南北通",
+     "fu": 14,
+     "id": "north_south_pass",
+     "isBonus": false
+    },
+    {
+     "name": "倍满加计",
+     "fu": 0,
+     "id": null,
+     "isBonus": true
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "z2",
+   "z2",
+   "z2"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z2",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east",
+   "waterDrop": true
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 29,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "水滴石破",
+     "fu": 14,
+     "id": "water_drop",
+     "isBonus": false
+    },
+    {
+     "name": "门前自摸",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 23100,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "z2",
+   "z2",
+   "z2"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z2",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east",
+   "waterDrop": false
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 15,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "门前自摸",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m9",
+   "p1",
+   "p9",
+   "s1",
+   "s9",
+   "z1",
+   "z2",
+   "z3",
+   "z4",
+   "z5",
+   "z6",
+   "z7",
+   "m1",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 28,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "国士无双",
+     "fu": 28,
+     "id": "thirteen_orphans",
+     "isBonus": false
+    },
+    {
+     "name": "特例加计",
+     "fu": 0,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m9",
+   "p1",
+   "s1",
+   "s9",
+   "z1",
+   "z2",
+   "z3",
+   "z4",
+   "z5",
+   "z6",
+   "z7",
+   "p9"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p9",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 28,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "国士无双",
+     "fu": 28,
+     "id": "thirteen_orphans",
+     "isBonus": false
+    },
+    {
+     "name": "特例加计",
+     "fu": 0,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "z1",
+   "z2",
+   "z2",
+   "z3",
+   "z3",
+   "z4",
+   "z4",
+   "z5",
+   "z5",
+   "z6",
+   "z6",
+   "z7",
+   "z7",
+   "z1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 28,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "字一色",
+     "fu": 28,
+     "id": "all_honors",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": true
+  }
+ },
+ {
+  "hand": [
+   "z5",
+   "z5",
+   "z5",
+   "z5",
+   "z6",
+   "z6",
+   "z6",
+   "z6",
+   "z7",
+   "z7",
+   "z7",
+   "z7",
+   "p1",
+   "p1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 70,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "美人七对（镜中丽人）",
+     "fu": 70,
+     "id": "beauty_seven_pairs",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": 70000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m2",
+   "m3",
+   "m3",
+   "m3",
+   "m4",
+   "m4",
+   "m4",
+   "z1",
+   "z1",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 30,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "四暗刻",
+     "fu": 28,
+     "id": "four_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "s1",
+   "s1",
+   "s2",
+   "s2",
+   "s3",
+   "s3",
+   "s1",
+   "s1",
+   "s2",
+   "s2",
+   "s3",
+   "s3",
+   "p1",
+   "p1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 70,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "纯正水中月",
+     "fu": 70,
+     "id": "pure_moon_in_water",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": 70000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "s1",
+   "s1",
+   "s2",
+   "s2",
+   "s3",
+   "s3",
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m3",
+   "m3",
+   "p1",
+   "p1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 14,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "水中月",
+     "fu": 14,
+     "id": "moon_in_water",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "z5",
+   "z5",
+   "z5",
+   "z5",
+   "z6",
+   "z6",
+   "z6",
+   "z6",
+   "z7",
+   "z7",
+   "z7",
+   "z7",
+   "p1",
+   "p1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 70,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "美人七对（镜中丽人）",
+     "fu": 70,
+     "id": "beauty_seven_pairs",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": 70000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "z3",
+   "z3",
+   "z3",
+   "z6",
+   "z6",
+   "z6",
+   "z7",
+   "z7",
+   "z7",
+   "z5",
+   "z5",
+   "z5",
+   "z2",
+   "z2"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z2",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 30,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "大三元",
+     "fu": 28,
+     "id": "big_three_dragons",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m3",
+   "z5",
+   "z5",
+   "z6",
+   "z6",
+   "z7",
+   "z7",
+   "z1",
+   "z1",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 19,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "小于七",
+     "fu": 14,
+     "id": "less_than_seven",
+     "isBonus": false
+    },
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": null,
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m7",
+   "m7",
+   "m8",
+   "m8",
+   "m9",
+   "z5",
+   "z5",
+   "z6",
+   "z6",
+   "z7",
+   "z7",
+   "z1",
+   "z1",
+   "m9"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m9",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 19,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "大于七",
+     "fu": 14,
+     "id": "greater_than_seven",
+     "isBonus": false
+    },
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": null,
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m3",
+   "z5",
+   "z5",
+   "z6",
+   "z6",
+   "z1",
+   "z1",
+   "z2",
+   "z2",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "seven_pairs",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "七对子",
+     "fu": 7,
+     "id": null,
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m3",
+   "z1",
+   "z1",
+   "z2",
+   "z2",
+   "z3",
+   "z3",
+   "z4",
+   "z4",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "seven_pairs",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "七对子",
+     "fu": 7,
+     "id": null,
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m9",
+   "m9",
+   "m9",
+   "p1",
+   "p1",
+   "p1",
+   "p9",
+   "p9",
+   "p9",
+   "z1",
+   "z1",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 30,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "四暗刻",
+     "fu": 28,
+     "id": "four_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "z1",
+   "z1",
+   "z2",
+   "z2",
+   "z2",
+   "z5",
+   "z5",
+   "z5",
+   "z6",
+   "z6",
+   "z6",
+   "z7",
+   "z7",
+   "z1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 30,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "四暗刻",
+     "fu": 28,
+     "id": "four_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m2",
+   "m2",
+   "m2",
+   "p5",
+   "p5",
+   "p5",
+   "s8",
+   "s8",
+   "s8",
+   "m2",
+   "m3",
+   "z9",
+   "z9",
+   "m4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 15,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "三国将",
+     "fu": 14,
+     "id": "three_kingdoms",
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m2",
+   "p3",
+   "p3",
+   "p3",
+   "z5",
+   "z5",
+   "m1"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "s4",
+     "s4",
+     "s4"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 14,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "对对和",
+     "fu": 3,
+     "id": "all_pungs",
+     "isBonus": false
+    },
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "p1",
+   "p2",
+   "p3",
+   "s4",
+   "s5",
+   "s6",
+   "s7",
+   "s8",
+   "s9",
+   "z5",
+   "z5",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 3,
+   "handType": null,
+   "yaku": [
+    {
+     "name": "二色同顺",
+     "fu": 3,
+     "id": "two_color_straight",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "s1",
+   "s1",
+   "s2",
+   "s2",
+   "s2",
+   "s3",
+   "s3",
+   "s3",
+   "s4",
+   "s5",
+   "s6",
+   "z5",
+   "z5",
+   "s1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 23,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "一色三节高",
+     "fu": 3,
+     "id": "one_color_triple",
+     "isBonus": false
+    },
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m2",
+   "p3",
+   "p3",
+   "p3",
+   "s4",
+   "s5",
+   "s6",
+   "z5",
+   "z5",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 11,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "p1",
+   "p5",
+   "p5",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 24,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "全带赤",
+     "fu": 14,
+     "id": "chidaichi",
+     "isBonus": false
+    },
+    {
+     "name": "边张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 20300,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "p4",
+   "p5",
+   "p6",
+   "s7",
+   "s8",
+   "s9",
+   "s1",
+   "s1",
+   "z5",
+   "z5",
+   "s1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 0,
+   "handType": null,
+   "yaku": [],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "p1",
+   "p1",
+   "p1",
+   "s2",
+   "s3",
+   "s4",
+   "s5",
+   "s6",
+   "s7",
+   "z9",
+   "z9",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 9,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "二色同刻",
+     "fu": 4,
+     "id": "two_color_ko",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "s1",
+   "s2",
+   "s2",
+   "s3",
+   "s4",
+   "s3",
+   "s4",
+   "s5",
+   "m6",
+   "m7",
+   "m8",
+   "z9",
+   "z9",
+   "s3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 9,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "一色三步高",
+     "fu": 4,
+     "id": "one_color_step",
+     "isBonus": false
+    },
+    {
+     "name": "嵌张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "p1",
+   "s9",
+   "s9",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 21,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "全带赤",
+     "fu": 14,
+     "id": "chidaichi",
+     "isBonus": false
+    },
+    {
+     "name": "边张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 18200,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "p1",
+   "p1",
+   "p1",
+   "s1",
+   "s1",
+   "s1",
+   "m2",
+   "m3",
+   "m4",
+   "z9",
+   "z9",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "三色同刻",
+     "fu": 5,
+     "id": "three_color_ko",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "p1",
+   "p9",
+   "p9",
+   "p9",
+   "s9",
+   "s9",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 13,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "纯全带幺",
+     "fu": 7,
+     "id": "pure_fully_terminal",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "边张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m2",
+   "m2",
+   "m2",
+   "p3",
+   "p3",
+   "p3",
+   "s4",
+   "s5",
+   "s6",
+   "z5",
+   "z5",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 11,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "p1",
+   "p1",
+   "p1",
+   "s9",
+   "s9",
+   "s9",
+   "s1",
+   "s2",
+   "s3",
+   "m9",
+   "m9",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 19,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "纯全带幺",
+     "fu": 7,
+     "id": "pure_fully_terminal",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "p1",
+   "p9",
+   "p9",
+   "p9",
+   "m5",
+   "m5",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 9,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "边张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "p1",
+   "p1",
+   "p1",
+   "s9",
+   "s9",
+   "s9",
+   "s1",
+   "s2",
+   "s3",
+   "z1",
+   "z1",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "混全带幺",
+     "fu": 5,
+     "id": "mixed_fully_terminal",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "p1",
+   "p2",
+   "p3",
+   "s1",
+   "s2",
+   "s3",
+   "z2",
+   "z2",
+   "m9",
+   "m9",
+   "z2"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z2",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 15,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "二色同顺",
+     "fu": 3,
+     "id": "two_color_straight",
+     "isBonus": false
+    },
+    {
+     "name": "三色同顺",
+     "fu": 4,
+     "id": "three_color_straight",
+     "isBonus": false
+    },
+    {
+     "name": "混全带幺",
+     "fu": 5,
+     "id": "mixed_fully_terminal",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "z5",
+   "z5",
+   "z5",
+   "z6",
+   "z6",
+   "z6",
+   "z7",
+   "z7",
+   "m1",
+   "m2",
+   "m4",
+   "m5",
+   "m6",
+   "m3"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m3",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 22,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "小三元",
+     "fu": 8,
+     "id": "small_three_dragons",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "边张",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "p5",
+   "p5"
+  ],
+  "melds": [
+   {
+    "type": "ankan",
+    "tiles": [
+     "m1",
+     "m1",
+     "m1",
+     "m1"
+    ]
+   },
+   {
+    "type": "ankan",
+    "tiles": [
+     "m2",
+     "m2",
+     "m2",
+     "m2"
+    ]
+   },
+   {
+    "type": "ankan",
+    "tiles": [
+     "m3",
+     "m3",
+     "m3",
+     "m3"
+    ]
+   },
+   {
+    "type": "minkan",
+    "tiles": [
+     "m4",
+     "m4",
+     "m4",
+     "m4"
+    ]
+   }
+  ],
+  "selfDraw": true,
+  "hasCalled": true,
+  "ankan": 3,
+  "minkan": 1,
+  "firstTurn": false,
+  "winTile": "p5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 29,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "驷马越岭",
+     "fu": 28,
+     "id": "four_kan_daikan",
+     "isBonus": false
+    },
+    {
+     "name": "特例加计",
+     "fu": 0,
+     "id": null,
+     "isBonus": true
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "p5",
+   "p5"
+  ],
+  "melds": [
+   {
+    "type": "ankan",
+    "tiles": [
+     "m1",
+     "m1",
+     "m1",
+     "m1"
+    ]
+   },
+   {
+    "type": "ankan",
+    "tiles": [
+     "m2",
+     "m2",
+     "m2",
+     "m2"
+    ]
+   },
+   {
+    "type": "ankan",
+    "tiles": [
+     "m3",
+     "m3",
+     "m3",
+     "m3"
+    ]
+   },
+   {
+    "type": "minkan",
+    "tiles": [
+     "m4",
+     "m4",
+     "m4",
+     "m4"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 3,
+  "minkan": 1,
+  "firstTurn": false,
+  "winTile": "p5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 37,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "对对和",
+     "fu": 3,
+     "id": "all_pungs",
+     "isBonus": false
+    },
+    {
+     "name": "四归一",
+     "fu": 2,
+     "id": "four_same",
+     "isBonus": false
+    },
+    {
+     "name": "一色三节高",
+     "fu": 3,
+     "id": "one_color_triple",
+     "isBonus": false
+    },
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "全碰刻",
+     "fu": 2,
+     "id": "all_pon",
+     "isBonus": false
+    },
+    {
+     "name": "一暗杠（暗根）",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "一暗杠（暗根）",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "一暗杠（暗根）",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "加杠/明杠（明根）",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "两杠子",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "三杠子",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "p5",
+   "p5"
+  ],
+  "melds": [
+   {
+    "type": "minkan",
+    "tiles": [
+     "m1",
+     "m1",
+     "m1",
+     "m1"
+    ]
+   },
+   {
+    "type": "minkan",
+    "tiles": [
+     "m2",
+     "m2",
+     "m2",
+     "m2"
+    ]
+   },
+   {
+    "type": "minkan",
+    "tiles": [
+     "m3",
+     "m3",
+     "m3",
+     "m3"
+    ]
+   },
+   {
+    "type": "minkan",
+    "tiles": [
+     "m4",
+     "m4",
+     "m4",
+     "m4"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 4,
+  "firstTurn": false,
+  "winTile": "p5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 71,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "四明杠",
+     "fu": 70,
+     "id": "four_minkan",
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 70000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m7",
+   "m7",
+   "m7",
+   "p7",
+   "p7",
+   "p7",
+   "s8",
+   "s8",
+   "z5",
+   "z5",
+   "z5",
+   "s1",
+   "s1",
+   "s8"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s8",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 29,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "四暗刻",
+     "fu": 28,
+     "id": "four_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m2",
+   "m3",
+   "p4",
+   "p5",
+   "p6",
+   "s7",
+   "s8",
+   "s9",
+   "z1",
+   "z1",
+   "z1",
+   "z5",
+   "z5",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 8,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "五门齐",
+     "fu": 5,
+     "id": "five_gates",
+     "isBonus": false
+    },
+    {
+     "name": "东风东",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m9",
+   "m9",
+   "m9",
+   "p9",
+   "p9",
+   "p9",
+   "z1",
+   "z1",
+   "m1"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "s1",
+     "s1",
+     "s1"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 22,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "对对和",
+     "fu": 3,
+     "id": "all_pungs",
+     "isBonus": false
+    },
+    {
+     "name": "混老头",
+     "fu": 4,
+     "id": "mixed_terminals",
+     "isBonus": false
+    },
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "混全带幺",
+     "fu": 4,
+     "id": "mixed_fully_terminal",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m2",
+   "m3",
+   "m1",
+   "m2",
+   "m3",
+   "p4",
+   "p5",
+   "p6",
+   "s7",
+   "s8",
+   "s9",
+   "z5",
+   "z5",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 4,
+   "handType": null,
+   "yaku": [
+    {
+     "name": "同高（一般高）",
+     "fu": 4,
+     "id": "same_high",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "p7",
+   "p8",
+   "p9",
+   "s8",
+   "s9",
+   "z5",
+   "z5",
+   "s7"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s7",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 4,
+   "handType": null,
+   "yaku": [
+    {
+     "name": "二色同顺",
+     "fu": 3,
+     "id": "two_color_straight",
+     "isBonus": false
+    },
+    {
+     "name": "卡七",
+     "fu": 1,
+     "id": "kachi_7",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "p1",
+   "s9",
+   "s9"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s9",
+  "ctx": {
+   "seaMoon": true,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 23,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "海上月",
+     "fu": 1,
+     "id": "sea_moon",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "全带赤",
+     "fu": 14,
+     "id": "chidaichi",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 18900,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "p1",
+   "s9",
+   "s9"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s9",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": true,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 23,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "河中鱼",
+     "fu": 1,
+     "id": "river_fish",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "全带赤",
+     "fu": 14,
+     "id": "chidaichi",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 18900,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "p1",
+   "s9",
+   "s9"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s9",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": true,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 23,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "海底月",
+     "fu": 1,
+     "id": "hai_dei",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "全带赤",
+     "fu": 14,
+     "id": "chidaichi",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 18900,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "p1",
+   "s9",
+   "s9"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s9",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 4,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 25,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "和绝张",
+     "fu": 3,
+     "id": "last_tile",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "全带赤",
+     "fu": 14,
+     "id": "chidaichi",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 20300,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p1",
+   "p1",
+   "s9",
+   "s9"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "s9",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 22,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "一通（一条龙）",
+     "fu": 4,
+     "id": "one_dragon",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "全带赤",
+     "fu": 14,
+     "id": "chidaichi",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 18200,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "m9",
+   "m9",
+   "m5",
+   "m5"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 29,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "九莲宝灯",
+     "fu": 28,
+     "id": "nine_gates",
+     "isBonus": false
+    },
+    {
+     "name": "特例加计",
+     "fu": 0,
+     "id": null,
+     "isBonus": true
+    },
+    {
+     "name": "单钓",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z2",
+   "z2",
+   "z2",
+   "z4",
+   "z4"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "南北通",
+     "fu": 14,
+     "id": "north_south_pass",
+     "isBonus": false
+    },
+    {
+     "name": "倍满加计",
+     "fu": 0,
+     "id": null,
+     "isBonus": true
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m2",
+   "m3",
+   "m1",
+   "m2",
+   "m3",
+   "m7",
+   "m8",
+   "m9",
+   "m7",
+   "m8",
+   "m9",
+   "z5",
+   "z5",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 15,
+   "handType": "seven_pairs",
+   "yaku": [
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "七对子",
+     "fu": 7,
+     "id": null,
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "p8",
+   "p8",
+   "z5",
+   "z5",
+   "p8"
+  ],
+  "melds": [
+   {
+    "type": "pon",
+    "tiles": [
+     "m2",
+     "m2",
+     "m2"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "m4",
+     "m4",
+     "m4"
+    ]
+   },
+   {
+    "type": "pon",
+    "tiles": [
+     "p6",
+     "p6",
+     "p6"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "p8",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 11,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "对对和",
+     "fu": 3,
+     "id": "all_pungs",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "双双逢",
+     "fu": 2,
+     "id": "double_even_ko",
+     "isBonus": false
+    },
+    {
+     "name": "双碰",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m2",
+   "m3",
+   "m7",
+   "m8",
+   "m9",
+   "p1",
+   "p2",
+   "p3",
+   "p7",
+   "p8",
+   "p9",
+   "z5",
+   "z5",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "二色同顺",
+     "fu": 3,
+     "id": "two_color_straight",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "混全带幺",
+     "fu": 5,
+     "id": "mixed_fully_terminal",
+     "isBonus": false
+    },
+    {
+     "name": "同色老少",
+     "fu": 1,
+     "id": "same_color_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "双色双老少",
+     "fu": 2,
+     "id": "two_color_double_old_young",
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m1",
+   "m1",
+   "m2",
+   "m3",
+   "p5",
+   "p6",
+   "p7",
+   "s9",
+   "s9",
+   "s9",
+   "z1",
+   "z1",
+   "m1"
+  ],
+  "melds": [],
+  "selfDraw": false,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "m1",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 5,
+   "handType": null,
+   "yaku": [
+    {
+     "name": "四归一",
+     "fu": 2,
+     "id": "four_same",
+     "isBonus": false
+    },
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m2",
+   "m3",
+   "m5",
+   "m6",
+   "m7",
+   "p7",
+   "p8",
+   "p9",
+   "s9",
+   "s9",
+   "m4"
+  ],
+  "melds": [
+   {
+    "type": "minkan",
+    "tiles": [
+     "m1",
+     "m1",
+     "m1",
+     "m1"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 1,
+  "firstTurn": false,
+  "winTile": "m4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 4,
+   "handType": null,
+   "yaku": [
+    {
+     "name": "四归一",
+     "fu": 2,
+     "id": "four_same",
+     "isBonus": false
+    },
+    {
+     "name": "全数",
+     "fu": 1,
+     "id": "all_number",
+     "isBonus": false
+    },
+    {
+     "name": "加杠/明杠（明根）",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "p6",
+   "p7",
+   "s6",
+   "s7",
+   "s8",
+   "z1",
+   "z1",
+   "p5"
+  ],
+  "melds": [
+   {
+    "type": "minkan",
+    "tiles": [
+     "m1",
+     "m1",
+     "m1",
+     "m1"
+    ]
+   },
+   {
+    "type": "minkan",
+    "tiles": [
+     "p2",
+     "p2",
+     "p2",
+     "p2"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 2,
+  "firstTurn": false,
+  "winTile": "p5",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 6,
+   "handType": null,
+   "yaku": [
+    {
+     "name": "四归一",
+     "fu": 2,
+     "id": "four_same",
+     "isBonus": false
+    },
+    {
+     "name": "加杠/明杠（明根）",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "加杠/明杠（明根）",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "两杠子",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "s9",
+   "s9",
+   "z1",
+   "z1",
+   "s9"
+  ],
+  "melds": [
+   {
+    "type": "minkan",
+    "tiles": [
+     "m1",
+     "m1",
+     "m1",
+     "m1"
+    ]
+   },
+   {
+    "type": "minkan",
+    "tiles": [
+     "p2",
+     "p2",
+     "p2",
+     "p2"
+    ]
+   },
+   {
+    "type": "minkan",
+    "tiles": [
+     "s3",
+     "s3",
+     "s3",
+     "s3"
+    ]
+   }
+  ],
+  "selfDraw": false,
+  "hasCalled": true,
+  "ankan": 0,
+  "minkan": 3,
+  "firstTurn": false,
+  "winTile": "s9",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "standard_hand",
+   "yaku": [
+    {
+     "name": "对对和",
+     "fu": 3,
+     "id": "all_pungs",
+     "isBonus": false
+    },
+    {
+     "name": "四归一",
+     "fu": 2,
+     "id": "four_same",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
+     "isBonus": false
+    },
+    {
+     "name": "加杠/明杠（明根）",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "加杠/明杠（明根）",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "加杠/明杠（明根）",
+     "fu": 1,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "两杠子",
+     "fu": 2,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "三杠子",
+     "fu": 4,
+     "id": null,
+     "isBonus": false
+    },
+    {
+     "name": "筋和",
+     "fu": 1,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z2",
+   "z2",
+   "z2",
+   "z4",
+   "z4"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "south",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 30,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "南北自通",
+     "fu": 28,
+     "id": "north_south_self",
+     "isBonus": false
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": 35000,
+   "sevenHonors": false
+  }
+ },
+ {
+  "hand": [
+   "m1",
+   "m2",
+   "m3",
+   "m4",
+   "m5",
+   "m6",
+   "m7",
+   "m8",
+   "m9",
+   "z2",
+   "z2",
+   "z2",
+   "z4",
+   "z4"
+  ],
+  "melds": [],
+  "selfDraw": true,
+  "hasCalled": false,
+  "ankan": 0,
+  "minkan": 0,
+  "firstTurn": false,
+  "winTile": "z4",
+  "ctx": {
+   "seaMoon": false,
+   "haiDei": false,
+   "riverFish": false,
+   "lastTileVisible": 0,
+   "seatWind": "east",
+   "roundWind": "east"
+  },
+  "result": {
+   "success": true,
+   "reason": null,
+   "totalFu": 16,
+   "handType": "highyaku",
+   "yaku": [
+    {
+     "name": "南北通",
+     "fu": 14,
+     "id": "north_south_pass",
+     "isBonus": false
+    },
+    {
+     "name": "倍满加计",
+     "fu": 0,
+     "id": null,
+     "isBonus": true
+    },
+    {
+     "name": "单钓",
+     "fu": 2,
+     "id": null,
+     "isBonus": true
+    }
+   ],
+   "specialPoints": null,
+   "sevenHonors": false
+  }
+ }
+]
