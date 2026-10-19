@@ -2,7 +2,7 @@ using Tiisu.App.Assets;
 
 namespace Tiisu.App.Ui;
 
-/// <summary>主窗口：只做一件事 —— 把一个铺满的 BoardControl 丢上去。</summary>
+/// <summary>主窗口：只做一件事 —— 把一个铺满的 ScreenHost 丢上去。</summary>
 public sealed class MainForm : Form
 {
     private readonly TileAtlas _atlas;
@@ -18,11 +18,11 @@ public sealed class MainForm : Form
         BackColor = Color.Black;
         KeyPreview = true;
 
-        Controls.Add(new BoardControl(atlas));
+        Controls.Add(new ScreenHost(atlas));
 
         KeyDown += (_, e) =>
         {
-            if (e.KeyCode == Keys.Escape)
+            if (e.KeyCode == Keys.Escape && e.Handled == false)
             {
                 Close();
             }

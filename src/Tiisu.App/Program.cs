@@ -6,6 +6,7 @@ using SkiaSharp;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
 using Tiisu.App.Ui;
+using UiScreen = Tiisu.App.Ui.Screen;
 
 namespace Tiisu.App;
 
@@ -16,15 +17,16 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
-        // 无窗口验证：把场景渲染成 PNG（CI / 无显示器）
+        // 无窗口验证：--render <png> [time] [table|menu]
         if (args.Length >= 2 && args[0] == "--render")
         {
             double time = args.Length >= 3 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 0.6;
-            RenderToPng(args[1], time);
+            string screen = args.Length >= 4 ? args[3] : "table";
+            RenderToPng(args[1], time, screen);
             return;
         }
 
-        // 帧率基准：离屏循环 N 帧，输出平均耗时
+        // 帧率基准：--bench <frames>
         if (args.Length >= 1 && args[0] == "--bench")
         {
             int frames = args.Length >= 2 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 300;
@@ -33,41 +35,50 @@ internal static class Program
         }
 
         ApplicationConfiguration.Initialize();
-        var atlas = new TileAtlas(AssetsDir);   // 所有权交给 MainForm（Dispose 时释放）
+        var atlas = new TileAtlas(AssetsDir);   // 所有权交给 MainForm
         Application.Run(new MainForm(atlas));
     }
 
-    private static void RenderToPng(string path, double time)
+    private static UiScreen CreateScreen(string name, TileAtlas? atlas) => name switch
+    {
+        "menu" => new MenuScreen(
+            UiLayout.Load(Path.Combine(AssetsDir, "layout", "menu.json")),
+            _ => false),
+        _ => new TableScreen(atlas),
+    };
+
+    private static void RenderToPng(string path, double time, string screenName)
     {
         using var atlas = new TileAtlas(AssetsDir);
-        var info = new SKImageInfo((int)BoardScene.LogicalWidth, (int)BoardScene.LogicalHeight);
+        var info = new SKImageInfo((int)UiScreen.Width, (int)UiScreen.Height);
         using var surface = SKSurface.Create(info);
         var canvas = surface.Canvas;
         canvas.Clear(SKColors.Black);
 
+        var screen = CreateScreen(screenName, atlas);
         using (var ctx = new SkiaCanvas(canvas, atlas))
         {
-            new BoardScene(atlas).Draw(ctx, time, hoverIndex: 4);
+            screen.Update(time);
+            screen.Draw(ctx, time);
         }
 
         using var image = surface.Snapshot();
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(path, data.ToArray());
-        Console.WriteLine("rendered -> " + path + "  (atlas loaded: " + atlas.IsLoaded + ")");
+        Console.WriteLine($"rendered {screenName} -> {path}  (atlas loaded: {atlas.IsLoaded})");
     }
 
     private static void Bench(int frames)
     {
         using var atlas = new TileAtlas(AssetsDir);
-        var info = new SKImageInfo((int)BoardScene.LogicalWidth, (int)BoardScene.LogicalHeight);
+        var info = new SKImageInfo((int)UiScreen.Width, (int)UiScreen.Height);
         using var surface = SKSurface.Create(info);
-        var scene = new BoardScene(atlas);
+        var table = new TableScreen(atlas);
 
-        // 预热
         for (int i = 0; i < 10; i++)
         {
             using var warm = new SkiaCanvas(surface.Canvas, atlas);
-            scene.Draw(warm, i * 0.016, -1);
+            table.Draw(warm, i * 0.016);
         }
 
         var times = new double[frames];
@@ -76,7 +87,7 @@ internal static class Program
         {
             var one = Stopwatch.StartNew();
             using var ctx = new SkiaCanvas(surface.Canvas, atlas);
-            scene.Draw(ctx, i * 0.016, -1);
+            table.Draw(ctx, i * 0.016);
             one.Stop();
             times[i] = one.Elapsed.TotalMilliseconds;
         }
@@ -84,9 +95,9 @@ internal static class Program
         total.Stop();
         Array.Sort(times);
         double avg = total.Elapsed.TotalMilliseconds / frames;
-        double p95 = times[(int)(frames * 0.95) - 1 < 0 ? 0 : (int)(frames * 0.95) - 1];
+        int idx = Math.Clamp((int)(frames * 0.95) - 1, 0, frames - 1);
         Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
             "bench: {0} frames, avg {1:F2} ms ({2:F1} fps), p95 {3:F2} ms, atlas={4}",
-            frames, avg, 1000.0 / avg, p95, atlas.IsLoaded));
+            frames, avg, 1000.0 / avg, times[idx], atlas.IsLoaded));
     }
 }

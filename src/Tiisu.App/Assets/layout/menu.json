@@ -1,0 +1,22 @@
+{
+  "width": 1280,
+  "height": 720,
+  "elements": [
+    { "id": "bg", "type": "rect", "x": 0, "y": 0, "w": 1280, "h": 720, "radius": 0, "fill": "#0a1014" },
+    { "id": "title", "type": "text", "x": 0, "y": 120, "w": 1280, "h": 90,
+      "text": "七子麻将", "fontSize": 64, "fontColor": "#f2e6be" },
+    { "id": "subtitle", "type": "text", "x": 0, "y": 210, "w": 1280, "h": 40,
+      "text": "Tiisu Mahjong · 预览骨架", "fontSize": 22, "fontColor": "#9fb4aa" },
+
+    { "id": "tileA", "type": "tile", "x": 300, "y": 300, "w": 72, "h": 100, "tileId": "7m" },
+    { "id": "tileB", "type": "tile", "x": 390, "y": 300, "w": 72, "h": 100, "tileId": "7p" },
+    { "id": "tileC", "type": "tile", "x": 480, "y": 300, "w": 72, "h": 100, "tileId": "7s" },
+
+    { "id": "btnStart", "type": "button", "x": 500, "y": 460, "w": 280, "h": 64, "radius": 14,
+      "text": "开始对局（占位）", "action": "start", "fontSize": 24 },
+    { "id": "btnResume", "type": "button", "x": 500, "y": 540, "w": 280, "h": 64, "radius": 14,
+      "text": "返回牌桌", "action": "resume", "fontSize": 24 },
+    { "id": "btnQuit", "type": "button", "x": 500, "y": 620, "w": 280, "h": 64, "radius": 14,
+      "text": "退出", "action": "quit", "fontSize": 24 }
+  ]
+}
