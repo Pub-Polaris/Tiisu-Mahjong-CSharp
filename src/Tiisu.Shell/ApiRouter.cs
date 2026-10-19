@@ -22,6 +22,9 @@ internal sealed class ApiRouter
 
     public ApiRouter(string dataDirectory) => _store = new DataStore(dataDirectory);
 
+    /// <summary>与引擎宿主共享同一个 DataStore（统计 / 日志写入不会被 API 读到旧值）。</summary>
+    public DataStore Store => _store;
+
     public void Handle(CoreWebView2 core, CoreWebView2WebResourceRequestedEventArgs args, Action<string> log)
     {
         var uri = new Uri(args.Request.Uri);

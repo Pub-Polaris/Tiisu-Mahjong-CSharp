@@ -2,10 +2,12 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using SkiaSharp;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
 using Tiisu.App.Ui;
+using Tiisu.App.Table;
 using UiScreen = Tiisu.App.Ui.Screen;
 
 namespace Tiisu.App;
@@ -23,6 +25,13 @@ internal static class Program
             double time = args.Length >= 3 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 0.6;
             string screen = args.Length >= 4 ? args[3] : "table";
             RenderToPng(args[1], time, screen);
+            return;
+        }
+
+        // Skia 牌桌渲染（布局验证）：--render-table <png>
+        if (args.Length >= 2 && args[0] == "--render-table")
+        {
+            RenderTableToPng(args[1]);
             return;
         }
 
@@ -99,5 +108,62 @@ internal static class Program
         Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
             "bench: {0} frames, avg {1:F2} ms ({2:F1} fps), p95 {3:F2} ms, atlas={4}",
             frames, avg, 1000.0 / avg, times[idx], atlas.IsLoaded));
+    }
+
+    private static void RenderTableToPng(string path)
+    {
+        using var atlas = new TileAtlas(AssetsDir);
+        var info = new SKImageInfo((int)TableLayout.Width, (int)TableLayout.Height);
+        using var surface = SKSurface.Create(info);
+        var canvas = surface.Canvas;
+        canvas.Clear(SKColors.Black);
+
+        var vm = SampleTableModel();
+        using (var ctx = new SkiaCanvas(canvas, atlas))
+        {
+            new TableScene().Draw(ctx, vm, 0.6);
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+        Console.WriteLine("rendered table -> " + path);
+    }
+
+    private static TableViewModel SampleTableModel()
+    {
+        TileView T(string id) => new(id);
+        MeldView M(string type, params string[] ids) => new() { Type = type, Tiles = ids.Select(T).ToArray() };
+
+        var hand0 = new[] { "1m", "2m", "3m", "5m", "5m", "7m", "2p", "3p", "4p", "1s", "5s", "9s", "7z", "3z" }
+            .Select(T).ToArray();
+        var river0 = new[] { "3p", "8p", "1z", "9s", "2p", "5s", "6z", "7m", "1p", "4s", "2z", "4m" }.Select(T).ToArray();
+        var river1 = new[] { "2m", "9m", "6p", "3z", "7s", "5z", "1m", "4z", "6s" }.Select(T).ToArray();
+        var river2 = new[] { "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "1z", "2z", "3z", "4z", "5z", "6z" }.Select(T).ToArray();
+        var river3 = new[] { "9m", "8m", "7m", "6m", "5m", "4m", "3m" }.Select(T).ToArray();
+
+        var seats = new List<SeatView>
+        {
+            new() { Index = 0, Name = "你", Wind = "东", Score = 49000, IsDealer = true, IsHuman = true, IsTurn = true,
+                    HandCount = 14, Hand = hand0, Discards = river0,
+                    Melds = new[] { M("pon", "2s", "2s", "2s") } },
+            new() { Index = 1, Name = "南 AI", Wind = "南", Score = 39200, HandCount = 13, Discards = river1,
+                    Melds = new[] { M("chi", "4m", "5m", "6m"), M("kan_minkan", "3s", "3s", "3s", "3s") } },
+            new() { Index = 2, Name = "西 AI", Wind = "西", Score = 58800, HandCount = 13, Discards = river2,
+                    Melds = new[] { M("pon", "7z", "7z", "7z"), M("pon", "1z", "1z", "1z") } },
+            new() { Index = 3, Name = "北 AI", Wind = "北", Score = 49000, HandCount = 13, Discards = river3,
+                    Melds = new[] { M("chi", "7s", "8s", "9s") } },
+        };
+
+        return new TableViewModel
+        {
+            RoundLabel = "东 1 局 · 0 本场",
+            WallCount = 36,
+            RinshanCount = 4,
+            Honba = 0,
+            Kyotaku = 0,
+            TurnIndex = 0,
+            Seats = seats,
+        };
     }
 }

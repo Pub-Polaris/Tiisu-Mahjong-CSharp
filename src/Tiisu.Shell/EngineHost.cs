@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Tiisu.Api;
@@ -39,6 +40,20 @@ public sealed partial class EngineHost
     private readonly PointsConfig _points;
     private readonly IRandomSource _random = new SharedRandomSource();
     private readonly string[] _uuids = new string[MahjongEngine.PlayerCount];
+    private readonly DataStore _store;
+    private readonly List<JsonObject> _messages = new();
+    private readonly List<JsonObject> _roundLogEvents = new();
+    private readonly List<int> _roundWinners = new();
+
+    private string _session = string.Empty;
+    private string? _roundEndKind;
+    private string? _roundEndReason;
+    private bool _roundSelfDraw;
+    private WinResult? _roundWinResult;
+    private bool _roundFinalized;
+    private bool _roundStatReported;
+    private bool _matchOverMessageAdded;
+    private string _matchOverReason = string.Empty;
 
     private MahjongEngine _engine;
     private WinChecker _checker;
@@ -68,13 +83,25 @@ public sealed partial class EngineHost
     private int _actLeft;
 
     public EngineHost()
+        : this(new DataStore(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "TiisuMahjong")))
     {
+    }
+
+    public EngineHost(DataStore store)
+    {
+        _store = store;
         _yaku = YakuData.LoadDefault();
         _points = PointsConfig.LoadDefault();
         _checker = new WinChecker(_yaku, Array.Empty<string>());
         _engine = new MahjongEngine(_points, _checker, _yaku, _random);
         Array.Clear(_uuids);
+        _session = DateTime.Now.ToString("yyyyMMdd_HHmmss", System.Globalization.CultureInfo.InvariantCulture);
     }
+
+    /// <summary>整场已完成的局数（含连庄；供 --smoke 判断「已打完至少一局」）。</summary>
+    public int CompletedRounds { get; private set; }
 
     // ══════════════════════════════════════════════════════════════
     // 生命周期 / 设置
@@ -111,6 +138,13 @@ public sealed partial class EngineHost
         _allAI = false;
         _demoMode = false;
         ResetRoundWindows();
+        CompletedRounds = 0;
+        _matchOverReason = string.Empty;
+        _matchOverMessageAdded = false;
+        _session = DateTime.Now.ToString("yyyyMMdd_HHmmss", System.Globalization.CultureInfo.InvariantCulture);
+        _messages.Clear();
+        _roundLogEvents.Clear();
+        ResetRoundAccounting();
         return SnapshotJson();
     }
 
@@ -154,6 +188,11 @@ public sealed partial class EngineHost
         _demoMode = false;
         _speed = 250;
         ResetRoundWindows();
+        _matchOverReason = string.Empty;
+        _matchOverMessageAdded = false;
+        _messages.Clear();
+        _roundLogEvents.Clear();
+        ResetRoundAccounting();
         return SnapshotJson();
     }
 
@@ -258,6 +297,7 @@ public sealed partial class EngineHost
         };
 
         _engine.StartNewRound(layout.Deal);
+        BeginRound();
     }
 
     /// <summary>
@@ -271,9 +311,18 @@ public sealed partial class EngineHost
             return SnapshotJson();
         }
 
+        FinalizeRound();
+        if (_engine.MatchOver)
+        {
+            EnsureMatchOverMessage();
+            return SnapshotJson();
+        }
+
         _stateOverride = null;
         ResetRoundWindows();
-        if (_engine.AdvanceRound())
+        bool advanced = _engine.AdvanceRound();
+        ReportRoundStatOnce();
+        if (advanced)
         {
             _engine.HandNumber++;
             StartNewRoundInternal();
@@ -281,6 +330,8 @@ public sealed partial class EngineHost
         else
         {
             _demoMode = false;
+            _matchOverReason = "终局";
+            EnsureMatchOverMessage();
         }
 
         return SnapshotJson();
@@ -325,9 +376,12 @@ public sealed partial class EngineHost
             var drawn = _engine.DrawFromWall(player);
             if (drawn is null)
             {
-                _engine.Flow();
+                EndAsExhaustiveFlow();
                 return;
             }
+
+            AddMessage(player.Name + " 摸 " + Display(drawn.Value));
+            LogStep(pi, "draw", drawn);
         }
         else
         {
@@ -364,17 +418,19 @@ public sealed partial class EngineHost
         int discardIndex = AiPlayer.ChooseDiscardIndex(player.Hand, _random.NextDouble());
         if (discardIndex < 0 || discardIndex >= player.Hand.Count)
         {
-            _engine.Flow();
+            EndAsExhaustiveFlow();
             return;
         }
 
         var discarded = _engine.Discard(player, player.Hand[discardIndex]);
         if (discarded is null)
         {
-            _engine.Flow();
+            EndAsExhaustiveFlow();
             return;
         }
 
+        AddMessage(player.Name + " 打 " + Display(discarded.Value));
+        LogStep(pi, "discard", discarded);
         AfterDiscard(discarded.Value, pi);
     }
 
@@ -386,6 +442,7 @@ public sealed partial class EngineHost
     {
         if (_engine.CheckSpecialFlow())
         {
+            SetRoundEnd("special_flow", "special");
             return;
         }
 
@@ -430,6 +487,20 @@ public sealed partial class EngineHost
             player.Hand.Add(discarded);
             player.Hand.Sort();
             winners.Add(new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)));
+        }
+
+        if (winners.Count >= 3)
+        {
+            SetRoundEnd("special_flow", "triple_ron");
+        }
+        else
+        {
+            SetRoundEnd("multi_ron", null);
+            _roundWinners.Clear();
+            foreach (var winner in winners)
+            {
+                _roundWinners.Add(winner.PlayerIndex);
+            }
         }
 
         _engine.DeclareMultiRon(winners, discPlayer);
@@ -480,6 +551,7 @@ public sealed partial class EngineHost
             discPlayer,
             decision.ChiTrio,
             _engine.PeekRinshanTile());
+        AfterMeld(decision.Target, decision.Type, discarded);
     }
 
     private void NextTurn()
@@ -487,6 +559,11 @@ public sealed partial class EngineHost
         _engine.NextTurn();
         if (_engine.GameOver)
         {
+            if (_roundEndKind is null)
+            {
+                SetRoundEnd("flow", "exhaustive");
+            }
+
             return;
         }
 
@@ -501,10 +578,12 @@ public sealed partial class EngineHost
             var drawn = _engine.DrawFromWall(_engine.Players[human]);
             if (drawn is null)
             {
-                _engine.Flow();
+                EndAsExhaustiveFlow();
                 return;
             }
 
+            AddMessage(_engine.Players[human].Name + " 摸 " + Display(drawn.Value));
+            LogStep(human, "draw", drawn);
             _stateOverride = "human_discard";
         }
         else if (_engine.State == EngineState.AiTurn)
@@ -624,6 +703,7 @@ public sealed partial class EngineHost
         {
             if (robbers.Count >= 3)
             {
+                SetRoundEnd("special_flow", "triple_ron_chankan");
                 _engine.DeclareSpecialFlow("三家和牌（抢杠）→ 自动流局");
                 return false;
             }
@@ -631,11 +711,31 @@ public sealed partial class EngineHost
             var winners = robbers
                 .Select(c => new RonWinner(c.PlayerIndex, SelfPlayDriver.ToSettlement(c.Result)))
                 .ToList();
+            SetRoundEnd("multi_ron", null);
+            _roundWinners.Clear();
+            foreach (var winner in winners)
+            {
+                _roundWinners.Add(winner.PlayerIndex);
+            }
+
             _engine.DeclareMultiRon(winners, player.Index);
             return false;
         }
 
-        return _engine.DoKan(player, tile, type, _engine.PeekRinshanTile());
+        bool success = _engine.DoKan(player, tile, type, _engine.PeekRinshanTile());
+        if (success)
+        {
+            string code = type == MeldType.Ankan ? "kan_ankan" : "kan_kakan";
+            AddMessage(player.Name + (type == MeldType.Ankan ? " 暗杠 " : " 加杠 ") + Display(tile));
+            LogStep(player.Index, code, player.LastDraw, "rinshan");
+            if (player.LastDraw is { } drawn)
+            {
+                AddMessage(player.Name + " 岭上摸 " + Display(drawn));
+                LogStep(player.Index, "rinshan_draw", drawn);
+            }
+        }
+
+        return success;
     }
 
     private static bool IsKokushiShape(Player player)
@@ -688,6 +788,8 @@ public sealed partial class EngineHost
             return SnapshotJson();
         }
 
+        AddMessage(player.Name + " 打 " + Display(discarded.Value));
+        LogStep(human, "discard", discarded);
         AfterDiscard(discarded.Value, human);
         return SnapshotJson();
     }
@@ -729,6 +831,7 @@ public sealed partial class EngineHost
             pending.Discarder,
             chiTrio,
             _engine.PeekRinshanTile());
+        AfterMeld(human, type, pending.Tile);
 
         return SnapshotJson();
     }
@@ -806,6 +909,7 @@ public sealed partial class EngineHost
             pending.Discarder,
             decision.ChiTrio,
             _engine.PeekRinshanTile());
+        AfterMeld(decision.Target, decision.Type, pending.Tile);
     }
 
     /// <summary><c>humanRon()</c>。</summary>
@@ -834,6 +938,13 @@ public sealed partial class EngineHost
             player.Hand.Add(pending.Tile);
             player.Hand.Sort();
             winners.Add(new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)));
+        }
+
+        SetRoundEnd("multi_ron", null);
+        _roundWinners.Clear();
+        foreach (var winner in winners)
+        {
+            _roundWinners.Add(winner.PlayerIndex);
         }
 
         _engine.DeclareMultiRon(winners, pending.Discarder);
@@ -903,6 +1014,11 @@ public sealed partial class EngineHost
     {
         _stateOverride = null;
         ClearAction();
+        SetRoundEnd(result.SevenHonors ? "tiisuin" : "win_tsumo", null);
+        _roundWinners.Clear();
+        _roundWinners.Add(playerIndex);
+        _roundSelfDraw = true;
+        _roundWinResult = result;
         _engine.DeclareWin(playerIndex, selfDraw: true, SelfPlayDriver.ToSettlement(result));
     }
 
@@ -924,6 +1040,10 @@ public sealed partial class EngineHost
         _stateOverride = null;
         ClearAction();
         string picked = !string.IsNullOrEmpty(reason) && options.Contains(reason) ? reason! : options[0];
+        string code = picked == "九种九牌" ? "nine_orphans"
+            : picked == "十三不靠" ? "thirteen_unrelated"
+            : "special";
+        SetRoundEnd("flow", code);
         _engine.DeclarePushFlow(picked, human);
         return SnapshotJson();
     }
@@ -1071,9 +1191,12 @@ public sealed partial class EngineHost
                 var drawn = _engine.DrawFromWall(player);
                 if (drawn is null)
                 {
-                    _engine.Flow();
+                    EndAsExhaustiveFlow();
                     return;
                 }
+
+                AddMessage(player.Name + " 摸 " + Display(drawn.Value));
+                LogStep(human, "draw", drawn);
             }
 
             _stateOverride = "human_discard";
@@ -1168,6 +1291,423 @@ public sealed partial class EngineHost
     {
         var (each, remainder) = _engine.SplitPayment((int)total);
         return new JsonObject { ["each"] = each, ["remainder"] = remainder }.ToJsonString();
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // 消息 / 局末统计 / 牌型日志
+    // ══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 取走自上次调用以来的 UI 消息（JSON 数组，元素 <c>{text, important}</c>）。
+    /// <c>Web/js/host_adapter.js</c> 每次修改型调用后逐条 <c>showMsg(text, important)</c>。
+    /// </summary>
+    public string TakeMessages()
+    {
+        var array = new JsonArray();
+        foreach (var message in _messages)
+        {
+            array.Add(message.DeepClone());
+        }
+
+        _messages.Clear();
+        return array.ToJsonString();
+    }
+
+    private void AddMessage(string text, bool important = false)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        _messages.Add(new JsonObject
+        {
+            ["text"] = text,
+            ["important"] = important,
+        });
+    }
+
+    private void BeginRound() => ResetRoundAccounting();
+
+    private void ResetRoundAccounting()
+    {
+        _roundEndKind = null;
+        _roundEndReason = null;
+        _roundSelfDraw = false;
+        _roundWinResult = null;
+        _roundFinalized = false;
+        _roundStatReported = false;
+        _roundWinners.Clear();
+        _roundLogEvents.Clear();
+    }
+
+    private void SetRoundEnd(string kind, string? reason)
+    {
+        if (_roundEndKind is not null)
+        {
+            return;
+        }
+
+        _roundEndKind = kind;
+        _roundEndReason = reason;
+    }
+
+    private void EndAsExhaustiveFlow()
+    {
+        SetRoundEnd("flow", "exhaustive");
+        _engine.Flow();
+    }
+
+    /// <summary>一局结束：统计、终局文案、roundlog 落盘、/api/round_end 语义。</summary>
+    private void FinalizeRound()
+    {
+        if (!_engine.GameOver || _roundFinalized)
+        {
+            return;
+        }
+
+        _roundFinalized = true;
+        CompletedRounds++;
+
+        string kind = _roundEndKind ?? (_engine.MatchOver ? "tiisuin" : "flow");
+        if (kind is "win_tsumo" or "win_ron" or "multi_ron")
+        {
+            foreach (int winner in _roundWinners)
+            {
+                _store.PostStats(new JsonObject
+                {
+                    ["wins"] = 1,
+                    ["tiisuin"] = 0,
+                    ["player"] = _engine.Players[winner].Name,
+                });
+            }
+
+            AddMessage(BuildWinMessage(kind), important: true);
+        }
+        else if (kind == "tiisuin")
+        {
+            int winner = _roundWinners.Count > 0 ? _roundWinners[0] : _engine.TurnIndex;
+            var witness = new JsonArray();
+            for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+            {
+                if (i != winner)
+                {
+                    witness.Add(_engine.Players[i].Name);
+                }
+            }
+
+            _store.PostStats(new JsonObject
+            {
+                ["wins"] = 0,
+                ["rounds"] = 0,
+                ["tiisuin"] = 1,
+                ["player"] = _engine.Players[winner].Name,
+                ["witness"] = witness,
+            });
+
+            AddMessage("★🏆 " + _engine.Players[winner].Name + " 做出大七星（七种字牌七对子）→ 本场立即结束", important: true);
+        }
+        else
+        {
+            AddMessage(BuildFlowMessage(kind, _roundEndReason), important: false);
+        }
+
+        if (_engine.MatchOver)
+        {
+            _matchOverReason = kind == "tiisuin" ? "大七星" : "终局";
+            ReportRoundStatOnce();
+        }
+
+        AppendTerminalRoundLog(kind);
+        FlushRoundLog();
+        CallRoundEnd();
+    }
+
+    private string BuildWinMessage(string kind)
+    {
+        if (kind == "multi_ron")
+        {
+            var names = _roundWinners.Select(i => _engine.Players[i].Name);
+            return "🎯 多家荣和（" + _roundWinners.Count + "家）：" + string.Join("、", names);
+        }
+
+        int winner = _roundWinners.Count > 0 ? _roundWinners[0] : _engine.TurnIndex;
+        var player = _engine.Players[winner];
+        string action = _roundSelfDraw ? "自摸" : "荣和";
+        int fu = _roundWinResult?.TotalFu ?? 0;
+        return "🏆 " + player.Name + " " + action + " · " + fu + "赋";
+    }
+
+    private static string BuildFlowMessage(string kind, string? reason)
+    {
+        if (kind == "special_flow")
+        {
+            return "⏸ 特殊流局 · 庄家连庄（本场不变）";
+        }
+
+        string text = reason switch
+        {
+            "nine_orphans" => "九种九牌流局",
+            "thirteen_unrelated" => "十三不靠流局",
+            "exhaustive" => "流局 · 牌山已空",
+            _ => "流局",
+        };
+        return "🌐 " + text;
+    }
+
+    private void EnsureMatchOverMessage()
+    {
+        if (_matchOverMessageAdded)
+        {
+            return;
+        }
+
+        _matchOverMessageAdded = true;
+        if (string.IsNullOrEmpty(_matchOverReason))
+        {
+            _matchOverReason = "终局";
+        }
+
+        var order = Enumerable.Range(0, MahjongEngine.PlayerCount)
+            .OrderByDescending(i => _engine.Scores[i])
+            .ToList();
+        var parts = new List<string>();
+        for (int pos = 0; pos < order.Count; pos++)
+        {
+            int i = order[pos];
+            int score = _engine.Scores[i];
+            double rank = i < _engine.RankPoints.Count ? _engine.RankPoints[i] : 0;
+            parts.Add(
+                (pos + 1) + "位 " + _engine.Players[i].Name
+                + " (" + (score >= 0 ? "+" : string.Empty) + score
+                + "，段位" + (rank >= 0 ? "+" : string.Empty)
+                + rank.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + ")");
+        }
+
+        AddMessage("🏁 对局结束! " + string.Join(" · ", parts), important: true);
+    }
+
+    private void ReportRoundStatOnce()
+    {
+        if (_roundStatReported)
+        {
+            return;
+        }
+
+        _roundStatReported = true;
+        _store.PostStats(new JsonObject { ["rounds"] = 1 });
+    }
+
+    private void CallRoundEnd()
+    {
+        try
+        {
+            string? archived = _store.ArchiveSession(_session);
+            Log("round_end: archived:" + (archived ?? "none"));
+        }
+        catch (Exception ex)
+        {
+            Log("round_end 失败: " + ex.Message);
+        }
+    }
+
+    private void AfterMeld(int playerIndex, MeldType type, Tile tile)
+    {
+        var player = _engine.Players[playerIndex];
+        string action = type switch
+        {
+            MeldType.Chi => "chi",
+            MeldType.Pon => "pon",
+            MeldType.Minkan => "kan_minkan",
+            MeldType.Ankan => "kan_ankan",
+            _ => "kan_kakan",
+        };
+        string verb = type switch
+        {
+            MeldType.Chi => "吃",
+            MeldType.Pon => "碰",
+            MeldType.Minkan => "明杠",
+            MeldType.Ankan => "暗杠",
+            _ => "加杠",
+        };
+
+        AddMessage(player.Name + " " + verb + " " + Display(tile));
+        LogStep(playerIndex, action, tile);
+
+        if (type == MeldType.Minkan && player.LastDraw is { } rinshan)
+        {
+            AddMessage(player.Name + " 岭上摸 " + Display(rinshan));
+            LogStep(playerIndex, "rinshan_draw", rinshan);
+        }
+    }
+
+    /// <summary>追加一条零 CJK 的 roundlog step（字段口径见 Tiisu.Api/LOG-FORMAT.md）。</summary>
+    private void LogStep(int playerIndex, string action, Tile? tile, string? reason = null, string? via = null)
+    {
+        if (!_recordTiles)
+        {
+            return;
+        }
+
+        if (playerIndex < 0 || playerIndex >= MahjongEngine.PlayerCount)
+        {
+            return;
+        }
+
+        var player = _engine.Players[playerIndex];
+        var melds = new JsonArray();
+        foreach (var meld in player.Melds)
+        {
+            melds.Add(new JsonObject
+            {
+                ["k"] = meld.Type.Wire(),
+                ["t"] = TilesText(meld.Tiles),
+            });
+        }
+
+        var discards = new JsonArray();
+        foreach (var discard in player.Discards)
+        {
+            discards.Add(TileText(discard));
+        }
+
+        var entry = new JsonObject
+        {
+            ["type"] = "step",
+            ["a"] = action,
+            ["p"] = playerIndex,
+            ["round"] = _engine.HandNumber,
+            ["hand"] = HandText(player.Hand),
+            ["melds"] = melds,
+            ["discards"] = discards,
+            ["wall"] = _engine.Wall.Count,
+            ["rinshan"] = _engine.Rinshan.Count,
+            ["h"] = _engine.Honba,
+            ["rw"] = _engine.RoundWindIdx,
+            ["dc"] = _engine.DealerCount,
+            ["x"] = _engine.InExtension ? 1 : 0,
+            ["w"] = player.SeatWind.Wire(),
+            ["d"] = player.IsDealer ? 1 : 0,
+            ["r"] = 0,
+        };
+
+        if (tile is { } value)
+        {
+            entry["t"] = TileText(value);
+        }
+
+        if (reason is not null)
+        {
+            entry["reason"] = reason;
+        }
+
+        if (via is not null)
+        {
+            entry["via"] = via;
+        }
+
+        _roundLogEvents.Add(entry);
+    }
+
+    private void AppendTerminalRoundLog(string kind)
+    {
+        if (!_recordTiles)
+        {
+            return;
+        }
+
+        for (int pi = 0; pi < MahjongEngine.PlayerCount; pi++)
+        {
+            bool winner = _roundWinners.Contains(pi);
+            if (kind == "tiisuin")
+            {
+                LogStep(pi, winner ? "tiisuin_win" : "witness", null);
+            }
+            else if (kind is "win_tsumo" or "win_ron" or "multi_ron")
+            {
+                LogStep(pi, winner ? (kind == "win_tsumo" ? "win_tsumo" : "win_ron") : "observe", null);
+            }
+            else if (kind == "special_flow")
+            {
+                LogStep(pi, "special_flow", null, _roundEndReason ?? "special");
+            }
+            else
+            {
+                LogStep(pi, "flow", null, _roundEndReason ?? "exhaustive");
+            }
+        }
+    }
+
+    private void FlushRoundLog()
+    {
+        if (!_recordTiles || _roundLogEvents.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(_store.LogsDirectory);
+            string path = Path.Combine(
+                _store.LogsDirectory,
+                "roundlog_" + DateTime.Now.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture) + ".jsonl");
+            var builder = new StringBuilder();
+            foreach (var entry in _roundLogEvents)
+            {
+                builder.Append(DataStore.Serialize(entry)).Append('\n');
+            }
+
+            File.AppendAllText(path, builder.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            Log("[roundlog] " + _roundLogEvents.Count + " 条 → " + path);
+        }
+        catch (Exception ex)
+        {
+            Log("[roundlog] 写入失败: " + ex.Message);
+        }
+        finally
+        {
+            _roundLogEvents.Clear();
+        }
+    }
+
+    private static string HandText(IReadOnlyList<Tile> hand)
+    {
+        var builder = new StringBuilder();
+        foreach (Suit suit in new[] { Suit.Man, Suit.Pin, Suit.Sou, Suit.Honor })
+        {
+            var nums = new StringBuilder();
+            foreach (var tile in hand)
+            {
+                if (tile.Suit == suit)
+                {
+                    nums.Append(tile.Num);
+                }
+            }
+
+            if (nums.Length > 0)
+            {
+                builder.Append(nums).Append(SuitWire(suit));
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static string TilesText(IReadOnlyList<Tile> tiles)
+    {
+        if (tiles.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var ordered = tiles.OrderBy(t => t.Num).ToList();
+        var builder = new StringBuilder();
+        foreach (var tile in ordered)
+        {
+            builder.Append(tile.Num);
+        }
+
+        return builder.Append(SuitWire(ordered[0].Suit)).ToString();
     }
 
     // ══════════════════════════════════════════════════════════════

@@ -19,6 +19,7 @@ public sealed partial class EngineHost
 
     private JsonObject Snapshot()
     {
+        FinalizeRound();
         var root = new JsonObject
         {
             ["state"] = CurrentState,
@@ -38,6 +39,8 @@ public sealed partial class EngineHost
             ["revealHands"] = _engine.RevealHands,
             ["gameOver"] = _engine.GameOver,
             ["matchOver"] = _engine.MatchOver,
+            ["matchOverReason"] = _matchOverReason,
+            ["completedRounds"] = CompletedRounds,
             ["juFinished"] = _engine.JuFinished,
             ["kanThisTurn"] = _engine.KanThisTurn,
             ["speed"] = _speed,

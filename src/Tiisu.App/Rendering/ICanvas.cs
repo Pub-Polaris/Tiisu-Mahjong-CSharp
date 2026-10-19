@@ -6,6 +6,8 @@ namespace Tiisu.App.Rendering;
 /// <summary>绘制用矩形（逻辑坐标，左上原点）。</summary>
 public readonly record struct RectF(float X, float Y, float W, float H)
 {
+    public float Left => X;
+    public float Top => Y;
     public float Right => X + W;
     public float Bottom => Y + H;
     public float CenterX => X + W / 2f;
