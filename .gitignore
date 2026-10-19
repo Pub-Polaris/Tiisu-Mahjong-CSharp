@@ -4,3 +4,6 @@ obj/
 .vs/
 TestResults/
 backup_*.tar.gz
+
+# 本地打包 / 截图产物（dotnet publish、NSIS、--shot）
+dist/

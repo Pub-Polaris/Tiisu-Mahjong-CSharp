@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Tiisu.Shell</RootNamespace>
+    <!-- 安装脚本（NET/installer/*.nsi + build_installer.ps1）默认找 Tiisu.Mahjong.exe，别改它。 -->
+    <AssemblyName>Tiisu.Mahjong</AssemblyName>
+    <Platforms>AnyCPU;x64;x86</Platforms>
+    <!-- 控制台子系统：自检模式的 stdout 才能被 dotnet run 捕获；正常开窗时 Program 里 FreeConsole 脱离黑框。 -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tiisu.Core\Tiisu.Core.csproj" />
+    <ProjectReference Include="..\Tiisu.Engine\Tiisu.Engine.csproj" />
+    <ProjectReference Include="..\Tiisu.Api\Tiisu.Api.csproj" />
+  </ItemGroup>
+
+  <!-- WebView2 的 .NET 包会无条件引用它的 WPF 程序集，WinForms 项目用不到；
+       留着会和 WindowsBase 4.0/5.0 冲突（MSB3277）。这里在解析引用前摘掉。 -->
+  <Target Name="ExcludeWebView2WpfAssembly" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Reference.Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
+
+  <!-- 安装包（installer.nsi）只复制 publish 目录，所以把 Web 的运行时静态资源一起放进 publish\Web：
+       装完 `Web/index.html` 就在 exe 旁边，Shell 的上溯查找能直接命中，不需要命令行参数指定 Web 目录。
+       只带运行时需要的（index.html / ike.json / css / js / src / mj_tiles），
+       不带 backup / logs / docs / scripts 与 dev 数据文件（state.json 等）。 -->
+  <ItemGroup>
+    <WebPublishAsset Include="..\..\..\Web\index.html" Link="Web\index.html" />
+    <WebPublishAsset Include="..\..\..\Web\ike.json" Link="Web\ike.json" />
+    <WebPublishAsset Include="..\..\..\Web\css\**\*" Link="Web\css\%(RecursiveDir)%(Filename)%(Extension)" />
+    <WebPublishAsset Include="..\..\..\Web\js\**\*" Link="Web\js\%(RecursiveDir)%(Filename)%(Extension)" />
+    <WebPublishAsset Include="..\..\..\Web\src\**\*" Link="Web\src\%(RecursiveDir)%(Filename)%(Extension)" />
+    <WebPublishAsset Include="..\..\..\Web\mj_tiles\**\*" Link="Web\mj_tiles\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <Target Name="PublishWebAssets" AfterTargets="Publish" Condition="Exists('..\..\..\Web\index.html')">
+    <Copy SourceFiles="@(WebPublishAsset)"
+          DestinationFiles="@(WebPublishAsset->'$(PublishDir)%(Link)')"
+          SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Web 资源已复制到 $(PublishDir)Web（@(WebPublishAsset->Count()) 个文件）" />
+  </Target>
+
+</Project>

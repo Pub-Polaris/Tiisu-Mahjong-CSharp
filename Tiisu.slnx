@@ -4,6 +4,7 @@
     <Project Path="src/Tiisu.Core/Tiisu.Core.csproj" />
     <Project Path="src/Tiisu.Engine/Tiisu.Engine.csproj" />
     <Project Path="src/Tiisu.Api/Tiisu.Api.csproj" />
+    <Project Path="src/Tiisu.Shell/Tiisu.Shell.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Tiisu.Core.Tests/Tiisu.Core.Tests.csproj" />
