@@ -187,7 +187,11 @@ internal static class Program
         string regions = Path.Combine(outDir, "table-regions.svg");
         File.WriteAllText(main, exporter.Build(vm), new System.Text.UTF8Encoding(false));
         File.WriteAllText(regions, SvgExporter.BuildRegions(), new System.Text.UTF8Encoding(false));
-        Console.WriteLine($"exported svg -> {main}（内嵌牌面 {exporter.TileCount} 张）/ {regions}");
+        string layoutJson = Path.Combine(outDir, "layout.json");
+        string layoutMd = Path.Combine(outDir, "layout.md");
+        File.WriteAllText(layoutJson, SvgExporter.BuildLayoutJson(), new System.Text.UTF8Encoding(false));
+        File.WriteAllText(layoutMd, SvgExporter.BuildLayoutMarkdown(), new System.Text.UTF8Encoding(false));
+        Console.WriteLine($"exported svg -> {main}（内嵌牌面 {exporter.TileCount} 张）/ {regions} / layout.json / layout.md");
     }
 
     /// <summary>从 exe 目录向上找仓库里的 Web 目录（mj_tiles 来源）。</summary>

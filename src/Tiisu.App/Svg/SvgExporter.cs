@@ -272,6 +272,114 @@ public sealed class SvgExporter
         sb.AppendLine($"    <image x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(w)}\" height=\"{F(h)}\" href=\"{href}\" xlink:href=\"{href}\"{transform}/>");
     }
 
+
+    // ── 元素定位清单（JSON / Markdown）──
+
+    public static string BuildLayoutJson()
+    {
+        static string R(string id, RectF r, string note = "") =>
+            $"{{\"id\":\"{id}\",\"x\":{F(r.X)},\"y\":{F(r.Y)},\"w\":{F(r.W)},\"h\":{F(r.H)},\"note\":\"{note}\"}}";
+
+        var sb = new StringBuilder();
+        sb.AppendLine("{");
+        sb.AppendLine("  \"canvas\": { \"w\": 1280, \"h\": 720 },");
+        sb.AppendLine("  \"tileSizes\": { \"hand\": [56,78], \"river\": [30,42], \"backTop\": [36,46], \"backSide\": [44,30], \"meld\": [30,42], \"handGap\": 2, \"riverGap\": 2 },");
+        sb.AppendLine("  \"regions\": [");
+        sb.AppendLine("    " + R("center-plate", TableLayout.CenterPlate, "中央牌桌板") + ",");
+        sb.AppendLine("    " + R("top-hand", TableLayout.TopHandArea, "对家手牌") + ",");
+        sb.AppendLine("    " + R("top-meld", TableLayout.TopMeldArea, "对家副露") + ",");
+        sb.AppendLine("    " + R("left-hand", TableLayout.LeftHandArea, "上家手牌") + ",");
+        sb.AppendLine("    " + R("left-meld", TableLayout.LeftMeldArea, "上家副露") + ",");
+        sb.AppendLine("    " + R("right-hand", TableLayout.RightHandArea, "下家手牌") + ",");
+        sb.AppendLine("    " + R("right-meld", TableLayout.RightMeldArea, "下家副露") + ",");
+        sb.AppendLine("    " + R("own-hand", TableLayout.HandArea, "自家手牌") + ",");
+        sb.AppendLine("    " + R("own-meld", TableLayout.OwnMeldArea, "自家副露") + ",");
+        sb.AppendLine("    " + R("river-self", TableLayout.River(0).Bounds, "自家牌河") + ",");
+        sb.AppendLine("    " + R("river-right", TableLayout.River(1).Bounds, "下家牌河") + ",");
+        sb.AppendLine("    " + R("river-top", TableLayout.River(2).Bounds, "对家牌河") + ",");
+        sb.AppendLine("    " + R("river-left", TableLayout.River(3).Bounds, "上家牌河"));
+        sb.AppendLine("  ],");
+        sb.AppendLine("  \"riverGeometry\": [");
+        for (int seat = 0; seat < 4; seat++)
+        {
+            var g = TableLayout.River(seat);
+            sb.AppendLine($"    {{ \"seat\": {seat}, \"angle\": {F(g.angle)}, \"dxCol\": {F(g.dxCol)}, \"dyCol\": {F(g.dyCol)}, \"dxRow\": {F(g.dxRow)}, \"dyRow\": {F(g.dyRow)} }}" + (seat < 3 ? "," : ""));
+        }
+
+        sb.AppendLine("  ]");
+        sb.AppendLine("}");
+        return sb.ToString();
+    }
+
+    public static string BuildLayoutMarkdown()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("# 牌桌元素定位（1280×720 逻辑坐标）");
+        sb.AppendLine();
+        sb.AppendLine("由 `--export-svg` 自动生成；改版式时按此表给新坐标即可。");
+        sb.AppendLine();
+        sb.AppendLine("## 牌尺寸");
+        sb.AppendLine();
+        sb.AppendLine("| 用途 | 宽×高 |");
+        sb.AppendLine("|---|---|");
+        sb.AppendLine("| 自家手牌 | 56 × 78 |");
+        sb.AppendLine("| 牌河 | 30 × 42 |");
+        sb.AppendLine("| 对家牌背 | 36 × 46 |");
+        sb.AppendLine("| 上下家牌背 | 44 × 30 |");
+        sb.AppendLine("| 副露（别家） | 30 × 42 |");
+        sb.AppendLine("| 牌间距 | 2 |");
+        sb.AppendLine();
+        sb.AppendLine("## 区域矩形");
+        sb.AppendLine();
+        sb.AppendLine("| id | 说明 | x | y | w | h |");
+        sb.AppendLine("|---|---|---|---|---|---|");
+        void Row(string id, string note, RectF r) =>
+            sb.AppendLine($"| `{id}` | {note} | {r.X:0} | {r.Y:0} | {r.W:0} | {r.H:0} |");
+
+        Row("center-plate", "中央牌桌板", TableLayout.CenterPlate);
+        Row("top-hand", "对家手牌", TableLayout.TopHandArea);
+        Row("top-meld", "对家副露", TableLayout.TopMeldArea);
+        Row("left-hand", "上家手牌", TableLayout.LeftHandArea);
+        Row("left-meld", "上家副露", TableLayout.LeftMeldArea);
+        Row("right-hand", "下家手牌", TableLayout.RightHandArea);
+        Row("right-meld", "下家副露", TableLayout.RightMeldArea);
+        Row("own-hand", "自家手牌", TableLayout.HandArea);
+        Row("own-meld", "自家副露（接在手牌右端）", TableLayout.OwnMeldArea);
+        Row("river-self", "自家牌河（A）", TableLayout.River(0).Bounds);
+        Row("river-right", "下家牌河（B）", TableLayout.River(1).Bounds);
+        Row("river-top", "对家牌河（C）", TableLayout.River(2).Bounds);
+        Row("river-left", "上家牌河（D）", TableLayout.River(3).Bounds);
+
+        sb.AppendLine();
+        sb.AppendLine("## 牌河几何");
+        sb.AppendLine();
+        sb.AppendLine("起点在各自 `Bounds` 的左上角；第 i 张牌：`x = X + (i%6)*dxCol + (i/6)*dxRow`，`y` 同理。");
+        sb.AppendLine();
+        sb.AppendLine("| 座位 | 朝向角 | dxCol / dyCol | dxRow / dyRow |");
+        sb.AppendLine("|---|---|---|---|");
+        for (int seat = 0; seat < 4; seat++)
+        {
+            var g = TableLayout.River(seat);
+            string name = seat switch { 0 => "自家", 1 => "下家", 2 => "对家", _ => "上家" };
+            sb.AppendLine($"| {seat}（{name}） | {g.angle:0}° | {g.dxCol:0} / {g.dyCol:0} | {g.dxRow:0} / {g.dyRow:0} |");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## 中央板文字");
+        sb.AppendLine();
+        var p = TableLayout.CenterPlate;
+        sb.AppendLine("| 元素 | 位置 |");
+        sb.AppendLine("|---|---|");
+        sb.AppendLine($"| 局数 | 居中，y = {p.CenterY - 18:0} |");
+        sb.AppendLine($"| 剩余 | 居中，y = {p.CenterY + 14:0} |");
+        sb.AppendLine($"| 本场/供托 | 居中，y = {p.CenterY + 40:0} |");
+        sb.AppendLine($"| 下方点数 | ({p.CenterX:0}, {p.Bottom - 22:0}) |");
+        sb.AppendLine($"| 上方点数 | ({p.CenterX:0}, {p.Y + 30:0}) |");
+        sb.AppendLine($"| 左右点数 | ({p.X + 36:0}, {p.CenterY + 62:0}) / ({p.Right - 36:0}, {p.CenterY + 62:0}) |");
+        sb.AppendLine($"| 风向徽章 | 28×28，四角内缩 8px |");
+        return sb.ToString();
+    }
+
     private static string F(float v) => v.ToString("0.##", CultureInfo.InvariantCulture);
 
     private static string Esc(string s) => s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
