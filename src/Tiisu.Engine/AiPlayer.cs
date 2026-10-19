@@ -105,6 +105,9 @@ public sealed class AiMeldDecision
         new() { Applied = true, Target = target, Type = type, ChiTrio = chiTrio };
 }
 
+/// <summary>荣和候选：决策者 + 完整判役结果（自走结算需要赋数 / 役种，回放只需序号）。</summary>
+public sealed record RonCandidate(int PlayerIndex, WinResult Result);
+
 /// <summary>
 /// AI 决策（Web 侧 <c>aiPlayer.js</c> 的 <c>getAIDiscardIndex</c> 与 <c>engine.js</c> 的
 /// <c>aiTurn / canAnkan / canKakan / meldOptions / aiMeldDecision / checkRon</c> 的移植）。
@@ -636,9 +639,16 @@ public static class AiPlayer
     /// JS <c>checkRon(discardedTile)</c>：把牌临时加进每家暗手试和，返回能荣和的家（升序）。
     /// 人类（<see cref="AiPlayerView.IsHuman"/>）跳过——与 JS 一致。
     /// </summary>
-    public static List<int> CheckRon(AiPlayerObservation obs, WinChecker checker)
+    public static List<int> CheckRon(AiPlayerObservation obs, WinChecker checker) =>
+        CheckRonDetailed(obs, checker).Select(candidate => candidate.PlayerIndex).ToList();
+
+    /// <summary>
+    /// 同 <see cref="CheckRon"/>，但保留每位荣和者的完整判役结果（自走结算用）。
+    /// 顺序 / 防御性张数检查与 JS <c>checkRon</c> 逐条一致，<see cref="CheckRon"/> 只是它的投影。
+    /// </summary>
+    public static List<RonCandidate> CheckRonDetailed(AiPlayerObservation obs, WinChecker checker)
     {
-        var winners = new List<int>();
+        var winners = new List<RonCandidate>();
         if (obs.Discarded is not Tile discarded)
         {
             return winners;
@@ -691,7 +701,7 @@ public static class AiPlayer
 
             if (result.Success)
             {
-                winners.Add(pi);
+                winners.Add(new RonCandidate(pi, result));
             }
         }
 

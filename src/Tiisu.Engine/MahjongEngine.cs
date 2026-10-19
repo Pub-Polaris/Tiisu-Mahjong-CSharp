@@ -1,5 +1,6 @@
 using CoreMeld = Tiisu.Core.Meld;
 using Tiisu.Core;
+using Tiisu.Engine.Random;
 
 namespace Tiisu.Engine;
 
@@ -46,11 +47,16 @@ public sealed partial class MahjongEngine
     private readonly PointsConfig _points;
     private List<RonWinner> _lastRonMulti = new();
 
-    public MahjongEngine(PointsConfig? points = null, WinChecker? checker = null, YakuData? yakuData = null)
+    public MahjongEngine(
+        PointsConfig? points = null,
+        WinChecker? checker = null,
+        YakuData? yakuData = null,
+        IRandomSource? randomSource = null)
     {
         _points = points ?? PointsConfig.LoadDefault();
         _yakuData = yakuData ?? YakuData.LoadDefault();
         _checker = checker ?? new WinChecker(_yakuData);
+        RandomSource = randomSource;
         for (int i = 0; i < PlayerCount; i++)
         {
             _players[i] = new Player(i, i switch
@@ -68,13 +74,21 @@ public sealed partial class MahjongEngine
 
     public IReadOnlyList<Player> Players => _players;
 
-    /// <summary>牌山（只保证长度正确；摸到的牌由语料给出，因此元素为 null 占位）。</summary>
+    /// <summary>自走注入的随机源（回放 / 普通构造为 null）。引擎自身不消费；由 <c>SelfPlayDriver</c> 取用。</summary>
+    public IRandomSource? RandomSource { get; }
+
+    /// <summary>判役器（自走时 AiPlayer 需要同一实例，避免重复加载 ike.json / 役表）。</summary>
+    public WinChecker Checker => _checker;
+
+    /// <summary>
+    /// 牌山（含王堆，pop 顺序）。回放模式元素为 null 占位；传入真实 <c>WallOrder</c> 的自走模式为真实牌。
+    /// </summary>
     public IReadOnlyList<Tile?> Wall => _wall;
 
-    /// <summary>岭上（只保证长度正确，元素为 null 占位）。</summary>
+    /// <summary>岭上（4 张）。回放模式元素为 null 占位；自走模式为真实牌。</summary>
     public IReadOnlyList<Tile?> Rinshan => _rinshan;
 
-    /// <summary>王堆（只保证长度正确，元素为 null 占位）。</summary>
+    /// <summary>王堆（skip−4 张）。回放模式元素为 null 占位；自走模式为真实牌。</summary>
     public IReadOnlyList<Tile?> WangDui => _wangDui;
 
     public IReadOnlyList<int> Scores => _scores;
@@ -181,7 +195,7 @@ public sealed partial class MahjongEngine
             player.Reset();
         }
 
-        SetupWallAndCut(deal.SkipTiles);
+        SetupWallAndCut(deal.SkipTiles, deal.WallOrder);
 
         // deal()：牌山先被扣掉 53 张；具体配牌由语料给出（回放不洗牌、不发真牌）。
         if (_wall.Count < DealTileCount)
@@ -226,30 +240,56 @@ public sealed partial class MahjongEngine
 
     /// <summary>
     /// 牌山模型（规则书 3.3 / 4.2 / 10.1）：跳墩 = 4 张岭上 + 王堆（skip−4）；
-    /// 可摸总数 = 活牌山 + 王堆 = 136 − 4 = 132（配牌后恒为 79）。回放只需要长度，所以用 null 占位。
+    /// 可摸总数 = 活牌山 + 王堆 = 136 − 4 = 132（配牌后恒为 79）。
+    /// <para>
+    /// <paramref name="wallOrder"/> 为空时保持回放模式：只按长度放 null 占位。
+    /// 非空时按洗牌后的完整 136 张牌序切出真实岭上 / 王堆 / 活牌山（与 <c>setupWallAndCut</c> 同口径）。
+    /// </para>
     /// </summary>
-    private void SetupWallAndCut(int skipTiles)
+    public void SetupWallAndCut(int skipTiles, IReadOnlyList<Tile>? wallOrder = null)
     {
         int skip = Math.Max(0, skipTiles);
         int wangCount = Math.Max(0, skip - DeadWallMaCount);
         int liveCount = Math.Max(0, TotalTiles - skip);
 
         _rinshan.Clear();
-        for (int i = 0; i < DeadWallMaCount; i++)
-        {
-            _rinshan.Add(null);
-        }
-
         _wangDui.Clear();
-        for (int i = 0; i < wangCount; i++)
+        _wall.Clear();
+
+        if (wallOrder is null)
         {
-            _wangDui.Add(null);
+            for (int i = 0; i < DeadWallMaCount; i++)
+            {
+                _rinshan.Add(null);
+            }
+
+            for (int i = 0; i < wangCount; i++)
+            {
+                _wangDui.Add(null);
+            }
+
+            for (int i = 0; i < liveCount + wangCount; i++)
+            {
+                _wall.Add(null);
+            }
+
+            return;
         }
 
-        _wall.Clear();
-        for (int i = 0; i < liveCount + wangCount; i++)
+        var layout = TileSetFactory.Cut(wallOrder, skip);
+        foreach (var tile in layout.Rinshan)
         {
-            _wall.Add(null);
+            _rinshan.Add(tile);
+        }
+
+        foreach (var tile in layout.WangDui)
+        {
+            _wangDui.Add(tile);
+        }
+
+        foreach (var tile in layout.Wall)
+        {
+            _wall.Add(tile);
         }
     }
 
@@ -292,14 +332,58 @@ public sealed partial class MahjongEngine
 
         int before = _wall.Count;
         _wall.RemoveAt(_wall.Count - 1);
+        ApplyDraw(player, tile, before);
+        return tile;
+    }
+
+    /// <summary>
+    /// 自走摸牌：从真实牌墙末尾取一张（不含岭上）。牌墙为回放占位（null）时抛异常，
+    /// 提示调用方改用 <see cref="Draw(Player, Tile)"/> 或传 <c>WallOrder</c>。状态更新与 <see cref="Draw"/> 完全一致。
+    /// </summary>
+    public Tile? DrawFromWall(Player player)
+    {
+        if (_wall.Count == 0)
+        {
+            return null;
+        }
+
+        var tile = _wall[^1];
+        if (tile is null)
+        {
+            throw new InvalidOperationException(
+                "牌墙是回放占位（null），无法执行真实摸牌；请用 Draw(player, tile) 或传入 RoundDeal.WallOrder");
+        }
+
+        int before = _wall.Count;
+        _wall.RemoveAt(_wall.Count - 1);
+        ApplyDraw(player, tile.Value, before);
+        return tile;
+    }
+
+    /// <summary>摸牌后的状态更新（<see cref="Draw"/> 与 <see cref="DrawFromWall"/> 共用）。</summary>
+    private void ApplyDraw(Player player, Tile tile, int wallCountBefore)
+    {
         player.Hand.Add(tile);
         TileUtil.SortHand(player.Hand);
         player.LastDraw = tile;
-        player.SeaMoon = before == 2; // 倒数第二张墙牌自摸 → 海上月
-        player.HaiDei = before == 1; // 最后一张墙牌自摸 → 海底月
+        player.SeaMoon = wallCountBefore == 2; // 倒数第二张墙牌自摸 → 海上月
+        player.HaiDei = wallCountBefore == 1; // 最后一张墙牌自摸 → 海底月
         player.FirstTurn = false;
         CurrentDrawn = tile;
-        return tile;
+    }
+
+    /// <summary>
+    /// 自走用：下一次岭上补摸会取到的真实牌（不改变状态）：岭上有牌取岭上首张，否则取牌墙末尾（牌山代摸）。
+    /// 回放的岭上 / 牌墙是 null 占位，返回 null，由调用方沿用既有 <c>rinshanTile</c> 传入方式。
+    /// </summary>
+    public Tile? PeekRinshanTile()
+    {
+        if (_rinshan.Count > 0)
+        {
+            return _rinshan[0];
+        }
+
+        return _wall.Count > 0 ? _wall[^1] : null;
     }
 
     /// <summary>
