@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- SkiaSharp.Views.WindowsForms 只提供 net*-windows10.0.19041 资产，TFM 必须是这个 -->
+    <TargetFramework>net10.0-windows10.0.19041</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>AnyCPU;x64;x86</Platforms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AssemblyName>Tiisu.Mahjong</AssemblyName>
+    <RootNamespace>Tiisu.App</RootNamespace>
+    <!-- Release 发布：单文件 + 原生库自解压 + 不产 PDB（体积约 270MB -> 155MB） -->
+    <PublishSingleFile Condition="'$(Configuration)' == 'Release'">true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(Configuration)' == 'Release'">true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.153.1" />
+    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="4.153.1" />
+    <PackageReference Include="SkiaSharp.HarfBuzz" Version="4.153.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tiisu.Core\Tiisu.Core.csproj" />
+    <ProjectReference Include="..\Tiisu.Engine\Tiisu.Engine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 牌面雪碧图（由 Web/scripts/export_tiles.py 生成）随程序输出 -->
+    <None Update="Assets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
