@@ -38,7 +38,6 @@
        不带 backup / logs / docs / scripts 与 dev 数据文件（state.json 等）。 -->
   <ItemGroup>
     <WebPublishAsset Include="..\..\..\Web\index.html" Link="Web\index.html" />
-    <WebPublishAsset Include="..\..\..\Web\portal.html" Link="Web\portal.html" />
     <WebPublishAsset Include="..\..\..\Web\ike.json" Link="Web\ike.json" />
     <WebPublishAsset Include="..\..\..\Web\css\**\*" Link="Web\css\%(RecursiveDir)%(Filename)%(Extension)" />
     <WebPublishAsset Include="..\..\..\Web\js\**\*" Link="Web\js\%(RecursiveDir)%(Filename)%(Extension)" />

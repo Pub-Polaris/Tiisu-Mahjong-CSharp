@@ -18,67 +18,13 @@ internal sealed class MainForm : Form
     /// <summary>API 请求的虚拟主机（页面静态资源仍走 <see cref="AppHost"/> 的 folder mapping）。</summary>
     private const string ApiHost = "tiisu-api.local";
 
-    /// <summary>页面 CSS 固定 <c>.app</c> / <c>.table</c> = 1460×900（宿主模式只按牌桌铺满缩放）。</summary>
+    /// <summary>页面 CSS 固定 <c>.app</c> / <c>.table</c> = 1460×900（不改页面尺寸，只整体等比缩放）。</summary>
     private const int PageWidth = 1460;
 
     private const int PageHeight = 900;
 
-    /// <summary>
-    /// 宿主模式页面引导（所有文档创建时注入）：
-    /// 1) 门户 / 牌桌的 <c>/api/*</c> fetch 改写到 <c>tiisu-api.local</c>（WebView2 虚拟主机不触发 WebResourceRequested）；
-    /// 2) 牌桌页隐藏底部三行、去掉 body 留白，让 1460×900 的牌桌正好铺满视口。
-    /// 浏览器模式不执行本脚本。
-    /// </summary>
-    private const string HostPageBootstrapScript = """
-        (function () {
-          try {
-            var webview = window.chrome && window.chrome.webview;
-            var hosts = webview && webview.hostObjects && webview.hostObjects.sync;
-            if (!hosts || !hosts.tiisu) return;
-
-            if (!window.__tiisuApiFetchShim && typeof window.fetch === 'function') {
-              window.__tiisuApiFetchShim = true;
-              var originalFetch = window.fetch.bind(window);
-              window.fetch = function (input, init) {
-                try {
-                  var isRequest = typeof Request !== 'undefined' && input instanceof Request;
-                  var url = new URL(isRequest ? input.url : String(input), location.href);
-                  if (url.origin === location.origin && url.pathname.indexOf('/api/') === 0) {
-                    var target = 'https://tiisu-api.local' + url.pathname + url.search;
-                    if (isRequest) return originalFetch(new Request(target, input));
-                    return originalFetch(target, init);
-                  }
-                } catch (e) {
-                  // 解析失败走原生 fetch。
-                }
-                return originalFetch(input, init);
-              };
-            }
-
-            if (!/\/index\.html$/i.test(location.pathname)) return;
-
-            var css = 'html,body{margin:0!important;padding:0!important;background:#0f2b10!important}'
-              + 'body{width:1460px;height:900px;min-height:900px!important;overflow:hidden!important}'
-              + '.app{width:1460px!important;gap:0!important}'
-              + '.table{margin:0!important}'
-              + '.panel,.msglog,.runtime-bar{display:none!important}';
-
-            function injectLayout() {
-              if (document.getElementById('tiisu-host-layout')) return;
-              var style = document.createElement('style');
-              style.id = 'tiisu-host-layout';
-              style.textContent = css;
-              (document.head || document.documentElement).appendChild(style);
-            }
-
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', injectLayout);
-            } else {
-              injectLayout();
-            }
-          } catch (e) {}
-        })();
-        """;
+    /// <summary><c>Web/css/game.css</c> 的 <c>body{padding:12px}</c>：牌桌四周留白，缩放时要一起算进去。</summary>
+    private const int PagePadding = 12;
 
     /// <summary>仅 --smoke：把自动演示的 AI 节奏压到最快，保证 15 秒内打完一局。</summary>
     private const string SmokeSpeedScript = """
@@ -125,8 +71,8 @@ internal sealed class MainForm : Form
     private readonly ShellOptions _options;
     private readonly string _webDirectory;
     private readonly string _dataDirectory;
+    private readonly EngineHost _engineHost = new();
     private readonly ApiRouter _apiRouter;
-    private readonly EngineHost _engineHost;
     private readonly WebView2 _webView;
     private readonly List<string> _consoleLines = new();
 
@@ -151,7 +97,6 @@ internal sealed class MainForm : Form
         // 数据根目录：%APPDATA%\TiisuMahjong（首次启动建目录 + 一次性迁移 Web 目录里的旧数据）。
         _dataDirectory = ShellDataDirectory.Resolve(webDirectory, Log);
         _apiRouter = new ApiRouter(_dataDirectory);
-        _engineHost = new EngineHost(_apiRouter.Store);
 
         Text = "Tiisu Mahjong · C# Shell";
         StartPosition = FormStartPosition.CenterScreen;
@@ -167,7 +112,7 @@ internal sealed class MainForm : Form
 
         Load += OnLoad;
         Log($"[shell] Web 目录: {_webDirectory}");
-        Log($"[shell] 窗口: 客户区 {PageWidth}×{PageHeight} · 牌桌页缩放 = min(客户区宽/{PageWidth}, 客户区高/{PageHeight})");
+        Log($"[shell] 窗口: 客户区 {PageWidth}×{PageHeight} · 缩放 = min((宽−2×{PagePadding}−滚动条)/{PageWidth}, (高−2×{PagePadding})/{PageHeight})");
         Log("[shell] 引擎: C# (Tiisu.Engine) · 桥: AddHostObjectToScript(\"tiisu\") · API: C# DataStore");
     }
 
@@ -228,10 +173,6 @@ internal sealed class MainForm : Form
             Log($"[shell] WebResourceRequested 已订阅: https://{AppHost}/api/*, https://{ApiHost}/api/*");
             core.ProcessFailed += OnProcessFailed;
             core.NavigationCompleted += OnNavigationCompleted;
-            core.NewWindowRequested += OnNewWindowRequested;
-
-            // 门户页没有 host_adapter，也必须能直连 /api/*；牌桌页的隐藏/铺满样式也在这里注入。
-            await core.AddScriptToExecuteOnDocumentCreatedAsync(HostPageBootstrapScript);
 
             // 本 SDK 版本没有 CoreWebView2.ConsoleMessageReceived，改用 DevTools 协议的
             // Runtime.consoleAPICalled / Runtime.exceptionThrown 采集控制台消息与 JS 异常。
@@ -292,58 +233,14 @@ internal sealed class MainForm : Form
 
     private string BuildUrl()
     {
-        if (!string.IsNullOrWhiteSpace(_options.OpenPage))
-        {
-            string page = _options.OpenPage!;
-            bool gamePage = page.IndexOf("index.html", StringComparison.OrdinalIgnoreCase) >= 0;
-            if (gamePage)
-            {
-                if (page.IndexOf("engine=", StringComparison.OrdinalIgnoreCase) < 0)
-                {
-                    page += (page.Contains('?') ? "&" : "?") + "engine=csharp";
-                }
-
-                if (page.IndexOf("ui=", StringComparison.OrdinalIgnoreCase) < 0)
-                {
-                    page += (page.Contains('?') ? "&" : "?") + "ui=classic";
-                }
-            }
-
-            if (page.Contains("://", StringComparison.Ordinal))
-            {
-                return page;
-            }
-
-            return $"https://{AppHost}/{page.TrimStart('/')}";
-        }
-
-        // --smoke 默认直接进牌桌跑自动一局；单独 --shot 默认截门户页。
-        bool autoGame = _options.AutoMode is not null
-                        || (_options.SmokeSeconds > 0 && !_options.NoAuto);
-        bool gamePageOnly = autoGame || _options.DriveHuman || (_options.NoAuto && _options.IsHeadless);
-        if (!gamePageOnly)
-        {
-            return $"https://{AppHost}/portal.html";
-        }
-
         var query = new StringBuilder("?engine=csharp&ui=classic");
-        if (autoGame)
+        if (!_options.NoAuto && (_options.SmokeSeconds > 0 || _options.ShotPath is not null))
         {
-            query.Append("&auto=1&mode=").Append(_options.AutoMode ?? 1);
+            // 自检 / 截图固定跑全自动一局：无弹窗、能看到牌桌在动。
+            query.Append("&auto=1&mode=1");
         }
 
         return $"https://{AppHost}/index.html{query}";
-    }
-
-    private static bool IsGamePage(string? url)
-    {
-        if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            return false;
-        }
-
-        return uri.AbsolutePath.EndsWith("/index.html", StringComparison.OrdinalIgnoreCase)
-               || uri.AbsolutePath.EndsWith("/new.html", StringComparison.OrdinalIgnoreCase);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -527,25 +424,6 @@ internal sealed class MainForm : Form
     private static double Number(JsonNode? node)
         => node is JsonValue value && value.TryGetValue<double>(out double result) ? result : 0;
 
-    private void OnNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
-    {
-        try
-        {
-            // 门户用 window.open('index.html...') 进牌桌；宿主保持单窗口，直接在当前 WebView 里导航。
-            if (IsGamePage(e.Uri))
-            {
-                e.Handled = true;
-                Log("[shell] 新窗口请求 → 当前窗口导航: " + e.Uri);
-                _navigationStarted = Environment.TickCount64;
-                _webView.CoreWebView2.Navigate(e.Uri);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log("[shell] 处理新窗口请求失败: " + ex.Message);
-        }
-    }
-
     private void OnProcessFailed(object? sender, CoreWebView2ProcessFailedEventArgs e)
     {
         _failed = true;
@@ -610,14 +488,19 @@ internal sealed class MainForm : Form
     }
 
     // ══════════════════════════════════════════════════════════════
-    // 窗口缩放：牌桌 1460×900，等比铺满客户区；门户页保持 100%
+    // 窗口缩放：页面尺寸固定 1460×900，只调 ZoomFactor 等比适配
     // ══════════════════════════════════════════════════════════════
 
+    private bool _fitting;
+    private Size? _pendingFit;
+
     /// <summary>
-    /// 宿主模式只对牌桌页（index.html）缩放：
-    /// <c>ZoomFactor = min(客户区宽/1460, 客户区高/900)</c>。
-    /// 牌桌页已由注入样式隐藏底部三行并清零 body 留白，所以可视区只剩 1460×900 的牌桌。
-    /// 门户页自己响应式，不需要缩放（固定 1.0）。
+    /// 等比适配：按**整页文档尺寸**算缩放，而不是按牌桌 1460×900。
+    /// 页面实际是 1460 宽 + body 内边距、高度 = 牌桌 900 + 下方分析条/日志条（约 1096），
+    /// 只按牌桌算会把底部工具栏裁到视口外。
+    ///
+    /// 用 CSS 像素量（<c>getBoundingClientRect</c> / <c>scrollHeight</c>），与 WebView2 的
+    /// ZoomFactor 无关，因此**不需要先把缩放归 1**，拖动边框时不会闪。
     /// </summary>
     private void ApplyZoom()
     {
@@ -632,33 +515,73 @@ internal sealed class MainForm : Form
             return;
         }
 
+        // 正在量的时候又来一次 resize：记下来，量完再补跑，避免丢掉最后一次尺寸
+        if (_fitting)
+        {
+            _pendingFit = client;
+            return;
+        }
+
+        _ = FitToDocumentAsync(client);
+    }
+
+    private async Task FitToDocumentAsync(Size client)
+    {
+        if (_closing || _webView.CoreWebView2 is null)
+        {
+            return;
+        }
+
+        _fitting = true;
         try
         {
-            if (!IsGamePage(_webView.CoreWebView2.Source))
+            string raw = await _webView.CoreWebView2.ExecuteScriptAsync(
+                "(()=>{const t=document.getElementById('table');"
+                + "const b=document.body;"
+                + "if(!t||!b){return '0,0';}"
+                + "const cs=getComputedStyle(b);"
+                + "const padX=(parseFloat(cs.paddingLeft)||0)+(parseFloat(cs.paddingRight)||0);"
+                + "const r=t.getBoundingClientRect();"
+                + "const w=Math.ceil(r.width+padX);"
+                + "const h=Math.ceil(Math.max(b.scrollHeight,document.documentElement.scrollHeight));"
+                + "return w+','+h;})()");
+
+            string text = raw.Trim().Trim('"');
+            string[] parts = text.Split(',');
+            if (parts.Length == 2
+                && double.TryParse(parts[0], out double docW)
+                && double.TryParse(parts[1], out double docH)
+                && docW >= 600 && docH >= 400)
             {
-                if (Math.Abs(_webView.ZoomFactor - 1.0) > 0.001)
+                double zoom = Math.Min(client.Width / docW, client.Height / docH);
+                zoom = Math.Clamp(zoom, 0.25, 5.0);
+
+                if (Math.Abs(_webView.ZoomFactor - zoom) > 0.001)
                 {
-                    _webView.ZoomFactor = 1.0;
-                    Log("[shell] 门户页 · 缩放 1");
+                    _webView.ZoomFactor = zoom;
+                    Log($"[shell] 视口 {client.Width}×{client.Height} · 文档 {docW:0}×{docH:0} · 缩放 {zoom:0.###}");
                 }
-
-                return;
             }
-
-            double zoom = Math.Min(
-                (double)client.Width / PageWidth,
-                (double)client.Height / PageHeight);
-            zoom = Math.Clamp(zoom, 0.25, 5.0);
-
-            if (Math.Abs(_webView.ZoomFactor - zoom) > 0.001)
+            else
             {
-                _webView.ZoomFactor = zoom;
-                Log($"[shell] 牌桌页 · 客户区 {client.Width}×{client.Height} · 缩放 {zoom:0.###}");
+                Log("[shell] 量页面尺寸失败: " + raw);
             }
         }
         catch (Exception ex)
         {
             Log("[shell] 设置缩放失败: " + ex.Message);
+        }
+        finally
+        {
+            _fitting = false;
+        }
+
+        // 量期间尺寸又变过 → 用最新尺寸再跑一次
+        if (_pendingFit is { } pending)
+        {
+            _pendingFit = null;
+            ApplyZoom();
+            _ = pending;
         }
     }
 
@@ -686,8 +609,7 @@ internal sealed class MainForm : Form
                   matchOver: g ? g.matchOver : false,
                   wall: g && g.wall ? g.wall.length : -1,
                   humanHand: g && g.players && g.players[0] && g.players[0].hand ? g.players[0].hand.length : -1,
-                  scores: g ? g.scores : null,
-                  page: location.pathname
+                  scores: g ? g.scores : null
                 });
               } catch (e) {
                 return JSON.stringify({ error: String((e && e.stack) || e) });
@@ -725,22 +647,14 @@ internal sealed class MainForm : Form
         bool isHost = BoolValue(report?["isHost"]);
         double handsPlayed = Number(report?["handsPlayed"]);
         bool matchOver = BoolValue(report?["matchOver"]);
-        bool oneRound = handsPlayed >= 1 || matchOver || _engineHost.CompletedRounds >= 1;
-        string page = report?["page"] is JsonValue pageValue && pageValue.TryGetValue<string>(out string? pageText)
-            ? pageText
-            : _webView.CoreWebView2.Source;
-        bool onPortal = page.EndsWith("/portal.html", StringComparison.OrdinalIgnoreCase);
+        bool oneRound = handsPlayed >= 1 || matchOver;
 
         Log("");
         Log($"[smoke] 控制台消息: {_consoleTotal} 条（JS 错误: {(_failed ? "有" : "无")}）");
         Log($"[smoke] 页面报告: {reportJson ?? "(空)"}");
-        Log($"[smoke] 检查: hasGame={hasGame} isHost={isHost} handsPlayed={handsPlayed} matchOver={matchOver} page={page} hostRounds={_engineHost.CompletedRounds}");
+        Log($"[smoke] 检查: hasGame={hasGame} isHost={isHost} handsPlayed={handsPlayed} matchOver={matchOver}");
 
-        // 终局后页面会按需求回到门户（onMatchOver 的 5 秒倒计时），
-        // 因此“已回门户 + 宿主至少完成一局”同样算自检通过。
-        bool ok = !_failed
-                  && oneRound
-                  && ((hasGame && isHost) || (onPortal && _engineHost.CompletedRounds >= 1));
+        bool ok = !_failed && hasGame && isHost && oneRound;
         ExitCode = ok ? 0 : 1;
         Log(ok ? "[smoke] RESULT: PASS" : "[smoke] RESULT: FAIL");
         FinishAndClose();

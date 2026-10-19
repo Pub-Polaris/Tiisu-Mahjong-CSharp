@@ -19,12 +19,6 @@ internal sealed class ShellOptions
     /// <summary>开发/调试：人类对局模式下自动点第一张手牌出牌（用于无头验证人类桥）。</summary>
     public bool DriveHuman { get; private set; }
 
-    /// <summary>指定要加载的页面（相对 Web 根目录，可带查询串）；默认门户页。</summary>
-    public string? OpenPage { get; private set; }
-
-    /// <summary>自检 / 截图时自动开局的目标局数（等价于 index.html?auto=1&amp;mode=N）。</summary>
-    public int? AutoMode { get; private set; }
-
     public bool ShowHelp { get; private set; }
 
     public bool IsHeadless => SmokeSeconds > 0 || ShotPath is not null;
@@ -81,28 +75,6 @@ internal sealed class ShellOptions
                 case "--drive-human":
                     options.DriveHuman = true;
                     options.NoAuto = true;
-                    break;
-
-                case "--open":
-                    if (i + 1 < args.Length && !string.IsNullOrWhiteSpace(args[i + 1]))
-                    {
-                        options.OpenPage = args[++i].Trim();
-                    }
-
-                    break;
-
-                case "--auto":
-                case "--auto-start":
-                    if (i + 1 < args.Length && int.TryParse(args[i + 1], out int mode))
-                    {
-                        options.AutoMode = Math.Max(1, mode);
-                        i++;
-                    }
-                    else
-                    {
-                        options.AutoMode = 1;
-                    }
-
                     break;
 
                 case "--help":

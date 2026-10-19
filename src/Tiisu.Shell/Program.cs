@@ -10,14 +10,10 @@ internal static class Program
         Tiisu Mahjong · C# Shell（WinForms + WebView2）
 
         用法:
-          Tiisu.Mahjong                         打开门户页（WebView2 宿主）
-          Tiisu.Mahjong --open index.html      直接打开牌桌
-          Tiisu.Mahjong --auto 4               自动开局（东风场）并进入牌桌
+          Tiisu.Mahjong                         打开牌桌窗口（人类对局，C# 引擎）
           Tiisu.Mahjong --web <dir>             指定 Web 目录（含 index.html）
           Tiisu.Mahjong --smoke <seconds>       无头自检：auto=1&mode=1，到时输出日志并退出
-          Tiisu.Mahjong --smoke 25 --auto 4     无头自检：跑完 4 局目标
           Tiisu.Mahjong --shot <png>            加载 3 秒后截图，写 PNG 后退出
-          Tiisu.Mahjong --open index.html --shot table.png  牌桌页截图
           Tiisu.Mahjong --smoke 15 --shot out.png   两个开关可同时使用
           Tiisu.Mahjong --no-auto --delay 6000  调试：人类对局模式 / 改截图等待毫秒
           Tiisu.Mahjong --smoke 20 --drive-human  调试：人类模式自动出牌（验证人类桥）
