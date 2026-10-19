@@ -104,7 +104,7 @@ public sealed class SvgExporter
     public string Build(TableViewModel vm)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"1280\" height=\"720\" viewBox=\"0 0 1280 720\">");
+        sb.AppendLine("<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"1024\" height=\"768\" viewBox=\"0 0 1024 768\">");
         sb.AppendLine("  <!-- 七子麻将牌桌（草稿）：区域用 <g id> 分组；牌面为内嵌 SVG，可直接替换 -->");
         sb.AppendLine("  <defs>");
         sb.AppendLine("    <linearGradient id=\"felt\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">");
@@ -120,8 +120,8 @@ public sealed class SvgExporter
 
         // 桌面
         sb.AppendLine("  <g id=\"table\">");
-        sb.AppendLine("    <rect x=\"0\" y=\"0\" width=\"1280\" height=\"720\" fill=\"url(#felt)\"/>");
-        sb.AppendLine("    <rect x=\"10\" y=\"10\" width=\"1260\" height=\"700\" rx=\"20\" fill=\"url(#feltInner)\" stroke=\"#1e2820\" stroke-width=\"2\"/>");
+        sb.AppendLine("    <rect x=\"0\" y=\"0\" width=\"1024\" height=\"768\" fill=\"#141e18\"/>");
+        sb.AppendLine("    <rect x=\"10\" y=\"10\" width=\"1004\" height=\"748\" rx=\"20\" fill=\"url(#feltInner)\" stroke=\"#1e2820\" stroke-width=\"2\"/>");
         sb.AppendLine("  </g>");
 
         // 牌河
@@ -401,7 +401,7 @@ public sealed class SvgExporter
 
         var sb = new StringBuilder();
         sb.AppendLine("{");
-        sb.AppendLine("  \"canvas\": { \"w\": 1280, \"h\": 720 },");
+        sb.AppendLine("  \"canvas\": { \"w\": 1024, \"h\": 768 },");
         sb.AppendLine("  \"tileSizes\": { \"hand\": [56,78], \"river\": [30,42], \"backTop\": [36,46], \"backSide\": [44,30], \"meld\": [30,42], \"handGap\": 2, \"riverGap\": 2 },");
         sb.AppendLine("  \"regions\": [");
         sb.AppendLine("    " + R("center-plate", TableLayout.CenterPlate, "中央牌桌板") + ",");
@@ -442,7 +442,7 @@ public sealed class SvgExporter
     public static string BuildLayoutMarkdown()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# 牌桌元素定位（1280×720 逻辑坐标）");
+        sb.AppendLine("# 牌桌元素定位（1024×768 逻辑坐标，4:3）");
         sb.AppendLine();
         sb.AppendLine("由 `--export-svg` 自动生成；改版式时按此表给新坐标即可。");
         sb.AppendLine();
@@ -525,8 +525,8 @@ public sealed class SvgExporter
     public static string BuildRegions()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1280\" height=\"720\" viewBox=\"0 0 1280 720\">");
-        sb.AppendLine("  <rect width=\"1280\" height=\"720\" fill=\"#1a2420\"/>");
+        sb.AppendLine("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1024\" height=\"768\" viewBox=\"0 0 1024 768\">");
+        sb.AppendLine("  <rect width=\"1024\" height=\"768\" fill=\"#1a2420\"/>");
         void Box(string label, RectF r)
         {
             if (r.W <= 0 || r.H <= 0)

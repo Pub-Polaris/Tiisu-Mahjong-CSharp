@@ -4,7 +4,7 @@ using Tiisu.App.Rendering;
 namespace Tiisu.App.Table;
 
 /// <summary>
-/// 雀魂式牌桌布局（1280×720 逻辑画布）：
+/// 雀魂式牌桌布局，**画布锁 4:3（1024×768）**；画布外由宿主用纯色 letterbox 填充。
 ///   · 中央牌桌板（风向/点数/局数/剩余）
 ///   · 四家牌河围成回字形（每行 6 张，行向远离中央板）
 ///   · 自家 13 张 + 摸牌单独空一格；副露贴在手牌右端
@@ -13,13 +13,14 @@ namespace Tiisu.App.Table;
 /// </summary>
 public static class TableLayout
 {
-    public const float Width = 1280f;
-    public const float Height = 720f;
+    // 4:3
+    public const float Width = 1024f;
+    public const float Height = 768f;
 
     public static readonly RectF Table = new(10, 10, Width - 20, Height - 20);
 
     // ── 中央牌桌板 ──
-    public static readonly RectF CenterPlate = new(536, 246, 208, 208);
+    public static readonly RectF CenterPlate = new(412, 264, 200, 200);
 
     // ── 牌尺寸 ──
     public const float HandTileW = 56f;
@@ -35,37 +36,29 @@ public static class TableLayout
     public static float RiverRowW => RiverCols * (RiverTileW + RiverGap) - RiverGap;
 
     public const float RiverInset = 8f;
-    public const float RiverDepth = 150f;   // 每侧牌河最大深度（超过就压缩行高）
+    public const float RiverDepth = 186f;
 
     // ── 自家手牌 / 副露 ──
-    public static readonly RectF HandArea = new(240, 620, 790, 82);
-    public static readonly RectF OwnMeldArea = new(1044, 620, 212, 82);
+    public static readonly RectF HandArea = new(140, 664, 640, 90);
+    public static readonly RectF OwnMeldArea = new(800, 664, 216, 90);
 
     // ── 对家手牌（牌背）──
-    public static readonly RectF TopHandArea = new(380, 22, 520, 46);
-    public const float BackTileW = 36f;
+    public static readonly RectF TopHandArea = new(292, 16, 440, 46);
+    public const float BackTileW = 32f;
     public const float BackTileH = 46f;
     public const float BackGap = 2f;
 
     // ── 上下家手牌（竖排牌背）──
-    public static readonly RectF LeftHandArea = new(14, 120, 48, 500);
-    public static readonly RectF RightHandArea = new(1218, 120, 48, 500);
-    public const float SideBackW = 44f;   // 侧边牌背：宽（横轴）
-    public const float SideBackH = 30f;   // 侧边牌背：高（竖轴）
-    public const float SideBackStep = 32f;
+    public static readonly RectF LeftHandArea = new(10, 140, 46, 480);
+    public static readonly RectF RightHandArea = new(968, 140, 46, 480);
+    public const float SideBackW = 42f;
+    public const float SideBackH = 28f;
+    public const float SideBackStep = 30f;
 
-    // ── 对家副露（贴对家牌河外侧）──
-    // 副露区域由场景按"贴着自己手牌居中"动态计算（见 MeldAnchor）
-    public static readonly RectF TopMeldArea = new(380, 74, 520, 44);
-    public static readonly RectF LeftMeldArea = new(66, 240, 44, 300);
-    public static readonly RectF RightMeldArea = new(1170, 240, 44, 300);
-
-    // ── 四角玩家信息 ──
-    // 四角不再放信息框：名字/点数只在中央板体现
-    public static readonly RectF InfoTL = new(0, 0, 0, 0);
-    public static readonly RectF InfoTR = new(0, 0, 0, 0);
-    public static readonly RectF InfoBL = new(0, 0, 0, 0);
-    public static readonly RectF InfoBR = new(0, 0, 0, 0);
+    // ── 别家副露（贴各自手牌，由场景居中）──
+    public static readonly RectF TopMeldArea = new(300, 66, 424, 44);
+    public static readonly RectF LeftMeldArea = new(58, 250, 44, 280);
+    public static readonly RectF RightMeldArea = new(922, 250, 44, 280);
 
     /// <summary>某一家牌河的几何：起点块、行/列步进、朝向角（牌要转多少度才朝向该家）。</summary>
     public static RiverGeometry River(int seat)

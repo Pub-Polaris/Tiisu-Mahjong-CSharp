@@ -62,13 +62,12 @@ public sealed class TableScene
     // ── 桌面 ──
     private static void DrawFelt(ICanvas c)
     {
-        c.FillLinearGradient(new RectF(0, 0, TableLayout.Width, TableLayout.Height), 0,
-            Color.Rgb(52, 68, 58), Color.Rgb(28, 40, 34));
+        // 画布外/桌面底色用纯色（letterbox 同色），只在桌面区做渐变
+        c.FillRect(new RectF(0, 0, TableLayout.Width, TableLayout.Height), Color.Rgb(20, 30, 24));
 
         var t = TableLayout.Table;
-        c.FillRoundRect(t.Inflate(4), 24, Color.Rgb(0, 0, 0).WithAlpha(120));
-        c.FillLinearGradient(t, 20, Color.Rgb(74, 96, 70), Color.Rgb(40, 56, 44));
-        c.StrokeRoundRect(t, 20, Color.Rgb(30, 40, 32), 2f);
+        c.FillRoundRect(t, 20, Color.Rgb(46, 72, 56));
+        c.StrokeRoundRect(t, 20, Color.Rgb(24, 36, 28), 2f);
         // 中央浅色区（牌河底）
         var inner = TableLayout.CenterPlate.Inflate(190);
         c.FillRoundRect(inner, 18, Color.Rgb(255, 255, 255).WithAlpha(12));
