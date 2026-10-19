@@ -68,6 +68,9 @@ public sealed partial class WinChecker
     /// <summary>高目优先（枚举全部拆法）。默认开启；关闭后与 JS 的旧行为一致（第一个拆法）。</summary>
     public bool MaxSplit { get; set; } = true;
 
+    /// <summary>当前启用的可选役 id（供宿主同步 UI 的 <c>optionalEnabled</c>，只读）。</summary>
+    public IReadOnlyCollection<string> OptionalEnabled => _optionalEnabled;
+
     /// <summary>
     /// 和牌判定。参数顺序按语义分组；<paramref name="firstTurn"/> 与 JS 一样保留但当前判据未使用。
     /// </summary>

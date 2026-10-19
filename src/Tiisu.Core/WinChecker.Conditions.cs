@@ -3,6 +3,13 @@ namespace Tiisu.Core;
 public sealed partial class WinChecker
 {
     /// <summary>
+    /// JS <c>conditionFn(id)</c> 的只读入口（调试页 / scoretest 用）。
+    /// 与 JS 一样读取最近一次 <see cref="CheckWin"/> 留下的 <c>_winTile</c> / <c>_winCtx</c> 状态。
+    /// </summary>
+    public bool ConditionFn(string id, IReadOnlyList<Tile> hand, IReadOnlyList<Group>? groups = null) =>
+        Evaluate(id, hand, groups);
+
+    /// <summary>
     /// 判据分派。除 menzen_tsumo / tsumo 外，与 JS conditionFn 的键一一对应。
     /// 返回 true 表示该役成立；未知 id 返回 false（JS 中为 undefined → 不成立）。
     /// </summary>

@@ -280,32 +280,160 @@ public sealed partial class EngineHost
     // ══════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// <c>checker.checkWin(...)</c> 的同步桥。入参是 JSON：
+    /// <c>checker.checkWin(...)</c> 的同步桥（旧版单 JSON 入口，保留兼容）。入参是 JSON：
     /// <c>{ hand:[...], selfDraw, hasCalled, ankanCount, minkanCount, melds:[...], firstTurn, winTile, ctx }</c>。
     /// </summary>
     public string CheckWin(string requestJson)
     {
         var request = ParseObject(requestJson) ?? new JsonObject();
-        var hand = ParseTiles(request["hand"] as JsonArray);
-        var melds = ParseMelds(request["melds"]);
-        var winTile = ParseTile(request["winTile"]);
-        var context = ParseContext(request["ctx"]);
+        return CheckWinJson(
+            ParseTiles(request["hand"] as JsonArray),
+            BoolOrNull(request, "selfDraw").GetValueOrDefault(),
+            BoolOrNull(request, "hasCalled").GetValueOrDefault(),
+            (int)(LongOrNull(request, "ankanCount") ?? 0),
+            (int)(LongOrNull(request, "minkanCount") ?? 0),
+            ParseMelds(request["melds"]),
+            BoolOrNull(request, "firstTurn").GetValueOrDefault(),
+            ParseTile(request["winTile"]),
+            ParseContext(request["ctx"]));
+    }
 
+    /// <summary>
+    /// <c>checker.checkWin(hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, kans, firstTurn, discards, winTile, winCtx)</c>
+    /// 的逐参同步桥。复杂值（手牌 / 副露 / 杠 / 弃牌 / 和牌张 / 上下文）用 JSON 字符串传，
+    /// 其余用原始类型 —— WebView2 同步 host object 对字符串/数字/布尔最可靠。
+    /// <c>kans</c> / <c>discards</c> 与 JS 一样只保留参数位，判役本身不使用。
+    /// </summary>
+    public string CheckerCheckWin(
+        string handJson,
+        bool selfDraw,
+        bool hasCalled,
+        double ankanCount,
+        double minkanCount,
+        string meldsJson,
+        string kansJson,
+        bool firstTurn,
+        string discardsJson,
+        string winTileJson,
+        string winCtxJson)
+    {
+        _ = kansJson;
+        _ = discardsJson;
+        return CheckWinJson(
+            ParseTiles(ParseArray(handJson)),
+            selfDraw,
+            hasCalled,
+            (int)ankanCount,
+            (int)minkanCount,
+            ParseMelds(ParseArray(meldsJson)),
+            firstTurn,
+            ParseTile(ParseNode(winTileJson)),
+            ParseContext(ParseNode(winCtxJson)));
+    }
+
+    private string CheckWinJson(
+        List<Tile> hand,
+        bool selfDraw,
+        bool hasCalled,
+        int ankanCount,
+        int minkanCount,
+        List<Meld> melds,
+        bool firstTurn,
+        Tile? winTile,
+        WinContext? context)
+    {
         var result = _checker.CheckWin(
             hand,
-            selfDraw: BoolOrNull(request, "selfDraw").GetValueOrDefault(),
-            hasCalled: BoolOrNull(request, "hasCalled").GetValueOrDefault(),
-            ankanCount: (int)(LongOrNull(request, "ankanCount") ?? 0),
-            minkanCount: (int)(LongOrNull(request, "minkanCount") ?? 0),
-            melds: melds,
-            firstTurn: BoolOrNull(request, "firstTurn").GetValueOrDefault(),
-            winTile: winTile,
-            context: context);
-
+            selfDraw,
+            hasCalled,
+            ankanCount,
+            minkanCount,
+            melds,
+            firstTurn,
+            winTile,
+            context);
         return ResultNode(result).ToJsonString();
     }
 
-    private static JsonObject ResultNode(WinResult result)
+    /// <summary><c>conditionFn(id)(hand, groups)</c> 的同步桥；返回 bool。</summary>
+    public bool CheckerConditionFn(string id, string handJson, string groupsJson)
+    {
+        var hand = ParseTiles(ParseArray(handJson));
+        var groups = ParseGroups(groupsJson);
+        return _checker.ConditionFn(id ?? string.Empty, hand, groups);
+    }
+
+    /// <summary><c>checker.optionalEnabled.add(id)</c>。</summary>
+    public string OptionalEnabledAdd(string id)
+    {
+        SetOptional(id, true);
+        return "ok";
+    }
+
+    /// <summary><c>checker.optionalEnabled.delete(id)</c>。</summary>
+    public string OptionalEnabledRemove(string id)
+    {
+        SetOptional(id, false);
+        return "ok";
+    }
+
+    /// <summary>当前启用的可选役（JSON 字符串数组），供 JS 侧初始化 Set。</summary>
+    public string OptionalEnabledList()
+    {
+        var array = new JsonArray();
+        foreach (var id in _checker.OptionalEnabled.OrderBy(x => x, StringComparer.Ordinal))
+        {
+            array.Add(id);
+        }
+
+        return array.ToJsonString();
+    }
+
+    /// <summary>
+    /// <c>listTenpai(checker, hand, melds, opts)</c> 的同步桥：手牌 / 副露 / opts 都是 JSON。
+    /// 返回与 tenpai.js 同形状的数组：<c>{tile, success, totalFu, noYakuGap}</c>。
+    /// </summary>
+    public string ListTenpai(string handJson, string meldsJson, string optionsJson)
+    {
+        var hand = ParseTiles(ParseArray(handJson));
+        var melds = ParseMelds(ParseArray(meldsJson));
+        var opts = ParseObject(optionsJson) ?? new JsonObject();
+        var options = new TenpaiOptions
+        {
+            SelfDraw = BoolOrNull(opts, "winSelfDraw") ?? true,
+            HasCalled = BoolOrNull(opts, "hasCalled").GetValueOrDefault(),
+            AnkanCount = (int)(LongOrNull(opts, "ankanCount") ?? 0),
+            MinkanCount = (int)(LongOrNull(opts, "minkanCount") ?? 0),
+            FirstTurn = BoolOrNull(opts, "firstTurn").GetValueOrDefault(),
+            SeatWind = ParseSeatWind(Str(opts, "seatWind")),
+            RoundWind = ParseSeatWind(Str(opts, "roundWind")),
+            BaseFu = _yaku.BaseFu,
+        };
+
+        var entries = TenpaiCalculator.ListTenpai(_checker, hand, melds, options);
+        var array = new JsonArray();
+        foreach (var entry in entries)
+        {
+            array.Add(new JsonObject
+            {
+                ["tile"] = TileText(entry.Tile),
+                ["success"] = entry.Success,
+                ["totalFu"] = entry.TotalFu,
+                ["noYakuGap"] = entry.NoYakuGap,
+            });
+        }
+
+        return array.ToJsonString();
+    }
+
+    /// <summary><c>getAIDiscardIndex(hand, game)</c> 的同步桥；game 参数在 JS 里只作上下文，算法未用。</summary>
+    public int GetAIDiscardIndex(string handJson, double random)
+    {
+        var hand = ParseTiles(ParseArray(handJson));
+        return AiPlayer.ChooseDiscardIndex(hand, random);
+    }
+
+    private JsonObject ResultNode(WinResult result)
     {
         var yaku = new JsonArray();
         foreach (var item in result.ActiveYaku)
@@ -314,12 +442,23 @@ public sealed partial class EngineHost
             {
                 ["name"] = item.Name,
                 ["fu"] = item.Fu,
+                ["id"] = item.Id,
                 ["isBonus"] = item.IsBonus,
+                ["isHigh"] = item.IsHigh,
+                ["kaishoku"] = item.Kaishoku,
+                ["doubleYakuman"] = item.DoubleYakuman,
                 ["ma"] = item.Name == "赐马",
                 ["fixedPoints"] = NumberNode(item.FixedPoints),
                 ["pointsBonus"] = NumberNode(item.PointsBonus),
             });
         }
+
+        // UI 只读 success / totalFu / activeYaku；points 是给调试与后续消费方的派生值，不影响判役。
+        JsonNode? points = result.SpecialPoints is int special
+            ? JsonValue.Create(special)
+            : result.TotalFu is int fu
+                ? JsonValue.Create(_engine.CalcPoints(fu))
+                : null;
 
         return new JsonObject
         {
@@ -328,10 +467,23 @@ public sealed partial class EngineHost
             ["totalFu"] = NumberNode(result.TotalFu),
             ["handType"] = result.HandType?.ToWire(),
             ["activeYaku"] = yaku,
+            ["yaku"] = yaku.DeepClone(),
+            ["points"] = points,
             ["specialPoints"] = NumberNode(result.SpecialPoints),
             ["sevenHonors"] = result.SevenHonors,
         };
     }
+
+    private static SeatWind ParseSeatWind(string value) => value switch
+    {
+        "south" => SeatWind.South,
+        "west" => SeatWind.West,
+        "north" => SeatWind.North,
+        _ => SeatWind.East,
+    };
+
+    private static string TileText(Tile tile) =>
+        tile.Suit == Suit.Honor ? tile.Num + "z" : tile.Num + SuitWire(tile.Suit);
 
     // ══════════════════════════════════════════════════════════════
     // JSON 解析辅助
@@ -369,6 +521,59 @@ public sealed partial class EngineHost
         {
             return null;
         }
+    }
+
+    private static JsonNode? ParseNode(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonNode.Parse(json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>conditionFn 的 groups 参数：<c>[{type, tiles:[...]}]</c>；null / [] 保持原样。</summary>
+    private static List<Group>? ParseGroups(string? json)
+    {
+        var array = ParseArray(json);
+        if (array is null)
+        {
+            return null;
+        }
+
+        var groups = new List<Group>();
+        foreach (var node in array)
+        {
+            if (node is not JsonObject obj)
+            {
+                continue;
+            }
+
+            var tiles = ParseTiles(obj["tiles"] as JsonArray);
+            if (tiles.Count == 0)
+            {
+                continue;
+            }
+
+            var kind = Str(obj, "type") switch
+            {
+                "sequence" or "chi" => GroupKind.Sequence,
+                "pung" or "pon" or "minkan" or "ankan" or "kakan" => GroupKind.Pung,
+                "pair" => GroupKind.Pair,
+                _ => GroupKind.Other,
+            };
+            groups.Add(new Group(kind, tiles));
+        }
+
+        return groups;
     }
 
     private static void MergeInto(JsonObject target, JsonObject source)

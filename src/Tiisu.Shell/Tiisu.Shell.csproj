@@ -41,7 +41,9 @@
     <WebPublishAsset Include="..\..\..\Web\ike.json" Link="Web\ike.json" />
     <WebPublishAsset Include="..\..\..\Web\css\**\*" Link="Web\css\%(RecursiveDir)%(Filename)%(Extension)" />
     <WebPublishAsset Include="..\..\..\Web\js\**\*" Link="Web\js\%(RecursiveDir)%(Filename)%(Extension)" />
-    <WebPublishAsset Include="..\..\..\Web\src\**\*" Link="Web\src\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- csharp 模式不再加载这 5 个 JS 引擎文件（判役/听牌/AI/状态机走 C#），安装包不带它们。 -->
+    <WebPublishAsset Include="..\..\..\Web\src\**\*" Link="Web\src\%(RecursiveDir)%(Filename)%(Extension)"
+                     Exclude="..\..\..\Web\src\engine.js;..\..\..\Web\src\winchecker.js;..\..\..\Web\src\aiPlayer.js;..\..\..\Web\src\tenpai.js;..\..\..\Web\src\handAnalyzer.js" />
     <WebPublishAsset Include="..\..\..\Web\mj_tiles\**\*" Link="Web\mj_tiles\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
