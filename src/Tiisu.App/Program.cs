@@ -183,7 +183,7 @@ internal static class Program
         var exporter = new SvgExporter(tilesDir);
         var vm = SampleTableModel();
 
-        string main = Path.Combine(outDir, "table.svg");
+        string main = Path.Combine(outDir, "table-generated.svg");
         string regions = Path.Combine(outDir, "table-regions.svg");
         File.WriteAllText(main, exporter.Build(vm), new System.Text.UTF8Encoding(false));
         File.WriteAllText(regions, SvgExporter.BuildRegions(), new System.Text.UTF8Encoding(false));
