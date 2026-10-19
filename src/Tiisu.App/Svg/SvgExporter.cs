@@ -397,10 +397,12 @@ public sealed class SvgExporter
                 return;
             }
 
+            string text = $"{label}  x={r.X:0} y={r.Y:0} w={r.W:0} h={r.H:0}";
+            float tbw = 22f + text.Length * 6.2f;
             sb.AppendLine($"  <g id=\"region-{label}\">");
             sb.AppendLine($"    <rect x=\"{F(r.X)}\" y=\"{F(r.Y)}\" width=\"{F(r.W)}\" height=\"{F(r.H)}\" fill=\"none\" stroke=\"#ff4040\" stroke-width=\"1.5\"/>");
-            sb.AppendLine($"    <rect x=\"{F(r.X)}\" y=\"{F(r.Y)}\" width=\"26\" height=\"16\" fill=\"#ff4040\"/>");
-            sb.AppendLine($"    <text x=\"{F(r.X + 13)}\" y=\"{F(r.Y + 12.5f)}\" fill=\"#fff\" font-family=\"Consolas\" font-size=\"11\" text-anchor=\"middle\">{label}</text>");
+            sb.AppendLine($"    <rect x=\"{F(r.X)}\" y=\"{F(r.Y - 15)}\" width=\"{F(tbw)}\" height=\"15\" fill=\"#c02020\" opacity=\"0.92\"/>");
+            sb.AppendLine($"    <text x=\"{F(r.X + 4)}\" y=\"{F(r.Y - 4)}\" fill=\"#fff\" font-family=\"Consolas\" font-size=\"11\">{text}</text>");
             sb.AppendLine("  </g>");
         }
 
