@@ -36,7 +36,7 @@ dotnet run --project tools/Tiisu.Tools
 | 里程碑 | 状态 |
 |---|---|
 | **M1 判役核心**（tiles/notation/handAnalyzer/tenpai/winchecker） | ✅ **完成**：10115 条 golden 逐字段 **0 差异** |
-| M2 engine（状态机 + 持久化接口） | 未开始 |
+| **M2 engine 状态机** | ✅ **完成**：705 事件回放逐字段 **0 差异**（回放式，AI 决策未含） |
 | M3 API（ASP.NET Core Minimal API） | 未开始 |
 
 ### M1 产物
@@ -58,8 +58,39 @@ dotnet run --project tools/Tiisu.Tools
 ```powershell
 cd E:\工程文件\TiisuMahjong\NET
 dotnet test Tiisu.slnx
-# 期望：语料总数 10115，差异 0
+# 期望：Engine 15 passed（705 事件回放 0 差异）+ Core 1 passed（10115 条判役 golden 0 差异）
 ```
+
+### M2 产物（engine 状态机）
+
+| 文件 | 行数 | 内容 |
+|---|---|---|
+| `src/Tiisu.Engine/MahjongEngine.cs` | 855 | 开局/摸打/副露/杠/推进/特殊流局/听牌 |
+| `src/Tiisu.Engine/MahjongEngine.Scoring.cs` | 599 | 和牌支付/多家荣和/流局罚符/连庄/终局 |
+| `src/Tiisu.Engine/Replay/ReplayDriver.cs` | 472 | 逐事件执行 + 逐字段比对 + 岭上补摸反推 |
+| `src/Tiisu.Engine/Replay/ReplayCorpus.cs` | 258 | 语料 DTO |
+| `src/Tiisu.Engine/Tenpai.cs` | 105 | tenpai.js 移植（复用 Core 判役） |
+| 其余 | ~300 | Player / Enums / Models / TileUtil / WinSettlement / PointsConfig |
+
+**策略：回放式**。语料记录 JS 做过的动作与每步快照，C# 只执行相同动作并比对状态 ——
+AI 决策与洗牌被隔离在状态机验证之外（AI 决策另列 M2b）。
+
+### engine 语料重生成
+
+```powershell
+cd ..\Web
+python scripts\gen_engine_golden.py -g 5 -n 1 --seed 20261018
+# 产物写到 ..\NET\tests\fixtures\engine-golden.json
+```
+
+> 同种子重跑 SHA256 一致（已验证可复现）。桩掉 `fetch`/`Math.random`/`Date`/`setTimeout`/`gameLog`。
+
+### M2 已知未覆盖（诚实标注）
+
+- **AI 决策**（暗杠/加杠判断、吃碰选择、出牌）未移植 —— 回放模式不需要
+- `flow()` / 听牌罚符 / 四风连打 / 拔厄：代码已移植但**本语料未触发**，无 golden 验证
+- 抢杠判定：本语料无抢杠事件
+- 人类交互路径：仅结构移植（语料是全 AI 对局）
 
 ### 注意：`ike.json` 是副本
 
