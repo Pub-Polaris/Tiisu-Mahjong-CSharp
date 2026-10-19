@@ -71,6 +71,14 @@ FunctionEnd
 Section "主程序" SecMain
   SectionIn RO
   SetOutPath "$INSTDIR"
+
+  ; 升级：清掉旧版本遗留的业务 JS（新版本判役/听牌/AI 全在 C#，这些文件不再发布）
+  Delete "$INSTDIR\Web\src\engine.js"
+  Delete "$INSTDIR\Web\src\winchecker.js"
+  Delete "$INSTDIR\Web\src\aiPlayer.js"
+  Delete "$INSTDIR\Web\src\tenpai.js"
+  Delete "$INSTDIR\Web\src\handAnalyzer.js"
+
   File /r "${SRC}\*.*"
 
   ; 卸载脚本：纯 ASCII，路径用环境变量展开（避免中文 .cmd 在 GBK 控制台解析失败）
