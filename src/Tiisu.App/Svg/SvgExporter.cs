@@ -16,7 +16,9 @@ namespace Tiisu.App.Svg;
 /// </summary>
 public sealed class SvgExporter
 {
-    private readonly Dictionary<string, string> _tileDataUris = new();
+    private sealed record TileArt(string Inner, float VbW, float VbH);
+
+    private readonly Dictionary<string, TileArt> _tiles = new();
 
     public SvgExporter(string tilesDir)
     {
@@ -28,12 +30,76 @@ public sealed class SvgExporter
         foreach (var file in Directory.EnumerateFiles(tilesDir, "*.svg"))
         {
             string id = Path.GetFileNameWithoutExtension(file);
-            byte[] bytes = File.ReadAllBytes(file);
-            _tileDataUris[id] = "data:image/svg+xml;base64," + Convert.ToBase64String(bytes);
+            var art = ParseTile(File.ReadAllText(file));
+            if (art is not null)
+            {
+                _tiles[id] = art;
+            }
         }
     }
 
-    public int TileCount => _tileDataUris.Count;
+    public int TileCount => _tiles.Count;
+
+    /// <summary>读一张牌 SVG：取 viewBox、把 .cls-N 的 CSS 展开成 inline style、去掉根标签。</summary>
+    private static TileArt? ParseTile(string text)
+    {
+        float vbW = 19f, vbH = 26f;
+        var vb = System.Text.RegularExpressions.Regex.Match(text, "viewBox=\"([^\"]+)\"");
+        if (vb.Success)
+        {
+            var parts = vb.Groups[1].Value.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 4
+                && float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var w)
+                && float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var h))
+            {
+                vbW = w;
+                vbH = h;
+            }
+        }
+
+        var css = new Dictionary<string, string>();
+        foreach (System.Text.RegularExpressions.Match m in
+                 System.Text.RegularExpressions.Regex.Matches(text, @"\.(cls-\d+)\s*\{([^}]*)\}"))
+        {
+            css[m.Groups[1].Value] = m.Groups[2].Value.Trim();
+        }
+
+        string body = System.Text.RegularExpressions.Regex.Replace(
+            text, @"<style>.*?</style>", string.Empty, System.Text.RegularExpressions.RegexOptions.Singleline);
+        body = System.Text.RegularExpressions.Regex.Replace(body, @"<defs>\s*</defs>", string.Empty);
+
+        int svgStart = body.IndexOf("<svg", StringComparison.Ordinal);
+        int open = svgStart >= 0 ? body.IndexOf('>', svgStart) : -1;
+        int close = body.LastIndexOf("</svg>", StringComparison.Ordinal);
+        if (open < 0 || close < 0 || close <= open)
+        {
+            return null;
+        }
+
+        string inner = body.Substring(open + 1, close - open - 1).Trim();
+        inner = System.Text.RegularExpressions.Regex.Replace(inner, "class=\"([^\"]+)\"", m =>
+        {
+            var sbStyle = new StringBuilder("style=\"");
+            bool any = false;
+            foreach (var cls in m.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (css.TryGetValue(cls, out var decl))
+                {
+                    sbStyle.Append(decl);
+                    if (!decl.TrimEnd().EndsWith(";"))
+                    {
+                        sbStyle.Append(';');
+                    }
+
+                    any = true;
+                }
+            }
+
+            return any ? sbStyle.Append('"').ToString() : "\"\"";
+        });
+
+        return new TileArt(inner, vbW, vbH);
+    }
 
     public string Build(TableViewModel vm)
     {
@@ -79,6 +145,8 @@ public sealed class SvgExporter
         AppendOwnHand(sb, vm);
         AppendOwnMelds(sb, vm);
 
+        AppendGuides(sb);
+
         sb.AppendLine("</svg>");
         return sb.ToString();
     }
@@ -122,10 +190,11 @@ public sealed class SvgExporter
         AppendPlateScore(sb, "score-left", vm, 3, p.X + 36, p.CenterY + 62);
         AppendPlateScore(sb, "score-right", vm, 1, p.Right - 36, p.CenterY + 62);
 
-        AppendWind(sb, "wind-self", vm, 0, p.X + 8, p.Bottom - 36);
-        AppendWind(sb, "wind-right", vm, 1, p.Right - 36, p.Bottom - 36);
-        AppendWind(sb, "wind-top", vm, 2, p.Right - 36, p.Y + 8);
-        AppendWind(sb, "wind-left", vm, 3, p.X + 8, p.Y + 8);
+        var badges = new List<(string Id, RectF Rect)>(WindBadges());
+        AppendWind(sb, badges[0].Id, vm, 0, badges[0].Rect);
+        AppendWind(sb, badges[1].Id, vm, 1, badges[1].Rect);
+        AppendWind(sb, badges[2].Id, vm, 2, badges[2].Rect);
+        AppendWind(sb, badges[3].Id, vm, 3, badges[3].Rect);
         sb.AppendLine("  </g>");
     }
 
@@ -135,11 +204,13 @@ public sealed class SvgExporter
         sb.AppendLine($"    <text id=\"{id}\" x=\"{F(cx)}\" y=\"{F(cy)}\" fill=\"{(s.IsTurn ? "#ffe28c" : "#ecf0ec")}\" font-family=\"Microsoft YaHei\" font-size=\"16\" text-anchor=\"middle\">{s.Score:N0}</text>");
     }
 
-    private static void AppendWind(StringBuilder sb, string id, TableViewModel vm, int seat, float x, float y)
+    private static void AppendWind(StringBuilder sb, string id, TableViewModel vm, int seat, RectF r)
     {
         var s = seat < vm.Seats.Count ? vm.Seats[seat] : new SeatView();
-        sb.AppendLine($"    <g id=\"{id}\"><rect x=\"{F(x)}\" y=\"{F(y)}\" width=\"28\" height=\"28\" rx=\"6\" fill=\"#1e242a\" stroke=\"#78848c\"/>"
-            + $"<text x=\"{F(x + 14)}\" y=\"{F(y + 20)}\" fill=\"#f0f4f0\" font-family=\"Microsoft YaHei\" font-size=\"16\" font-weight=\"bold\" text-anchor=\"middle\">{Esc(s.Wind)}</text></g>");
+        sb.AppendLine($"    <g id=\"{id}\">");
+        sb.AppendLine($"      <rect x=\"{F(r.X)}\" y=\"{F(r.Y)}\" width=\"{F(r.W)}\" height=\"{F(r.H)}\" rx=\"6\" fill=\"#1e242a\" stroke=\"#78848c\"/>");
+        sb.AppendLine($"      <text x=\"{F(r.CenterX)}\" y=\"{F(r.Y + 20)}\" fill=\"#f0f4f0\" font-family=\"Microsoft YaHei\" font-size=\"16\" font-weight=\"bold\" text-anchor=\"middle\">{Esc(s.Wind)}</text>");
+        sb.AppendLine("    </g>");
     }
 
     // ── 手牌/副露 ──
@@ -262,19 +333,67 @@ public sealed class SvgExporter
         sb.AppendLine("  </g>");
     }
 
-    // ── 单张牌 ──
-    private void AppendTile(StringBuilder sb, string id, float x, float y, float w, float h, float angle)
+    // ── 边界参考层（含风向徽章实际矩形）──
+    private static void AppendGuides(StringBuilder sb)
     {
-        string href = _tileDataUris.TryGetValue(id, out var uri) ? uri : string.Empty;
-        string transform = Math.Abs(angle) < 0.01f
-            ? string.Empty
-            : $" transform=\"rotate({F(angle)} {F(x + w / 2f)} {F(y + h / 2f)})\"";
-        sb.AppendLine($"    <image x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(w)}\" height=\"{F(h)}\" href=\"{href}\" xlink:href=\"{href}\"{transform}/>");
+        sb.AppendLine("  <g id=\"regions-guides\" fill=\"none\" stroke=\"#ff4040\" stroke-width=\"1\" stroke-dasharray=\"4 3\" opacity=\"0.85\">");
+        void R(string id, RectF r) =>
+            sb.AppendLine($"    <rect id=\"{id}\" x=\"{F(r.X)}\" y=\"{F(r.Y)}\" width=\"{F(r.W)}\" height=\"{F(r.H)}\"/>");
+
+        R("guide-top-hand", TableLayout.TopHandArea);
+        R("guide-top-meld", TableLayout.TopMeldArea);
+        R("guide-left-hand", TableLayout.LeftHandArea);
+        R("guide-left-meld", TableLayout.LeftMeldArea);
+        R("guide-right-hand", TableLayout.RightHandArea);
+        R("guide-right-meld", TableLayout.RightMeldArea);
+        R("guide-own-hand", TableLayout.HandArea);
+        R("guide-own-meld", TableLayout.OwnMeldArea);
+        R("guide-center", TableLayout.CenterPlate);
+        for (int seat = 0; seat < 4; seat++)
+        {
+            R($"guide-river-{seat}", TableLayout.River(seat).Bounds);
+        }
+
+        foreach (var (id, r) in WindBadges())
+        {
+            sb.AppendLine($"    <rect id=\"guide-{id}\" x=\"{F(r.X)}\" y=\"{F(r.Y)}\" width=\"{F(r.W)}\" height=\"{F(r.H)}\" stroke=\"#ffb020\"/>");
+        }
+
+        sb.AppendLine("  </g>");
     }
 
+    /// <summary>中央板四角风向徽章的实际矩形（渲染与导出共用同一份坐标）。</summary>
+    public static IEnumerable<(string Id, RectF Rect)> WindBadges()
+    {
+        var p = TableLayout.CenterPlate;
+        yield return ("wind-self", new RectF(p.X + 8, p.Bottom - 36, 28, 28));
+        yield return ("wind-right", new RectF(p.Right - 36, p.Bottom - 36, 28, 28));
+        yield return ("wind-top", new RectF(p.Right - 36, p.Y + 8, 28, 28));
+        yield return ("wind-left", new RectF(p.X + 8, p.Y + 8, 28, 28));
+    }
+
+    // ── 单张牌（内联矢量，Illustrator/Inkscape 直接可编辑）──
+    private void AppendTile(StringBuilder sb, string id, float x, float y, float w, float h, float angle)
+    {
+        if (!_tiles.TryGetValue(id, out var art))
+        {
+            sb.AppendLine($"    <rect x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(w)}\" height=\"{F(h)}\" fill=\"#f0ead6\" stroke=\"#999\"/>");
+            return;
+        }
+
+        float sx = w / art.VbW;
+        float sy = h / art.VbH;
+        float cx = x + w / 2f;
+        float cy = y + h / 2f;
+        string transform = Math.Abs(angle) < 0.01f
+            ? $"translate({F(x)} {F(y)}) scale({F(sx)} {F(sy)})"
+            : $"rotate({F(angle)} {F(cx)} {F(cy)}) translate({F(x)} {F(y)}) scale({F(sx)} {F(sy)})";
+        sb.AppendLine($"    <g data-tile=\"{id}\" transform=\"{transform}\">");
+        sb.AppendLine("      " + art.Inner);
+        sb.AppendLine("    </g>");
+    }
 
     // ── 元素定位清单（JSON / Markdown）──
-
     public static string BuildLayoutJson()
     {
         static string R(string id, RectF r, string note = "") =>
@@ -298,6 +417,15 @@ public sealed class SvgExporter
         sb.AppendLine("    " + R("river-right", TableLayout.River(1).Bounds, "下家牌河") + ",");
         sb.AppendLine("    " + R("river-top", TableLayout.River(2).Bounds, "对家牌河") + ",");
         sb.AppendLine("    " + R("river-left", TableLayout.River(3).Bounds, "上家牌河"));
+        sb.AppendLine("  ],");
+        sb.AppendLine("  \"windBadges\": [");
+        var badges = new List<string>();
+        foreach (var (bid, br) in WindBadges())
+        {
+            badges.Add("    " + R(bid, br, "风向徽章"));
+        }
+
+        sb.AppendLine(string.Join(",\n", badges));
         sb.AppendLine("  ],");
         sb.AppendLine("  \"riverGeometry\": [");
         for (int seat = 0; seat < 4; seat++)
@@ -351,6 +479,16 @@ public sealed class SvgExporter
         Row("river-left", "上家牌河（D）", TableLayout.River(3).Bounds);
 
         sb.AppendLine();
+        sb.AppendLine("## 风向徽章（中央板四角实际矩形）");
+        sb.AppendLine();
+        sb.AppendLine("| id | x | y | w | h |");
+        sb.AppendLine("|---|---|---|---|---|");
+        foreach (var (bid, br) in WindBadges())
+        {
+            sb.AppendLine($"| `{bid}` | {br.X:0} | {br.Y:0} | {br.W:0} | {br.H:0} |");
+        }
+
+        sb.AppendLine();
         sb.AppendLine("## 牌河几何");
         sb.AppendLine();
         sb.AppendLine("起点在各自 `Bounds` 的左上角；第 i 张牌：`x = X + (i%6)*dxCol + (i/6)*dxRow`，`y` 同理。");
@@ -376,7 +514,6 @@ public sealed class SvgExporter
         sb.AppendLine($"| 下方点数 | ({p.CenterX:0}, {p.Bottom - 22:0}) |");
         sb.AppendLine($"| 上方点数 | ({p.CenterX:0}, {p.Y + 30:0}) |");
         sb.AppendLine($"| 左右点数 | ({p.X + 36:0}, {p.CenterY + 62:0}) / ({p.Right - 36:0}, {p.CenterY + 62:0}) |");
-        sb.AppendLine($"| 风向徽章 | 28×28，四角内缩 8px |");
         return sb.ToString();
     }
 
@@ -419,6 +556,10 @@ public sealed class SvgExporter
         Box("B-river-right", TableLayout.River(1).Bounds);
         Box("C-river-top", TableLayout.River(2).Bounds);
         Box("D-river-left", TableLayout.River(3).Bounds);
+        foreach (var (wid, wr) in WindBadges())
+        {
+            Box(wid, wr);
+        }
         sb.AppendLine("</svg>");
         return sb.ToString();
     }
