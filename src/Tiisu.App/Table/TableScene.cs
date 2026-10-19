@@ -5,72 +5,36 @@ using Color = Tiisu.App.Rendering.Color;
 namespace Tiisu.App.Table;
 
 /// <summary>
-/// 雀魂式牌桌渲染：中央牌桌板 + 回字形牌河 + 13+1 手牌 + 贴右副露。
-/// 只吃 <see cref="TableViewModel"/>；每个区域固定，牌再多也不越界。
+/// 牌桌渲染（4:3 改版）：
+///   每家手牌带 + 右手侧副露区（副露后手牌缩回另一段），四家牌河贴着中央板，
+///   全部按固定矩形排布，永不重叠。
 /// </summary>
 public sealed class TableScene
 {
     public void Draw(ICanvas c, TableViewModel vm, double time, bool debug = false)
     {
         DrawFelt(c);
-        if (debug)
-        {
-            DrawDebugRegions(c);
-        }
-
         DrawRivers(c, vm);
         DrawCenterPlate(c, vm);
         DrawTopSeat(c, vm);
         DrawLeftSeat(c, vm);
         DrawRightSeat(c, vm);
         DrawOwnSeat(c, vm);
-    }
 
-
-    /// <summary>调试：把区域框和编号画出来（北极星指出哪个区域不对时用）。</summary>
-    private static void DrawDebugRegions(ICanvas c)
-    {
-        void Box(string label, RectF r)
+        if (debug)
         {
-            if (r.W <= 0 || r.H <= 0)
-            {
-                return;
-            }
-
-            c.StrokeRoundRect(r, 4, Color.Rgb(255, 64, 64).WithAlpha(220), 1.5f);
-            c.FillRoundRect(new RectF(r.X, r.Y, 24, 16), 3, Color.Rgb(255, 64, 64).WithAlpha(200));
-            c.DrawText(label, new RectF(r.X, r.Y, 24, 16), Color.White, new TextStyle(11, Bold: true, Center: true));
+            DrawDebugRegions(c);
         }
-
-        Box("1", TableLayout.TopHandArea);      // 对家手牌
-        Box("2", TableLayout.TopMeldArea);      // 对家副露
-        Box("3", TableLayout.LeftHandArea);     // 上家手牌
-        Box("4", TableLayout.LeftMeldArea);     // 上家副露
-        Box("5", TableLayout.RightHandArea);    // 下家手牌
-        Box("6", TableLayout.RightMeldArea);    // 下家副露
-        Box("7", TableLayout.HandArea);         // 自家手牌
-        Box("8", TableLayout.OwnMeldArea);      // 自家副露
-        Box("9", TableLayout.CenterPlate);      // 中央板
-
-        var r0 = TableLayout.River(0);
-        Box("A", r0.Bounds);
-        Box("B", TableLayout.River(1).Bounds);
-        Box("C", TableLayout.River(2).Bounds);
-        Box("D", TableLayout.River(3).Bounds);
     }
 
     // ── 桌面 ──
     private static void DrawFelt(ICanvas c)
     {
-        // 画布外/桌面底色用纯色（letterbox 同色），只在桌面区做渐变
+        // 画布底色纯色（letterbox 同色）
         c.FillRect(new RectF(0, 0, TableLayout.Width, TableLayout.Height), Color.Rgb(20, 30, 24));
-
         var t = TableLayout.Table;
         c.FillRoundRect(t, 20, Color.Rgb(46, 72, 56));
         c.StrokeRoundRect(t, 20, Color.Rgb(24, 36, 28), 2f);
-        // 中央浅色区（牌河底）
-        var inner = TableLayout.CenterPlate.Inflate(190);
-        c.FillRoundRect(inner, 18, Color.Rgb(255, 255, 255).WithAlpha(12));
     }
 
     // ── 四家牌河 ──
@@ -87,24 +51,22 @@ public sealed class TableScene
             var g = TableLayout.River(seat);
             int count = Math.Min(view.Discards.Count, TableLayout.RiverCols * 4);
             int rows = Math.Max(1, (count + TableLayout.RiverCols - 1) / TableLayout.RiverCols);
-            float rowStepY = g.dyRow != 0 ? g.dyRow : 0;
-            float rowStepX = g.dxRow != 0 ? g.dxRow : 0;
 
-            // 行太多时压缩行距（不越界）
-            float maxDepth = g.Bounds.W + g.Bounds.H > 0 ? Math.Max(g.Bounds.W, g.Bounds.H) : 150f;
-            float needed = rows * Math.Abs(rowStepY != 0 ? rowStepY : rowStepX);
-            float scale = needed > maxDepth ? maxDepth / needed : 1f;
+            bool horizontalRows = Math.Abs(g.dyRow) > 0;
+            float band = horizontalRows ? g.Bounds.H : g.Bounds.W;
+            float need = rows * (horizontalRows ? Math.Abs(g.dyRow) : Math.Abs(g.dxRow));
+            float scale = need > band ? band / need : 1f;
 
             for (int i = 0; i < count; i++)
             {
                 int row = i / TableLayout.RiverCols;
                 int col = i % TableLayout.RiverCols;
-                float x = g.Bounds.X + col * g.dxCol + row * rowStepX * scale;
-                float y = g.Bounds.Y + col * g.dyCol + row * rowStepY * scale;
+                float x = g.Bounds.X + col * g.dxCol + row * g.dxRow * scale;
+                float y = g.Bounds.Y + col * g.dyCol + row * g.dyRow * scale;
 
-                var slot = g.angle == 0f || g.angle == 180f
-                    ? new RectF(x, y, TableLayout.RiverTileW, TableLayout.RiverTileH)
-                    : new RectF(x, y, TableLayout.RiverTileH, TableLayout.RiverTileW);
+                var slot = Math.Abs(g.angle) == 90f
+                    ? new RectF(x, y, TableLayout.RiverTileH, TableLayout.RiverTileW)
+                    : new RectF(x, y, TableLayout.RiverTileW, TableLayout.RiverTileH);
 
                 if (i == count - 1)
                 {
@@ -120,43 +82,49 @@ public sealed class TableScene
     private static void DrawCenterPlate(ICanvas c, TableViewModel vm)
     {
         var p = TableLayout.CenterPlate;
-        c.FillRoundRect(p.Inflate(5), 18, Color.Rgb(0, 0, 0).WithAlpha(110));
-        c.FillLinearGradient(p, 16, Color.Rgb(84, 96, 108), Color.Rgb(46, 54, 64));
-        c.StrokeRoundRect(p, 16, Color.Rgb(24, 28, 34), 2f);
-        c.StrokeRoundRect(p.Inflate(-6), 12, Color.Rgb(255, 255, 255).WithAlpha(24), 1f);
+        c.FillRoundRect(p, 16, Color.Rgb(52, 62, 74));
+        c.StrokeRoundRect(p, 16, Color.Rgb(22, 28, 34), 2f);
 
-        // 四家点数（沿四边）
-        DrawPlateScore(c, Seat(vm, 0), p.CenterX, p.Bottom - 26);
-        DrawPlateScore(c, Seat(vm, 2), p.CenterX, p.Y + 26);
-        DrawPlateScore(c, Seat(vm, 3), p.X + 34, p.CenterY);
-        DrawPlateScore(c, Seat(vm, 1), p.Right - 34, p.CenterY);
-
-        // 中央：局数 / 剩余
-        c.DrawText(vm.RoundLabel, new RectF(p.X, p.CenterY - 34, p.W, 30),
+        c.DrawText(vm.RoundLabel, new RectF(p.X, p.CenterY - 44, p.W, 28),
             Color.Rgb(140, 246, 236), new TextStyle(20, Bold: true, Center: true));
-        c.DrawText("余 " + vm.WallCount, new RectF(p.X, p.CenterY + 2, p.W, 26),
+        c.DrawText("余 " + vm.WallCount, new RectF(p.X, p.CenterY - 12, p.W, 24),
             Color.Rgb(150, 236, 226), new TextStyle(17, Center: true));
-        c.DrawText("本场 " + vm.Honba + " · 供托 " + vm.Kyotaku, new RectF(p.X, p.CenterY + 30, p.W, 22),
+        c.DrawText("本场 " + vm.Honba + " · 供托 " + vm.Kyotaku, new RectF(p.X, p.CenterY + 14, p.W, 20),
             Color.Rgb(180, 214, 208), new TextStyle(13, Center: true));
 
-        // 四家风牌（四角），与座位对应
-        DrawWindBadge(c, Seat(vm, 0).Wind, p.X + 6, p.Bottom - 38);
-        DrawWindBadge(c, Seat(vm, 1).Wind, p.Right - 34, p.Bottom - 38);
-        DrawWindBadge(c, Seat(vm, 2).Wind, p.Right - 34, p.Y + 6);
-        DrawWindBadge(c, Seat(vm, 3).Wind, p.X + 6, p.Y + 6);
+        DrawPlateScore(c, Seat(vm, 0), p.CenterX, p.Bottom - 24);
+        DrawPlateScore(c, Seat(vm, 2), p.CenterX, p.Y + 28);
+        DrawPlateScore(c, Seat(vm, 3), p.X + 38, p.CenterY + 62);
+        DrawPlateScore(c, Seat(vm, 1), p.Right - 38, p.CenterY + 62);
+
+        var b = WindBadges();
+        DrawWindBadge(c, Seat(vm, 0).Wind, b[0]);
+        DrawWindBadge(c, Seat(vm, 1).Wind, b[1]);
+        DrawWindBadge(c, Seat(vm, 2).Wind, b[2]);
+        DrawWindBadge(c, Seat(vm, 3).Wind, b[3]);
+    }
+
+    private static RectF[] WindBadges()
+    {
+        var p = TableLayout.CenterPlate;
+        return new[]
+        {
+            new RectF(p.X + 8, p.Bottom - 36, 28, 28),
+            new RectF(p.Right - 36, p.Bottom - 36, 28, 28),
+            new RectF(p.Right - 36, p.Y + 8, 28, 28),
+            new RectF(p.X + 8, p.Y + 8, 28, 28),
+        };
     }
 
     private static void DrawPlateScore(ICanvas c, SeatView seat, float cx, float cy)
     {
-        var box = new RectF(cx - 46, cy - 12, 92, 24);
-        c.DrawText(seat.Score.ToString("N0"), box,
+        c.DrawText(seat.Score.ToString("N0"), new RectF(cx - 46, cy - 12, 92, 24),
             seat.IsTurn ? Color.Rgb(255, 226, 140) : Color.Rgb(236, 240, 236),
             new TextStyle(16, Bold: seat.IsTurn, Center: true));
     }
 
-    private static void DrawWindBadge(ICanvas c, string wind, float x, float y)
+    private static void DrawWindBadge(ICanvas c, string wind, RectF r)
     {
-        var r = new RectF(x, y, 28, 28);
         c.FillRoundRect(r, 6, Color.Rgb(30, 36, 42));
         c.StrokeRoundRect(r, 6, Color.Rgb(120, 132, 140), 1f);
         c.DrawText(wind, r, Color.Rgb(240, 244, 240), new TextStyle(16, Bold: true, Center: true));
@@ -166,44 +134,24 @@ public sealed class TableScene
     private static void DrawTopSeat(ICanvas c, TableViewModel vm)
     {
         var seat = Seat(vm, 2);
-        var area = TableLayout.TopHandArea;
-        for (int i = 0; i < 13; i++)
-        {
-            var r = new RectF(area.X + i * (TableLayout.BackTileW + TableLayout.BackGap), area.Y,
-                TableLayout.BackTileW, TableLayout.BackTileH);
-            DrawBack(c, r);
-        }
-
-        DrawMeldsCentered(c, seat, TableLayout.TopMeldArea, horizontal: true, angle: 180f);
+        DrawBacksHorizontal(c, seat, TableLayout.TopHandArea);
+        DrawMeldsHorizontal(c, seat, TableLayout.TopMeldArea, angle: 180f);
     }
 
-    // ── 上家（左）/ 下家（右）──
+    // ── 上家（左）──
     private static void DrawLeftSeat(ICanvas c, TableViewModel vm)
     {
         var seat = Seat(vm, 3);
-        var area = TableLayout.LeftHandArea;
-        for (int i = 0; i < 13; i++)
-        {
-            var r = new RectF(area.X, area.Y + i * TableLayout.SideBackStep,
-                TableLayout.SideBackW, TableLayout.SideBackH);
-            DrawBack(c, r);
-        }
-
-        DrawMeldsCentered(c, seat, TableLayout.LeftMeldArea, horizontal: false, angle: -90f);
+        DrawBacksVertical(c, seat, TableLayout.LeftHandArea);
+        DrawMeldsVertical(c, seat, TableLayout.LeftMeldArea, angle: -90f);
     }
 
+    // ── 下家（右）──
     private static void DrawRightSeat(ICanvas c, TableViewModel vm)
     {
         var seat = Seat(vm, 1);
-        var area = TableLayout.RightHandArea;
-        for (int i = 0; i < 13; i++)
-        {
-            var r = new RectF(area.X, area.Y + i * TableLayout.SideBackStep,
-                TableLayout.SideBackW, TableLayout.SideBackH);
-            DrawBack(c, r);
-        }
-
-        DrawMeldsCentered(c, seat, TableLayout.RightMeldArea, horizontal: false, angle: 90f);
+        DrawBacksVertical(c, seat, TableLayout.RightHandArea);
+        DrawMeldsVertical(c, seat, TableLayout.RightMeldArea, angle: 90f);
     }
 
     // ── 自家 ──
@@ -211,31 +159,54 @@ public sealed class TableScene
     {
         var seat = Seat(vm, 0);
         var area = TableLayout.HandArea;
+
         int total = seat.Hand.Count;
         int row1 = Math.Min(total, 13);
-        int extra = total - row1;   // 摸牌（第 14 张）单独放右边空一格
-
+        int extra = total - row1;
         float step = TableLayout.HandTileW + TableLayout.HandGap;
-        float width1 = row1 * step - TableLayout.HandGap + (extra > 0 ? TableLayout.DrawnGap + TableLayout.HandTileW : 0);
-        float x = area.X + (area.W - width1) / 2f;
+        float x = area.X;
+        float y = area.Y + (area.H - TableLayout.HandTileH) / 2f;
 
         for (int i = 0; i < row1; i++)
         {
-            c.DrawTile(seat.Hand[i].Id, new RectF(x + i * step, area.Y, TableLayout.HandTileW, TableLayout.HandTileH));
+            c.DrawTile(seat.Hand[i].Id, new RectF(x + i * step, y, TableLayout.HandTileW, TableLayout.HandTileH));
         }
 
         for (int i = 0; i < extra; i++)
         {
             float dx = x + row1 * step - TableLayout.HandGap + TableLayout.DrawnGap;
-            c.DrawTile(seat.Hand[row1 + i].Id, new RectF(dx, area.Y, TableLayout.HandTileW, TableLayout.HandTileH));
+            c.DrawTile(seat.Hand[row1 + i].Id, new RectF(dx, y, TableLayout.HandTileW, TableLayout.HandTileH));
         }
 
-        // 自家副露：贴在手牌右端，牌转 90°（同雀魂）
-        DrawOwnMelds(c, seat, x + width1 + 12f);
+        DrawMeldsHorizontal(c, seat, TableLayout.OwnMeldArea, angle: 0f);
     }
 
-    // ── 副露 ──
-    private static void DrawMelds(ICanvas c, SeatView seat, RectF area, bool horizontal, float angle, bool rightToLeft = false)
+    // ── 横向手牌带（牌背）──
+    private static void DrawBacksHorizontal(ICanvas c, SeatView seat, RectF area)
+    {
+        int n = Math.Min(seat.HandCount > 0 ? seat.HandCount : 13, 13);
+        float step = TableLayout.BackTileW + TableLayout.BackGap;
+        float y = area.Y + (area.H - TableLayout.BackTileH) / 2f;
+        for (int i = 0; i < n; i++)
+        {
+            DrawBack(c, new RectF(area.X + i * step, y, TableLayout.BackTileW, TableLayout.BackTileH));
+        }
+    }
+
+    // ── 竖排手牌带（牌背）──
+    private static void DrawBacksVertical(ICanvas c, SeatView seat, RectF area)
+    {
+        int n = Math.Min(seat.HandCount > 0 ? seat.HandCount : 13, 13);
+        float x = area.X + (area.W - TableLayout.SideBackW) / 2f;
+        for (int i = 0; i < n; i++)
+        {
+            DrawBack(c, new RectF(x, area.Y + i * TableLayout.SideBackStep,
+                TableLayout.SideBackW, TableLayout.SideBackH));
+        }
+    }
+
+    // ── 副露（横排）──
+    private static void DrawMeldsHorizontal(ICanvas c, SeatView seat, RectF area, float angle)
     {
         if (seat.Melds.Count == 0)
         {
@@ -245,142 +216,64 @@ public sealed class TableScene
         const float w = TableLayout.RiverTileW;
         const float h = TableLayout.RiverTileH;
         const float gap = 2f;
-
-        if (horizontal)
-        {
-            float x = rightToLeft ? area.Right - w : area.X;
-            float y = area.Y + (area.H - h) / 2f;
-            foreach (var meld in seat.Melds)
-            {
-                foreach (var tile in meld.Tiles)
-                {
-                    if (x + w > area.Right)
-                    {
-                        return;   // 区域满了就不再画，绝不越界压别人
-                    }
-
-                    DrawRotated(c, tile.Id, new RectF(x, y, w, h), angle);
-                    x += rightToLeft ? -(w + gap) : (w + gap);
-                }
-
-                x += rightToLeft ? -6 : 6;
-            }
-        }
-        else
-        {
-            float x = area.X + (area.W - w) / 2f;
-            float y = area.Y;
-            foreach (var meld in seat.Melds)
-            {
-                foreach (var tile in meld.Tiles)
-                {
-                    if (y + h > area.Bottom)
-                    {
-                        return;
-                    }
-
-                    DrawRotated(c, tile.Id, new RectF(x, y, w, h), angle);
-                    y += w + gap;
-                }
-
-                y += 6;
-            }
-        }
-    }
-
-
-    /// <summary>对手副露：在给定区域里居中排（对家横排、上下家竖排）。</summary>
-    private static void DrawMeldsCentered(ICanvas c, SeatView seat, RectF area, bool horizontal, float angle)
-    {
-        if (seat.Melds.Count == 0)
-        {
-            return;
-        }
-
-        const float w = TableLayout.RiverTileW;
-        const float h = TableLayout.RiverTileH;
-        const float gap = 2f;
-
-        // 先算总长，再居中放
-        int total = 0;
-        foreach (var meld in seat.Melds)
-        {
-            total += meld.Tiles.Count;
-        }
-
-        float len = total * (horizontal ? w + gap : w + gap) + (seat.Melds.Count - 1) * 6f;
-
-        if (horizontal)
-        {
-            float x = area.CenterX - len / 2f;
-            float y = area.Y + (area.H - h) / 2f;
-            foreach (var meld in seat.Melds)
-            {
-                foreach (var tile in meld.Tiles)
-                {
-                    DrawRotated(c, tile.Id, new RectF(x, y, w, h), angle);
-                    x += w + gap;
-                }
-
-                x += 6;
-            }
-        }
-        else
-        {
-            float x = area.X + (area.W - w) / 2f;
-            float y = area.CenterY - len / 2f;
-            foreach (var meld in seat.Melds)
-            {
-                foreach (var tile in meld.Tiles)
-                {
-                    DrawRotated(c, tile.Id, new RectF(x, y, w, h), angle);
-                    y += w + gap;
-                }
-
-                y += 6;
-            }
-        }
-    }
-
-    /// <summary>自家副露：跟手牌一样大的牌，接在手牌右端。</summary>
-    private static void DrawOwnMelds(ICanvas c, SeatView seat, float startX)
-    {
-        if (seat.Melds.Count == 0)
-        {
-            return;
-        }
-
-        float w = TableLayout.HandTileW;
-        float h = TableLayout.HandTileH;
-        float x = startX;
-        float y = TableLayout.OwnMeldArea.Y + (TableLayout.OwnMeldArea.H - h) / 2f;
+        float x = area.X + 4f;
+        float y = area.Y + (area.H - h) / 2f;
 
         foreach (var meld in seat.Melds)
         {
             foreach (var tile in meld.Tiles)
             {
-                if (x + w > TableLayout.OwnMeldArea.Right)
+                if (x + w > area.Right - 2f)
                 {
                     return;
                 }
 
-                c.DrawTile(tile.Id, new RectF(x, y, w, h));
-                x += w + 1f;
+                DrawRotated(c, tile.Id, new RectF(x, y, w, h), angle);
+                x += w + gap;
             }
 
-            x += 8;
+            x += 6;
         }
     }
 
-    // ── 通用绘制 ──
+    // ── 副露（竖排）──
+    private static void DrawMeldsVertical(ICanvas c, SeatView seat, RectF area, float angle)
+    {
+        if (seat.Melds.Count == 0)
+        {
+            return;
+        }
+
+        const float w = TableLayout.RiverTileW;
+        const float h = TableLayout.RiverTileH;
+        const float gap = 2f;
+        float x = area.X + (area.W - w) / 2f;
+        float y = area.Y + 4f;
+
+        foreach (var meld in seat.Melds)
+        {
+            foreach (var tile in meld.Tiles)
+            {
+                if (y + h > area.Bottom - 2f)
+                {
+                    return;
+                }
+
+                DrawRotated(c, tile.Id, new RectF(x, y, w, h), angle);
+                y += h + gap;
+            }
+
+            y += 6;
+        }
+    }
+
     private static void DrawBack(ICanvas c, RectF r)
     {
-        c.FillRoundRect(new RectF(r.X + 1, r.Y + 1, r.W, r.H), 4, Color.Rgb(0, 0, 0).WithAlpha(80));
-        c.FillLinearGradient(r, 4, Color.Rgb(52, 138, 198), Color.Rgb(28, 86, 138));
+        c.FillRoundRect(r, 4, Color.Rgb(46, 138, 198));
         c.StrokeRoundRect(r, 4, Color.Rgb(16, 40, 62), 1f);
     }
 
-    /// <summary>绕槽位中心旋转绘制牌面（侧边/对家牌用）。</summary>
+    /// <summary>绕槽位中心旋转绘制牌面。</summary>
     private static void DrawRotated(ICanvas c, string id, RectF slot, float angle)
     {
         if (Math.Abs(angle) < 0.01f)
@@ -395,6 +288,35 @@ public sealed class TableScene
         c.DrawTile(id, new RectF(-TableLayout.RiverTileW / 2f, -TableLayout.RiverTileH / 2f,
             TableLayout.RiverTileW, TableLayout.RiverTileH));
         c.Restore();
+    }
+
+    // ── 调试边界 ──
+    private static void DrawDebugRegions(ICanvas c)
+    {
+        void Box(string label, RectF r)
+        {
+            if (r.W <= 0 || r.H <= 0)
+            {
+                return;
+            }
+
+            c.StrokeRoundRect(r, 2, Color.Rgb(255, 64, 64).WithAlpha(220), 1.5f);
+            c.DrawText(label, new RectF(r.X + 2, r.Y + 2, 70, 16), Color.White, new TextStyle(11, Bold: true, Center: false));
+        }
+
+        Box("self", TableLayout.HandArea);
+        Box("self-meld", TableLayout.OwnMeldArea);
+        Box("top", TableLayout.TopHandArea);
+        Box("top-meld", TableLayout.TopMeldArea);
+        Box("left", TableLayout.LeftHandArea);
+        Box("left-meld", TableLayout.LeftMeldArea);
+        Box("right", TableLayout.RightHandArea);
+        Box("right-meld", TableLayout.RightMeldArea);
+        Box("center", TableLayout.CenterPlate);
+        for (int seat = 0; seat < 4; seat++)
+        {
+            Box("river" + seat, TableLayout.River(seat).Bounds);
+        }
     }
 
     private static SeatView Seat(TableViewModel vm, int index) =>
