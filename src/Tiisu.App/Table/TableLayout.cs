@@ -48,22 +48,24 @@ public static class TableLayout
     public const float BackGap = 2f;
 
     // ── 上下家手牌（竖排牌背）──
-    public static readonly RectF LeftHandArea = new(18, 196, 50, 430);
-    public static readonly RectF RightHandArea = new(1212, 196, 50, 430);
+    public static readonly RectF LeftHandArea = new(14, 120, 48, 500);
+    public static readonly RectF RightHandArea = new(1218, 120, 48, 500);
     public const float SideBackW = 44f;   // 侧边牌背：宽（横轴）
     public const float SideBackH = 30f;   // 侧边牌背：高（竖轴）
     public const float SideBackStep = 32f;
 
     // ── 对家副露（贴对家牌河外侧）──
-    public static readonly RectF TopMeldArea = new(90, 74, 300, 44);
-    public static readonly RectF LeftMeldArea = new(332, 250, 46, 210);
-    public static readonly RectF RightMeldArea = new(902, 250, 46, 210);
+    // 副露区域由场景按"贴着自己手牌居中"动态计算（见 MeldAnchor）
+    public static readonly RectF TopMeldArea = new(380, 74, 520, 44);
+    public static readonly RectF LeftMeldArea = new(66, 240, 44, 300);
+    public static readonly RectF RightMeldArea = new(1170, 240, 44, 300);
 
     // ── 四角玩家信息 ──
-    public static readonly RectF InfoTL = new(20, 20, 250, 46);
-    public static readonly RectF InfoTR = new(1010, 20, 250, 46);
-    public static readonly RectF InfoBL = new(84, 534, 170, 46);
-    public static readonly RectF InfoBR = new(1026, 534, 170, 46);
+    // 四角不再放信息框：名字/点数只在中央板体现
+    public static readonly RectF InfoTL = new(0, 0, 0, 0);
+    public static readonly RectF InfoTR = new(0, 0, 0, 0);
+    public static readonly RectF InfoBL = new(0, 0, 0, 0);
+    public static readonly RectF InfoBR = new(0, 0, 0, 0);
 
     /// <summary>某一家牌河的几何：起点块、行/列步进、朝向角（牌要转多少度才朝向该家）。</summary>
     public static RiverGeometry River(int seat)

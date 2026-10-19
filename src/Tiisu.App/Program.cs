@@ -8,6 +8,7 @@ using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
 using Tiisu.App.Ui;
 using Tiisu.App.Table;
+using Tiisu.App.Svg;
 using UiScreen = Tiisu.App.Ui.Screen;
 
 namespace Tiisu.App;
@@ -28,10 +29,17 @@ internal static class Program
             return;
         }
 
+        // 导出可编辑 SVG：--export-svg <dir>
+        if (args.Length >= 2 && args[0] == "--export-svg")
+        {
+            ExportSvg(args[1]);
+            return;
+        }
+
         // Skia 牌桌渲染（布局验证）：--render-table <png>
         if (args.Length >= 2 && args[0] == "--render-table")
         {
-            RenderTableToPng(args[1]);
+            RenderTableToPng(args[1], args.Length >= 3 && args[2] == "debug");
             return;
         }
 
@@ -110,7 +118,7 @@ internal static class Program
             frames, avg, 1000.0 / avg, times[idx], atlas.IsLoaded));
     }
 
-    private static void RenderTableToPng(string path)
+    private static void RenderTableToPng(string path, bool debug = false)
     {
         using var atlas = new TileAtlas(AssetsDir);
         var info = new SKImageInfo((int)TableLayout.Width, (int)TableLayout.Height);
@@ -121,7 +129,7 @@ internal static class Program
         var vm = SampleTableModel();
         using (var ctx = new SkiaCanvas(canvas, atlas))
         {
-            new TableScene().Draw(ctx, vm, 0.6);
+            new TableScene().Draw(ctx, vm, 0.6, debug);
         }
 
         using var image = surface.Snapshot();
@@ -135,7 +143,8 @@ internal static class Program
         TileView T(string id) => new(id);
         MeldView M(string type, params string[] ids) => new() { Type = type, Tiles = ids.Select(T).ToArray() };
 
-        var hand0 = new[] { "1m", "2m", "3m", "5m", "5m", "7m", "2p", "3p", "4p", "1s", "5s", "9s", "7z", "3z" }
+        // 1 副露：手牌 10 + 摸牌 1 = 11
+        var hand0 = new[] { "1m", "2m", "3m", "5m", "5m", "7m", "2p", "3p", "4p", "1s", "3z" }
             .Select(T).ToArray();
         var river0 = new[] { "3p", "8p", "1z", "9s", "2p", "5s", "6z", "7m", "1p", "4s", "2z", "4m" }.Select(T).ToArray();
         var river1 = new[] { "2m", "9m", "6p", "3z", "7s", "5z", "1m", "4z", "6s" }.Select(T).ToArray();
@@ -145,13 +154,13 @@ internal static class Program
         var seats = new List<SeatView>
         {
             new() { Index = 0, Name = "你", Wind = "东", Score = 49000, IsDealer = true, IsHuman = true, IsTurn = true,
-                    HandCount = 14, Hand = hand0, Discards = river0,
+                    HandCount = 11, Hand = hand0, Discards = river0,
                     Melds = new[] { M("pon", "2s", "2s", "2s") } },
-            new() { Index = 1, Name = "南 AI", Wind = "南", Score = 39200, HandCount = 13, Discards = river1,
-                    Melds = new[] { M("chi", "4m", "5m", "6m"), M("kan_minkan", "3s", "3s", "3s", "3s") } },
-            new() { Index = 2, Name = "西 AI", Wind = "西", Score = 58800, HandCount = 13, Discards = river2,
+            new() { Index = 1, Name = "南 AI", Wind = "南", Score = 39200, HandCount = 10, Discards = river1,
+                    Melds = new[] { M("chi", "4m", "5m", "6m") } },
+            new() { Index = 2, Name = "西 AI", Wind = "西", Score = 58800, HandCount = 7, Discards = river2,
                     Melds = new[] { M("pon", "7z", "7z", "7z"), M("pon", "1z", "1z", "1z") } },
-            new() { Index = 3, Name = "北 AI", Wind = "北", Score = 49000, HandCount = 13, Discards = river3,
+            new() { Index = 3, Name = "北 AI", Wind = "北", Score = 49000, HandCount = 10, Discards = river3,
                     Melds = new[] { M("chi", "7s", "8s", "9s") } },
         };
 
@@ -165,5 +174,37 @@ internal static class Program
             TurnIndex = 0,
             Seats = seats,
         };
+    }
+
+    private static void ExportSvg(string outDir)
+    {
+        Directory.CreateDirectory(outDir);
+        string tilesDir = Path.Combine(FindWebDir(), "mj_tiles");
+        var exporter = new SvgExporter(tilesDir);
+        var vm = SampleTableModel();
+
+        string main = Path.Combine(outDir, "table.svg");
+        string regions = Path.Combine(outDir, "table-regions.svg");
+        File.WriteAllText(main, exporter.Build(vm), new System.Text.UTF8Encoding(false));
+        File.WriteAllText(regions, SvgExporter.BuildRegions(), new System.Text.UTF8Encoding(false));
+        Console.WriteLine($"exported svg -> {main}（内嵌牌面 {exporter.TileCount} 张）/ {regions}");
+    }
+
+    /// <summary>从 exe 目录向上找仓库里的 Web 目录（mj_tiles 来源）。</summary>
+    private static string FindWebDir()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 8 && dir is not null; i++)
+        {
+            string candidate = Path.Combine(dir.FullName, "Web", "mj_tiles");
+            if (Directory.Exists(candidate))
+            {
+                return Path.Combine(dir.FullName, "Web");
+            }
+
+            dir = dir.Parent;
+        }
+
+        return "Web";
     }
 }
