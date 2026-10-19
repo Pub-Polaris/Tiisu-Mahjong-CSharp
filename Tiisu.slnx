@@ -2,10 +2,12 @@
   <Folder Name="/src/">
     <Project Path="src/Tiisu.Core/Tiisu.Core.csproj" />
     <Project Path="src/Tiisu.Engine/Tiisu.Engine.csproj" />
+    <Project Path="src/Tiisu.Api/Tiisu.Api.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Tiisu.Core.Tests/Tiisu.Core.Tests.csproj" />
     <Project Path="tests/Tiisu.Engine.Tests/Tiisu.Engine.Tests.csproj" />
+    <Project Path="tests/Tiisu.Api.Tests/Tiisu.Api.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Tiisu.Tools/Tiisu.Tools.csproj" />
