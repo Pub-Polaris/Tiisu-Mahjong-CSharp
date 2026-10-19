@@ -29,6 +29,13 @@ internal static class Program
             return;
         }
 
+        // 带编号的布局图（看图说话用）：--render-annotated <png>
+        if (args.Length >= 2 && args[0] == "--render-annotated")
+        {
+            RenderAnnotated(args[1]);
+            return;
+        }
+
         // 导出可编辑 SVG：--export-svg <dir>
         if (args.Length >= 2 && args[0] == "--export-svg")
         {
@@ -210,5 +217,85 @@ internal static class Program
         }
 
         return "Web";
+    }
+
+    private static void RenderAnnotated(string path)
+    {
+        using var atlas = new TileAtlas(AssetsDir);
+        const int legendH = 150;
+        var info = new SKImageInfo((int)TableLayout.Width, (int)TableLayout.Height + legendH);
+        using var surface = SKSurface.Create(info);
+        var canvas = surface.Canvas;
+        canvas.Clear(new SKColor(18, 26, 22));
+
+        var vm = SampleTableModel();
+        using (var ctx = new SkiaCanvas(canvas, atlas))
+        {
+            new TableScene().Draw(ctx, vm, 0.6, debug: false);
+        }
+
+        DrawRegionNumbers(canvas);
+        DrawLegend(canvas, (int)TableLayout.Height, legendH);
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+        Console.WriteLine("rendered annotated -> " + path);
+    }
+
+    /// <summary>在每个区域左上角画大号编号。</summary>
+    private static void DrawRegionNumbers(SKCanvas canvas)
+    {
+        var regions = new (string Num, string Name, RectF R)[]
+        {
+            ("1", "自家手牌", TableLayout.HandArea),
+            ("2", "自家副露", TableLayout.OwnMeldArea),
+            ("3", "对家手牌", TableLayout.TopHandArea),
+            ("4", "对家副露", TableLayout.TopMeldArea),
+            ("5", "上家手牌", TableLayout.LeftHandArea),
+            ("6", "上家副露", TableLayout.LeftMeldArea),
+            ("7", "下家手牌", TableLayout.RightHandArea),
+            ("8", "下家副露", TableLayout.RightMeldArea),
+            ("9", "中央板", TableLayout.CenterPlate),
+            ("A", "自家牌河", TableLayout.River(0).Bounds),
+            ("B", "对家牌河", TableLayout.River(2).Bounds),
+            ("C", "下家牌河", TableLayout.River(1).Bounds),
+            ("D", "上家牌河", TableLayout.River(3).Bounds),
+        };
+
+        using var box = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 2f, Color = new SKColor(255, 72, 72) };
+        using var fill = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = new SKColor(200, 32, 32) };
+        using var typeface = SKTypeface.FromFamilyName("Microsoft YaHei", SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright) ?? SKTypeface.Default;
+        using var font = new SKFont(typeface, 20f);
+        using var text = new SKPaint { IsAntialias = true, Color = SKColors.White };
+
+        foreach (var (num, _, r) in regions)
+        {
+            canvas.DrawRect(new SKRect(r.X, r.Y, r.Right, r.Bottom), box);
+            var badge = new SKRect(r.X, r.Y, r.X + 26, r.Y + 26);
+            canvas.DrawRect(badge, fill);
+            canvas.DrawText(num, r.X + 7, r.Y + 19, SKTextAlign.Left, font, text);
+        }
+    }
+
+    /// <summary>底部图例：编号 -> 名称，用口语说明怎么改。</summary>
+    private static void DrawLegend(SKCanvas canvas, int top, int height)
+    {
+        using var bg = new SKPaint { IsAntialias = true, Color = new SKColor(12, 18, 15) };
+        canvas.DrawRect(new SKRect(0, top, TableLayout.Width, top + height), bg);
+
+        using var typeface = SKTypeface.FromFamilyName("Microsoft YaHei", SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright) ?? SKTypeface.Default;
+        using var font = new SKFont(typeface, 16f);
+        using var head = new SKPaint { IsAntialias = true, Color = new SKColor(255, 214, 120) };
+        using var body = new SKPaint { IsAntialias = true, Color = new SKColor(228, 236, 228) };
+
+        canvas.DrawText("图例：1 自家手牌  2 自家副露  3 对家手牌  4 对家副露  5 上家手牌  6 上家副露",
+            16, top + 24, SKTextAlign.Left, font, body);
+        canvas.DrawText("7 下家手牌  8 下家副露  9 中央板  A 自家牌河  B 对家牌河  C 下家牌河  D 上家牌河",
+            16, top + 50, SKTextAlign.Left, font, body);
+        canvas.DrawText("直接说哪块不对、该在哪就行，比如「4 应该在 3 的右边、和 3 贴住」「A 太靠下，往上挪」",
+            16, top + 82, SKTextAlign.Left, font, head);
+        canvas.DrawText("（改完我出图，你再指；不需要你填表或改文件）",
+            16, top + 108, SKTextAlign.Left, font, body);
     }
 }
