@@ -50,6 +50,15 @@ internal static class Program
             return;
         }
 
+        // Yoga 布局预览：--render-yoga <png> [画布边长] [副露组数 0..4]
+        if (args.Length >= 2 && args[0] == "--render-yoga")
+        {
+            float canvasY = args.Length >= 3 ? float.Parse(args[2], CultureInfo.InvariantCulture) : 1200f;
+            int meldsY = args.Length >= 4 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 1;
+            RenderYogaToPng(args[1], canvasY, meldsY);
+            return;
+        }
+
         // 帧率基准：--bench <frames>
         if (args.Length >= 1 && args[0] == "--bench")
         {
@@ -144,6 +153,92 @@ internal static class Program
         File.WriteAllBytes(path, data.ToArray());
         Console.WriteLine("rendered table -> " + path);
     }
+
+    /// <summary>【临时】flex 约束布局预览。</summary>
+    /// <summary>【临时】Yoga 布局预览。</summary>
+    private static void RenderYogaToPng(string path, float canvas, int selfMelds)
+    {
+        using var atlas = new TileAtlas(AssetsDir);
+
+        var layout = new TableLayoutSpec { CanvasW = canvas, CanvasH = canvas };
+        YogaTableLayout.Apply(layout);
+
+        var info = new SKImageInfo((int)layout.CanvasW, (int)layout.CanvasH);
+        using var surface = SKSurface.Create(info);
+        var canvasSk = surface.Canvas;
+        canvasSk.Clear(SKColors.Black);
+
+        var vm = SampleTableModelDemo(selfMelds);
+        using (var ctx = new SkiaCanvas(canvasSk, atlas))
+        {
+            new TableSceneSkia().Draw(ctx, vm, layout);
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+
+        Console.WriteLine($"rendered yoga -> {path}  canvas={canvas:F0}");
+        Console.WriteLine($"  plate = {layout.PlateRect.X:F1},{layout.PlateRect.Y:F1} {layout.PlateRect.W:F0}x{layout.PlateRect.H:F0}");
+        Console.WriteLine($"  self  = {layout.HandRects[0].X:F1},{layout.HandRects[0].Y:F1} {layout.HandRects[0].W:F0}x{layout.HandRects[0].H:F0}");
+    }
+
+
+    /// <summary>【临时】布局 v3 预览图。</summary>
+
+    /// <summary>【临时】v3 示意模型：可指定自家副露组数（0..4），手牌张数随之递减。</summary>
+    private static TableViewModel SampleTableModelDemo(int selfMelds)
+    {
+        TileView T(string id) => new(id);
+        MeldView M(string type, params string[] ids) => new() { Type = type, Tiles = ids.Select(T).ToArray() };
+
+        var meldPool = new[]
+        {
+            M("pon", "2s", "2s", "2s"),
+            M("chi", "4m", "5m", "6m"),
+            M("pon", "7z", "7z", "7z"),
+            M("minkan", "1z", "1z", "1z", "1z"),
+        };
+
+        int n = Math.Clamp(selfMelds, 0, 4);
+        var ownMelds = meldPool.Take(n).ToArray();
+        int handN = Math.Max(2, 14 - 3 * n);
+
+        var handPool = new[] { "1m", "2m", "3m", "5m", "5m", "7m", "2p", "3p", "4p", "1s", "3z", "6p", "8s", "9m" };
+        var hand0 = handPool.Take(handN).Select(T).ToArray();
+
+        var river0 = new[] { "3p", "8p", "1z", "9s", "2p", "5s", "6z", "7m", "1p", "4s", "2z", "4m" }.Select(T).ToArray();
+        var river1 = new[] { "2m", "9m", "6p", "3z", "7s", "5z", "1m", "4z", "6s" }.Select(T).ToArray();
+        var river2 = new[] { "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "1z", "2z", "3z", "4z", "5z", "6z" }.Select(T).ToArray();
+        var river3 = new[] { "9m", "8m", "7m", "6m", "5m", "4m", "3m" }.Select(T).ToArray();
+
+        var seats = new List<SeatView>
+        {
+            new() { Index = 0, Name = "你", Wind = "东", Score = 49000, IsDealer = true, IsHuman = true, IsTurn = true,
+                    HandCount = hand0.Length, Hand = hand0, Discards = river0, Melds = ownMelds },
+            new() { Index = 1, Name = "南 AI", Wind = "南", Score = 39200, HandCount = 10, Discards = river1,
+                    Melds = new[] { M("chi", "4m", "5m", "6m") } },
+            new() { Index = 2, Name = "西 AI", Wind = "西", Score = 58800, HandCount = 7, Discards = river2,
+                    Melds = new[] { M("pon", "7z", "7z", "7z"), M("pon", "1z", "1z", "1z") } },
+            new() { Index = 3, Name = "北 AI", Wind = "北", Score = 49000, HandCount = 10, Discards = river3,
+                    Melds = new[] { M("chi", "7s", "8s", "9s") } },
+        };
+
+        return new TableViewModel
+        {
+            RoundLabel = "东 1 局 · 0 本场",
+            WallCount = 36,
+            RinshanCount = 4,
+            Honba = 0,
+            Kyotaku = 0,
+            TurnIndex = 0,
+            Seats = seats,
+        };
+    }
+
+    /// <summary>【临时】布局 v2 预览图。</summary>
+
+    /// <summary>【临时】v2 示意模型：可指定自家副露组数（0..4），手牌张数随之递减。</summary>
 
     private static TableViewModel SampleTableModel()
     {

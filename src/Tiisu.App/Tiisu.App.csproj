@@ -22,6 +22,8 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.153.1" />
     <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="4.153.1" />
     <PackageReference Include="SkiaSharp.HarfBuzz" Version="4.153.1" />
+    <!-- 牌桌布局引擎（Facebook Yoga 的 .NET 绑定，自带 win-x64 原生 yoga.dll） -->
+    <PackageReference Include="YogaSharp.Layout" Version="1.0.6" />
   </ItemGroup>
 
   <ItemGroup>
