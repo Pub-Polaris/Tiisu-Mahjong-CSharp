@@ -3,12 +3,16 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using SkiaSharp;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
+using Tiisu.App.Runtime;
 using Tiisu.App.Ui;
 using Tiisu.App.Table;
 using Tiisu.App.Svg;
+using Tiisu.Engine;
+using Tiisu.Engine.Random;
 using UiScreen = Tiisu.App.Ui.Screen;
 
 namespace Tiisu.App;
@@ -20,6 +24,26 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        // 无窗口自检（不建窗口、不初始化 WinForms）
+        switch (args.Length >= 1 ? args[0] : string.Empty)
+        {
+            case "--smoke-run":
+                Environment.ExitCode = SmokeRun(args);
+                return;
+            case "--smoke-save":
+                Environment.ExitCode = SmokeSave(args);
+                return;
+            case "--smoke-resume":
+                Environment.ExitCode = SmokeResume(args);
+                return;
+            case "--smoke-session":
+                Environment.ExitCode = SmokeSession(args);
+                return;
+            case "--smoke-pointer":
+                Environment.ExitCode = SmokePointer(args);
+                return;
+        }
+
         // 无窗口验证：--render <png> [time] [table|menu]
         if (args.Length >= 2 && args[0] == "--render")
         {
@@ -47,6 +71,13 @@ internal static class Program
         if (args.Length >= 2 && args[0] == "--render-table")
         {
             RenderTableToPng(args[1], args.Length >= 3 && args[2] == "debug");
+            return;
+        }
+
+        // 真实会话快照出图（自检：后台引擎 → 快照 → Skia 绘制）：--render-session <png> [seed] [mode]
+        if (args.Length >= 2 && args[0] == "--render-session")
+        {
+            RenderSessionToPng(args);
             return;
         }
 
@@ -79,6 +110,407 @@ internal static class Program
         Application.Run(new MainForm(atlas));
     }
 
+    // ── 无窗口自检 ────────────────────────────────────────────────
+
+    /// <summary>控制台按 UTF-8 输出（重定向到管道时 .NET 默认就是 UTF-8，这里显式统一）。</summary>
+    private static void TryUseUtf8Console()
+    {
+        try
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+        }
+        catch (IOException)
+        {
+            // 无控制台（纯重定向 / GUI 宿主）时忽略。
+        }
+    }
+
+    /// <summary>
+    /// <c>--smoke-run &lt;seed&gt; [mode] [--record]</c>：无窗口跑一整场（人类 AutoPilot：摸什么打什么 / 能和则和），
+    /// 打印局数、和牌/流局、四家分数、事件流 SHA256。
+    /// </summary>
+    private static int SmokeRun(string[] args)
+    {
+        TryUseUtf8Console();
+        if (args.Length < 2
+            || !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint seed))
+        {
+            Console.Error.WriteLine("用法：--smoke-run <seed> [mode] [--record]");
+            return 2;
+        }
+
+        int mode = 4;
+        if (args.Length >= 3 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedMode))
+        {
+            mode = parsedMode;
+        }
+
+        var settings = LoadSmokeSettings(args);
+        var log = new RoundLogWriter { Enabled = settings.RecordTiles };
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), _ => { },
+            saveStore: null, stats: new StatsStore(), roundLog: log)
+        {
+            AutoPilot = true,
+        };
+
+        runtime.StartMatch(mode);
+        int guard = 0;
+        while (runtime.Phase != MatchPhase.MatchOver && ++guard < 256)
+        {
+            if (runtime.Phase == MatchPhase.RoundEnded)
+            {
+                runtime.NextRound();
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if (runtime.Phase != MatchPhase.MatchOver)
+        {
+            Console.Error.WriteLine($"未在 {guard} 次推进内终局（phase={runtime.Phase}）");
+            return 1;
+        }
+
+        Console.WriteLine($"smoke-run seed={seed} mode={mode}");
+        PrintSmoke(runtime);
+        if (settings.RecordTiles)
+        {
+            Console.WriteLine("  roundlog: " + log.FilePath());
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// <c>--smoke-save [--record]</c>：跑到第 3 局结束（handsPlayed = 2）后写存档并退出，
+    /// 供 <c>--smoke-resume</c> 验证续局。
+    /// </summary>
+    private static int SmokeSave(string[] args)
+    {
+        TryUseUtf8Console();
+        var settings = LoadSmokeSettings(args);
+        var save = new SaveStore();
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(1), _ => { },
+            save, new StatsStore(), new RoundLogWriter { Enabled = settings.RecordTiles })
+        {
+            AutoPilot = true,
+        };
+
+        runtime.StartMatch(4);
+        int guard = 0;
+        while (runtime.Phase != MatchPhase.MatchOver
+               && !(runtime.Phase == MatchPhase.RoundEnded && runtime.Engine.HandsPlayed >= 2)
+               && ++guard < 256)
+        {
+            runtime.NextRound();
+        }
+
+        if (runtime.Phase != MatchPhase.RoundEnded)
+        {
+            Console.Error.WriteLine($"没有停在可存档的局末（phase={runtime.Phase}）");
+            return 1;
+        }
+
+        var state = runtime.CaptureSave(inProgress: true);
+        save.SaveNow(state);
+        save.Flush();
+
+        Console.WriteLine("smoke-save");
+        Console.WriteLine($"  已打 {runtime.Rounds} 局，存档: {save.StatePath}");
+        Console.WriteLine(string.Format(
+            CultureInfo.InvariantCulture,
+            "  handNumber={0} handsPlayed={1} scores=[{2}] dealer={3} honba={4} roundWindIdx={5} dealerCount={6} inProgress={7}",
+            state.HandNumber,
+            state.HandsPlayed,
+            string.Join(",", state.Scores),
+            state.DealerIndex,
+            state.Honba,
+            state.RoundWindIdx,
+            state.DealerCount,
+            state.InProgress));
+        save.Dispose();
+        return 0;
+    }
+
+    /// <summary><c>--smoke-resume [--record]</c>：读上一份存档，从下一局继续打完整场。</summary>
+    private static int SmokeResume(string[] args)
+    {
+        TryUseUtf8Console();
+        var settings = LoadSmokeSettings(args);
+        var save = new SaveStore();
+        var state = save.Load();
+        if (state is null || !state.InProgress)
+        {
+            Console.Error.WriteLine("没有可恢复的进行中存档（先跑 --smoke-save）");
+            return 2;
+        }
+
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(2), _ => { },
+            save, new StatsStore(), new RoundLogWriter { Enabled = settings.RecordTiles })
+        {
+            AutoPilot = true,
+        };
+
+        Console.WriteLine("smoke-resume");
+        Console.WriteLine(string.Format(
+            CultureInfo.InvariantCulture,
+            "  读档: handNumber={0} handsPlayed={1} scores=[{2}] dealer={3} honba={4} roundWindIdx={5} dealerCount={6}",
+            state.HandNumber,
+            state.HandsPlayed,
+            string.Join(",", state.Scores),
+            state.DealerIndex,
+            state.Honba,
+            state.RoundWindIdx,
+            state.DealerCount));
+
+        runtime.Resume(state);
+        int guard = 0;
+        while (runtime.Phase != MatchPhase.MatchOver && ++guard < 256)
+        {
+            if (runtime.Phase == MatchPhase.RoundEnded)
+            {
+                runtime.NextRound();
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if (runtime.Phase != MatchPhase.MatchOver)
+        {
+            Console.Error.WriteLine($"续局未终局（phase={runtime.Phase}）");
+            return 1;
+        }
+
+        PrintSmoke(runtime);
+        save.Dispose();
+        return 0;
+    }
+
+    /// <summary>
+    /// <c>--smoke-session [seed] [mode]</c>：走 <see cref="GameSession"/> 的命令通道（与 UI 点击同一个入口）
+    /// 打完整场，验证「后台线程 + 快照 + 事件」这条链路。
+    /// </summary>
+    private static int SmokeSession(string[] args)
+    {
+        TryUseUtf8Console();
+        uint seed = 1;
+        if (args.Length >= 2 && !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out seed))
+        {
+            Console.Error.WriteLine("seed 无效");
+            return 2;
+        }
+
+        int mode = 4;
+        if (args.Length >= 3 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedMode))
+        {
+            mode = parsedMode;
+        }
+
+        var settings = LoadSmokeSettings(args);
+        int events = 0;
+        using var session = new GameSession(settings, random: new Mulberry32Random(seed), aiStepDelayMilliseconds: 0);
+        session.UiEvent += _ => Interlocked.Increment(ref events);
+
+        session.Post(GameCommand.StartMatch(mode));
+
+        int actions = 0;
+        TableViewModel? last = null;
+        int idle = 0;
+        while (idle < 20_000)
+        {
+            var vm = session.LatestSnapshot;
+            if (ReferenceEquals(vm, last))
+            {
+                idle++;
+                Thread.Sleep(1);
+                continue;
+            }
+
+            idle = 0;
+            last = vm;
+            if (vm.Phase == "match_over")
+            {
+                break;
+            }
+
+            GameCommand? command = vm.Phase switch
+            {
+                "round_end" => GameCommand.NextRound(),
+                "human_ron" => GameCommand.Ron(),
+                "human_meld" => (vm.Actions & HumanAction.Pon) != 0
+                    ? GameCommand.Pon()
+                    : (vm.Actions & HumanAction.Chi) != 0 ? GameCommand.Chi(0) : GameCommand.Pass(),
+                "human_discard" => (vm.Actions & HumanAction.Tsumo) != 0
+                    ? GameCommand.Tsumo()
+                    : vm.HasAnkan ? GameCommand.KanAn()
+                    : vm.HasKakan ? GameCommand.KanKakan()
+                    : GameCommand.Discard(Math.Max(0, vm.Seats[0].Hand.Count - 1)),
+                _ => null,
+            };
+
+            if (command is not null)
+            {
+                session.Post(command);
+                actions++;
+            }
+        }
+
+        var final = session.LatestSnapshot;
+        bool ok = final.Phase == "match_over" && final.Seats.Count == MahjongEngine.PlayerCount;
+        Console.WriteLine($"smoke-session seed={seed} mode={mode}");
+        Console.WriteLine($"  终局快照: phase={final.Phase} roundLabel={final.RoundLabel} 人类命令={actions} 事件={events}");
+        Console.WriteLine("  四家分数: " + string.Join("  ", final.Seats.Select(seat =>
+            seat.Name + "=" + seat.Score.ToString("+0;-0;0", CultureInfo.InvariantCulture))));
+        Console.WriteLine("  LastError: " + (session.LastError ?? "-"));
+
+        if (!ok)
+        {
+            Console.Error.WriteLine("会话未正常终局");
+            return 1;
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// <c>--smoke-pointer [seed] [mode]</c>：用 <see cref="TableScreen"/> 的输入层（OnClick 命中的手牌矩形 /
+    /// OnKey 快捷键）打完整场，验证「点手牌出牌 + H/P/C/K/Space/N」这条 UI 入口。
+    /// </summary>
+    private static int SmokePointer(string[] args)
+    {
+        TryUseUtf8Console();
+        uint seed = 1;
+        if (args.Length >= 2 && !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out seed))
+        {
+            seed = 1;
+        }
+
+        int mode = 4;
+        if (args.Length >= 3 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedMode))
+        {
+            mode = parsedMode;
+        }
+
+        var settings = LoadSmokeSettings(args);
+        using var session = new GameSession(settings, random: new Mulberry32Random(seed), aiStepDelayMilliseconds: 0);
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(session, atlas);
+
+        // 与 TableScreen 内部同一份布局参数（1200×1200 + Yoga）。
+        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        YogaTableLayout.Apply(layout);
+
+        session.Post(GameCommand.StartMatch(mode));
+
+        int actions = 0;
+        int discards = 0;
+        TableViewModel? last = null;
+        int idle = 0;
+        while (idle < 30_000)
+        {
+            var vm = session.LatestSnapshot;
+            if (ReferenceEquals(vm, last))
+            {
+                idle++;
+                Thread.Sleep(1);
+                continue;
+            }
+
+            idle = 0;
+            last = vm;
+            if (vm.Phase == "match_over")
+            {
+                break;
+            }
+
+            int handBefore = vm.Seats[0].Hand.Count;
+            switch (vm.Phase)
+            {
+                case "round_end":
+                    screen.OnKey(Keys.N);
+                    actions++;
+                    break;
+
+                case "human_ron":
+                    screen.OnKey(Keys.H);
+                    actions++;
+                    break;
+
+                case "human_meld":
+                    screen.OnKey(Keys.Space);
+                    actions++;
+                    break;
+
+                case "human_discard":
+                    if ((vm.Actions & HumanAction.Tsumo) != 0)
+                    {
+                        screen.OnKey(Keys.H);
+                    }
+                    else
+                    {
+                        // 取手牌最后一张的矩形中心 —— 与鼠标点击走同一个 HitTest。
+                        var rects = TableSceneSkia.HandTileRects(layout, vm.Seats[0], 0);
+                        int index = Math.Max(0, handBefore - 1);
+                        if (index < rects.Length && screen.OnClick(rects[index].CenterX, rects[index].CenterY))
+                        {
+                            discards++;
+                        }
+                    }
+
+                    actions++;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        var final = session.LatestSnapshot;
+        bool ok = final.Phase == "match_over";
+        Console.WriteLine($"smoke-pointer seed={seed} mode={mode}");
+        Console.WriteLine($"  终局快照: phase={final.Phase} roundLabel={final.RoundLabel} 输入动作={actions} 点手牌出牌={discards}");
+        Console.WriteLine("  四家分数: " + string.Join("  ", final.Seats.Select(seat =>
+            seat.Name + "=" + seat.Score.ToString("+0;-0;0", CultureInfo.InvariantCulture))));
+        Console.WriteLine("  LastError: " + (session.LastError ?? "-"));
+
+        if (!ok)
+        {
+            Console.Error.WriteLine("输入层自检未正常终局");
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private static Settings LoadSmokeSettings(string[] args)
+    {
+        var settings = Settings.Load();
+        if (args.Contains("--record", StringComparer.Ordinal))
+        {
+            settings.RecordTiles = true;
+        }
+
+        return settings;
+    }
+
+    private static void PrintSmoke(MatchRuntime runtime)
+    {
+        var names = runtime.Engine.Players.Select(p => p.Name).ToArray();
+        var scores = runtime.FinalScores;
+        int winRounds = runtime.TsumoWins + runtime.RonWins;
+
+        Console.WriteLine($"  局数: rounds={runtime.Rounds} handsPlayed={runtime.Engine.HandsPlayed} mode={runtime.ModeTarget}");
+        Console.WriteLine(
+            $"  和牌/流局: 和牌 {winRounds} 局（自摸 {runtime.TsumoWins} / 荣和 {runtime.RonWins}）· 流局 {runtime.DrawRounds} 局（特殊 {runtime.SpecialFlowRounds}）");
+        Console.WriteLine("  四家分数: " + string.Join("  ", names.Select((name, i) =>
+            name + "=" + scores[i].ToString("+0;-0;0", CultureInfo.InvariantCulture))));
+        Console.WriteLine("  EventHash: " + runtime.EventHash);
+    }
+
     private static UiScreen CreateScreen(string name, TileAtlas? atlas) => name switch
     {
         "menu" => new MenuScreen(
@@ -106,6 +538,61 @@ internal static class Program
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(path, data.ToArray());
         Console.WriteLine($"rendered {screenName} -> {path}  (atlas loaded: {atlas.IsLoaded})");
+    }
+
+    /// <summary>
+    /// <c>--render-session &lt;png&gt; [seed] [mode]</c>：开一个真实 <see cref="GameSession"/>，
+    /// 等到人类出牌阶段再按牌桌屏的绘制路径出图（自检后台引擎 → 快照 → Skia）。
+    /// </summary>
+    private static void RenderSessionToPng(string[] args)
+    {
+        TryUseUtf8Console();
+        string path = args[1];
+        uint seed = 1;
+        if (args.Length >= 3 && !uint.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out seed))
+        {
+            seed = 1;
+        }
+
+        int mode = 4;
+        if (args.Length >= 4 && int.TryParse(args[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedMode))
+        {
+            mode = parsedMode;
+        }
+
+        using var session = new GameSession(Settings.Load(), random: new Mulberry32Random(seed), aiStepDelayMilliseconds: 0);
+        session.Post(GameCommand.StartMatch(mode));
+
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (DateTime.UtcNow < deadline)
+        {
+            var vm = session.LatestSnapshot;
+            if (vm.Phase is "human_discard" or "human_ron" or "human_meld")
+            {
+                break;
+            }
+
+            Thread.Sleep(2);
+        }
+
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(session, atlas);
+        using var surface = SKSurface.Create(new SKImageInfo((int)screen.CanvasWidth, (int)screen.CanvasHeight));
+        var canvas = surface.Canvas;
+        canvas.Clear(SKColors.Black);
+        using (var ctx = new SkiaCanvas(canvas, atlas))
+        {
+            screen.Update(0.6);
+            screen.Draw(ctx, 0.6);
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+
+        var snapshot = session.LatestSnapshot;
+        Console.WriteLine($"rendered session -> {path}  phase={snapshot.Phase} round={snapshot.RoundLabel} " +
+                          $"actions={snapshot.Actions} hand={snapshot.Seats[0].HandCount}");
     }
 
     /// <summary>按屏自己的逻辑画布尺寸出图（与游戏内走同一条 Screen 路径）。</summary>

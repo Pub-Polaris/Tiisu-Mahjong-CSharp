@@ -5,16 +5,19 @@ using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
+using Tiisu.App.Runtime;
 
 namespace Tiisu.App.Ui;
 
 /// <summary>
 /// 屏幕宿主：整个窗口唯一的控件。
-/// 负责：DPI/letterbox、把输入换算到逻辑坐标、在两屏之间切换（带淡入淡出）。
+/// 负责：DPI/letterbox、把输入换算到逻辑坐标、在两屏之间切换（带淡入淡出），
+/// 以及持有唯一的 <see cref="GameSession"/>（后台引擎线程）。
 /// </summary>
 public sealed class ScreenHost : SKControl
 {
     private readonly TileAtlas? _atlas;
+    private readonly GameSession _session;
     private readonly TableScreen _table;
     private readonly MenuScreen _menu;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -36,11 +39,13 @@ public sealed class ScreenHost : SKControl
         _atlas = atlas;
         Dock = DockStyle.Fill;
 
-        _table = new TableScreen(atlas);
+        // 会话必须在 UI 线程构造：它捕获当前 SynchronizationContext 把事件回投到 UI。
+        _session = new GameSession(Settings.Load());
+        _table = new TableScreen(_session, atlas);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _menu = new MenuScreen(menuLayout, OnMenuAction);
 
-        _current = _table;
+        _current = _menu;
 
         _frameTimer = new System.Windows.Forms.Timer { Interval = 16 };
         _frameTimer.Tick += (_, _) => Invalidate();
@@ -53,6 +58,7 @@ public sealed class ScreenHost : SKControl
         {
             _frameTimer.Stop();
             _frameTimer.Dispose();
+            _session.Dispose();
         }
 
         base.Dispose(disposing);
@@ -60,14 +66,30 @@ public sealed class ScreenHost : SKControl
 
     private bool OnMenuAction(string action)
     {
+        if (action.StartsWith("mode:", StringComparison.Ordinal)
+            && int.TryParse(action.Substring("mode:".Length), out int mode))
+        {
+            _session.Post(GameCommand.StartMatch(mode));
+            SwitchTo(_table);
+            return true;
+        }
+
         switch (action)
         {
             case "resume":
                 SwitchTo(_table);
+                _session.PostResume();
                 return true;
+
+            case "next":
+                SwitchTo(_table);
+                _session.Post(GameCommand.NextRound());
+                return true;
+
             case "quit":
                 FindForm()?.Close();
                 return true;
+
             default:
                 return false;
         }
@@ -158,12 +180,6 @@ public sealed class ScreenHost : SKControl
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.KeyCode == Keys.Escape && ReferenceEquals(_current, _menu))
-        {
-            SwitchTo(_table);
-            e.Handled = true;
-            return;
-        }
 
         if (e.KeyCode == Keys.M)
         {
@@ -183,4 +199,5 @@ public sealed class ScreenHost : SKControl
         }
 
         return ((px - _offsetX) / _scale, (py - _offsetY) / _scale);
-    }}
+    }
+}

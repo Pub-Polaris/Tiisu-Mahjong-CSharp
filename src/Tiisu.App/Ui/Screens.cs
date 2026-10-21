@@ -4,21 +4,41 @@ using System.Globalization;
 using System.IO;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
+using Tiisu.App.Runtime;
 using Tiisu.App.Table;
 using Color = Tiisu.App.Rendering.Color;
 
 namespace Tiisu.App.Ui;
 
-/// <summary>牌桌屏：1200×1200 方形画布，布局由 Yoga 计算，绘制走 TableSceneSkia。</summary>
+/// <summary>
+/// 牌桌屏：1200×1200 方形画布，布局由 Yoga 计算，绘制走 TableSceneSkia。
+/// 数据来自 <see cref="GameSession.LatestSnapshot"/>（不可变快照）；点击手牌投递 <see cref="GameCommand.Discard"/>。
+/// 不带会话时（<c>--render-*</c> 预览）退回演示快照。
+/// </summary>
 public sealed class TableScreen : Screen
 {
     private readonly TableLayoutSpec _layout = new() { CanvasW = 1200f, CanvasH = 1200f };
-    private readonly TableViewModel _vm = TableDemoModel.Create(0);
     private readonly TableSceneSkia _scene = new();
+    private readonly Func<TableViewModel> _snapshot;
+    private readonly Action<GameCommand>? _commands;
     private int _hover = -1;
 
-    public TableScreen(TileAtlas? atlas) : base("table")
+    /// <summary>演示快照（<c>--render-table</c> / <c>--render-screen table</c> 用）。</summary>
+    public TableScreen(TileAtlas? atlas)
+        : this(() => TableDemoModel.Create(1), null)
     {
+    }
+
+    /// <summary>正式牌桌：只读会话快照 + 投递命令。</summary>
+    public TableScreen(GameSession session, TileAtlas? atlas)
+        : this(() => session.LatestSnapshot, session.Post)
+    {
+    }
+
+    private TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands) : base("table")
+    {
+        _snapshot = snapshot;
+        _commands = commands;
         YogaTableLayout.Apply(_layout);
     }
 
@@ -30,11 +50,96 @@ public sealed class TableScreen : Screen
 
     public override void Draw(ICanvas c, double time)
     {
-        _scene.Draw(c, _vm, _layout, _hover);
+        var vm = _snapshot();
+        _scene.Draw(c, vm, _layout, _hover);
+        DrawHud(c, vm);
+    }
 
-        var hint = new RectF(24, 24, 220, 40);
-        c.FillRoundRect(hint, 8, Color.Rgb(0, 0, 0).WithAlpha(120));
-        c.DrawText("M：菜单    ESC：退出", hint, Color.Rgb(230, 236, 226), new TextStyle(16));
+    private void DrawHud(ICanvas c, TableViewModel vm)
+    {
+        // 左上：快捷键
+        var hint = new RectF(24, 20, 300, 34);
+        c.FillRoundRect(hint, 8, Color.Rgb(0, 0, 0).WithAlpha(130));
+        c.DrawText("M：菜单    ESC：退出",
+            new RectF(hint.X + 12, hint.Y + 8, hint.W - 16, 20),
+            Color.Rgb(230, 236, 226), new TextStyle(15, Center: false));
+
+        // 顶部中央：提示消息（和牌 / 流局 / 窗口提示）
+        if (!string.IsNullOrEmpty(vm.Message))
+        {
+            var box = new RectF(_layout.CanvasW / 2f - 330, 18, 660, 38);
+            c.FillRoundRect(box, 10, Color.Rgb(0, 0, 0).WithAlpha(150));
+            c.DrawText(vm.Message, box, Color.Rgb(255, 228, 120), new TextStyle(17, Bold: true));
+        }
+
+        // 手牌上方：可用动作 / 局末提示
+        string line = ActionLine(vm);
+        if (line.Length == 0)
+        {
+            return;
+        }
+
+        var hand = _layout.HandRects[0];
+        var bar = new RectF(hand.X, hand.Y - 44, hand.W, 34);
+        c.FillRoundRect(bar, 8, Color.Rgb(0, 0, 0).WithAlpha(140));
+        c.DrawText(line, bar, Color.Rgb(255, 236, 180), new TextStyle(16, Bold: true));
+    }
+
+    private static string ActionLine(TableViewModel vm)
+    {
+        if (vm.Phase == "match_over")
+        {
+            return "整场结束 · M 返回菜单";
+        }
+
+        if (vm.Phase == "round_end")
+        {
+            return "本局结束 · N 下一局";
+        }
+
+        var parts = new List<string>();
+
+        // 按钮优先级（与 Web 侧一致）：杠 > 和 > 碰 > 吃 > 过
+        if ((vm.Actions & HumanAction.Kan) != 0)
+        {
+            parts.Add("K 杠");
+        }
+
+        if ((vm.Actions & HumanAction.Tsumo) != 0)
+        {
+            parts.Add("H 和牌");
+        }
+        else if ((vm.Actions & HumanAction.Ron) != 0)
+        {
+            parts.Add("H 荣和");
+        }
+
+        if ((vm.Actions & HumanAction.Pon) != 0)
+        {
+            parts.Add("P 碰");
+        }
+
+        if ((vm.Actions & HumanAction.Chi) != 0)
+        {
+            parts.Add(vm.ActionLabels.Count > 1 ? "C 吃(多组)" : "C 吃");
+        }
+
+        if ((vm.Actions & HumanAction.Pass) != 0)
+        {
+            parts.Add("Space 过");
+        }
+
+        if ((vm.Actions & HumanAction.Flow) != 0)
+        {
+            parts.Add("F 流局");
+        }
+
+        if ((vm.Actions & HumanAction.Discard) != 0)
+        {
+            parts.Add("点手牌出牌");
+        }
+
+        return string.Join("   ", parts);
     }
 
     public override bool OnPointerMove(float x, float y)
@@ -43,15 +148,131 @@ public sealed class TableScreen : Screen
         return _hover >= 0;
     }
 
-    public override bool OnClick(float x, float y) => HitTest(x, y) >= 0;
+    public override bool OnClick(float x, float y)
+    {
+        int index = HitTest(x, y);
+        if (index < 0 || _commands is null)
+        {
+            return index >= 0;
+        }
 
-    public override bool OnKey(Keys key) => key == Keys.M;
+        _commands(GameCommand.Discard(index));
+        return true;
+    }
+
+    public override bool OnKey(Keys key)
+    {
+        if (key == Keys.M)
+        {
+            return true;
+        }
+
+        if (_commands is null)
+        {
+            return false;
+        }
+
+        var vm = _snapshot();
+        switch (key)
+        {
+            case Keys.H:
+                if ((vm.Actions & HumanAction.Tsumo) != 0)
+                {
+                    _commands(GameCommand.Tsumo());
+                    return true;
+                }
+
+                if ((vm.Actions & HumanAction.Ron) != 0)
+                {
+                    _commands(GameCommand.Ron());
+                    return true;
+                }
+
+                return false;
+
+            case Keys.P:
+                if ((vm.Actions & HumanAction.Pon) != 0)
+                {
+                    _commands(GameCommand.Pon());
+                    return true;
+                }
+
+                return false;
+
+            case Keys.C:
+                if ((vm.Actions & HumanAction.Chi) != 0)
+                {
+                    _commands(GameCommand.Chi(0));
+                    return true;
+                }
+
+                return false;
+
+            case Keys.K:
+                if (vm.Phase == "human_meld" && (vm.Actions & HumanAction.Kan) != 0)
+                {
+                    _commands(GameCommand.KanMinkan());
+                    return true;
+                }
+
+                if (vm.Phase == "human_discard" && (vm.Actions & HumanAction.Kan) != 0)
+                {
+                    _commands(vm.HasAnkan ? GameCommand.KanAn() : GameCommand.KanKakan());
+                    return true;
+                }
+
+                return false;
+
+            case Keys.Space:
+                if ((vm.Actions & HumanAction.Pass) != 0)
+                {
+                    _commands(GameCommand.Pass());
+                    return true;
+                }
+
+                return false;
+
+            case Keys.F:
+                if ((vm.Actions & HumanAction.Flow) != 0)
+                {
+                    _commands(GameCommand.Flow());
+                    return true;
+                }
+
+                return false;
+
+            case Keys.N:
+                if (vm.Phase == "round_end")
+                {
+                    _commands(GameCommand.NextRound());
+                    return true;
+                }
+
+                return false;
+
+            default:
+                return false;
+        }
+    }
 
     /// <summary>手牌命中：与绘制共用同一份矩形算式。</summary>
     private int HitTest(float x, float y)
     {
-        var rects = TableSceneSkia.HandTileRects(_layout, _vm.Seats[0], 0);
-        for (int i = 0; i < rects.Length; i++)
+        var vm = _snapshot();
+        if (vm.Seats.Count == 0)
+        {
+            return -1;
+        }
+
+        var self = vm.Seats[0];
+        if ((vm.Actions & HumanAction.Discard) == 0 || self.Hand.Count == 0)
+        {
+            return -1;
+        }
+
+        var rects = TableSceneSkia.HandTileRects(_layout, self, 0);
+        int count = Math.Min(rects.Length, self.Hand.Count);
+        for (int i = 0; i < count; i++)
         {
             if (rects[i].Contains(x, y))
             {

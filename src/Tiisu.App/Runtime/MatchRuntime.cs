@@ -1,0 +1,1722 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using Tiisu.App.Table;
+using Tiisu.Core;
+using Tiisu.Engine;
+using Tiisu.Engine.Deal;
+using Tiisu.Engine.Random;
+using Tiisu.Engine.SelfPlay;
+using CoreMeld = Tiisu.Core.Meld;
+using EngineMeld = Tiisu.Engine.Meld;
+
+namespace Tiisu.App.Runtime;
+
+/// <summary>对局阶段（UI 用；Web 侧 <c>state</c> 的 human_ron / human_meld 由这里补上）。</summary>
+public enum MatchPhase
+{
+    Idle,
+    HumanDiscard,
+    HumanRon,
+    HumanMeld,
+    RoundEnded,
+    MatchOver,
+}
+
+/// <summary>一局的结果（供 UI / 统计 / 日志使用）。</summary>
+public sealed record RoundResult(
+    int Round,
+    string Kind,
+    IReadOnlyList<int> Winners,
+    string? Reason,
+    int[] Scores,
+    int Honba,
+    int DealerIndex,
+    bool MatchOver);
+
+/// <summary>局末判定的内部记录（决定写哪种日志 / 统计）。</summary>
+internal sealed record RoundOutcome(string Kind, IReadOnlyList<int> Winners, string? Reason);
+
+internal sealed record PendingRon(Tile Tile, WinResult Result, int Discarder);
+
+internal sealed record PendingMeld(Tile Tile, int Discarder);
+
+/// <summary>
+/// 对局驱动（<c>engine.js</c> 的回合编排 + <c>game.js</c> 的人类操作语义）。
+///
+/// 调用顺序照 <c>SelfPlayDriver.Run</c>：<b>摸牌 → 自摸 → 暗杠/加杠（含岭上补摸与杠后自摸）→ 出牌 →
+/// 特殊流局 → 他家荣和 → 杠/碰/吃 → nextTurn</b>；局末交给引擎的连庄 / 下庄 / 终局。
+/// 只在一处与自走不同：人类回合停下来等命令（AI 回合照常自动打）。
+///
+/// 线程：本类不是线程安全的，只允许 <see cref="GameSession"/> 的引擎线程调用。
+/// 每次状态变化通过 <c>emit</c> 抛 <see cref="UiEvent"/>，由 GameSession 负责 Marshal 回 UI。
+/// </summary>
+public sealed class MatchRuntime
+{
+    private static readonly YakuData SharedYaku = YakuData.LoadDefault();
+    private static readonly PointsConfig SharedPoints = PointsConfig.LoadDefault();
+
+    private readonly Settings _settings;
+    private readonly IRandomSource _random;
+    private readonly Action<UiEvent> _emit;
+    private readonly SaveStore? _saveStore;
+    private readonly StatsStore? _stats;
+    private readonly RoundLogWriter? _roundLog;
+    private readonly List<GameEvent> _events = new();
+    private readonly List<ChiOption> _pendingChiList = new();
+
+    private MahjongEngine _engine;
+    private WinChecker _checker;
+    private int _modeTarget = 1;
+    private bool _firstDeal = true;
+    private MatchPhase _phase = MatchPhase.Idle;
+    private RoundOutcome? _lastOutcome;
+    private PendingRon? _pendingRon;
+    private PendingMeld? _pendingMeld;
+    private string? _message;
+    private TableViewModel _snapshot;
+    private bool _matchStatsRecorded;
+    private int _rounds;
+    private int _tsumoWins;
+    private int _ronWins;
+    private int _drawRounds;
+    private int _specialFlows;
+
+    public MatchRuntime(
+        Settings settings,
+        IRandomSource? random,
+        Action<UiEvent> emit,
+        SaveStore? saveStore = null,
+        StatsStore? stats = null,
+        RoundLogWriter? roundLog = null)
+    {
+        _settings = (settings ?? new Settings()).Clone();
+        _random = random ?? new SharedRandomSource();
+        _emit = emit ?? (_ => { });
+        _saveStore = saveStore;
+        _stats = stats;
+        _roundLog = roundLog;
+        if (_roundLog is not null)
+        {
+            _roundLog.Enabled = _settings.RecordTiles;
+        }
+
+        _session = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
+        _checker = new WinChecker(SharedYaku, _settings.OptionalYaku);
+        _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random);
+        _engine.SetMode(_modeTarget);
+        _engine.Players[0].IsHuman = true;
+        _engine.Players[0].IsDealer = true;
+        _engine.UpdateSeatWinds();
+        _snapshot = SnapshotBuilder.Build(_engine, PhaseWire, HumanAction.None, null, null, _settings);
+    }
+
+    private string _session;
+
+    // ── 对外只读状态 ─────────────────────────────────────────────
+
+    public MahjongEngine Engine => _engine;
+
+    public MatchPhase Phase => _phase;
+
+    public TableViewModel Snapshot => _snapshot;
+
+    public string Session => _session;
+
+    public int ModeTarget => _modeTarget;
+
+    /// <summary>AutoPilot：人类回合自动出牌（摸什么打什么 / 能和则和、不副露）。smoke 用。</summary>
+    public bool AutoPilot { get; set; }
+
+    /// <summary>每个 AI 回合后的停顿（毫秒），让 Skia UI 看得到逐拍推进；0 = 全速。</summary>
+    public int AiStepDelayMilliseconds { get; set; }
+
+    public int Rounds => _rounds;
+
+    public int TsumoWins => _tsumoWins;
+
+    public int RonWins => _ronWins;
+
+    public int DrawRounds => _drawRounds;
+
+    public int SpecialFlowRounds => _specialFlows;
+
+    public IReadOnlyList<int> FinalScores => _engine.Scores;
+
+    public IReadOnlyList<GameEvent> Events => _events;
+
+    /// <summary>事件流 SHA256（小写十六进制）；同 seed + 同命令序列必然一致。</summary>
+    public string EventHash => SelfPlayResult.ComputeHash(_events);
+
+    // ── 命令入口 ─────────────────────────────────────────────────
+
+    public void Execute(GameCommand command)
+    {
+        if (command is null)
+        {
+            return;
+        }
+
+        try
+        {
+            switch (command.Kind)
+            {
+                case GameCommandKind.StartMatch:
+                    StartMatch(command.Mode);
+                    break;
+                case GameCommandKind.Resume:
+                    Resume(command.Save);
+                    break;
+                case GameCommandKind.Discard:
+                    HumanDiscard(command.Index);
+                    break;
+                case GameCommandKind.Chi:
+                    HumanMeld(MeldType.Chi, command.Option);
+                    break;
+                case GameCommandKind.Pon:
+                    HumanMeld(MeldType.Pon, 0);
+                    break;
+                case GameCommandKind.KanMinkan:
+                    HumanMeld(MeldType.Minkan, 0);
+                    break;
+                case GameCommandKind.KanAn:
+                    HumanKanSelf(MeldType.Ankan);
+                    break;
+                case GameCommandKind.KanKakan:
+                    HumanKanSelf(MeldType.Kakan);
+                    break;
+                case GameCommandKind.Tsumo:
+                    HumanTsumo();
+                    break;
+                case GameCommandKind.Ron:
+                    HumanRon();
+                    break;
+                case GameCommandKind.Pass:
+                    Pass();
+                    break;
+                case GameCommandKind.Flow:
+                    HumanFlow(command.Text);
+                    break;
+                case GameCommandKind.NextRound:
+                    NextRound();
+                    break;
+                case GameCommandKind.ResetAll:
+                    ResetAll();
+                    break;
+                case GameCommandKind.ApplySettings:
+                    ApplySettings(command.Settings);
+                    break;
+                default:
+                    Notify("未知命令：" + command.Kind, true);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Emit(new ErrorEvent(ex.Message));
+            EmitState();
+        }
+    }
+
+    /// <summary><c>startMode(target)</c>：setMode → handNumber++ → startNewRound。</summary>
+    public void StartMatch(int mode)
+    {
+        _modeTarget = Math.Max(1, mode);
+        _engine.SetMode(_modeTarget);
+        _firstDeal = true;
+        ResetCounters();
+        _roundLog?.Clear();
+        _message = null;
+        _engine.HandNumber++;
+        StartNewRoundInternal();
+        RunLoop();
+    }
+
+    /// <summary>会话恢复：应用存档头 → handNumber++ → 开新局（与 Web 侧 <c>maybeResume</c> 同序）。</summary>
+    public void Resume(SaveState? save)
+    {
+        if (save is null || !save.InProgress)
+        {
+            Notify("没有可恢复的存档", false);
+            return;
+        }
+
+        _modeTarget = Math.Max(1, save.ModeTarget);
+        _engine.SetMode(_modeTarget);
+        EngineRestore.Apply(_engine, save);
+        _firstDeal = false;
+        ResetCounters();
+        _roundLog?.Clear();
+
+        if (_engine.HandNumber < 1)
+        {
+            _engine.HandNumber = 1;
+        }
+        else
+        {
+            _engine.HandNumber++;
+        }
+
+        StartNewRoundInternal();
+        Emit(new MessageEvent("已恢复存档继续 · " + _engine.RoundLabel(), false));
+        RunLoop();
+    }
+
+    /// <summary>完整重置（回到未开局）。</summary>
+    public void ResetAll()
+    {
+        _pendingRon = null;
+        _pendingMeld = null;
+        _pendingChiList.Clear();
+        _phase = MatchPhase.Idle;
+        _lastOutcome = null;
+        _firstDeal = true;
+        _message = "已重置";
+        _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random);
+        _engine.SetMode(_modeTarget);
+        _engine.Players[0].IsHuman = true;
+        _engine.Players[0].IsDealer = true;
+        _engine.UpdateSeatWinds();
+        ResetCounters();
+        _roundLog?.Clear();
+        EmitState();
+        Emit(new MessageEvent("已重置", false));
+    }
+
+    /// <summary>hot-apply 设置（可选役 / recordTiles / 长考秒数）。</summary>
+    public void ApplySettings(Settings? settings)
+    {
+        if (settings is null)
+        {
+            return;
+        }
+
+        _settings.CopyFrom(settings);
+        if (_roundLog is not null)
+        {
+            _roundLog.Enabled = _settings.RecordTiles;
+        }
+
+        ApplyOptionalYaku();
+        EmitState();
+    }
+
+    /// <summary><c>advanceRound</c> + 开下一局（局末按钮）。</summary>
+    public void NextRound()
+    {
+        if (_engine.MatchOver || _phase == MatchPhase.MatchOver)
+        {
+            Notify("整场已结束", false);
+            return;
+        }
+
+        if (!_engine.GameOver)
+        {
+            Notify("本局尚未结束", false);
+            return;
+        }
+
+        _pendingRon = null;
+        _pendingMeld = null;
+        _pendingChiList.Clear();
+        _lastOutcome = null;
+        _message = null;
+        _phase = MatchPhase.Idle;
+
+        if (_engine.AdvanceRound())
+        {
+            _engine.HandNumber++;
+            // JS saveSessionState 的时机：handsPlayed 已 +1、handNumber 仍是刚结束的那局。
+            _saveStore?.SaveNow(CaptureSave(inProgress: true));
+            StartNewRoundInternal();
+            RunLoop();
+            return;
+        }
+
+        _phase = MatchPhase.MatchOver;
+        RecordMatchStatsOnce();
+        _saveStore?.SaveNow(CaptureSave(inProgress: false));
+        Emit(new MatchOverEvent("match-over"));
+        EmitState();
+    }
+
+    /// <summary>构造当前可写入磁盘的存档（字段与 Web 侧同名）。</summary>
+    public SaveState CaptureSave(bool inProgress) => new()
+    {
+        Session = _session,
+        SavedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+        PlayerUUID = string.Empty,
+        ModeTarget = _modeTarget,
+        HandsPlayed = _engine.HandsPlayed,
+        HandNumber = _engine.HandNumber,
+        Scores = _engine.Scores.ToArray(),
+        DealerIndex = _engine.DealerIndex,
+        Honba = _engine.Honba,
+        RoundWindIdx = _engine.RoundWindIdx,
+        DealerCount = _engine.DealerCount,
+        InProgress = inProgress && !_engine.MatchOver,
+    };
+
+    // ── 主循环 ───────────────────────────────────────────────────
+
+    /// <summary>一直推进到「需要人类决策」或「本局结束」。</summary>
+    private void RunLoop()
+    {
+        int guard = 0;
+        while (true)
+        {
+            if (++guard > 200_000)
+            {
+                throw new InvalidOperationException("对局动作数超过 200000，疑似死循环");
+            }
+
+            if (_phase is MatchPhase.RoundEnded or MatchPhase.MatchOver)
+            {
+                return;
+            }
+
+            if (_engine.GameOver)
+            {
+                FinishRound();
+                return;
+            }
+
+            if (_pendingRon is not null)
+            {
+                _phase = MatchPhase.HumanRon;
+                if (AutoPilot)
+                {
+                    AutoPilotStep();
+                    continue;
+                }
+
+                EmitState();
+                return;
+            }
+
+            if (_pendingMeld is not null)
+            {
+                _phase = MatchPhase.HumanMeld;
+                if (AutoPilot)
+                {
+                    AutoPilotStep();
+                    continue;
+                }
+
+                EmitState();
+                return;
+            }
+
+            int turn = _engine.TurnIndex;
+            var player = _engine.Players[turn];
+
+            if (player.IsHuman)
+            {
+                if (!PrepareHumanTurn(player))
+                {
+                    return;
+                }
+
+                _phase = MatchPhase.HumanDiscard;
+                if (AutoPilot)
+                {
+                    AutoPilotStep();
+                    continue;
+                }
+
+                EmitState();
+                return;
+            }
+
+            AiTurn();
+            if (AiStepDelayMilliseconds > 0 && _phase == MatchPhase.Idle && !_engine.GameOver)
+            {
+                Thread.Sleep(AiStepDelayMilliseconds);
+            }
+        }
+    }
+
+    /// <summary>人类回合的准备：该摸就摸（JS <c>nextTurn</c> 里的 <c>humanDraw</c>）。</summary>
+    private bool PrepareHumanTurn(Player player)
+    {
+        if (player.SkipDraw)
+        {
+            player.SkipDraw = false;
+            return true;
+        }
+
+        if (player.IsDealer && player.Hand.Count == 14 && player.LastDraw is null)
+        {
+            player.FirstTurn = false;
+            return true;
+        }
+
+        if (player.TotalTiles() == 13 + player.KongCount())
+        {
+            var drawn = _engine.DrawFromWall(player);
+            if (drawn is null)
+            {
+                _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+                _engine.Flow();
+                return false;
+            }
+
+            RecordEvent(GameEventTypes.Draw, player.Index, drawn.Value, "wall=" + _engine.Wall.Count);
+            RecordStep(player.Index, "draw", drawn.Value);
+            EmitState();
+        }
+
+        return true;
+    }
+
+    /// <summary>AI 的一个完整回合（<c>engine.js aiTurn</c>）。</summary>
+    private void AiTurn()
+    {
+        int pi = _engine.TurnIndex;
+        var player = _engine.Players[pi];
+
+        bool isDealerFirst = player.IsDealer
+                             && player.Hand.Count == 14
+                             && player.LastDraw is null
+                             && !player.SkipDraw;
+
+        if (player.SkipDraw)
+        {
+            player.SkipDraw = false;
+        }
+        else if (!isDealerFirst)
+        {
+            var drawn = _engine.DrawFromWall(player);
+            if (drawn is null)
+            {
+                _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+                _engine.Flow();
+                return;
+            }
+
+            RecordEvent(GameEventTypes.Draw, pi, drawn.Value, "wall=" + _engine.Wall.Count);
+            RecordStep(pi, "draw", drawn.Value);
+            EmitState();
+        }
+        else
+        {
+            player.FirstTurn = false;
+        }
+
+        var observation = SelfPlayDriver.BuildObservation(_engine, pi);
+        var tsumo = AiPlayer.CheckTsumo(observation, _checker);
+        if (tsumo.Success)
+        {
+            DeclareTsumo(pi, tsumo);
+            return;
+        }
+
+        var kan = AiPlayer.DecideKan(observation);
+        if (kan is not null)
+        {
+            if (DoKanWithRobCheck(player, kan.Tile, kan.Type))
+            {
+                var afterKan = SelfPlayDriver.BuildObservation(_engine, pi);
+                var tsumo2 = AiPlayer.CheckTsumo(afterKan, _checker);
+                if (tsumo2.Success)
+                {
+                    DeclareTsumo(pi, tsumo2);
+                    return;
+                }
+            }
+            else
+            {
+                return;
+            }
+        }
+
+        int discardIndex = AiPlayer.ChooseDiscardIndex(player.Hand, _random.NextDouble());
+        if (discardIndex < 0 || discardIndex >= player.Hand.Count)
+        {
+            _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+            _engine.Flow();
+            return;
+        }
+
+        var discarded = _engine.Discard(player, player.Hand[discardIndex]);
+        if (discarded is null)
+        {
+            _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+            _engine.Flow();
+            return;
+        }
+
+        RecordEvent(GameEventTypes.Discard, pi, discarded.Value, null);
+        RecordStep(pi, "discard", discarded.Value);
+        EmitState();
+        AfterDiscard(discarded.Value, pi);
+    }
+
+    /// <summary>出牌后的反应链：特殊流局 → 人类荣和 → 他家荣和 → 杠/碰/吃（<c>afterDiscard</c>）。</summary>
+    private void AfterDiscard(Tile discarded, int discPlayer)
+    {
+        if (_engine.CheckSpecialFlow())
+        {
+            _lastOutcome = new RoundOutcome("special_flow", Array.Empty<int>(), "four_wind_repeat");
+            return;
+        }
+
+        int human = HumanIndex;
+        if (human >= 0 && human != discPlayer)
+        {
+            var result = TryRon(human, discarded);
+            if (result is not null)
+            {
+                _pendingRon = new PendingRon(discarded, result, discPlayer);
+                _pendingChiList.Clear();
+                _phase = MatchPhase.HumanRon;
+                _message = "荣和机会：别人打出 " + Display(discarded) + " · " + (result.TotalFu ?? 0) + "赋可和";
+                return;
+            }
+        }
+
+        var candidates = CheckRonForAi(discarded, discPlayer);
+        if (candidates.Count > 0)
+        {
+            DeclareMultiRon(candidates, discPlayer, discarded);
+            return;
+        }
+
+        CheckMelds(discarded, discPlayer);
+    }
+
+    private void CheckMelds(Tile discarded, int discPlayer)
+    {
+        int human = HumanIndex;
+        if (human >= 0 && human != discPlayer)
+        {
+            var observation = SelfPlayDriver.BuildObservation(_engine, -1, discPlayer, discarded);
+            var options = AiPlayer.GetMeldOptions(observation);
+            bool canKan = options.Kan.Contains(human);
+            bool canPon = options.Pon.Contains(human);
+            bool canChi = options.Chi == human;
+            if (canKan || canPon || canChi)
+            {
+                _pendingChiList.Clear();
+                if (canChi)
+                {
+                    _pendingChiList.AddRange(AiPlayer.ChiOptions(_engine.Players[human].Hand, discarded));
+                }
+
+                _pendingMeld = new PendingMeld(discarded, discPlayer);
+                _phase = MatchPhase.HumanMeld;
+                _message = "副露机会：别人打出 " + Display(discarded);
+                return;
+            }
+        }
+
+        var meldObservation = SelfPlayDriver.BuildObservation(_engine, -1, discPlayer, discarded);
+        var decision = AiPlayer.DecideMeld(meldObservation, _random.NextDouble());
+        if (!decision.Applied)
+        {
+            NextTurnInternal();
+            return;
+        }
+
+        ApplyMeldCore(decision.Target, decision.Type, discarded, discPlayer, decision.ChiTrio);
+    }
+
+    private void NextTurnInternal()
+    {
+        _engine.NextTurn();
+        if (_engine.GameOver && _lastOutcome is null)
+        {
+            _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+        }
+    }
+
+    // ── 人类操作（core：只做动作；public：动作 + 续跑）──────────
+
+    public void HumanDiscard(int index)
+    {
+        if (!RequireHumanDiscard())
+        {
+            return;
+        }
+
+        if (DiscardCore(index))
+        {
+            RunLoop();
+        }
+    }
+
+    public void HumanMeld(MeldType type, int chiOption)
+    {
+        if (_phase != MatchPhase.HumanMeld || _pendingMeld is null)
+        {
+            Notify("现在没有可副露的机会", false);
+            return;
+        }
+
+        MeldCore(type, chiOption);
+        RunLoop();
+    }
+
+    public void HumanKanSelf(MeldType type)
+    {
+        if (!RequireHumanDiscard())
+        {
+            return;
+        }
+
+        KanSelfCore(type);
+        RunLoop();
+    }
+
+    public void HumanTsumo()
+    {
+        if (!RequireHumanDiscard())
+        {
+            return;
+        }
+
+        TsumoCore();
+        RunLoop();
+    }
+
+    public void HumanRon()
+    {
+        if (_phase != MatchPhase.HumanRon || _pendingRon is null)
+        {
+            Notify("现在没有可荣和的牌", false);
+            return;
+        }
+
+        RonCore();
+        RunLoop();
+    }
+
+    public void Pass()
+    {
+        switch (_phase)
+        {
+            case MatchPhase.HumanRon:
+                PassRonCore();
+                RunLoop();
+                break;
+            case MatchPhase.HumanMeld:
+                PassMeldCore();
+                RunLoop();
+                break;
+            default:
+                Notify("当前没有待决动作", false);
+                break;
+        }
+    }
+
+    public void HumanFlow(string? reason)
+    {
+        if (!RequireHumanDiscard())
+        {
+            return;
+        }
+
+        if (!FlowCore(reason))
+        {
+            return;
+        }
+
+        RunLoop();
+    }
+
+    private bool RequireHumanDiscard()
+    {
+        int human = HumanIndex;
+        if (_phase != MatchPhase.HumanDiscard || human < 0 || _engine.TurnIndex != human)
+        {
+            Notify("现在不是你的出牌阶段", false);
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool DiscardCore(int index)
+    {
+        int human = HumanIndex;
+        if (human < 0)
+        {
+            return false;
+        }
+
+        var player = _engine.Players[human];
+        if (index < 0 || index >= player.Hand.Count)
+        {
+            Notify("出牌下标越界", false);
+            return false;
+        }
+
+        var discarded = _engine.Discard(player, player.Hand[index]);
+        if (discarded is null)
+        {
+            Notify("这张牌不在手里", false);
+            return false;
+        }
+
+        _phase = MatchPhase.Idle;
+        _message = null;
+        RecordEvent(GameEventTypes.Discard, human, discarded.Value, null);
+        RecordStep(human, "discard", discarded.Value);
+        EmitState();
+        AfterDiscard(discarded.Value, human);
+        return true;
+    }
+
+    private bool TsumoCore()
+    {
+        int human = HumanIndex;
+        if (human < 0)
+        {
+            return false;
+        }
+
+        var player = _engine.Players[human];
+        if (player.TotalTiles() != 14 + player.KongCount())
+        {
+            Notify("手牌不是 14 张，不能自摸", false);
+            return false;
+        }
+
+        var observation = SelfPlayDriver.BuildObservation(_engine, human);
+        var result = AiPlayer.CheckTsumo(observation, _checker);
+        if (!result.Success)
+        {
+            Notify("手牌不能和", false);
+            return false;
+        }
+
+        DeclareTsumo(human, result);
+        return true;
+    }
+
+    private bool KanSelfCore(MeldType requested)
+    {
+        int human = HumanIndex;
+        if (human < 0)
+        {
+            return false;
+        }
+
+        var player = _engine.Players[human];
+        var ankan = AiPlayer.CanAnkan(player.Hand);
+        var kakan = ankan is null ? AiPlayer.CanKakan(ViewOf(player)) : null;
+
+        Tile? tile = requested == MeldType.Ankan ? ankan : kakan;
+        if (tile is null)
+        {
+            Notify(requested == MeldType.Ankan ? "没有可暗杠的牌" : "没有可加杠的牌", false);
+            return false;
+        }
+
+        var type = requested == MeldType.Ankan ? MeldType.Ankan : MeldType.Kakan;
+        if (!DoKanWithRobCheck(player, tile.Value, type))
+        {
+            return true; // 被抢杠 / 流局，交给 RunLoop 收口
+        }
+
+        _phase = MatchPhase.Idle;
+        _message = null;
+        var afterKan = SelfPlayDriver.BuildObservation(_engine, human);
+        var tsumo = AiPlayer.CheckTsumo(afterKan, _checker);
+        if (tsumo.Success)
+        {
+            DeclareTsumo(human, tsumo);
+        }
+
+        return true;
+    }
+
+    private bool RonCore()
+    {
+        if (_pendingRon is not PendingRon pending)
+        {
+            return false;
+        }
+
+        int human = HumanIndex;
+        _pendingRon = null;
+        _pendingChiList.Clear();
+        _phase = MatchPhase.Idle;
+        _message = null;
+
+        var winners = new List<RonWinner>
+        {
+            new(human, SelfPlayDriver.ToSettlement(pending.Result)),
+        };
+
+        foreach (var candidate in CheckRonForAi(pending.Tile, pending.Discarder))
+        {
+            var player = _engine.Players[candidate.PlayerIndex];
+            player.Hand.Add(pending.Tile);
+            player.Hand.Sort();
+            winners.Add(new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)));
+        }
+
+        _lastOutcome = winners.Count >= 3
+            ? new RoundOutcome("special_flow", Array.Empty<int>(), "triple_ron")
+            : new RoundOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
+        _engine.DeclareMultiRon(winners, pending.Discarder);
+        return true;
+    }
+
+    private bool PassRonCore()
+    {
+        if (_pendingRon is not PendingRon pending)
+        {
+            return false;
+        }
+
+        int human = HumanIndex;
+        _pendingRon = null;
+        _phase = MatchPhase.Idle;
+        _message = null;
+
+        // 移除荣和试探牌（JS passRon：findIndex(t.id === tile.id) → splice）
+        var player = _engine.Players[human];
+        int pos = player.Hand.FindIndex(t => t == pending.Tile);
+        if (pos >= 0)
+        {
+            player.Hand.RemoveAt(pos);
+        }
+
+        var candidates = CheckRonForAi(pending.Tile, pending.Discarder);
+        if (candidates.Count > 0)
+        {
+            DeclareMultiRon(candidates, pending.Discarder, pending.Tile);
+            return true;
+        }
+
+        CheckMelds(pending.Tile, pending.Discarder);
+        return true;
+    }
+
+    private bool PassMeldCore()
+    {
+        if (_pendingMeld is not PendingMeld pending)
+        {
+            return false;
+        }
+
+        _pendingMeld = null;
+        _pendingChiList.Clear();
+        _phase = MatchPhase.Idle;
+        _message = null;
+
+        var observation = SelfPlayDriver.BuildObservation(_engine, -1, pending.Discarder, pending.Tile);
+        var decision = AiPlayer.DecideMeld(observation, _random.NextDouble());
+        if (!decision.Applied)
+        {
+            NextTurnInternal();
+            return true;
+        }
+
+        ApplyMeldCore(decision.Target, decision.Type, pending.Tile, pending.Discarder, decision.ChiTrio);
+        return true;
+    }
+
+    private bool MeldCore(MeldType type, int chiOption)
+    {
+        if (_pendingMeld is not PendingMeld pending)
+        {
+            return false;
+        }
+
+        int human = HumanIndex;
+        var observation = SelfPlayDriver.BuildObservation(_engine, -1, pending.Discarder, pending.Tile);
+        var options = AiPlayer.GetMeldOptions(observation);
+        bool allowed = type switch
+        {
+            MeldType.Chi => options.Chi == human,
+            MeldType.Pon => options.Pon.Contains(human),
+            MeldType.Minkan => options.Kan.Contains(human),
+            _ => false,
+        };
+
+        _pendingMeld = null;
+        if (!allowed)
+        {
+            _pendingChiList.Clear();
+            _phase = MatchPhase.Idle;
+            Notify("这个副露不可用", false);
+            EmitState();
+            return false;
+        }
+
+        IReadOnlyList<Tile>? trio = null;
+        if (type == MeldType.Chi && _pendingChiList.Count > 0)
+        {
+            int idx = Math.Clamp(chiOption, 0, _pendingChiList.Count - 1);
+            trio = _pendingChiList[idx].Trio;
+        }
+
+        _pendingChiList.Clear();
+        _phase = MatchPhase.Idle;
+        _message = null;
+        ApplyMeldCore(human, type, pending.Tile, pending.Discarder, trio);
+        return true;
+    }
+
+    private bool FlowCore(string? reason)
+    {
+        int human = HumanIndex;
+        if (human < 0)
+        {
+            return false;
+        }
+
+        var options = _engine.FlowOptions(_engine.Players[human].Hand);
+        if (options.Count == 0)
+        {
+            Notify("当前手牌不满足推牌流局条件", false);
+            return false;
+        }
+
+        string picked = reason is not null && options.Contains(reason) ? reason : options[0];
+        string code = picked switch
+        {
+            "九种九牌" => "nine_orphans",
+            "十三不靠" => "thirteen_unrelated",
+            _ => "special",
+        };
+
+        _phase = MatchPhase.Idle;
+        _message = null;
+        _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), code);
+        _engine.DeclarePushFlow(picked, human);
+        return true;
+    }
+
+    private void AutoPilotStep()
+    {
+        switch (_phase)
+        {
+            case MatchPhase.HumanRon:
+                RonCore();
+                return;
+
+            case MatchPhase.HumanMeld:
+                PassMeldCore();
+                return;
+
+            default:
+                int human = HumanIndex;
+                if (human < 0)
+                {
+                    _phase = MatchPhase.Idle;
+                    return;
+                }
+
+                if ((AvailableActions() & HumanAction.Tsumo) != 0)
+                {
+                    TsumoCore();
+                    return;
+                }
+
+                var player = _engine.Players[human];
+                int index = player.LastDraw is Tile drawn ? player.Hand.IndexOf(drawn) : player.Hand.Count - 1;
+                if (index < 0)
+                {
+                    index = player.Hand.Count - 1;
+                }
+
+                DiscardCore(index);
+                return;
+        }
+    }
+
+    // ── 结算 / 副露 / 杠 ─────────────────────────────────────────
+
+    private void DeclareTsumo(int playerIndex, WinResult result)
+    {
+        _phase = MatchPhase.Idle;
+        _message = null;
+        bool sevenHonors = result.SevenHonors;
+        _lastOutcome = new RoundOutcome(sevenHonors ? "tiisuin" : "tsumo", new[] { playerIndex }, null);
+        _engine.DeclareWin(playerIndex, selfDraw: true, SelfPlayDriver.ToSettlement(result));
+    }
+
+    private void DeclareMultiRon(IReadOnlyList<RonCandidate> candidates, int discPlayer, Tile discarded)
+    {
+        var winners = new List<RonWinner>(candidates.Count);
+        foreach (var candidate in candidates)
+        {
+            var player = _engine.Players[candidate.PlayerIndex];
+            // engine.js checkRon：荣和张留在胜者暗手里（自走驱动同样这么加）
+            player.Hand.Add(discarded);
+            player.Hand.Sort();
+            winners.Add(new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)));
+        }
+
+        _lastOutcome = candidates.Count >= 3
+            ? new RoundOutcome("special_flow", Array.Empty<int>(), "triple_ron")
+            : new RoundOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
+        _engine.DeclareMultiRon(winners, discPlayer);
+    }
+
+    /// <summary>副露（AI 与人类共用），含明杠岭上补摸。</summary>
+    private void ApplyMeldCore(int playerIndex, MeldType type, Tile tile, int discarder, IReadOnlyList<Tile>? chiTrio)
+    {
+        var player = _engine.Players[playerIndex];
+        _engine.ApplyMeld(playerIndex, type, tile, discarder, chiTrio, _engine.PeekRinshanTile());
+
+        if (type == MeldType.Minkan)
+        {
+            RecordEvent(GameEventTypes.Meld, playerIndex, tile, "minkan:from=" + discarder);
+            RecordStep(playerIndex, "kan_minkan", tile);
+            if (!_engine.GameOver && _engine.CurrentDrawn is Tile drawn)
+            {
+                RecordEvent(GameEventTypes.Kan, playerIndex, drawn, "minkan:rinshan=" + (_engine.Rinshan.Count > 0 ? "yes" : "wall"));
+                RecordStep(playerIndex, "rinshan_draw", drawn, via: _engine.Rinshan.Count == 0 ? "wall" : "rinshan");
+            }
+        }
+        else
+        {
+            string wire = type.Wire();
+            RecordEvent(GameEventTypes.Meld, playerIndex, tile, wire + ":from=" + discarder);
+            RecordStep(playerIndex, wire, tile);
+        }
+
+        if (_engine.GameOver && _lastOutcome is null)
+        {
+            _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+        }
+
+        _phase = player.IsHuman ? MatchPhase.HumanDiscard : MatchPhase.Idle;
+        EmitState();
+    }
+
+    /// <summary>抢杠检查 + 执行杠（含抢杠 / 三家和牌 / 牌山耗尽流局）。</summary>
+    private bool DoKanWithRobCheck(Player player, Tile tile, MeldType type)
+    {
+        var robbers = CheckRobKan(tile, type, player.Index);
+        if (robbers.Count > 0)
+        {
+            if (robbers.Count >= 3)
+            {
+                _lastOutcome = new RoundOutcome("special_flow", Array.Empty<int>(), "triple_ron_chankan");
+                _engine.DeclareSpecialFlow("三家和牌（抢杠）→ 自动流局");
+                return false;
+            }
+
+            var winners = robbers
+                .Select(candidate => new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)))
+                .ToList();
+            _lastOutcome = new RoundOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
+            _engine.DeclareMultiRon(winners, player.Index);
+            return false;
+        }
+
+        if (!_engine.DoKan(player, tile, type, _engine.PeekRinshanTile()))
+        {
+            _lastOutcome ??= new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+            return false;
+        }
+
+        var drawn = _engine.CurrentDrawn ?? tile;
+        string action = type == MeldType.Ankan ? "kan_ankan" : "kan_kakan";
+        RecordEvent(GameEventTypes.Kan, player.Index, drawn, type.Wire() + ":rinshan=" + (_engine.Rinshan.Count > 0 ? "yes" : "wall"));
+        RecordStep(player.Index, action, drawn, via: _engine.Rinshan.Count == 0 ? "wall" : "rinshan");
+        EmitState();
+        return true;
+    }
+
+    /// <summary>人类荣和试探（<c>tryRon</c>）：成功时荣和张留在手里。</summary>
+    private WinResult? TryRon(int playerIndex, Tile tile)
+    {
+        var player = _engine.Players[playerIndex];
+        int meldTiles = 0;
+        int kongs = 0;
+        foreach (var meld in player.Melds)
+        {
+            meldTiles += meld.Tiles.Count;
+            if (meld.Tiles.Count == 4)
+            {
+                kongs++;
+            }
+        }
+
+        if (player.Hand.Count != 13 - meldTiles + kongs)
+        {
+            return null;
+        }
+
+        player.Hand.Add(tile);
+        player.Hand.Sort();
+
+        var result = _checker.CheckWin(
+            player.Hand,
+            selfDraw: false,
+            hasCalled: player.Melds.Count > 0 || player.MinkanCount > 0,
+            ankanCount: player.AnkanCount,
+            minkanCount: player.MinkanCount,
+            melds: ToCoreMelds(player.Melds),
+            firstTurn: player.FirstTurn,
+            winTile: tile,
+            context: BuildWinContext(playerIndex, player.Hand, selfDraw: false, tile));
+
+        if (!result.Success)
+        {
+            int pos = player.Hand.FindIndex(t => t == tile);
+            if (pos >= 0)
+            {
+                player.Hand.RemoveAt(pos);
+            }
+
+            return null;
+        }
+
+        return result;
+    }
+
+    /// <summary>抢杠（<c>checkRobKan</c>）：加杠可被任意家抢；暗杠只有国士形能抢。</summary>
+    private List<RonCandidate> CheckRobKan(Tile tile, MeldType type, int kanPlayer)
+    {
+        var winners = new List<RonCandidate>();
+        for (int pi = 0; pi < MahjongEngine.PlayerCount; pi++)
+        {
+            if (pi == kanPlayer)
+            {
+                continue;
+            }
+
+            var player = _engine.Players[pi];
+            if (type == MeldType.Ankan && !IsKokushiShape(player))
+            {
+                continue;
+            }
+
+            player.Hand.Add(tile);
+            player.Hand.Sort();
+
+            var result = _checker.CheckWin(
+                player.Hand,
+                selfDraw: false,
+                hasCalled: player.Melds.Count > 0 || player.MinkanCount > 0,
+                ankanCount: player.AnkanCount,
+                minkanCount: player.MinkanCount,
+                melds: ToCoreMelds(player.Melds),
+                firstTurn: player.FirstTurn,
+                winTile: tile,
+                context: BuildWinContext(pi, player.Hand, selfDraw: false, tile));
+
+            if (result.Success)
+            {
+                winners.Add(new RonCandidate(pi, result));
+            }
+            else
+            {
+                int pos = player.Hand.FindIndex(t => t == tile);
+                if (pos >= 0)
+                {
+                    player.Hand.RemoveAt(pos);
+                }
+            }
+        }
+
+        return winners;
+    }
+
+    private List<RonCandidate> CheckRonForAi(Tile discarded, int discPlayer)
+    {
+        var observation = SelfPlayDriver.BuildObservation(_engine, -1, discPlayer, discarded);
+        return AiPlayer.CheckRonDetailed(observation, _checker);
+    }
+
+    private static bool IsKokushiShape(Player player)
+    {
+        var kinds = new HashSet<Tile>();
+        foreach (var tile in player.Hand)
+        {
+            if (tile.IsHonor)
+            {
+                kinds.Add(tile);
+            }
+            else if (tile.Num is 1 or 9)
+            {
+                kinds.Add(tile);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        return kinds.Count >= 12;
+    }
+
+    // ── 局末 ─────────────────────────────────────────────────────
+
+    private void FinishRound()
+    {
+        if (_phase is MatchPhase.RoundEnded or MatchPhase.MatchOver)
+        {
+            return;
+        }
+
+        var outcome = _lastOutcome ?? new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+
+        switch (outcome.Kind)
+        {
+            case "tsumo":
+                RecordWinRound("win_tsumo", "tsumo", outcome.Winners);
+                _tsumoWins++;
+                break;
+            case "ron":
+                RecordWinRound("win_ron", "ron", outcome.Winners);
+                _ronWins += outcome.Winners.Count;
+                break;
+            case "tiisuin":
+                RecordWinRound("tiisuin_win", "tiisuin", outcome.Winners);
+                break;
+            case "special_flow":
+                RecordFlowRound("special_flow", outcome.Reason ?? "special");
+                _drawRounds++;
+                _specialFlows++;
+                break;
+            default:
+                RecordFlowRound("flow", outcome.Reason ?? "exhaustive");
+                _drawRounds++;
+                break;
+        }
+
+        _rounds++;
+        _roundLog?.Flush(_engine, _session);
+
+        var names = _engine.Players.Select(p => p.Name).ToArray();
+        var result = new RoundResult(
+            _engine.HandNumber,
+            outcome.Kind,
+            outcome.Winners,
+            outcome.Reason,
+            _engine.Scores.ToArray(),
+            _engine.Honba,
+            _engine.DealerIndex,
+            _engine.MatchOver);
+
+        _stats?.RecordRound(result, names);
+        RecordEvent(
+            GameEventTypes.RoundEnd,
+            -1,
+            null,
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "{0}:scores={1}:honba={2}:dealer={3}",
+                outcome.Kind.ToLowerInvariant(),
+                string.Join(",", _engine.Scores),
+                _engine.Honba,
+                _engine.DealerIndex));
+
+        _pendingRon = null;
+        _pendingMeld = null;
+        _pendingChiList.Clear();
+        Emit(new RoundEndEvent(result));
+
+        if (_engine.MatchOver)
+        {
+            _phase = MatchPhase.MatchOver;
+            RecordMatchStatsOnce();
+            _saveStore?.SaveNow(CaptureSave(inProgress: false));
+            string reason = outcome.Kind == "tiisuin"
+                ? "tiisuin"
+                : _engine.Scores.Contains(-7000) ? "bust" : "match-over";
+            _message = reason;
+            Emit(new MatchOverEvent(reason));
+        }
+        else
+        {
+            _phase = MatchPhase.RoundEnded;
+        }
+
+        EmitState();
+    }
+
+    private void RecordWinRound(string action, string kind, IReadOnlyList<int> winners)
+    {
+        for (int pi = 0; pi < MahjongEngine.PlayerCount; pi++)
+        {
+            bool won = winners.Contains(pi);
+            if (won)
+            {
+                RecordEvent(GameEventTypes.Win, pi, null, kind);
+            }
+
+            string step = kind == "tiisuin"
+                ? (won ? "tiisuin_win" : "witness")
+                : (won ? action : "observe");
+            RecordStep(pi, step);
+        }
+    }
+
+    private void RecordFlowRound(string action, string reason)
+    {
+        RecordEvent(GameEventTypes.Flow, -1, null, reason);
+        for (int pi = 0; pi < MahjongEngine.PlayerCount; pi++)
+        {
+            RecordStep(pi, action, null, reason);
+        }
+    }
+
+    private void RecordMatchStatsOnce()
+    {
+        if (_matchStatsRecorded)
+        {
+            return;
+        }
+
+        _matchStatsRecorded = true;
+        _stats?.RecordMatchEnd(_engine.Scores, _engine.Players.Select(p => p.Name).ToArray());
+    }
+
+    // ── 快照 / 动作 / 事件 ───────────────────────────────────────
+
+    private string PhaseWire => _phase switch
+    {
+        MatchPhase.HumanDiscard => "human_discard",
+        MatchPhase.HumanRon => "human_ron",
+        MatchPhase.HumanMeld => "human_meld",
+        MatchPhase.RoundEnded => "round_end",
+        MatchPhase.MatchOver => "match_over",
+        _ => "idle",
+    };
+
+    /// <summary>当前可用动作（按钮出现条件与优先级：杠 &gt; 和 &gt; 碰 &gt; 吃 &gt; 过）。</summary>
+    public HumanAction AvailableActions()
+    {
+        var actions = HumanAction.None;
+        int human = HumanIndex;
+        if (human < 0)
+        {
+            return actions;
+        }
+
+        switch (_phase)
+        {
+            case MatchPhase.HumanDiscard:
+            {
+                actions |= HumanAction.Discard;
+                var player = _engine.Players[human];
+                if (player.TotalTiles() == 14 + player.KongCount())
+                {
+                    var observation = SelfPlayDriver.BuildObservation(_engine, human);
+                    if (AiPlayer.CheckTsumo(observation, _checker).Success)
+                    {
+                        actions |= HumanAction.Tsumo;
+                    }
+                }
+
+                if (AiPlayer.CanAnkan(player.Hand) is not null || AiPlayer.CanKakan(ViewOf(player)) is not null)
+                {
+                    actions |= HumanAction.Kan;
+                }
+
+                if (_engine.FlowOptions(player.Hand).Count > 0)
+                {
+                    actions |= HumanAction.Flow;
+                }
+
+                break;
+            }
+
+            case MatchPhase.HumanRon:
+                actions |= HumanAction.Ron | HumanAction.Pass;
+                break;
+
+            case MatchPhase.HumanMeld:
+                if (_pendingMeld is PendingMeld pending)
+                {
+                    var observation = SelfPlayDriver.BuildObservation(_engine, -1, pending.Discarder, pending.Tile);
+                    var options = AiPlayer.GetMeldOptions(observation);
+                    if (options.Kan.Contains(human))
+                    {
+                        actions |= HumanAction.Kan;
+                    }
+
+                    if (options.Pon.Contains(human))
+                    {
+                        actions |= HumanAction.Pon;
+                    }
+
+                    if (options.Chi == human)
+                    {
+                        actions |= HumanAction.Chi;
+                    }
+
+                    actions |= HumanAction.Pass;
+                }
+
+                break;
+        }
+
+        return actions;
+    }
+
+    /// <summary>吃牌多选的按钮文案（如「吃 234m」）。</summary>
+    public IReadOnlyList<string> ActionLabels()
+    {
+        if (_phase != MatchPhase.HumanMeld || _pendingChiList.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var labels = new List<string>(_pendingChiList.Count);
+        foreach (var option in _pendingChiList)
+        {
+            var trio = option.Trio;
+            if (trio.Count == 0)
+            {
+                continue;
+            }
+
+            var nums = string.Concat(trio.Select(t => t.Num.ToString(CultureInfo.InvariantCulture)));
+            labels.Add("吃 " + nums + TileNotation.SuitChar(trio[0].Suit));
+        }
+
+        return labels;
+    }
+
+    private void EmitState()
+    {
+        _snapshot = SnapshotBuilder.Build(
+            _engine,
+            PhaseWire,
+            AvailableActions(),
+            ActionLabels(),
+            _message,
+            _settings);
+
+        _saveStore?.Save(CaptureSave(!_engine.MatchOver));
+        Emit(new StateChangedEvent(_snapshot));
+    }
+
+    private void Emit(UiEvent uiEvent)
+    {
+        try
+        {
+            _emit(uiEvent);
+        }
+        catch
+        {
+            // UI 侧异常不能拖死引擎线程。
+        }
+    }
+
+    private void Notify(string text, bool important) => Emit(new MessageEvent(text, important));
+
+    private void RecordEvent(string type, int playerIndex, Tile? tile, string? detail)
+    {
+        _events.Add(new GameEvent
+        {
+            Type = type,
+            Round = _engine.HandNumber,
+            Player = playerIndex,
+            Tile = tile is Tile value ? TileNotation.TileToStr(value) : null,
+            Detail = detail,
+        });
+    }
+
+    private void RecordStep(int playerIndex, string action, Tile? tile = null, string? reason = null, string? via = null)
+    {
+        _roundLog?.Step(_engine, playerIndex, action, tile, reason, via);
+    }
+
+    // ── 共通 ─────────────────────────────────────────────────────
+
+    public int HumanIndex
+    {
+        get
+        {
+            for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+            {
+                if (_engine.Players[i].IsHuman)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+    }
+
+    private void StartNewRoundInternal()
+    {
+        _pendingRon = null;
+        _pendingMeld = null;
+        _pendingChiList.Clear();
+        _lastOutcome = null;
+        _phase = MatchPhase.Idle;
+        _message = null;
+        _roundLog?.Clear();
+
+        int dealer = _engine.DealerIndex;
+        if (_firstDeal)
+        {
+            _firstDeal = false;
+            DiceDealer = TileSetFactory.RollDice(_random);
+            dealer = TileSetFactory.DetermineDealer(DiceDealer);
+        }
+
+        var layout = RoundDealFactory.Cut(dealer, _random);
+        DiceCut = layout.Dice;
+        _engine.StartNewRound(layout.Deal);
+        EmitState();
+    }
+
+    /// <summary>本场首次定庄骰（与 Web 侧 <c>game.diceDealer</c> 同义）。</summary>
+    public IReadOnlyList<int>? DiceDealer { get; private set; }
+
+    /// <summary>本局切牌骰。</summary>
+    public IReadOnlyList<int>? DiceCut { get; private set; }
+
+    private void ResetCounters()
+    {
+        _events.Clear();
+        _rounds = 0;
+        _tsumoWins = 0;
+        _ronWins = 0;
+        _drawRounds = 0;
+        _specialFlows = 0;
+        _matchStatsRecorded = false;
+        _lastOutcome = null;
+        _pendingRon = null;
+        _pendingMeld = null;
+        _pendingChiList.Clear();
+    }
+
+    private void ApplyOptionalYaku()
+    {
+        var field = typeof(WinChecker).GetField("_optionalEnabled", BindingFlags.Instance | BindingFlags.NonPublic);
+        if (field?.GetValue(_checker) is HashSet<string> set)
+        {
+            set.Clear();
+            foreach (var id in _settings.OptionalYaku)
+            {
+                set.Add(id);
+            }
+        }
+    }
+
+    private WinContext BuildWinContext(int playerIndex, IReadOnlyList<Tile> effectiveHand, bool selfDraw, Tile? winTile)
+    {
+        int visible = 0;
+        if (winTile is Tile target)
+        {
+            for (int pi = 0; pi < MahjongEngine.PlayerCount; pi++)
+            {
+                var player = _engine.Players[pi];
+                visible += pi == playerIndex
+                    ? Count(effectiveHand, target)
+                    : Count(player.Hand, target);
+                visible += Count(player.Discards, target);
+                foreach (var meld in player.Melds)
+                {
+                    visible += Count(meld.Tiles, target);
+                }
+            }
+        }
+
+        bool anyCalled = false;
+        foreach (var player in _engine.Players)
+        {
+            if (player.Melds.Count > 0 || player.MinkanCount > 0)
+            {
+                anyCalled = true;
+                break;
+            }
+        }
+
+        var self = _engine.Players[playerIndex];
+        bool renhe = !selfDraw && !self.IsDealer && !anyCalled && self.FirstTurn && self.LastDraw is null;
+        bool waterDrop = self.FirstTurnTenpai && (selfDraw ? self.HaiDei : _engine.Wall.Count == 0);
+
+        return new WinContext
+        {
+            SeaMoon = selfDraw && self.SeaMoon,
+            HaiDei = selfDraw && self.HaiDei,
+            RiverFish = !selfDraw && _engine.Wall.Count == 0,
+            LastTileVisible = visible,
+            RinshanFlower = selfDraw && self.RinshanDrawn,
+            RinshanGun = !selfDraw && _engine.KanThisTurn,
+            KanRiichi = _engine.KanThisTurn,
+            Renhe = renhe,
+            WaterDrop = waterDrop,
+            SeatWind = self.SeatWind.Wire(),
+            RoundWind = _engine.RoundWind.Wire(),
+        };
+    }
+
+    private static int Count(IReadOnlyList<Tile> tiles, Tile target)
+    {
+        int count = 0;
+        for (int i = 0; i < tiles.Count; i++)
+        {
+            if (tiles[i] == target)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static List<CoreMeld> ToCoreMelds(IEnumerable<EngineMeld> melds) =>
+        melds.Select(meld => new CoreMeld(meld.Type.Wire(), meld.Tiles.ToList())).ToList();
+
+    private static AiPlayerView ViewOf(Player player)
+    {
+        var view = new AiPlayerView
+        {
+            SeatWind = player.SeatWind,
+            IsDealer = player.IsDealer,
+            IsHuman = player.IsHuman,
+            FirstTurn = player.FirstTurn,
+            AnkanCount = player.AnkanCount,
+            MinkanCount = player.MinkanCount,
+            LastDraw = player.LastDraw,
+            SeaMoon = player.SeaMoon,
+            HaiDei = player.HaiDei,
+            RinshanDrawn = player.RinshanDrawn,
+            FirstTurnTenpai = player.FirstTurnTenpai,
+            SkipDraw = player.SkipDraw,
+        };
+
+        view.Hand.AddRange(player.Hand);
+        view.Discards.AddRange(player.Discards);
+        foreach (var meld in player.Melds)
+        {
+            view.Melds.Add(new EngineMeld(meld.Type, meld.Tiles));
+        }
+
+        return view;
+    }
+
+    private static string Display(Tile tile) => tile.Suit switch
+    {
+        Suit.Man => tile.Num + "万",
+        Suit.Pin => tile.Num + "饼",
+        Suit.Sou => tile.Num + "索",
+        _ => tile.Num switch
+        {
+            1 => "东",
+            2 => "南",
+            3 => "西",
+            4 => "北",
+            5 => "白",
+            6 => "发",
+            7 => "中",
+            _ => tile.Num.ToString(CultureInfo.InvariantCulture),
+        },
+    };
+
+    private sealed class SharedRandomSource : IRandomSource
+    {
+        public double NextDouble() => Random.Shared.NextDouble();
+    }
+}
