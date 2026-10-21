@@ -4,43 +4,61 @@ using System.Globalization;
 using System.IO;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
+using Tiisu.App.Table;
 using Color = Tiisu.App.Rendering.Color;
 
 namespace Tiisu.App.Ui;
 
-/// <summary>牌桌屏：复用 BoardScene（牌桌/手牌/牌河/旋转牌），叠加左上角菜单按钮提示。</summary>
+/// <summary>牌桌屏：1200×1200 方形画布，布局由 Yoga 计算，绘制走 TableSceneSkia。</summary>
 public sealed class TableScreen : Screen
 {
-    private readonly BoardScene _scene;
-    private int _hover;
+    private readonly TableLayoutSpec _layout = new() { CanvasW = 1200f, CanvasH = 1200f };
+    private readonly TableViewModel _vm = TableDemoModel.Create(1);
+    private readonly TableSceneSkia _scene = new();
+    private int _hover = -1;
 
     public TableScreen(TileAtlas? atlas) : base("table")
     {
-        _scene = new BoardScene(atlas);
+        YogaTableLayout.Apply(_layout);
     }
 
-    public BoardScene Scene => _scene;
+    public override float CanvasWidth => _layout.CanvasW;
+
+    public override float CanvasHeight => _layout.CanvasH;
 
     public override void Draw(ICanvas c, double time)
     {
-        _scene.Draw(c, time, _hover);
+        _scene.Draw(c, _vm, _layout, _hover);
 
         var hint = new RectF(24, 24, 220, 40);
         c.FillRoundRect(hint, 8, Color.Rgb(0, 0, 0).WithAlpha(120));
-        c.DrawText("M：菜单    ESC：退出", new RectF(hint.X, hint.Y, hint.W, hint.H),
-            Color.Rgb(230, 236, 226), new TextStyle(16, Center: true));
+        c.DrawText("M：菜单    ESC：退出", hint, Color.Rgb(230, 236, 226), new TextStyle(16));
     }
 
     public override bool OnPointerMove(float x, float y)
     {
-        int hit = BoardScene.HitTestHand(x, y);
-        _hover = hit;
-        return hit >= 0;
+        _hover = HitTest(x, y);
+        return _hover >= 0;
     }
 
-    public override bool OnClick(float x, float y) => BoardScene.HitTestHand(x, y) >= 0;
+    public override bool OnClick(float x, float y) => HitTest(x, y) >= 0;
 
     public override bool OnKey(Keys key) => key == Keys.M;
+
+    /// <summary>手牌命中：与绘制共用同一份矩形算式。</summary>
+    private int HitTest(float x, float y)
+    {
+        var rects = TableSceneSkia.HandTileRects(_layout, _vm.Seats[0], 0);
+        for (int i = 0; i < rects.Length; i++)
+        {
+            if (rects[i].Contains(x, y))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 }
 
 /// <summary>菜单屏：完全由布局 JSON 驱动（菜单项 → action）。</summary>

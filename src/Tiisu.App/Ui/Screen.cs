@@ -9,9 +9,14 @@ public abstract class Screen
 
     public string Id { get; }
 
-    /// <summary>逻辑坐标尺寸（与 BoardScene 一致：1280×720）。</summary>
+    /// <summary>默认逻辑坐标尺寸（菜单屏使用）。牌桌屏会覆盖成 1200×1200。</summary>
     public const float Width = 1280f;
     public const float Height = 720f;
+
+    /// <summary>本屏的逻辑画布尺寸。宿主按它做 letterbox 缩放与输入换算。</summary>
+    public virtual float CanvasWidth => Width;
+
+    public virtual float CanvasHeight => Height;
 
     public virtual void Update(double dt) { }
 

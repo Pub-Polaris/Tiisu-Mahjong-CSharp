@@ -28,6 +28,8 @@ public sealed class ScreenHost : SKControl
     private float _scale = 1f;
     private float _offsetX;
     private float _offsetY;
+    private float _canvasW = Screen.Width;
+    private float _canvasH = Screen.Height;
 
     public ScreenHost(TileAtlas? atlas)
     {
@@ -89,9 +91,12 @@ public sealed class ScreenHost : SKControl
         var info = e.Info;
         canvas.Clear(SKColors.Black);
 
-        _scale = MathF.Min(info.Width / Screen.Width, info.Height / Screen.Height);
-        _offsetX = (info.Width - Screen.Width * _scale) / 2f;
-        _offsetY = (info.Height - Screen.Height * _scale) / 2f;
+        _canvasW = _current.CanvasWidth;
+        _canvasH = _current.CanvasHeight;
+
+        _scale = MathF.Min(info.Width / _canvasW, info.Height / _canvasH);
+        _offsetX = (info.Width - _canvasW * _scale) / 2f;
+        _offsetY = (info.Height - _canvasH * _scale) / 2f;
 
         double t = _clock.Elapsed.TotalSeconds;
         if (_transition < 1)
@@ -107,11 +112,16 @@ public sealed class ScreenHost : SKControl
         {
             if (_previous is not null && _transition < 1)
             {
-                _previous.Draw(ctx, t);
-                // 简单淡入：新屏用 alpha 叠一层黑
-                float k = (float)_transition;
-                ctx.FillRect(new RectF(0, 0, Screen.Width, Screen.Height),
-                    Rendering.Color.Black.WithAlpha((byte)(255 * (1 - k))));
+                // 两屏画布尺寸不同时直接切，避免旧屏按新尺寸被拉伸
+                bool sameSize = MathF.Abs(_previous.CanvasWidth - _canvasW) < 0.01f
+                                && MathF.Abs(_previous.CanvasHeight - _canvasH) < 0.01f;
+                if (sameSize)
+                {
+                    _previous.Draw(ctx, t);
+                    float k = (float)_transition;
+                    ctx.FillRect(new RectF(0, 0, _canvasW, _canvasH),
+                        Rendering.Color.Black.WithAlpha((byte)(255 * (1 - k))));
+                }
             }
             else
             {
@@ -172,5 +182,4 @@ public sealed class ScreenHost : SKControl
         }
 
         return ((px - _offsetX) / _scale, (py - _offsetY) / _scale);
-    }
-}
+    }}

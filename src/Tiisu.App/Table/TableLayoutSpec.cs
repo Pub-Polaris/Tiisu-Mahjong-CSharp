@@ -93,10 +93,10 @@ public sealed class TableLayoutSpec
     };
 }
 
-/// <summary>【临时版本 v4】渲染器。</summary>
+/// <summary>牌桌渲染：按 Yoga 算出的矩形绘制。</summary>
 public sealed class TableSceneSkia
 {
-    public void Draw(ICanvas c, TableViewModel vm, TableLayoutSpec l)
+    public void Draw(ICanvas c, TableViewModel vm, TableLayoutSpec l, int hoverHand = -1)
     {
         c.FillRect(new RectF(0, 0, l.CanvasW, l.CanvasH), Color.Rgb(20, 30, 24));
         c.FillRoundRect(new RectF(l.Margin, l.Margin, l.CanvasW - l.Margin * 2, l.CanvasH - l.Margin * 2),
@@ -107,8 +107,44 @@ public sealed class TableSceneSkia
 
         for (int seat = 0; seat < 4; seat++)
         {
-            DrawSeat(c, Seat(vm, seat), seat, l);
+            DrawSeat(c, Seat(vm, seat), seat, l, seat == 0 ? hoverHand : -1);
         }
+    }
+
+    /// <summary>
+    /// 某家手牌的逐张轴对齐矩形。绘制与命中测试共用同一份算式，避免两边漂移。
+    /// </summary>
+    public static RectF[] HandTileRects(TableLayoutSpec l, SeatView seat, int index)
+    {
+        var frame = l.HandRects[index];
+        var (horizontal, _, _) = TableLayoutSpec.Axis(index);
+        bool self = index == 0;
+
+        int n = seat.Hand.Count > 0 ? seat.Hand.Count : seat.HandCount;
+        if (n <= 0)
+        {
+            n = 13;
+        }
+
+        float along = horizontal ? l.HandW : l.HandH;
+        float depth = horizontal ? l.HandH : l.HandW;
+        float pad = l.HandGap;
+
+        float handLen = n * along + (n - 1) * pad;
+        float drawnExtra = self && n >= 2 ? l.DrawnGap - pad : 0f;
+        float total = handLen + drawnExtra;
+        float start = (horizontal ? frame.X : frame.Y) + ((horizontal ? frame.W : frame.H) - total) / 2f;
+
+        var rects = new RectF[n];
+        for (int i = 0; i < n; i++)
+        {
+            float a = start + i * (along + pad) + (drawnExtra > 0 && i == n - 1 ? drawnExtra : 0f);
+            rects[i] = horizontal
+                ? new RectF(a, frame.Y, along, depth)
+                : new RectF(frame.X, a, depth, along);
+        }
+
+        return rects;
     }
 
     private static void DrawCenter(ICanvas c, TableViewModel vm, RectF p)
@@ -172,7 +208,7 @@ public sealed class TableSceneSkia
         }
     }
 
-    private static void DrawSeat(ICanvas c, SeatView seat, int index, TableLayoutSpec l)
+    private static void DrawSeat(ICanvas c, SeatView seat, int index, TableLayoutSpec l, int hover = -1)
     {
         var frame = l.HandRects[index];
         var (horizontal, angle, rightDir) = TableLayoutSpec.Axis(index);
@@ -186,14 +222,13 @@ public sealed class TableSceneSkia
 
         float along = horizontal ? l.HandW : l.HandH;
         float depth = horizontal ? l.HandH : l.HandW;
-        float pad = horizontal ? l.HandGap : l.HandGap;
+        float pad = l.HandGap;
 
-        // 手牌：在固定框内居中
-        float handLen = n * along + (n - 1) * pad;
-        float drawnExtra = self && n >= 2 ? l.DrawnGap - pad : 0f;
-        float total = handLen + drawnExtra;
-        float start = (horizontal ? frame.X : frame.Y) + ((horizontal ? frame.W : frame.H) - total) / 2f;
+        var tiles = HandTileRects(l, seat, index);
+        float total = tiles.Length * along + (tiles.Length - 1) * pad
+                      + (self && n >= 2 ? l.DrawnGap - pad : 0f);
 
+        float start = horizontal ? tiles[0].X : tiles[0].Y;
         float meldLen = MeldLength(seat, l, horizontal);
         float meldStart = rightDir > 0
             ? start + total + l.HandMeldGap
@@ -201,9 +236,10 @@ public sealed class TableSceneSkia
 
         for (int i = 0; i < n; i++)
         {
-            float a = start + i * (along + pad) + (drawnExtra > 0 && i == n - 1 ? drawnExtra : 0f);
-            float cx = horizontal ? a + along / 2f : frame.CenterX;
-            float cy = horizontal ? frame.CenterY : a + along / 2f;
+            var r = tiles[i];
+            float lift = i == hover ? 10f : 0f;
+            float cx = r.CenterX;
+            float cy = r.CenterY - lift;
 
             if (self && i < seat.Hand.Count)
             {
@@ -212,6 +248,12 @@ public sealed class TableSceneSkia
             else
             {
                 Back(c, cx, cy, horizontal ? along : depth, horizontal ? depth : along);
+            }
+
+            if (i == hover)
+            {
+                c.StrokeRoundRect(new RectF(cx - along / 2f, cy - depth / 2f, along, depth),
+                    4, Color.Rgb(255, 228, 120), 2f);
             }
         }
 
