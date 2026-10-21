@@ -168,15 +168,20 @@ internal static class Program
     private static void RenderTableToPng(string path, bool debug = false)
     {
         using var atlas = new TileAtlas(AssetsDir);
-        var info = new SKImageInfo((int)TableLayout.Width, (int)TableLayout.Height);
+        var layout = NewLayout();
+
+        var info = new SKImageInfo((int)layout.CanvasW, (int)layout.CanvasH);
         using var surface = SKSurface.Create(info);
         var canvas = surface.Canvas;
         canvas.Clear(SKColors.Black);
 
-        var vm = SampleTableModel();
         using (var ctx = new SkiaCanvas(canvas, atlas))
         {
-            new TableScene().Draw(ctx, vm, 0.6, debug);
+            new TableSceneSkia().Draw(ctx, TableDemoModel.Create(1), layout);
+            if (debug)
+            {
+                DrawDebugRegions(ctx, layout);
+            }
         }
 
         using var image = surface.Snapshot();
@@ -185,8 +190,26 @@ internal static class Program
         Console.WriteLine("rendered table -> " + path);
     }
 
-    /// <summary>【临时】flex 约束布局预览。</summary>
-    /// <summary>【临时】Yoga 布局预览。</summary>
+    /// <summary>1200×1200 的新布局（Yoga 计算）。</summary>
+    private static TableLayoutSpec NewLayout()
+    {
+        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        YogaTableLayout.Apply(layout);
+        return layout;
+    }
+
+    private static void DrawDebugRegions(ICanvas c, TableLayoutSpec l)
+    {
+        var red = Tiisu.App.Rendering.Color.Rgb(255, 72, 72);
+        foreach (var (id, note, r) in SvgExporter.Regions(l))
+        {
+            c.StrokeRoundRect(r, 2, red, 1.5f);
+            c.DrawText($"{id} · {note}",
+                new Tiisu.App.Rendering.RectF(r.X + 4, r.Y + 2, 280, 16), red,
+                new Tiisu.App.Rendering.TextStyle(11, Bold: true, Center: false));
+        }
+    }
+
     private static void RenderYogaToPng(string path, float canvas, int selfMelds)
     {
         using var atlas = new TileAtlas(AssetsDir);
@@ -214,61 +237,25 @@ internal static class Program
         Console.WriteLine($"  self  = {layout.HandRects[0].X:F1},{layout.HandRects[0].Y:F1} {layout.HandRects[0].W:F0}x{layout.HandRects[0].H:F0}");
     }
 
-
-    private static TableViewModel SampleTableModel()
-    {
-        TileView T(string id) => new(id);
-        MeldView M(string type, params string[] ids) => new() { Type = type, Tiles = ids.Select(T).ToArray() };
-
-        // 1 副露：手牌 10 + 摸牌 1 = 11
-        var hand0 = new[] { "1m", "2m", "3m", "5m", "5m", "7m", "2p", "3p", "4p", "1s", "3z" }
-            .Select(T).ToArray();
-        var river0 = new[] { "3p", "8p", "1z", "9s", "2p", "5s", "6z", "7m", "1p", "4s", "2z", "4m" }.Select(T).ToArray();
-        var river1 = new[] { "2m", "9m", "6p", "3z", "7s", "5z", "1m", "4z", "6s" }.Select(T).ToArray();
-        var river2 = new[] { "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "1z", "2z", "3z", "4z", "5z", "6z" }.Select(T).ToArray();
-        var river3 = new[] { "9m", "8m", "7m", "6m", "5m", "4m", "3m" }.Select(T).ToArray();
-
-        var seats = new List<SeatView>
-        {
-            new() { Index = 0, Name = "你", Wind = "东", Score = 49000, IsDealer = true, IsHuman = true, IsTurn = true,
-                    HandCount = 11, Hand = hand0, Discards = river0,
-                    Melds = new[] { M("pon", "2s", "2s", "2s") } },
-            new() { Index = 1, Name = "南 AI", Wind = "南", Score = 39200, HandCount = 10, Discards = river1,
-                    Melds = new[] { M("chi", "4m", "5m", "6m") } },
-            new() { Index = 2, Name = "西 AI", Wind = "西", Score = 58800, HandCount = 7, Discards = river2,
-                    Melds = new[] { M("pon", "7z", "7z", "7z"), M("pon", "1z", "1z", "1z") } },
-            new() { Index = 3, Name = "北 AI", Wind = "北", Score = 49000, HandCount = 10, Discards = river3,
-                    Melds = new[] { M("chi", "7s", "8s", "9s") } },
-        };
-
-        return new TableViewModel
-        {
-            RoundLabel = "东 1 局 · 0 本场",
-            WallCount = 36,
-            RinshanCount = 4,
-            Honba = 0,
-            Kyotaku = 0,
-            TurnIndex = 0,
-            Seats = seats,
-        };
-    }
-
     private static void ExportSvg(string outDir)
     {
         Directory.CreateDirectory(outDir);
         string tilesDir = Path.Combine(FindWebDir(), "mj_tiles");
-        var exporter = new SvgExporter(tilesDir);
-        var vm = SampleTableModel();
+
+        var layout = NewLayout();
+        var vm = TableDemoModel.Create(1);
+        var exporter = new SvgExporter(tilesDir, layout);
 
         string main = Path.Combine(outDir, "table-generated.svg");
-        string regions = Path.Combine(outDir, "table-regions.svg");
         File.WriteAllText(main, exporter.Build(vm), new System.Text.UTF8Encoding(false));
-        File.WriteAllText(regions, SvgExporter.BuildRegions(), new System.Text.UTF8Encoding(false));
-        string layoutJson = Path.Combine(outDir, "layout.json");
-        string layoutMd = Path.Combine(outDir, "layout.md");
-        File.WriteAllText(layoutJson, SvgExporter.BuildLayoutJson(), new System.Text.UTF8Encoding(false));
-        File.WriteAllText(layoutMd, SvgExporter.BuildLayoutMarkdown(), new System.Text.UTF8Encoding(false));
-        Console.WriteLine($"exported svg -> {main}（内嵌牌面 {exporter.TileCount} 张）/ {regions} / layout.json / layout.md");
+        File.WriteAllText(Path.Combine(outDir, "table-regions.svg"),
+            SvgExporter.BuildRegions(layout), new System.Text.UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(outDir, "layout.json"),
+            SvgExporter.BuildLayoutJson(layout), new System.Text.UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(outDir, "layout.md"),
+            SvgExporter.BuildLayoutMarkdown(layout), new System.Text.UTF8Encoding(false));
+
+        Console.WriteLine($"exported svg -> {main}（内嵌牌面 {exporter.TileCount} 张）/ table-regions.svg / layout.json / layout.md");
     }
 
     /// <summary>从 exe 目录向上找仓库里的 Web 目录（mj_tiles 来源）。</summary>
@@ -292,20 +279,22 @@ internal static class Program
     private static void RenderAnnotated(string path)
     {
         using var atlas = new TileAtlas(AssetsDir);
-        const int legendH = 150;
-        var info = new SKImageInfo((int)TableLayout.Width, (int)TableLayout.Height + legendH);
+        var layout = NewLayout();
+        var regions = SvgExporter.Regions(layout).ToArray();
+
+        const int legendH = 120;
+        var info = new SKImageInfo((int)layout.CanvasW, (int)(layout.CanvasH + legendH));
         using var surface = SKSurface.Create(info);
         var canvas = surface.Canvas;
         canvas.Clear(new SKColor(18, 26, 22));
 
-        var vm = SampleTableModel();
         using (var ctx = new SkiaCanvas(canvas, atlas))
         {
-            new TableScene().Draw(ctx, vm, 0.6, debug: false);
+            new TableSceneSkia().Draw(ctx, TableDemoModel.Create(1), layout);
         }
 
-        DrawRegionNumbers(canvas);
-        DrawLegend(canvas, (int)TableLayout.Height, legendH);
+        DrawRegionNumbers(canvas, regions);
+        DrawLegend(canvas, (int)layout.CanvasW, (int)layout.CanvasH, legendH, regions);
 
         using var image = surface.Snapshot();
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
@@ -314,58 +303,43 @@ internal static class Program
     }
 
     /// <summary>在每个区域左上角画大号编号。</summary>
-    private static void DrawRegionNumbers(SKCanvas canvas)
+    private static void DrawRegionNumbers(SKCanvas canvas, (string Id, string Note, Tiisu.App.Rendering.RectF Rect)[] regions)
     {
-        var regions = new (string Num, string Name, RectF R)[]
-        {
-            ("1", "自家手牌", TableLayout.HandArea),
-            ("2", "自家副露", TableLayout.OwnMeldArea),
-            ("3", "对家手牌", TableLayout.TopHandArea),
-            ("4", "对家副露", TableLayout.TopMeldArea),
-            ("5", "上家手牌", TableLayout.LeftHandArea),
-            ("6", "上家副露", TableLayout.LeftMeldArea),
-            ("7", "下家手牌", TableLayout.RightHandArea),
-            ("8", "下家副露", TableLayout.RightMeldArea),
-            ("9", "中央板", TableLayout.CenterPlate),
-            ("A", "自家牌河", TableLayout.River(0).Bounds),
-            ("B", "对家牌河", TableLayout.River(2).Bounds),
-            ("C", "下家牌河", TableLayout.River(1).Bounds),
-            ("D", "上家牌河", TableLayout.River(3).Bounds),
-        };
-
         using var box = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 2f, Color = new SKColor(255, 72, 72) };
         using var fill = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = new SKColor(200, 32, 32) };
         using var typeface = SKTypeface.FromFamilyName("Microsoft YaHei", SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright) ?? SKTypeface.Default;
         using var font = new SKFont(typeface, 20f);
         using var text = new SKPaint { IsAntialias = true, Color = SKColors.White };
 
-        foreach (var (num, _, r) in regions)
+        for (int i = 0; i < regions.Length; i++)
         {
+            var r = regions[i].Rect;
             canvas.DrawRect(new SKRect(r.X, r.Y, r.Right, r.Bottom), box);
-            var badge = new SKRect(r.X, r.Y, r.X + 26, r.Y + 26);
+            var badge = new SKRect(r.X, r.Y, r.X + 30, r.Y + 30);
             canvas.DrawRect(badge, fill);
-            canvas.DrawText(num, r.X + 7, r.Y + 19, SKTextAlign.Left, font, text);
+            canvas.DrawText((i + 1).ToString(CultureInfo.InvariantCulture), r.X + 8, r.Y + 22,
+                SKTextAlign.Left, font, text);
         }
     }
 
-    /// <summary>底部图例：编号 -> 名称，用口语说明怎么改。</summary>
-    private static void DrawLegend(SKCanvas canvas, int top, int height)
+    /// <summary>底部图例：编号 -> 区域名。</summary>
+    private static void DrawLegend(SKCanvas canvas, int width, int top, int height,
+        (string Id, string Note, Tiisu.App.Rendering.RectF Rect)[] regions)
     {
         using var bg = new SKPaint { IsAntialias = true, Color = new SKColor(12, 18, 15) };
-        canvas.DrawRect(new SKRect(0, top, TableLayout.Width, top + height), bg);
+        canvas.DrawRect(new SKRect(0, top, width, top + height), bg);
 
         using var typeface = SKTypeface.FromFamilyName("Microsoft YaHei", SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright) ?? SKTypeface.Default;
         using var font = new SKFont(typeface, 16f);
         using var head = new SKPaint { IsAntialias = true, Color = new SKColor(255, 214, 120) };
         using var body = new SKPaint { IsAntialias = true, Color = new SKColor(228, 236, 228) };
 
-        canvas.DrawText("图例：1 自家手牌  2 自家副露  3 对家手牌  4 对家副露  5 上家手牌  6 上家副露",
-            16, top + 24, SKTextAlign.Left, font, body);
-        canvas.DrawText("7 下家手牌  8 下家副露  9 中央板  A 自家牌河  B 对家牌河  C 下家牌河  D 上家牌河",
-            16, top + 50, SKTextAlign.Left, font, body);
-        canvas.DrawText("直接说哪块不对、该在哪就行，比如「4 应该在 3 的右边、和 3 贴住」「A 太靠下，往上挪」",
-            16, top + 82, SKTextAlign.Left, font, head);
+        var line = string.Join("   ",
+            regions.Select((r, i) => $"{i + 1} {r.Note}"));
+        canvas.DrawText(line, 16, top + 26, SKTextAlign.Left, font, body);
+        canvas.DrawText("直接说编号和怎么改就行，比如「3 应该在 2 的右边、和 2 贴住」「6 太靠下，往上挪」",
+            16, top + 58, SKTextAlign.Left, font, head);
         canvas.DrawText("（改完我出图，你再指；不需要你填表或改文件）",
-            16, top + 108, SKTextAlign.Left, font, body);
+            16, top + 88, SKTextAlign.Left, font, body);
     }
 }

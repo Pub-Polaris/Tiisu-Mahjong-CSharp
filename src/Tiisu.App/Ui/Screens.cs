@@ -26,6 +26,8 @@ public sealed class TableScreen : Screen
 
     public override float CanvasHeight => _layout.CanvasH;
 
+    public override Color Background => Color.Rgb(20, 30, 24);
+
     public override void Draw(ICanvas c, double time)
     {
         _scene.Draw(c, _vm, _layout, _hover);

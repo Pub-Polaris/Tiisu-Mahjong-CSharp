@@ -18,6 +18,9 @@ public abstract class Screen
 
     public virtual float CanvasHeight => Height;
 
+    /// <summary>letterbox 留边用这个颜色填充，与屏自身背景一致才不显黑边。</summary>
+    public virtual Rendering.Color Background => Rendering.Color.Black;
+
     public virtual void Update(double dt) { }
 
     public abstract void Draw(ICanvas c, double time);

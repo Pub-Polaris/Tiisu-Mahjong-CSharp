@@ -89,7 +89,8 @@ public sealed class ScreenHost : SKControl
     {
         var canvas = e.Surface.Canvas;
         var info = e.Info;
-        canvas.Clear(SKColors.Black);
+        var bg = _current.Background;
+        canvas.Clear(new SKColor(bg.R, bg.G, bg.B, bg.A));
 
         _canvasW = _current.CanvasWidth;
         _canvasH = _current.CanvasHeight;

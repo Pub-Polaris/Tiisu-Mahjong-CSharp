@@ -55,7 +55,12 @@ public sealed class TableLayoutSpec
     public RectF PlateRect { get; set; }
     public RectF[] HandRects { get; } = new RectF[4];
 
-    /// <summary>牌河几何：沿「该家左手边」对齐中央框边沿，行向远离中央框的方向长。</summary>
+    /// <summary>
+    /// 牌河几何：沿「该家左手边」对齐中央框边沿，行向远离中央框的方向长。
+    /// <para><see cref="RiverGeometry.Origin"/> 是第 0 张牌的锚点（画牌用）；
+    /// <see cref="RiverGeometry.Bounds"/> 是整片牌河实际占用的外接矩形（标注 / JSON 用）。
+    /// 两者不同：负向步进的座位，锚点在外接矩形的一端。</para>
+    /// </summary>
     public RiverGeometry River(int seat)
     {
         float w = RiverW, h = RiverH, gap = RiverGap;
@@ -65,23 +70,34 @@ public sealed class TableLayoutSpec
         var p = PlateRect;
         switch (seat)
         {
-            case 0:
-                return new RiverGeometry(new RectF(p.X, p.Bottom + G, span, depth),
+            case 0: // 自家（下）：列向右，行向下
+                return new RiverGeometry(
+                    new RectF(p.X, p.Bottom + G, span, depth),
+                    new RectF(p.X, p.Bottom + G, span, depth),
                     w + gap, 0, 0, h + gap, 0f);
-            case 1:
-                return new RiverGeometry(new RectF(p.Right + G, p.Bottom - w, depth, span),
+
+            case 1: // 下家（右）：列向上，行向右
+                return new RiverGeometry(
+                    new RectF(p.Right + G, p.Bottom - w, depth, span),
+                    new RectF(p.Right + G, p.Bottom - span, depth, span),
                     0, -(w + gap), h + gap, 0, 90f);
-            case 2:
-                return new RiverGeometry(new RectF(p.Right - w, p.Top - G - h, span, depth),
+
+            case 2: // 对家（上）：列向左，行向上
+                return new RiverGeometry(
+                    new RectF(p.Right - w, p.Top - G - h, span, depth),
+                    new RectF(p.Right - span, p.Top - G - depth, span, depth),
                     -(w + gap), 0, 0, -(h + gap), 180f);
-            default:
-                return new RiverGeometry(new RectF(p.X - G - h, p.Top, depth, span),
+
+            default: // 上家（左）：列向下，行向左
+                return new RiverGeometry(
+                    new RectF(p.X - G - h, p.Top, depth, span),
+                    new RectF(p.X - G - depth, p.Top, depth, span),
                     0, w + gap, -(h + gap), 0, -90f);
         }
     }
 
     public readonly record struct RiverGeometry(
-        RectF Bounds, float dxCol, float dyCol, float dxRow, float dyRow, float angle);
+        RectF Origin, RectF Bounds, float dxCol, float dyCol, float dxRow, float dyRow, float angle);
 
     /// <summary>某家的轴向描述（与 V3 相同）。</summary>
     public static (bool Horizontal, float Angle, int RightDir) Axis(int seat) => seat switch
@@ -112,7 +128,11 @@ public sealed class TableSceneSkia
     }
 
     /// <summary>
-    /// 某家手牌的逐张轴对齐矩形。绘制与命中测试共用同一份算式，避免两边漂移。
+    /// 某家手牌的逐张轴对齐矩形。绘制、命中测试、SVG 导出共用同一份算式。
+    ///
+    /// 关键：牌沿主轴占的长度恒为 HandW（50），跨轴深度恒为 HandH（68）——
+    /// 侧家的牌旋转 90° 后 footprint 变成 68×50，「短边朝向中心」由旋转实现，
+    /// 不改变沿主轴的步进。这样 14 张在四家都恰好是 739 = 手牌框长度。
     /// </summary>
     public static RectF[] HandTileRects(TableLayoutSpec l, SeatView seat, int index)
     {
@@ -126,25 +146,87 @@ public sealed class TableSceneSkia
             n = 13;
         }
 
-        float along = horizontal ? l.HandW : l.HandH;
-        float depth = horizontal ? l.HandH : l.HandW;
-        float pad = l.HandGap;
+        float along = l.HandW;    // 沿主轴步进
+        float depth = l.HandH;    // 跨轴深度
 
-        float handLen = n * along + (n - 1) * pad;
-        float drawnExtra = self && n >= 2 ? l.DrawnGap - pad : 0f;
+        float handLen = n * along + (n - 1) * l.HandGap;
+        float drawnExtra = self && n >= 2 ? l.DrawnGap - l.HandGap : 0f;
         float total = handLen + drawnExtra;
-        float start = (horizontal ? frame.X : frame.Y) + ((horizontal ? frame.W : frame.H) - total) / 2f;
+
+        float frameStart = horizontal ? frame.X : frame.Y;
+        float frameLen = horizontal ? frame.W : frame.H;
+        float frameCrossStart = horizontal ? frame.Y : frame.X;
+        float frameCrossLen = horizontal ? frame.H : frame.W;
+
+        float start = frameStart + (frameLen - total) / 2f;
+        float cross = frameCrossStart + (frameCrossLen - depth) / 2f;
 
         var rects = new RectF[n];
         for (int i = 0; i < n; i++)
         {
-            float a = start + i * (along + pad) + (drawnExtra > 0 && i == n - 1 ? drawnExtra : 0f);
+            float a = start + i * (along + l.HandGap) + (drawnExtra > 0 && i == n - 1 ? drawnExtra : 0f);
             rects[i] = horizontal
-                ? new RectF(a, frame.Y, along, depth)
-                : new RectF(frame.X, a, depth, along);
+                ? new RectF(a, cross, along, depth)
+                : new RectF(cross, a, depth, along);
         }
 
         return rects;
+    }
+
+    /// <summary>
+    /// 某家副露的逐张槽位（轴对齐 footprint）。与绘制共用，供 SVG 导出与命中测试使用。
+    /// 返回的 RectF 是槽位（已含旋转后的宽高），Id 是该张牌的牌面 id。
+    /// </summary>
+    public static (RectF Slot, string Id)[] MeldTileSlots(TableLayoutSpec l, SeatView seat, int index)
+    {
+        var melds = (seat.Melds ?? Array.Empty<MeldView>()).Where(m => m.Tiles is { Count: > 0 }).ToArray();
+        if (melds.Length == 0)
+        {
+            return Array.Empty<(RectF, string)>();
+        }
+
+        var frame = l.HandRects[index];
+        var (horizontal, _, rightDir) = TableLayoutSpec.Axis(index);
+        bool self = index == 0;
+
+        int n = seat.Hand.Count > 0 ? seat.Hand.Count : seat.HandCount;
+        if (n <= 0)
+        {
+            n = 13;
+        }
+
+        var tiles = HandTileRects(l, seat, index);
+        float total = n * l.HandW + (n - 1) * l.HandGap
+                      + (self && n >= 2 ? l.DrawnGap - l.HandGap : 0f);
+        float start = horizontal ? tiles[0].X : tiles[0].Y;
+
+        float meldLen = MeldLength(seat, l);
+        float cursor = rightDir > 0
+            ? start + total + l.HandMeldGap
+            : start - l.HandMeldGap - meldLen;
+
+        var list = new List<(RectF, string)>();
+        float slotW = horizontal ? l.MeldW : l.MeldH;
+        float slotH = horizontal ? l.MeldH : l.MeldW;
+
+        foreach (var m in melds)
+        {
+            cursor += l.MeldPad;
+            for (int t = 0; t < m.Tiles.Count; t++)
+            {
+                var slot = horizontal
+                    ? new RectF(cursor, frame.CenterY - slotH / 2f, slotW, slotH)
+                    : new RectF(frame.CenterX - slotW / 2f, cursor, slotW, slotH);
+
+                list.Add((slot, m.Tiles[t].Id));
+                cursor += l.MeldW + l.MeldGap;
+            }
+
+            cursor -= l.MeldGap;
+            cursor += l.MeldPad + l.MeldGroupGap;
+        }
+
+        return list.ToArray();
     }
 
     private static void DrawCenter(ICanvas c, TableViewModel vm, RectF p)
@@ -191,8 +273,8 @@ public sealed class TableSceneSkia
             {
                 int row = i / l.RiverCols;
                 int col = i % l.RiverCols;
-                float x = g.Bounds.X + col * g.dxCol + row * g.dxRow;
-                float y = g.Bounds.Y + col * g.dyCol + row * g.dyRow;
+                float x = g.Origin.X + col * g.dxCol + row * g.dxRow;
+                float y = g.Origin.Y + col * g.dyCol + row * g.dyRow;
 
                 var slot = Math.Abs(g.angle) == 90f
                     ? new RectF(x, y, l.RiverH, l.RiverW)
@@ -210,8 +292,7 @@ public sealed class TableSceneSkia
 
     private static void DrawSeat(ICanvas c, SeatView seat, int index, TableLayoutSpec l, int hover = -1)
     {
-        var frame = l.HandRects[index];
-        var (horizontal, angle, rightDir) = TableLayoutSpec.Axis(index);
+        var (horizontal, angle, _) = TableLayoutSpec.Axis(index);
         bool self = index == 0;
 
         int n = seat.Hand.Count > 0 ? seat.Hand.Count : seat.HandCount;
@@ -220,21 +301,9 @@ public sealed class TableSceneSkia
             n = 13;
         }
 
-        float along = horizontal ? l.HandW : l.HandH;
-        float depth = horizontal ? l.HandH : l.HandW;
-        float pad = l.HandGap;
-
         var tiles = HandTileRects(l, seat, index);
-        float total = tiles.Length * along + (tiles.Length - 1) * pad
-                      + (self && n >= 2 ? l.DrawnGap - pad : 0f);
 
-        float start = horizontal ? tiles[0].X : tiles[0].Y;
-        float meldLen = MeldLength(seat, l, horizontal);
-        float meldStart = rightDir > 0
-            ? start + total + l.HandMeldGap
-            : start - l.HandMeldGap - meldLen;
-
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < tiles.Length; i++)
         {
             var r = tiles[i];
             float lift = i == hover ? 10f : 0f;
@@ -243,51 +312,27 @@ public sealed class TableSceneSkia
 
             if (self && i < seat.Hand.Count)
             {
-                Rot(c, seat.Hand[i].Id, cx, cy, angle, along, depth);
+                // 牌面始终按未旋转的 50×68 画，旋转交给 Transform
+                Rot(c, seat.Hand[i].Id, cx, cy, angle, l.HandW, l.HandH);
             }
             else
             {
-                Back(c, cx, cy, horizontal ? along : depth, horizontal ? depth : along);
+                Back(c, cx, cy, r.W, r.H);
             }
 
             if (i == hover)
             {
-                c.StrokeRoundRect(new RectF(cx - along / 2f, cy - depth / 2f, along, depth),
+                c.StrokeRoundRect(new RectF(cx - r.W / 2f, cy - r.H / 2f, r.W, r.H),
                     4, Color.Rgb(255, 228, 120), 2f);
             }
         }
 
-        if (meldLen <= 0)
+        foreach (var (slot, id) in MeldTileSlots(l, seat, index))
         {
-            return;
-        }
-
-        float cursor = meldStart;
-        float mAlong = horizontal ? l.MeldW : l.MeldH;
-        float mDepth = horizontal ? l.MeldH : l.MeldW;
-
-        foreach (var m in seat.Melds ?? Array.Empty<MeldView>())
-        {
-            if (m.Tiles is not { Count: > 0 })
-            {
-                continue;
-            }
-
-            cursor += l.MeldPad;
-            for (int t = 0; t < m.Tiles.Count; t++)
-            {
-                float cx = horizontal ? cursor + mAlong / 2f : frame.CenterX;
-                float cy = horizontal ? frame.CenterY : cursor + mAlong / 2f;
-                Rot(c, m.Tiles[t].Id, cx, cy, angle, mAlong, mDepth);
-                cursor += mAlong + l.MeldGap;
-            }
-
-            cursor -= l.MeldGap;
-            cursor += l.MeldPad + l.MeldGroupGap;
+            Rot(c, id, slot.CenterX, slot.CenterY, angle, l.MeldW, l.MeldH);
         }
     }
-
-    private static float MeldLength(SeatView seat, TableLayoutSpec l, bool horizontal)
+    private static float MeldLength(SeatView seat, TableLayoutSpec l)
     {
         var melds = (seat.Melds ?? Array.Empty<MeldView>()).Where(m => m.Tiles is { Count: > 0 }).ToArray();
         if (melds.Length == 0)
@@ -295,11 +340,10 @@ public sealed class TableSceneSkia
             return 0f;
         }
 
-        float mAlong = horizontal ? l.MeldW : l.MeldH;
         float sum = 0f;
         foreach (var m in melds)
         {
-            sum += l.MeldPad * 2f + m.Tiles.Count * mAlong
+            sum += l.MeldPad * 2f + m.Tiles.Count * l.MeldW
                    + (m.Tiles.Count - 1) * l.MeldGap + l.MeldGroupGap;
         }
 
