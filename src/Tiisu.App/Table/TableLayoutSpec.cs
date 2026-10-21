@@ -25,6 +25,9 @@ public sealed class TableLayoutSpec
     public float HandGap = 3f;
     public float DrawnGap = 12f;
 
+    /// <summary>手牌框按几张牌定长。七子是 13 张（摸牌时的第 14 张会临时外溢）。</summary>
+    public int HandTiles = 13;
+
     public float MeldW = 24f;
     public float MeldH = 33f;
     public float MeldGap = 1f;
@@ -32,9 +35,9 @@ public sealed class TableLayoutSpec
     public float MeldPad = 2f;
     public float HandMeldGap = 10f;
 
-    public float RiverW = 60f;
-    public float RiverH = 84f;
-    public float RiverGap = 4f;
+    public float RiverW = 50f;
+    public float RiverH = 68f;
+    public float RiverGap = 3f;
     public int RiverCols = 6;
     public int RiverRows = 3;
 
@@ -46,7 +49,7 @@ public sealed class TableLayoutSpec
     public float CanvasW = 1200f;
     public float CanvasH = 1200f;
 
-    public float FrameLen => 14 * HandW + 13 * HandGap;
+    public float FrameLen => HandTiles * HandW + (HandTiles - 1) * HandGap;
     public float FrameDepth => HandH;
     public float RiverSpan => RiverCols * (RiverW + RiverGap) - RiverGap;
     public float RiverDepth => RiverRows * (RiverH + RiverGap) - RiverGap;
@@ -80,7 +83,7 @@ public sealed class TableLayoutSpec
                 return new RiverGeometry(
                     new RectF(p.Right + G, p.Bottom - w, depth, span),
                     new RectF(p.Right + G, p.Bottom - span, depth, span),
-                    0, -(w + gap), h + gap, 0, 90f);
+                    0, -(w + gap), h + gap, 0, -90f);
 
             case 2: // 对家（上）：列向左，行向上
                 return new RiverGeometry(
@@ -92,20 +95,20 @@ public sealed class TableLayoutSpec
                 return new RiverGeometry(
                     new RectF(p.X - G - h, p.Top, depth, span),
                     new RectF(p.X - G - depth, p.Top, depth, span),
-                    0, w + gap, -(h + gap), 0, -90f);
+                    0, w + gap, -(h + gap), 0, 90f);
         }
     }
 
     public readonly record struct RiverGeometry(
         RectF Origin, RectF Bounds, float dxCol, float dyCol, float dxRow, float dyRow, float angle);
 
-    /// <summary>某家的轴向描述（与 V3 相同）。</summary>
+    /// <summary>某家的轴向描述：牌面旋转角跟随该家牌河（副露是平放的，与牌河同向）。</summary>
     public static (bool Horizontal, float Angle, int RightDir) Axis(int seat) => seat switch
     {
         0 => (true, 0f, +1),
-        1 => (false, 90f, -1),
+        1 => (false, -90f, -1),
         2 => (true, 180f, -1),
-        _ => (false, -90f, +1),
+        _ => (false, 90f, +1),
     };
 }
 
@@ -150,7 +153,7 @@ public sealed class TableSceneSkia
         float depth = l.HandH;    // 跨轴深度
 
         float handLen = n * along + (n - 1) * l.HandGap;
-        float drawnExtra = self && n >= 2 ? l.DrawnGap - l.HandGap : 0f;
+        float drawnExtra = self && n > l.HandTiles ? l.DrawnGap - l.HandGap : 0f;
         float total = handLen + drawnExtra;
 
         float frameStart = horizontal ? frame.X : frame.Y;
@@ -197,7 +200,7 @@ public sealed class TableSceneSkia
 
         var tiles = HandTileRects(l, seat, index);
         float total = n * l.HandW + (n - 1) * l.HandGap
-                      + (self && n >= 2 ? l.DrawnGap - l.HandGap : 0f);
+                      + (self && n > l.HandTiles ? l.DrawnGap - l.HandGap : 0f);
         float start = horizontal ? tiles[0].X : tiles[0].Y;
 
         float meldLen = MeldLength(seat, l);

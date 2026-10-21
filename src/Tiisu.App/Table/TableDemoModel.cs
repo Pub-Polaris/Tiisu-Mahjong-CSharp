@@ -10,7 +10,7 @@ namespace Tiisu.App.Table;
 /// </summary>
 public static class TableDemoModel
 {
-    public static TableViewModel Create(int selfMelds = 1)
+    public static TableViewModel Create(int selfMelds = 0)
     {
         TileView T(string id) => new(id);
         MeldView M(string type, params string[] ids) => new() { Type = type, Tiles = ids.Select(T).ToArray() };
@@ -25,7 +25,7 @@ public static class TableDemoModel
 
         int n = Math.Clamp(selfMelds, 0, 4);
         var ownMelds = meldPool.Take(n).ToArray();
-        int handN = Math.Max(2, 14 - 3 * n);
+        int handN = Math.Max(2, 13 - 3 * n);   // 七子 13 张；每副露一组少 3 张
 
         var handPool = new[] { "1m", "2m", "3m", "5m", "5m", "7m", "2p", "3p", "4p", "1s", "3z", "6p", "8s", "9m" };
         var hand0 = handPool.Take(handN).Select(T).ToArray();
@@ -39,12 +39,9 @@ public static class TableDemoModel
         {
             new() { Index = 0, Name = "你", Wind = "东", Score = 49000, IsDealer = true, IsHuman = true, IsTurn = true,
                     HandCount = hand0.Length, Hand = hand0, Discards = river0, Melds = ownMelds },
-            new() { Index = 1, Name = "南 AI", Wind = "南", Score = 39200, HandCount = 10, Discards = river1,
-                    Melds = new[] { M("chi", "4m", "5m", "6m") } },
-            new() { Index = 2, Name = "西 AI", Wind = "西", Score = 58800, HandCount = 7, Discards = river2,
-                    Melds = new[] { M("pon", "7z", "7z", "7z"), M("pon", "1z", "1z", "1z") } },
-            new() { Index = 3, Name = "北 AI", Wind = "北", Score = 49000, HandCount = 10, Discards = river3,
-                    Melds = new[] { M("chi", "7s", "8s", "9s") } },
+            new() { Index = 1, Name = "南 AI", Wind = "南", Score = 39200, HandCount = 13, Discards = river1 },
+            new() { Index = 2, Name = "西 AI", Wind = "西", Score = 58800, HandCount = 13, Discards = river2 },
+            new() { Index = 3, Name = "北 AI", Wind = "北", Score = 49000, HandCount = 13, Discards = river3 },
         };
 
         return new TableViewModel

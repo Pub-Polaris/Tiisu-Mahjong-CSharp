@@ -13,7 +13,7 @@ namespace Tiisu.App.Ui;
 public sealed class TableScreen : Screen
 {
     private readonly TableLayoutSpec _layout = new() { CanvasW = 1200f, CanvasH = 1200f };
-    private readonly TableViewModel _vm = TableDemoModel.Create(1);
+    private readonly TableViewModel _vm = TableDemoModel.Create(0);
     private readonly TableSceneSkia _scene = new();
     private int _hover = -1;
 
