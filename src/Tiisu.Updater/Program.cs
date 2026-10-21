@@ -76,7 +76,7 @@ internal static class Program
             string backup = Backup(installDir);
             Log($"备份: {backup}");
             CopyTree(payload, installDir);
-            WriteVersion(installDir, source);
+            WriteVersion(installDir, source, payload);
             Log("更新完成: " + installDir);
 
             if (restart)
@@ -183,20 +183,68 @@ internal static class Program
 
             string dest = Path.Combine(to, rel);
             Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-            File.Copy(file, dest, overwrite: true);
+
+            // Updater 自己正在运行，覆盖会锁失败：跳过自身文件（它只随安装包更新）
+            if (Path.GetFileName(rel).StartsWith("Tiisu.Updater", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            CopyWithRetry(file, dest);
         }
     }
 
-    private static void WriteVersion(string installDir, string source)
+    /// <summary>刚退出的进程可能还占着句柄：最多重试 30 秒。</summary>
+    private static void CopyWithRetry(string from, string to)
     {
-        var info = new
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (true)
         {
-            updatedAt = DateTime.Now.ToString("s"),
-            source,
-            app = AppExe,
-        };
+            try
+            {
+                File.Copy(from, to, overwrite: true);
+                return;
+            }
+            catch (IOException) when (DateTime.UtcNow < deadline)
+            {
+                Thread.Sleep(300);
+            }
+            catch (UnauthorizedAccessException) when (DateTime.UtcNow < deadline)
+            {
+                Thread.Sleep(300);
+            }
+        }
+    }
+
+    private static void WriteVersion(string installDir, string source, string payloadDir)
+    {
+        // 优先保留新包自带 version.json 的版本号/构建时间，只补 updatedAt/source
+        var fields = new Dictionary<string, object>();
+        string payloadVersion = Path.Combine(payloadDir, "version.json");
+        if (File.Exists(payloadVersion))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(payloadVersion));
+                foreach (var p in doc.RootElement.EnumerateObject())
+                {
+                    fields[p.Name] = p.Value.ValueKind == JsonValueKind.String
+                        ? p.Value.GetString()!
+                        : (object)p.Value.GetRawText();
+                }
+            }
+            catch
+            {
+                // 坏文件就忽略，下面照常写新的
+            }
+        }
+
+        fields["updatedAt"] = DateTime.Now.ToString("s");
+        fields["source"] = source;
+        fields["app"] = AppExe;
+
         File.WriteAllText(Path.Combine(installDir, "version.json"),
-            JsonSerializer.Serialize(info, new JsonSerializerOptions { WriteIndented = true }),
+            JsonSerializer.Serialize(fields, new JsonSerializerOptions { WriteIndented = true }),
             new UTF8Encoding(false));
     }
 

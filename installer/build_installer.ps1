@@ -71,6 +71,8 @@ $version = @{
 } | ConvertTo-Json -Compress
 [System.IO.File]::WriteAllText((Join-Path $pub 'version.json'), $version, [System.Text.UTF8Encoding]::new($false))
 
+# drop debug symbols: third-party pdb (libSkiaSharp 91MB) is useless at runtime
+Get-ChildItem $pub -Recurse -File -Include *.pdb | Remove-Item -Force -ErrorAction SilentlyContinue
 $sizeMb = [math]::Round((Get-ChildItem $pub -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1)
 $files = @(Get-ChildItem $pub -Recurse -File).Count
 Write-Host "   publish: $pub ($sizeMb MB, $files files)"
