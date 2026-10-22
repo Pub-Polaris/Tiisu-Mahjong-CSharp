@@ -38,6 +38,7 @@ public interface ICanvas
     void Save();
     void Restore();
     void Translate(float dx, float dy);
+    void Scale(float factor);
     void RotateDegrees(float degrees);
     void ClipRect(RectF r);
 

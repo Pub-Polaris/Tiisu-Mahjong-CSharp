@@ -95,10 +95,6 @@ public sealed class ScreenHost : SKControl
                 SwitchTo(_settingsScreen);
                 return true;
 
-            case "quit":
-                FindForm()?.Close();
-                return true;
-
             default:
                 return false;
         }

@@ -45,6 +45,12 @@ internal static class Program
             case "--smoke-pointer":
                 Environment.ExitCode = SmokePointer(args);
                 return;
+            case "--check-voices":
+                Environment.ExitCode = CheckVoices();
+                return;
+            case "--smoke-escape":
+                Environment.ExitCode = SmokeEscape();
+                return;
         }
 
         // 无窗口验证：--render <png> [time] [table|menu]
@@ -599,6 +605,66 @@ internal static class Program
         return 0;
     }
 
+    /// <summary><c>--check-voices</c>：打印「副露类型 → 语音名」映射表，供人眼核对。</summary>
+    private static int CheckVoices()
+    {
+        TryUseUtf8Console();
+        Console.WriteLine("副露类型 → 语音名");
+        foreach (string type in TableScreen.MeldTypes)
+        {
+            Console.WriteLine($"  {type,-8} → {TableScreen.VoiceForMeld(type)}");
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// <c>--smoke-escape</c>：无窗口验证 ESC 语义 —— 牌桌先「过」/先关结算弹窗、再回菜单；
+    /// 菜单不做事；设置屏回菜单。程序退出只留窗口关闭按钮。
+    /// </summary>
+    private static int SmokeEscape()
+    {
+        TryUseUtf8Console();
+
+        var commands = new List<GameCommand>();
+        bool back = false;
+        var meld = new TableScreen(() => TableDemoModel.CreateWithActions(), commands.Add, () => back = true);
+        bool meldHandled = meld.OnKey(Keys.Escape);
+        string meldCommand = commands.Count == 1 ? commands[0].Kind.ToString() : "none";
+
+        commands.Clear();
+        back = false;
+        var roundEnd = new TableScreen(() => TableDemoModel.CreateWithAnkan(settled: true), commands.Add, () => back = true);
+        var result = new RoundResult(1, "flow", Array.Empty<int>(), null,
+            new[] { 25000, 25000, 25000, 25000 }, 0, 0, false);
+        roundEnd.ShowSettlement(result);
+        bool dismissHandled = roundEnd.OnKey(Keys.Escape);
+        bool backAfterDismiss = back;
+        bool menuHandled = roundEnd.OnKey(Keys.Escape);
+        bool backAfterSecond = back;
+
+        back = false;
+        var menu = new MenuScreen(
+            UiLayout.Load(Path.Combine(AssetsDir, "layout", "menu.json")),
+            _ => false);
+        bool lobbyHandled = menu.OnKey(Keys.Escape);
+
+        bool settingsBack = false;
+        var settings = new SettingsScreen(Settings.Load(), _ => { }, () => settingsBack = true);
+        bool settingsHandled = settings.OnKey(Keys.Escape);
+
+        bool ok = meldHandled && meldCommand == "Pass" && !backAfterDismiss && dismissHandled
+                  && menuHandled && backAfterSecond && lobbyHandled && settingsHandled && settingsBack;
+
+        Console.WriteLine("smoke-escape");
+        Console.WriteLine($"  牌桌 ESC（有「过」）: handled={meldHandled} command={meldCommand}");
+        Console.WriteLine($"  牌桌 ESC（结算弹窗）: handled={dismissHandled} 弹窗关闭={!backAfterDismiss}");
+        Console.WriteLine($"  牌桌 ESC（弹窗已关）: handled={menuHandled} 回菜单={backAfterSecond}");
+        Console.WriteLine($"  菜单 ESC: handled={lobbyHandled}（不退出、不做事）");
+        Console.WriteLine($"  设置 ESC: handled={settingsHandled} 回菜单={settingsBack}");
+        return ok ? 0 : 1;
+    }
+
     private static Settings LoadSmokeSettings(string[] args)
     {
         var settings = Settings.Load();
@@ -729,6 +795,13 @@ internal static class Program
             mode = 1;
         }
 
+        if (args.Contains("--ankan", StringComparer.Ordinal))
+        {
+            RenderAnkanSettlement(path, doubleWin: args.Contains("--double", StringComparer.Ordinal));
+            Console.WriteLine($"rendered roundend(ankan demo) -> {path}");
+            return 0;
+        }
+
         RoundResult? captured = null;
         var runtime = new MatchRuntime(
             new Settings(),
@@ -785,6 +858,78 @@ internal static class Program
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// <c>--render-roundend &lt;png&gt; --ankan</c>：用暗杠演示快照 + 合成结算结果出图，
+    /// 专门核对「结算屏左侧缩略图里暗杠已翻开 + 30% 遮罩」。
+    /// </summary>
+    private static void RenderAnkanSettlement(string path, bool doubleWin = false)
+    {
+        TryUseUtf8Console();
+        var detail = new SettlementDetail
+        {
+            WinnerIndex = 0,
+            SelfDraw = true,
+            Yaku = new (string Name, int Fu, SettlementYakuFlag Flag)[]
+            {
+                ("七对子", 25, SettlementYakuFlag.Normal),
+                ("门清", 10, SettlementYakuFlag.Normal),
+                ("自摸", 2, SettlementYakuFlag.Normal),
+            },
+            TotalFu = 37,
+            TableSafeFu = 37,
+            BasePoints = 8000,
+            SubPoints = 24000,
+            HonbaCount = 3,
+            HonbaBonus = 2100,
+            FinalPoints = 24000,
+            PayEach = 8000,
+            PaymentText = "自摸 · 每家 8000 + 余数 0",
+        };
+
+        var details = new List<SettlementDetail> { detail };
+        if (doubleWin)
+        {
+            details.Add(new SettlementDetail
+            {
+                WinnerIndex = 2,
+                SelfDraw = false,
+                PayerIndex = 1,
+                Yaku = new (string Name, int Fu, SettlementYakuFlag Flag)[]
+                {
+                    ("清一色", 40, SettlementYakuFlag.Normal),
+                    ("门清", 10, SettlementYakuFlag.Normal),
+                },
+                TotalFu = 50,
+                TableSafeFu = 50,
+                BasePoints = 8000,
+                SubPoints = 12000,
+                DealerMultiplierApplied = true,
+                HonbaCount = 3,
+                HonbaBonus = 2100,
+                FinalPoints = 18000,
+                PaymentText = "荣和 · 放铳者付 18000",
+            });
+        }
+
+        var result = new RoundResult(
+            1,
+            "tsumo",
+            doubleWin ? new[] { 0, 2 } : new[] { 0 },
+            null,
+            doubleWin ? new[] { 73000, 31200, 62800, 41000 } : new[] { 73000, 31200, 50800, 41000 },
+            3,
+            0,
+            false,
+            details,
+            null,
+            new[] { 49000, 39200, 58800, 49000 });
+
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(() => TableDemoModel.CreateWithAnkan(settled: true), null, null, atlas);
+        screen.ShowSettlement(result);
+        RenderScreen(path, screen, atlas);
     }
 
     /// <summary><c>--render-settings &lt;png&gt;</c>：设置屏出图（不写 settings.json）。</summary>

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using SkiaSharp;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
@@ -24,7 +25,13 @@ public sealed class TableScreen : Screen
     private readonly Func<TableViewModel> _snapshot;
     private readonly Action<GameCommand>? _commands;
     private readonly Action? _backToMenu;
+    private readonly TileAtlas? _atlas;
     private RoundResult? _settlement;
+    private bool _settlementHidden;
+
+    /// <summary>结算缩略图缓存：同一份快照只渲染一次 1200×1200 离屏图。</summary>
+    private SKImage? _thumbImage;
+    private TableViewModel? _thumbVm;
     private int _hover = -1;
     private int _lastHandCount = -1;
     private int _lastDiscardTotal = -1;
@@ -35,29 +42,34 @@ public sealed class TableScreen : Screen
 
     /// <summary>演示快照（<c>--render-table</c> / <c>--render-screen table</c> 用）。</summary>
     public TableScreen(TileAtlas? atlas)
-        : this(() => TableDemoModel.Create(1), null)
+        : this(() => TableDemoModel.Create(1), null, null, atlas)
     {
     }
 
     /// <summary>正式牌桌：只读会话快照 + 投递命令。</summary>
     public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu = null)
-        : this(() => session.LatestSnapshot, session.Post, backToMenu)
+        : this(() => session.LatestSnapshot, session.Post, backToMenu, atlas)
     {
         session.UiEvent += OnSessionEvent;
     }
 
     /// <summary>自检 / 预览用：直接给快照与命令通道（不订阅会话事件）。</summary>
-    public TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands, Action? backToMenu = null)
+    public TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands, Action? backToMenu = null, TileAtlas? atlas = null)
         : base("table")
     {
         _snapshot = snapshot;
         _commands = commands;
         _backToMenu = backToMenu;
+        _atlas = atlas;
         YogaTableLayout.Apply(_layout);
     }
 
     /// <summary>无窗口自检：直接把一份局末结果交给结算层。</summary>
-    public void ShowSettlement(RoundResult result) => _settlement = result;
+    public void ShowSettlement(RoundResult result)
+    {
+        _settlement = result;
+        _settlementHidden = false;
+    }
 
     private void OnSessionEvent(UiEvent uiEvent)
     {
@@ -65,9 +77,11 @@ public sealed class TableScreen : Screen
         {
             case RoundEndEvent end:
                 _settlement = end.Result;
+                _settlementHidden = false;
                 break;
             case StateChangedEvent changed when changed.Snapshot.Phase is not ("round_end" or "match_over"):
                 _settlement = null;
+                _settlementHidden = false;
                 break;
         }
     }
@@ -81,13 +95,14 @@ public sealed class TableScreen : Screen
     public override void Draw(ICanvas c, double time)
     {
         var vm = _snapshot();
-        _scene.Draw(c, vm, _layout, _hover);
-        if (vm.Phase is "round_end" or "match_over" && _settlement is { } settlement)
+        if (vm.Phase is "round_end" or "match_over" && _settlement is { } settlement && !_settlementHidden)
         {
-            _overlay.Draw(c, settlement, vm);
+            // 结算层在左侧缩略图里重画牌桌（暗杠已按和牌后规则翻开），面板让到右侧。
+            _overlay.Draw(c, settlement, vm, (thumbCanvas, thumbRect) => DrawTableThumbnail(thumbCanvas, vm, thumbRect));
             return;
         }
 
+        _scene.Draw(c, vm, _layout, _hover);
         _actionBar.Build(vm, _layout);
         _actionBar.DrawTenpai(c, vm, _layout);
         _actionBar.Draw(c);
@@ -95,12 +110,69 @@ public sealed class TableScreen : Screen
         DrawHud(c, vm);
     }
 
+    /// <summary>
+    /// 结算缩略图：优先把 1200×1200 牌桌场景渲染到离屏 surface 再等比画进缩略框；
+    /// 非 Skia 后端直接矢量缩放兜底。
+    /// </summary>
+    private void DrawTableThumbnail(ICanvas c, TableViewModel vm, RectF rect)
+    {
+        if (c is SkiaCanvas skia)
+        {
+            var image = GetThumbnail(vm, skia.Atlas ?? _atlas);
+            if (image is not null)
+            {
+                skia.DrawImage(image, rect);
+                return;
+            }
+        }
+
+        float scale = Math.Min(rect.W / _layout.CanvasW, rect.H / _layout.CanvasH);
+        float w = _layout.CanvasW * scale;
+        float h = _layout.CanvasH * scale;
+        c.Save();
+        c.ClipRect(rect);
+        c.Translate(rect.X + ((rect.W - w) / 2f), rect.Y + ((rect.H - h) / 2f));
+        c.Scale(scale);
+        _scene.Draw(c, vm, _layout, -1);
+        c.Restore();
+    }
+
+    /// <summary>缓存离屏缩略图：同一份快照（结算态静止）不重复渲染。</summary>
+    private SKImage? GetThumbnail(TableViewModel vm, TileAtlas? atlas)
+    {
+        if (_thumbImage is not null && ReferenceEquals(_thumbVm, vm))
+        {
+            return _thumbImage;
+        }
+
+        _thumbImage?.Dispose();
+        _thumbImage = null;
+        _thumbVm = null;
+
+        var info = new SKImageInfo((int)_layout.CanvasW, (int)_layout.CanvasH);
+        using var surface = SKSurface.Create(info);
+        if (surface is null)
+        {
+            return null;
+        }
+
+        surface.Canvas.Clear(new SKColor(20, 30, 24));
+        using (var off = new SkiaCanvas(surface.Canvas, atlas))
+        {
+            _scene.Draw(off, vm, _layout, -1);
+        }
+
+        _thumbImage = surface.Snapshot();
+        _thumbVm = vm;
+        return _thumbImage;
+    }
+
     private void DrawHud(ICanvas c, TableViewModel vm)
     {
         // 左上：快捷键
         var hint = new RectF(24, 20, 300, 34);
         c.FillRoundRect(hint, 8, Color.Rgb(0, 0, 0).WithAlpha(130));
-        c.DrawText("M：菜单    ESC：退出",
+        c.DrawText("M / ESC：菜单",
             new RectF(hint.X + 12, hint.Y + 8, hint.W - 16, 20),
             Color.Rgb(230, 236, 226), new TextStyle(15, Center: false));
 
@@ -213,6 +285,17 @@ public sealed class TableScreen : Screen
         return true;
     }
 
+    /// <summary>副露类型全集（与引擎 <c>MeldType.Wire()</c> 一致），<c>--check-voices</c> 逐行核对用。</summary>
+    public static readonly string[] MeldTypes = { "pon", "chi", "minkan", "ankan", "kakan" };
+
+    /// <summary>副露类型 → 语音名：吃 / 碰 / 杠。暗杠、明杠、加杠都播「杠」。</summary>
+    public static string VoiceForMeld(string type) => type switch
+    {
+        "ankan" or "minkan" or "kakan" => "gang",
+        "chi" => "chi",
+        _ => "peng",
+    };
+
     /// <summary>最新一组副露 → 语音名（吃 / 碰 / 杠）。</summary>
     private static string NewestMeldVoice(TableViewModel vm)
     {
@@ -223,18 +306,7 @@ public sealed class TableScreen : Screen
                 continue;
             }
 
-            string type = seat.Melds[^1].Type;
-            if (type.StartsWith("kan", StringComparison.Ordinal))
-            {
-                return "gang";
-            }
-
-            if (type == "chi")
-            {
-                return "chi";
-            }
-
-            return "peng";
+            return VoiceForMeld(seat.Melds[^1].Type);
         }
 
         return "peng";
@@ -358,6 +430,11 @@ public sealed class TableScreen : Screen
 
     public override bool OnKey(Keys key)
     {
+        if (key == Keys.Escape)
+        {
+            return HandleEscape();
+        }
+
         if (key == Keys.M)
         {
             return true;
@@ -382,12 +459,6 @@ public sealed class TableScreen : Screen
             if (key is Keys.Enter or Keys.Space or Keys.N)
             {
                 _commands?.Invoke(GameCommand.NextRound());
-                return true;
-            }
-
-            if (key == Keys.Escape)
-            {
-                _backToMenu?.Invoke();
                 return true;
             }
 
@@ -479,6 +550,33 @@ public sealed class TableScreen : Screen
             default:
                 return false;
         }
+    }
+
+    /// <summary>
+    /// ESC = 返回，不是退出程序：
+    /// 结算弹窗先关掉看一眼牌桌；副露/荣和窗口先「过」；其余情况回菜单。
+    /// </summary>
+    private bool HandleEscape()
+    {
+        var vm = _snapshot();
+        bool settled = (vm.Phase is "round_end" or "match_over") && _settlement is not null;
+
+        if (settled && !_settlementHidden)
+        {
+            _settlementHidden = true;
+            return true;
+        }
+
+        if (!settled && _commands is not null && (vm.Actions & HumanAction.Pass) != 0)
+        {
+            _commands(GameCommand.Pass());
+            return true;
+        }
+
+        // 回菜单；再次进入牌桌时结算面板仍应可见。
+        _settlementHidden = false;
+        _backToMenu?.Invoke();
+        return true;
     }
 
     /// <summary>手牌命中：与绘制共用同一份矩形算式。</summary>

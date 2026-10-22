@@ -26,15 +26,8 @@ public sealed class MainForm : Form
         BackColor = Color.Black;
         KeyPreview = true;
 
+        // 退出程序只保留窗口关闭按钮；ESC 由各 Screen 处理成「返回」。
         Controls.Add(new ScreenHost(atlas));
-
-        KeyDown += (_, e) =>
-        {
-            if (e.KeyCode == Keys.Escape && e.Handled == false)
-            {
-                Close();
-            }
-        };
     }
 
     protected override void Dispose(bool disposing)

@@ -24,9 +24,13 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
 
     public void Rebind(SKCanvas canvas) => _canvas = canvas;
 
+    /// <summary>当前画布加载的牌面雪碧图（结算缩略图需要另开离屏 surface 时复用）。</summary>
+    public TileAtlas? Atlas => _atlas;
+
     public void Save() => _canvas.Save();
     public void Restore() => _canvas.Restore();
     public void Translate(float dx, float dy) => _canvas.Translate(dx, dy);
+    public void Scale(float factor) => _canvas.Scale(factor);
     public void RotateDegrees(float degrees) => _canvas.RotateDegrees(degrees);
     public void ClipRect(RectF r) => _canvas.ClipRect(new SKRect(r.X, r.Y, r.Right, r.Bottom));
 
@@ -141,6 +145,14 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
             var d = new SKRect(dst.X, dst.Y, dst.Right, dst.Bottom);
             _canvas.DrawImage(sheet, src, d, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), paint);
         }
+    }
+
+    /// <summary>把一张离屏渲染好的位图（结算缩略图）按目标矩形画上。仅 Skia 后端需要。</summary>
+    public void DrawImage(SKImage image, RectF dst)
+    {
+        var d = new SKRect(dst.X, dst.Y, dst.Right, dst.Bottom);
+        using var paint = new SKPaint { IsAntialias = true };
+        _canvas.DrawImage(image, d, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), paint);
     }
 
     public void Dispose()

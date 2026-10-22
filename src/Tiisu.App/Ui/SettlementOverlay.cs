@@ -19,11 +19,16 @@ public sealed class SettlementOverlay
     public const float CanvasW = 1200f;
     public const float CanvasH = 1200f;
 
-    private const float PanelX = 110f;
+    private const float PanelX = 436f;
     private const float PanelY = 46f;
-    private const float PanelW = 980f;
-    private const float Left = 150f;
-    private const float Right = 1050f;
+    private const float PanelW = 748f;
+    private const float Left = 472f;
+    private const float Right = 1148f;
+
+    /// <summary>左侧牌桌缩略图：1200×1200 场景按比例缩到 396×396（小窗口由宿主整体缩放）。</summary>
+    private const float ThumbX = 18f;
+    private const float ThumbSize = 396f;
+    private const float ThumbPad = 3f;
 
     private static readonly Color Gold = Color.Rgb(214, 180, 104);
     private static readonly Color TextColor = Color.Rgb(232, 226, 206);
@@ -32,8 +37,11 @@ public sealed class SettlementOverlay
     private static readonly Color Positive = Color.Rgb(150, 220, 160);
     private static readonly Color Negative = Color.Rgb(230, 140, 130);
 
-    /// <summary>画一屏结算。调用方负责只在本局已结束时调用。</summary>
-    public void Draw(ICanvas c, RoundResult result, TableViewModel vm)
+    /// <summary>
+    /// 画一屏结算。调用方负责只在本局已结束时调用。
+    /// <paramref name="thumbnail"/> 负责在左侧缩略图区域内画牌桌（面板让出位置，不遮文字）。
+    /// </summary>
+    public void Draw(ICanvas c, RoundResult result, TableViewModel vm, Action<ICanvas, RectF>? thumbnail = null)
     {
         bool matchOver = vm.Phase == "match_over" || result.MatchOver;
         var details = result.Details ?? Array.Empty<SettlementDetail>();
@@ -56,6 +64,22 @@ public sealed class SettlementOverlay
         {
             dy = 36f - PanelY;
         }
+
+        // 左侧牌桌缩略图：高度跟着面板走，面板太矮时按比例缩。
+        float thumbSize = Math.Min(ThumbSize, Math.Max(160f, panelH - 32f));
+        float thumbY = PanelY + dy + ((panelH - thumbSize) / 2f);
+        var thumb = new RectF(ThumbX, thumbY, thumbSize, thumbSize);
+        c.FillRoundRect(thumb, 10, Color.Rgb(12, 18, 16));
+        if (thumbnail is not null)
+        {
+            var inner = thumb.Inflate(-ThumbPad);
+            c.Save();
+            c.ClipRect(inner);
+            thumbnail(c, inner);
+            c.Restore();
+        }
+
+        c.StrokeRoundRect(thumb, 10, Gold, 1.5f);
 
         c.Save();
         c.Translate(0, dy);
@@ -275,9 +299,9 @@ public sealed class SettlementOverlay
     private static float SummaryRow(ICanvas c, float x, float width, float y, string label, string value)
     {
         float right = x + width;
-        c.DrawText(label, new RectF(x + 6, y, width - 90, 26), Muted,
+        c.DrawText(label, new RectF(x + 6, y, width - 128, 26), Muted,
             new TextStyle(15, Center: false));
-        c.DrawText(value, new RectF(right - 158, y, 152, 26), TextColor,
+        c.DrawText(value, new RectF(right - 122, y, 116, 26), TextColor,
             new TextStyle(15, Center: false, Right: true));
         return y + 28f;
     }
