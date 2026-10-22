@@ -90,11 +90,11 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
             MaskFilter = null,
         };
         using var font = new SKFont(GetTypeface(style.Bold), style.Size);
-        var align = style.Center ? SKTextAlign.Center : SKTextAlign.Left;
+        var align = style.Right ? SKTextAlign.Right : style.Center ? SKTextAlign.Center : SKTextAlign.Left;
 
         var metrics = font.Metrics;
         float baseline = box.Y + (box.H - (metrics.Descent - metrics.Ascent)) / 2f - metrics.Ascent;
-        float x = style.Center ? box.CenterX : box.X;
+        float x = style.Right ? box.Right : style.Center ? box.CenterX : box.X;
 
         if (style.Shadow)
         {

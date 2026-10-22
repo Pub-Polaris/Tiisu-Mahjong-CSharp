@@ -24,6 +24,8 @@
     { "id": "btnResume", "type": "button", "x": 430, "y": 510, "w": 200, "h": 56, "radius": 12,
       "text": "继续上局", "action": "resume", "fontSize": 20 },
     { "id": "btnQuit", "type": "button", "x": 650, "y": 510, "w": 200, "h": 56, "radius": 12,
-      "text": "退出", "action": "quit", "fontSize": 20 }
+      "text": "退出", "action": "quit", "fontSize": 20 },
+    { "id": "btnSettings", "type": "button", "x": 540, "y": 590, "w": 200, "h": 56, "radius": 12,
+      "text": "设置", "action": "settings", "fontSize": 20 }
   ]
 }

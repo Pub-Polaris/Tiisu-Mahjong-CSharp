@@ -81,6 +81,20 @@ internal static class Program
             return;
         }
 
+        // 局末结算屏出图：--render-roundend <png> [seed] [mode]
+        if (args.Length >= 2 && args[0] == "--render-roundend")
+        {
+            Environment.ExitCode = RenderRoundEndToPng(args);
+            return;
+        }
+
+        // 设置屏出图：--render-settings <png>
+        if (args.Length >= 2 && args[0] == "--render-settings")
+        {
+            RenderSettingsToPng(args[1]);
+            return;
+        }
+
         // 界面截图（与游戏内同一条 Screen 路径）：--render-screen <png> [table|menu]
         if (args.Length >= 2 && args[0] == "--render-screen")
         {
@@ -516,6 +530,7 @@ internal static class Program
         "menu" => new MenuScreen(
             UiLayout.Load(Path.Combine(AssetsDir, "layout", "menu.json")),
             _ => false),
+        "settings" => new SettingsScreen(Settings.Load(), _ => { }, () => { }),
         _ => new TableScreen(atlas),
     };
 
@@ -593,6 +608,112 @@ internal static class Program
         var snapshot = session.LatestSnapshot;
         Console.WriteLine($"rendered session -> {path}  phase={snapshot.Phase} round={snapshot.RoundLabel} " +
                           $"actions={snapshot.Actions} hand={snapshot.Seats[0].HandCount}");
+    }
+
+    /// <summary>
+    /// <c>--render-roundend &lt;png&gt; [seed] [mode]</c>：无窗口跑到第一次局末（人类 AutoPilot），
+    /// 再按牌桌屏 + 结算覆盖层出图。明细打印到控制台供对数。
+    /// </summary>
+    private static int RenderRoundEndToPng(string[] args)
+    {
+        TryUseUtf8Console();
+        string path = args[1];
+        uint seed = 1;
+        if (args.Length >= 3 && !uint.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out seed))
+        {
+            seed = 1;
+        }
+
+        int mode = 1;
+        if (args.Length >= 4 && !int.TryParse(args[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out mode))
+        {
+            mode = 1;
+        }
+
+        RoundResult? captured = null;
+        var runtime = new MatchRuntime(
+            new Settings(),
+            new Mulberry32Random(seed),
+            uiEvent =>
+            {
+                if (uiEvent is RoundEndEvent end)
+                {
+                    captured = end.Result;
+                }
+            })
+        {
+            AutoPilot = true,
+        };
+
+        runtime.StartMatch(mode);
+        if (captured is null)
+        {
+            Console.Error.WriteLine($"没有在第一次局末停下（phase={runtime.Phase}）");
+            return 1;
+        }
+
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(() => runtime.Snapshot, null);
+        screen.ShowSettlement(captured);
+        RenderScreen(path, screen, atlas);
+
+        Console.WriteLine($"rendered roundend -> {path}  seed={seed} mode={mode} phase={runtime.Phase}");
+        Console.WriteLine($"  结果: kind={captured.Kind} winners=[{string.Join(",", captured.Winners)}] " +
+                          $"draw={captured.DrawReason ?? "-"} matchOver={captured.MatchOver}");
+        Console.WriteLine("  分数: " + string.Join("  ", captured.Scores.Select((value, i) =>
+            runtime.Engine.Players[i].Name + "=" + value.ToString("+0;-0;0", CultureInfo.InvariantCulture))));
+        var details = captured.Details ?? Array.Empty<SettlementDetail>();
+        Console.WriteLine($"  明细: {details.Count} 条");
+        foreach (var detail in details)
+        {
+            Console.WriteLine(string.Format(
+                CultureInfo.InvariantCulture,
+                "    {0}: {1} totalFu={2} tableSafe={3} base={4} tableless={5} bonus={6} sub={7} dealer={8} honba={9} final={10} pay=\"{11}\"",
+                runtime.Engine.Players[detail.WinnerIndex].Name,
+                detail.SelfDraw ? "自摸" : "荣和",
+                detail.TotalFu,
+                detail.TableSafeFu,
+                detail.BasePoints,
+                detail.TablelessBonus,
+                detail.PointsBonus,
+                detail.SubPoints,
+                detail.DealerMultiplierApplied,
+                detail.HonbaCount,
+                detail.FinalPoints,
+                detail.PaymentText));
+            Console.WriteLine("      役: " + string.Join(" / ", detail.Yaku.Select(y =>
+                y.Name + y.Fu + "(" + y.Flag + ")")));
+        }
+
+        return 0;
+    }
+
+    /// <summary><c>--render-settings &lt;png&gt;</c>：设置屏出图（不写 settings.json）。</summary>
+    private static void RenderSettingsToPng(string path)
+    {
+        TryUseUtf8Console();
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new SettingsScreen(Settings.Load(), _ => { }, () => { });
+        RenderScreen(path, screen, atlas);
+        Console.WriteLine($"rendered settings -> {path}  {screen.CanvasWidth:F0}x{screen.CanvasHeight:F0}");
+    }
+
+    private static void RenderScreen(string path, UiScreen screen, TileAtlas? atlas)
+    {
+        var info = new SKImageInfo((int)screen.CanvasWidth, (int)screen.CanvasHeight);
+        using var surface = SKSurface.Create(info);
+        var canvas = surface.Canvas;
+        canvas.Clear(SKColors.Black);
+
+        using (var ctx = new SkiaCanvas(canvas, atlas))
+        {
+            screen.Update(0.6);
+            screen.Draw(ctx, 0.6);
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
     }
 
     /// <summary>按屏自己的逻辑画布尺寸出图（与游戏内走同一条 Screen 路径）。</summary>

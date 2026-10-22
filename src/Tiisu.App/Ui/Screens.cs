@@ -19,8 +19,11 @@ public sealed class TableScreen : Screen
 {
     private readonly TableLayoutSpec _layout = new() { CanvasW = 1200f, CanvasH = 1200f };
     private readonly TableSceneSkia _scene = new();
+    private readonly SettlementOverlay _overlay = new();
     private readonly Func<TableViewModel> _snapshot;
     private readonly Action<GameCommand>? _commands;
+    private readonly Action? _backToMenu;
+    private RoundResult? _settlement;
     private int _hover = -1;
 
     /// <summary>演示快照（<c>--render-table</c> / <c>--render-screen table</c> 用）。</summary>
@@ -30,16 +33,36 @@ public sealed class TableScreen : Screen
     }
 
     /// <summary>正式牌桌：只读会话快照 + 投递命令。</summary>
-    public TableScreen(GameSession session, TileAtlas? atlas)
-        : this(() => session.LatestSnapshot, session.Post)
+    public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu = null)
+        : this(() => session.LatestSnapshot, session.Post, backToMenu)
     {
+        session.UiEvent += OnSessionEvent;
     }
 
-    private TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands) : base("table")
+    /// <summary>自检 / 预览用：直接给快照与命令通道（不订阅会话事件）。</summary>
+    public TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands, Action? backToMenu = null)
+        : base("table")
     {
         _snapshot = snapshot;
         _commands = commands;
+        _backToMenu = backToMenu;
         YogaTableLayout.Apply(_layout);
+    }
+
+    /// <summary>无窗口自检：直接把一份局末结果交给结算层。</summary>
+    public void ShowSettlement(RoundResult result) => _settlement = result;
+
+    private void OnSessionEvent(UiEvent uiEvent)
+    {
+        switch (uiEvent)
+        {
+            case RoundEndEvent end:
+                _settlement = end.Result;
+                break;
+            case StateChangedEvent changed when changed.Snapshot.Phase is not ("round_end" or "match_over"):
+                _settlement = null;
+                break;
+        }
     }
 
     public override float CanvasWidth => _layout.CanvasW;
@@ -52,6 +75,12 @@ public sealed class TableScreen : Screen
     {
         var vm = _snapshot();
         _scene.Draw(c, vm, _layout, _hover);
+        if (vm.Phase is "round_end" or "match_over" && _settlement is { } settlement)
+        {
+            _overlay.Draw(c, settlement, vm);
+            return;
+        }
+
         DrawHud(c, vm);
     }
 
@@ -89,12 +118,12 @@ public sealed class TableScreen : Screen
     {
         if (vm.Phase == "match_over")
         {
-            return "整场结束 · M 返回菜单";
+            return "整场结束 · R / Enter 返回菜单";
         }
 
         if (vm.Phase == "round_end")
         {
-            return "本局结束 · N 下一局";
+            return "本局结束 · Enter 下一局 · Esc 回菜单";
         }
 
         var parts = new List<string>();
@@ -144,12 +173,23 @@ public sealed class TableScreen : Screen
 
     public override bool OnPointerMove(float x, float y)
     {
+        if (_snapshot().Phase is "round_end" or "match_over")
+        {
+            _hover = -1;
+            return false;
+        }
+
         _hover = HitTest(x, y);
         return _hover >= 0;
     }
 
     public override bool OnClick(float x, float y)
     {
+        if (_snapshot().Phase is "round_end" or "match_over")
+        {
+            return false;
+        }
+
         int index = HitTest(x, y);
         if (index < 0 || _commands is null)
         {
@@ -167,12 +207,42 @@ public sealed class TableScreen : Screen
             return true;
         }
 
+        var vm = _snapshot();
+
+        // 局末 / 终局：面板外点击无效，这里只认键盘。
+        if (vm.Phase == "match_over")
+        {
+            if (key is Keys.R or Keys.Enter)
+            {
+                _backToMenu?.Invoke();
+                return true;
+            }
+
+            return false;
+        }
+
+        if (vm.Phase == "round_end")
+        {
+            if (key is Keys.Enter or Keys.Space or Keys.N)
+            {
+                _commands?.Invoke(GameCommand.NextRound());
+                return true;
+            }
+
+            if (key == Keys.Escape)
+            {
+                _backToMenu?.Invoke();
+                return true;
+            }
+
+            return false;
+        }
+
         if (_commands is null)
         {
             return false;
         }
 
-        var vm = _snapshot();
         switch (key)
         {
             case Keys.H:

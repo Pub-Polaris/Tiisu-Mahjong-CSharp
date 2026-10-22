@@ -35,7 +35,10 @@ public sealed record RoundResult(
     int[] Scores,
     int Honba,
     int DealerIndex,
-    bool MatchOver);
+    bool MatchOver,
+    IReadOnlyList<SettlementDetail>? Details = null,
+    string? DrawReason = null,
+    IReadOnlyList<int>? ScoresBefore = null);
 
 /// <summary>局末判定的内部记录（决定写哪种日志 / 统计）。</summary>
 internal sealed record RoundOutcome(string Kind, IReadOnlyList<int> Winners, string? Reason);
@@ -58,6 +61,10 @@ public sealed class MatchRuntime
 {
     private static readonly YakuData SharedYaku = YakuData.LoadDefault();
     private static readonly PointsConfig SharedPoints = PointsConfig.LoadDefault();
+    private static readonly HashSet<string> OptionalYakuNames = SharedYaku.Yaku
+        .Where(y => y.Optional)
+        .Select(y => y.Name)
+        .ToHashSet(StringComparer.Ordinal);
 
     private readonly Settings _settings;
     private readonly IRandomSource _random;
@@ -84,6 +91,8 @@ public sealed class MatchRuntime
     private int _ronWins;
     private int _drawRounds;
     private int _specialFlows;
+    private IReadOnlyList<SettlementDetail> _lastDetails = Array.Empty<SettlementDetail>();
+    private int[] _scoresAtRoundStart = Array.Empty<int>();
 
     public MatchRuntime(
         Settings settings,
@@ -111,6 +120,7 @@ public sealed class MatchRuntime
         _engine.Players[0].IsHuman = true;
         _engine.Players[0].IsDealer = true;
         _engine.UpdateSeatWinds();
+        _scoresAtRoundStart = _engine.Scores.ToArray();
         _snapshot = SnapshotBuilder.Build(_engine, PhaseWire, HumanAction.None, null, null, _settings);
     }
 
@@ -280,6 +290,7 @@ public sealed class MatchRuntime
         _engine.Players[0].IsHuman = true;
         _engine.Players[0].IsDealer = true;
         _engine.UpdateSeatWinds();
+        _scoresAtRoundStart = _engine.Scores.ToArray();
         ResetCounters();
         _roundLog?.Clear();
         EmitState();
@@ -863,7 +874,9 @@ public sealed class MatchRuntime
         _lastOutcome = winners.Count >= 3
             ? new RoundOutcome("special_flow", Array.Empty<int>(), "triple_ron")
             : new RoundOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
+        int honba = _engine.Honba;
         _engine.DeclareMultiRon(winners, pending.Discarder);
+        CaptureRonDetails(pending.Discarder, honba);
         return true;
     }
 
@@ -1040,7 +1053,12 @@ public sealed class MatchRuntime
         _message = null;
         bool sevenHonors = result.SevenHonors;
         _lastOutcome = new RoundOutcome(sevenHonors ? "tiisuin" : "tsumo", new[] { playerIndex }, null);
-        _engine.DeclareWin(playerIndex, selfDraw: true, SelfPlayDriver.ToSettlement(result));
+        var settlement = SelfPlayDriver.ToSettlement(result);
+        int honba = _engine.Honba;
+        _engine.DeclareWin(playerIndex, selfDraw: true, settlement);
+        _lastDetails = sevenHonors || settlement.SevenHonors
+            ? Array.Empty<SettlementDetail>()
+            : new[] { BuildSettlementDetail(playerIndex, selfDraw: true, payerIndex: null, settlement, honba, null) };
     }
 
     private void DeclareMultiRon(IReadOnlyList<RonCandidate> candidates, int discPlayer, Tile discarded)
@@ -1058,7 +1076,139 @@ public sealed class MatchRuntime
         _lastOutcome = candidates.Count >= 3
             ? new RoundOutcome("special_flow", Array.Empty<int>(), "triple_ron")
             : new RoundOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
+        int honba = _engine.Honba;
         _engine.DeclareMultiRon(winners, discPlayer);
+        CaptureRonDetails(discPlayer, honba);
+    }
+
+    /// <summary>
+    /// 用引擎公开 API 现算一条结算明细。调用时机是引擎已完成结算（赐马已追加进
+    /// <see cref="WinSettlement.ActiveYaku"/>），因此这里的数值与引擎实际扣加点数同一口径。
+    /// </summary>
+    private SettlementDetail BuildSettlementDetail(
+        int winnerIndex,
+        bool selfDraw,
+        int? payerIndex,
+        WinSettlement settlement,
+        int honba,
+        int? engineFinalPoints)
+    {
+        var player = _engine.Players[winnerIndex];
+        var yakuRows = new List<(string Name, int Fu, SettlementYakuFlag Flag)>(settlement.ActiveYaku.Count);
+        int maFu = 0;
+        int tablelessFu = 0;
+        int pointsBonus = 0;
+        int? fixedPoints = null;
+
+        foreach (var yaku in settlement.ActiveYaku)
+        {
+            SettlementYakuFlag flag;
+            if (yaku.IsMa)
+            {
+                flag = SettlementYakuFlag.Ma;
+                maFu += yaku.Fu;
+                tablelessFu += yaku.Fu;
+            }
+            else if (yaku.FixedPoints is not null)
+            {
+                flag = SettlementYakuFlag.FixedPoints;
+                fixedPoints ??= yaku.FixedPoints;
+            }
+            else if (yaku.IsBonus)
+            {
+                flag = SettlementYakuFlag.Tableless;
+                tablelessFu += yaku.Fu;
+            }
+            else if (OptionalYakuNames.Contains(yaku.Name))
+            {
+                flag = SettlementYakuFlag.Optional;
+            }
+            else
+            {
+                flag = SettlementYakuFlag.Normal;
+            }
+
+            pointsBonus += yaku.PointsBonus ?? 0;
+            yakuRows.Add((yaku.Name, yaku.Fu, flag));
+        }
+
+        int totalFu = settlement.TotalFu + maFu;
+        int tableSafeFu = totalFu - tablelessFu;
+        int basePoints;
+        int tablelessBonus;
+        if (fixedPoints is not null)
+        {
+            // 固定点数役：CalcFinalPoints 直接返回该值，不再叠加表外赋 / 加项。
+            basePoints = fixedPoints.Value;
+            tablelessBonus = 0;
+            pointsBonus = 0;
+        }
+        else if (settlement.SpecialPoints is not null)
+        {
+            basePoints = settlement.SpecialPoints.Value;
+            tablelessBonus = tablelessFu * 700;
+        }
+        else
+        {
+            basePoints = _engine.CalcPoints(tableSafeFu);
+            tablelessBonus = tablelessFu * 700;
+        }
+
+        int subPoints = _engine.CalcFinalPoints(settlement, totalFu);
+        bool dealer = player.IsDealer;
+        int honbaBonus = 700 * honba;
+        int finalPoints = engineFinalPoints
+                          ?? ((dealer ? MahjongEngine.DealerBonus(subPoints) : subPoints) + honbaBonus);
+        var (each, remainder) = _engine.SplitPayment(finalPoints);
+        string payment = selfDraw
+            ? $"自摸 · 每家 {each} + 余数 {remainder}"
+            : $"荣和 · 放铳者付 {finalPoints}";
+
+        return new SettlementDetail
+        {
+            WinnerIndex = winnerIndex,
+            SelfDraw = selfDraw,
+            PayerIndex = selfDraw ? null : payerIndex,
+            Yaku = yakuRows,
+            TotalFu = totalFu,
+            MaFu = maFu,
+            TableSafeFu = tableSafeFu,
+            BasePoints = basePoints,
+            TablelessBonus = tablelessBonus,
+            PointsBonus = pointsBonus,
+            SubPoints = subPoints,
+            DealerMultiplierApplied = dealer,
+            HonbaCount = honba,
+            HonbaBonus = honbaBonus,
+            FinalPoints = finalPoints,
+            PayEach = selfDraw ? each : 0,
+            PayRemainder = selfDraw ? remainder : 0,
+            PaymentText = payment,
+        };
+    }
+
+    /// <summary>多家荣和：以引擎最终生效的胜者列表（<see cref="MahjongEngine.LastRonMulti"/>）为准。</summary>
+    private void CaptureRonDetails(int payerIndex, int honba)
+    {
+        if (_lastOutcome is null || _lastOutcome.Kind != "ron")
+        {
+            _lastDetails = Array.Empty<SettlementDetail>();
+            return;
+        }
+
+        var details = new List<SettlementDetail>(_engine.LastRonMulti.Count);
+        foreach (var winner in _engine.LastRonMulti)
+        {
+            details.Add(BuildSettlementDetail(
+                winner.PlayerIndex,
+                selfDraw: false,
+                payerIndex,
+                winner.Result,
+                honba,
+                winner.FinalPoints));
+        }
+
+        _lastDetails = details;
     }
 
     /// <summary>副露（AI 与人类共用），含明杠岭上补摸。</summary>
@@ -1110,7 +1260,9 @@ public sealed class MatchRuntime
                 .Select(candidate => new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)))
                 .ToList();
             _lastOutcome = new RoundOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
+            int honba = _engine.Honba;
             _engine.DeclareMultiRon(winners, player.Index);
+            CaptureRonDetails(player.Index, honba);
             return false;
         }
 
@@ -1291,6 +1443,11 @@ public sealed class MatchRuntime
         _roundLog?.Flush(_engine, _session);
 
         var names = _engine.Players.Select(p => p.Name).ToArray();
+        bool winOutcome = outcome.Kind is "tsumo" or "ron";
+        var details = winOutcome ? _lastDetails : Array.Empty<SettlementDetail>();
+        string? drawReason = outcome.Kind is "flow" or "special_flow"
+            ? outcome.Reason ?? "exhaustive"
+            : null;
         var result = new RoundResult(
             _engine.HandNumber,
             outcome.Kind,
@@ -1299,7 +1456,10 @@ public sealed class MatchRuntime
             _engine.Scores.ToArray(),
             _engine.Honba,
             _engine.DealerIndex,
-            _engine.MatchOver);
+            _engine.MatchOver,
+            details,
+            drawReason,
+            _scoresAtRoundStart.ToArray());
 
         _stats?.RecordRound(result, names);
         RecordEvent(
@@ -1551,6 +1711,8 @@ public sealed class MatchRuntime
         _pendingMeld = null;
         _pendingChiList.Clear();
         _lastOutcome = null;
+        _lastDetails = Array.Empty<SettlementDetail>();
+        _scoresAtRoundStart = _engine.Scores.ToArray();
         _phase = MatchPhase.Idle;
         _message = null;
         _roundLog?.Clear();
@@ -1585,6 +1747,7 @@ public sealed class MatchRuntime
         _specialFlows = 0;
         _matchStatsRecorded = false;
         _lastOutcome = null;
+        _lastDetails = Array.Empty<SettlementDetail>();
         _pendingRon = null;
         _pendingMeld = null;
         _pendingChiList.Clear();

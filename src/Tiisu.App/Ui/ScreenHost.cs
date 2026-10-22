@@ -18,8 +18,10 @@ public sealed class ScreenHost : SKControl
 {
     private readonly TileAtlas? _atlas;
     private readonly GameSession _session;
+    private readonly Settings _settings;
     private readonly TableScreen _table;
     private readonly MenuScreen _menu;
+    private readonly SettingsScreen _settingsScreen;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly System.Windows.Forms.Timer _frameTimer;
 
@@ -40,10 +42,12 @@ public sealed class ScreenHost : SKControl
         Dock = DockStyle.Fill;
 
         // 会话必须在 UI 线程构造：它捕获当前 SynchronizationContext 把事件回投到 UI。
-        _session = new GameSession(Settings.Load());
-        _table = new TableScreen(_session, atlas);
+        _settings = Settings.Load();
+        _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _menu = new MenuScreen(menuLayout, OnMenuAction);
+        _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () => SwitchTo(_menu));
+        _table = new TableScreen(_session, atlas, () => SwitchTo(_menu));
 
         _current = _menu;
 
@@ -86,6 +90,10 @@ public sealed class ScreenHost : SKControl
                 _session.Post(GameCommand.NextRound());
                 return true;
 
+            case "settings":
+                SwitchTo(_settingsScreen);
+                return true;
+
             case "quit":
                 FindForm()?.Close();
                 return true;
@@ -94,6 +102,9 @@ public sealed class ScreenHost : SKControl
                 return false;
         }
     }
+
+    /// <summary>设置屏每次改动后：热更新到引擎线程（可选役 / recordTiles / 长考秒数）。</summary>
+    private void OnSettingsChanged(Settings settings) => _session.Post(GameCommand.ApplySettings(settings));
 
     private void SwitchTo(Screen next)
     {
@@ -181,7 +192,8 @@ public sealed class ScreenHost : SKControl
     {
         base.OnKeyDown(e);
 
-        if (e.KeyCode == Keys.M)
+        if (e.KeyCode == Keys.M
+            && (ReferenceEquals(_current, _menu) || ReferenceEquals(_current, _table)))
         {
             SwitchTo(ReferenceEquals(_current, _menu) ? _table : _menu);
             e.Handled = true;
