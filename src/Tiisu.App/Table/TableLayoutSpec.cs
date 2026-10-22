@@ -126,7 +126,7 @@ public sealed class TableSceneSkia
 
         for (int seat = 0; seat < 4; seat++)
         {
-            DrawSeat(c, Seat(vm, seat), seat, l, seat == 0 ? hoverHand : -1);
+            DrawSeat(c, vm, Seat(vm, seat), seat, l, seat == 0 ? hoverHand : -1);
         }
     }
 
@@ -182,10 +182,26 @@ public sealed class TableSceneSkia
     /// </summary>
     public static (RectF Slot, string Id)[] MeldTileSlots(TableLayoutSpec l, SeatView seat, int index)
     {
+        var placements = MeldTilePlacements(l, seat, index);
+        var slots = new (RectF, string)[placements.Length];
+        for (int i = 0; i < placements.Length; i++)
+        {
+            slots[i] = (placements[i].Slot, placements[i].Meld.Tiles[placements[i].TileIndex].Id);
+        }
+
+        return slots;
+    }
+
+    /// <summary>副露的一张牌：槽位 + 所属组 + 组内牌位（绘制时要按暗杠规则决定牌面 / 牌背）。</summary>
+    public readonly record struct MeldTilePlacement(RectF Slot, MeldView Meld, int TileIndex);
+
+    /// <summary>某家副露的逐张槽位与所属副露组（与 <see cref="MeldTileSlots"/> 同一套几何）。</summary>
+    public static MeldTilePlacement[] MeldTilePlacements(TableLayoutSpec l, SeatView seat, int index)
+    {
         var melds = (seat.Melds ?? Array.Empty<MeldView>()).Where(m => m.Tiles is { Count: > 0 }).ToArray();
         if (melds.Length == 0)
         {
-            return Array.Empty<(RectF, string)>();
+            return Array.Empty<MeldTilePlacement>();
         }
 
         var frame = l.HandRects[index];
@@ -208,7 +224,7 @@ public sealed class TableSceneSkia
             ? start + total + l.HandMeldGap
             : start - l.HandMeldGap - meldLen;
 
-        var list = new List<(RectF, string)>();
+        var list = new List<MeldTilePlacement>();
         float slotW = horizontal ? l.MeldW : l.MeldH;
         float slotH = horizontal ? l.MeldH : l.MeldW;
 
@@ -221,7 +237,7 @@ public sealed class TableSceneSkia
                     ? new RectF(cursor, frame.CenterY - slotH / 2f, slotW, slotH)
                     : new RectF(frame.CenterX - slotW / 2f, cursor, slotW, slotH);
 
-                list.Add((slot, m.Tiles[t].Id));
+                list.Add(new MeldTilePlacement(slot, m, t));
                 cursor += l.MeldW + l.MeldGap;
             }
 
@@ -241,7 +257,7 @@ public sealed class TableSceneSkia
             Color.Rgb(140, 246, 236), new TextStyle(26, Bold: true, Center: true));
         c.DrawText("余 " + vm.WallCount, new RectF(p.X, p.CenterY - 18, p.W, 30),
             Color.Rgb(150, 236, 226), new TextStyle(21, Center: true));
-        c.DrawText("本场 " + vm.Honba + " · 供托 " + vm.Kyotaku, new RectF(p.X, p.CenterY + 20, p.W, 24),
+        c.DrawText("本场 " + vm.Honba + " · 场赏 " + vm.Kyotaku, new RectF(p.X, p.CenterY + 20, p.W, 24),
             Color.Rgb(180, 214, 208), new TextStyle(15, Center: true));
 
         const float s = 38f, m = 14f;
@@ -293,7 +309,10 @@ public sealed class TableSceneSkia
         }
     }
 
-    private static void DrawSeat(ICanvas c, SeatView seat, int index, TableLayoutSpec l, int hover = -1)
+    /// <summary>和牌后暗杠整组的 30% 黑遮罩（0.3 × 255 ≈ 77）。</summary>
+    private const byte AnkanMaskAlpha = 77;
+
+    private static void DrawSeat(ICanvas c, TableViewModel vm, SeatView seat, int index, TableLayoutSpec l, int hover = -1)
     {
         var (horizontal, angle, _) = TableLayoutSpec.Axis(index);
         bool self = index == 0;
@@ -330,9 +349,41 @@ public sealed class TableSceneSkia
             }
         }
 
-        foreach (var (slot, id) in MeldTileSlots(l, seat, index))
+        // 副露：暗杠对局中只翻第 2、4 张；结算态整组翻开并盖 30% 黑遮罩。
+        bool afterWin = vm.InSettlement;
+        Dictionary<MeldView, RectF>? masked = null;
+        foreach (var placement in MeldTilePlacements(l, seat, index))
         {
-            Rot(c, id, slot.CenterX, slot.CenterY, angle, l.MeldW, l.MeldH);
+            var slot = placement.Slot;
+            var meld = placement.Meld;
+            if (meld.IsFaceUp(placement.TileIndex, afterWin))
+            {
+                Rot(c, meld.Tiles[placement.TileIndex].Id, slot.CenterX, slot.CenterY, angle, l.MeldW, l.MeldH);
+            }
+            else
+            {
+                Back(c, slot.CenterX, slot.CenterY, slot.W, slot.H);
+            }
+
+            if (meld.IsAnkan && (afterWin || meld.RevealedAfterWin))
+            {
+                masked ??= new Dictionary<MeldView, RectF>();
+                masked[meld] = masked.TryGetValue(meld, out var acc)
+                    ? RectF.FromLTRB(
+                        Math.Min(acc.Left, slot.Left),
+                        Math.Min(acc.Top, slot.Top),
+                        Math.Max(acc.Right, slot.Right),
+                        Math.Max(acc.Bottom, slot.Bottom))
+                    : slot;
+            }
+        }
+
+        if (masked is not null)
+        {
+            foreach (var rect in masked.Values)
+            {
+                c.FillRoundRect(rect.Inflate(1f), 4, Color.Black.WithAlpha(AnkanMaskAlpha));
+            }
         }
     }
     private static float MeldLength(SeatView seat, TableLayoutSpec l)

@@ -16,6 +16,9 @@ public static class SnapshotBuilder
 {
     private static readonly string[] WindNames = { "东", "南", "西", "北" };
 
+    /// <summary>暗杠在对局中翻开的牌位：第 2、4 张（0 基索引）。</summary>
+    private static readonly int[] AnkanFaceUpIndices = { 1, 3 };
+
     public static TableViewModel Build(
         MahjongEngine engine,
         string phase,
@@ -43,6 +46,7 @@ public static class SnapshotBuilder
             }
 
             var melds = new List<MeldView>(player.Melds.Count);
+            bool afterWin = phase is "round_end" or "match_over" || engine.RevealHands;
             foreach (var meld in player.Melds)
             {
                 var tiles = new List<TileView>(meld.Tiles.Count);
@@ -51,7 +55,16 @@ public static class SnapshotBuilder
                     tiles.Add(new TileView(TileNotation.AtlasId(tile)));
                 }
 
-                melds.Add(new MeldView { Type = meld.Type.Wire(), Tiles = tiles });
+                bool ankan = meld.Type == MeldType.Ankan;
+                melds.Add(new MeldView
+                {
+                    Type = meld.Type.Wire(),
+                    Tiles = tiles,
+
+                    // 暗杠：对局中只翻第 2、4 张（索引 1、3）；结算态全部翻开。
+                    RevealedTiles = ankan && !afterWin ? AnkanFaceUpIndices : null,
+                    RevealedAfterWin = ankan && afterWin,
+                });
             }
 
             var discards = new List<TileView>(player.Discards.Count);
@@ -162,7 +175,9 @@ public static class SnapshotBuilder
             WallCount = engine.Wall.Count,
             RinshanCount = engine.Rinshan.Count,
             Honba = engine.Honba,
-            Kyotaku = 0,
+
+            // 场赏 = 700 × 连庄数，和牌者取走；与连庄奖励同额、不重复加（字段名沿用 Kyotaku）。
+            Kyotaku = 700 * engine.Honba,
             TurnIndex = engine.TurnIndex,
             ModeTarget = engine.ModeTarget,
             RevealHands = revealHands,

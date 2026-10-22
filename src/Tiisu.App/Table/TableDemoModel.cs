@@ -79,4 +79,63 @@ public static class TableDemoModel
             TenpaiTiles = new[] { "2m", "5p", "8s", "3z" },
         };
     }
+
+    /// <summary>
+    /// 暗杠展示演示：自家与对家各一组暗杠。
+    /// <paramref name="settled"/> = false 为对局中（只翻第 2、4 张）；true 为和牌后（全翻 + 30% 黑遮罩）。
+    /// </summary>
+    public static TableViewModel CreateWithAnkan(bool settled)
+    {
+        TileView T(string id) => new(id);
+        var vm = Create(0);
+
+        MeldView Ankan(string id) => new()
+        {
+            Type = "ankan",
+            Tiles = new[] { T(id), T(id), T(id), T(id) },
+        };
+
+        SeatView Copy(SeatView s, IReadOnlyList<MeldView> melds) => new()
+        {
+            Index = s.Index,
+            Name = s.Name,
+            Wind = s.Wind,
+            Score = s.Score,
+            IsDealer = s.IsDealer,
+            IsHuman = s.IsHuman,
+            IsTurn = s.IsTurn,
+            HandCount = 10,
+            Hand = s.Index == 0 ? s.Hand.Take(10).ToArray() : s.Hand,
+            Melds = melds,
+            Discards = s.Discards,
+            LastDiscard = s.LastDiscard,
+        };
+
+        var seats = new List<SeatView>(4);
+        foreach (var seat in vm.Seats)
+        {
+            seats.Add(seat.Index switch
+            {
+                0 => Copy(seat, new[] { Ankan("7z") }),
+                2 => Copy(seat, new[] { Ankan("5s") }),
+                _ => seat,
+            });
+        }
+
+        // 3 本场 → 场赏 = 700 × 3 = 2100（同时验证 HUD 文案）。
+        return new TableViewModel
+        {
+            RoundLabel = "东 1 局 · 3 本场",
+            WallCount = 36,
+            RinshanCount = 4,
+            Honba = 3,
+            Kyotaku = 700 * 3,
+            TurnIndex = 0,
+            Seats = seats,
+            ModeTarget = 1,
+            RevealHands = settled,
+            Phase = settled ? "round_end" : "human_discard",
+            Message = settled ? "和牌后：暗杠整组翻开" : "对局中：暗杠只翻第 2、4 张",
+        };
+    }
 }

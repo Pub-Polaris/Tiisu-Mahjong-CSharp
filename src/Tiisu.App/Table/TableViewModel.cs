@@ -1,15 +1,49 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Tiisu.App.Table;
 
 /// <summary>牌的极简快照（渲染只需要 id 与是否已知）。</summary>
 public readonly record struct TileView(string Id, bool Hidden = false);
 
+/// <summary>
+/// 副露快照。暗杠（<see cref="IsAnkan"/>）有两条展示规则：
+/// <para>1. 对局中只翻第 2、4 张（索引 1、3），另外两张盖牌背；</para>
+/// <para>2. 和牌后（结算态）整组翻开，并盖 30% 黑遮罩表示「和牌后才公开」。</para>
+/// 对手的暗杠同样按此规则显示，公开层面不泄露具体牌。
+/// </summary>
 public sealed class MeldView
 {
-    public string Type { get; init; } = "pon";   // pon / chi / kan_minkan / kan_ankan / kan_kakan
+    /// <summary>pon / chi / minkan / ankan / kakan（引擎 <c>MeldType.Wire()</c> 口径）。</summary>
+    public string Type { get; init; } = "pon";
+
     public IReadOnlyList<TileView> Tiles { get; init; } = Array.Empty<TileView>();
+
+    public bool IsAnkan => string.Equals(Type, "ankan", StringComparison.Ordinal);
+
+    /// <summary>对局中翻开的牌位（0 基）。null 表示不设限（非暗杠，或已进入结算态）。</summary>
+    public IReadOnlyList<int>? RevealedTiles { get; init; }
+
+    /// <summary>该暗杠已按「和牌后」规则整组翻开（结算屏 / 和牌展示）。</summary>
+    public bool RevealedAfterWin { get; init; }
+
+    /// <summary>某张牌在指定状态下是否翻牌面。<paramref name="afterWin"/> 为结算态。</summary>
+    public bool IsFaceUp(int index, bool afterWin)
+    {
+        if (!IsAnkan || afterWin || RevealedAfterWin)
+        {
+            return true;
+        }
+
+        if (RevealedTiles is { Count: > 0 })
+        {
+            return RevealedTiles.Contains(index);
+        }
+
+        // 默认规则：4 张里只翻第 2、4 张。
+        return index is 1 or 3;
+    }
 }
 
 public sealed class SeatView
@@ -66,6 +100,11 @@ public sealed class TableViewModel
     public int WallCount { get; init; }
     public int RinshanCount { get; init; }
     public int Honba { get; init; }
+
+    /// <summary>
+    /// 场赏点数 = 700 × <see cref="Honba"/>（历史字段名 Kyotaku 沿用，语义已改为「场赏」）。
+    /// 与连庄奖励同额，不重复加；和牌者取走。
+    /// </summary>
     public int Kyotaku { get; init; }
     public int TurnIndex { get; init; }
     public IReadOnlyList<SeatView> Seats { get; init; } = Array.Empty<SeatView>();
@@ -75,6 +114,9 @@ public sealed class TableViewModel
 
     /// <summary>和牌 / 流局后四家手牌明牌。</summary>
     public bool RevealHands { get; init; }
+
+    /// <summary>结算态（和牌 / 流局之后）：暗杠整组翻开并盖 30% 黑遮罩。</summary>
+    public bool InSettlement => Phase is "round_end" or "match_over" || RevealHands;
 
     /// <summary>整场已结束。</summary>
     public bool MatchOver { get; init; }

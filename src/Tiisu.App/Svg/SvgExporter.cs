@@ -115,7 +115,7 @@ public sealed class SvgExporter
                       "fill=\"url(#plate)\" stroke=\"#161c22\" stroke-width=\"2\"/>");
         AppendText(sb, vm.RoundLabel, p.CenterX, p.CenterY - 42, 26, "#8cf6ec", bold: true);
         AppendText(sb, "余 " + vm.WallCount, p.CenterX, p.CenterY + 2, 21, "#96ece2");
-        AppendText(sb, $"本场 {vm.Honba} · 供托 {vm.Kyotaku}", p.CenterX, p.CenterY + 34, 15, "#b4d6d0");
+        AppendText(sb, $"本场 {vm.Honba} · 场赏 {vm.Kyotaku}", p.CenterX, p.CenterY + 34, 15, "#b4d6d0");
 
         const float s = 38f, m = 14f;
         var winds = new[] { Seat(vm, 0).Wind, Seat(vm, 1).Wind, Seat(vm, 2).Wind, Seat(vm, 3).Wind };
@@ -171,9 +171,38 @@ public sealed class SvgExporter
             if ((view.Melds?.Count ?? 0) > 0)
             {
                 sb.AppendLine($"  <g id=\"{names[seat].Replace("-hand", "-meld")}\">");
-                foreach (var (slot, id) in TableSceneSkia.MeldTileSlots(_l, view, seat))
+                bool afterWin = vm.InSettlement;
+                var masked = new Dictionary<MeldView, Rendering.RectF>();
+                foreach (var placement in TableSceneSkia.MeldTilePlacements(_l, view, seat))
                 {
-                    AppendTile(sb, id, slot.CenterX, slot.CenterY, angle, _l.MeldW, _l.MeldH);
+                    var slot = placement.Slot;
+                    var meld = placement.Meld;
+                    if (meld.IsFaceUp(placement.TileIndex, afterWin))
+                    {
+                        AppendTile(sb, meld.Tiles[placement.TileIndex].Id, slot.CenterX, slot.CenterY, angle, _l.MeldW, _l.MeldH);
+                    }
+                    else
+                    {
+                        sb.AppendLine($"    <rect x=\"{F(slot.X)}\" y=\"{F(slot.Y)}\" width=\"{F(slot.W)}\" height=\"{F(slot.H)}\" " +
+                                      "rx=\"3\" fill=\"#2e8ac6\" stroke=\"#102a3e\" stroke-width=\"1\"/>");
+                    }
+
+                    if (meld.IsAnkan && (afterWin || meld.RevealedAfterWin))
+                    {
+                        masked[meld] = masked.TryGetValue(meld, out var acc)
+                            ? Rendering.RectF.FromLTRB(
+                                Math.Min(acc.Left, slot.Left),
+                                Math.Min(acc.Top, slot.Top),
+                                Math.Max(acc.Right, slot.Right),
+                                Math.Max(acc.Bottom, slot.Bottom))
+                            : slot;
+                    }
+                }
+
+                foreach (var rect in masked.Values)
+                {
+                    sb.AppendLine($"    <rect x=\"{F(rect.X - 1)}\" y=\"{F(rect.Y - 1)}\" width=\"{F(rect.W + 2)}\" " +
+                                  $"height=\"{F(rect.H + 2)}\" rx=\"4\" fill=\"#000000\" fill-opacity=\"0.3\"/>");
                 }
 
                 sb.AppendLine("  </g>");

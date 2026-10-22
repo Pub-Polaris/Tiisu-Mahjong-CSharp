@@ -58,6 +58,9 @@ public sealed class Settings
     /// <summary>按座位锁定 AI 档位：-1 = 跟随随机，0..3 = 固定档。</summary>
     public int[] AiSeatLocks { get; set; } = { -1, -1, -1, -1 };
 
+    /// <summary>修罗档 MCTS（实验性，默认关闭）。关闭时修罗完全等价困难档；旧存档缺字段即关闭。</summary>
+    public bool AiMctsEnabled { get; set; }
+
     /// <summary>读 <c>settings.json</c>；文件不存在/损坏时返回默认值（与 Web 侧 <c>/api/settings</c> 同口径）。</summary>
     public static Settings Load(string? directory = null)
     {
@@ -105,6 +108,7 @@ public sealed class Settings
         SoundEnabled = other.SoundEnabled;
         AiWeights = NormalizeWeights(other.AiWeights);
         AiSeatLocks = NormalizeLocks(other.AiSeatLocks);
+        AiMctsEnabled = other.AiMctsEnabled;
     }
 
     public Settings Clone()

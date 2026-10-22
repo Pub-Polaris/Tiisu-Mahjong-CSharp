@@ -120,6 +120,13 @@ internal static class Program
             return;
         }
 
+        // 暗杠展示自检：--render-ankan <png 基名 | 目录> → 出「对局中 / 和牌后」两张图
+        if (args.Length >= 2 && args[0] == "--render-ankan")
+        {
+            RenderAnkanToPng(args[1]);
+            return;
+        }
+
         // Yoga 布局预览：--render-yoga <png> [画布边长] [副露组数 0..4]
         if (args.Length >= 2 && args[0] == "--render-yoga")
         {
@@ -967,6 +974,66 @@ internal static class Program
             16, top + 58, SKTextAlign.Left, font, head);
         canvas.DrawText("（改完我出图，你再指；不需要你填表或改文件）",
             16, top + 88, SKTextAlign.Left, font, body);
+    }
+
+    /// <summary>
+    /// <c>--render-ankan &lt;png 基名 | 目录&gt;</c>：暗杠展示自检。
+    /// 生成两张图：<c>-play.png</c>（对局中，只翻第 2、4 张）与 <c>-win.png</c>（和牌后，全翻 + 30% 黑遮罩）。
+    /// </summary>
+    private static void RenderAnkanToPng(string target)
+    {
+        string basePath = target;
+        if (!target.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+        {
+            Directory.CreateDirectory(target);
+            basePath = Path.Combine(target, "ankan.png");
+        }
+        else
+        {
+            string? dir = Path.GetDirectoryName(Path.GetFullPath(basePath));
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+        }
+
+        string stem = basePath.Substring(0, basePath.Length - 4);
+        string playPath = stem + "-play.png";
+        string winPath = stem + "-win.png";
+
+        RenderAnkanFrame(playPath, settled: false);
+        RenderAnkanFrame(winPath, settled: true);
+
+        Console.WriteLine("rendered ankan -> " + playPath);
+        Console.WriteLine("rendered ankan -> " + winPath);
+    }
+
+    private static void RenderAnkanFrame(string path, bool settled)
+    {
+        using var atlas = new TileAtlas(AssetsDir);
+        var layout = NewLayout();
+        var vm = TableDemoModel.CreateWithAnkan(settled);
+
+        var info = new SKImageInfo((int)layout.CanvasW, (int)layout.CanvasH);
+        using var surface = SKSurface.Create(info);
+        var canvasSk = surface.Canvas;
+        canvasSk.Clear(new SKColor(20, 30, 24));
+
+        using (var ctx = new SkiaCanvas(canvasSk, atlas))
+        {
+            new TableSceneSkia().Draw(ctx, vm, layout);
+
+            string caption = settled
+                ? "和牌后：暗杠整组翻开 + 30% 黑色遮罩"
+                : "对局中：暗杠只翻第 2、4 张（其余牌背）";
+            var box = new RectF(layout.CanvasW / 2f - 250, 22, 500, 36);
+            ctx.FillRoundRect(box, 10, Tiisu.App.Rendering.Color.Rgb(0, 0, 0).WithAlpha(160));
+            ctx.DrawText(caption, box, Tiisu.App.Rendering.Color.Rgb(255, 228, 120), new TextStyle(18, Bold: true, Center: true));
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
     }
 
     /// <summary><c>--render-actions &lt;png&gt;</c>：动作按钮条 + 听牌提示出图（演示快照）。</summary>
