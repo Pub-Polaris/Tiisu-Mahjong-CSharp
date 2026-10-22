@@ -21,6 +21,8 @@ internal static class Program
         string? outDir = null;
         string? espeak = null;
         string engine = "auto";
+        string? bgm = null;
+        double gainDb = -5.0;
         bool sfx = false;
         bool voices = false;
         bool list = false;
@@ -34,6 +36,12 @@ internal static class Program
                     break;
                 case "--engine":
                     engine = i + 1 < args.Length ? args[++i] : "auto";
+                    break;
+                case "--bgm":
+                    bgm = i + 1 < args.Length ? args[++i] : null;
+                    break;
+                case "--gain":
+                    gainDb = i + 1 < args.Length && double.TryParse(args[++i], out var g) ? g : -5.0;
                     break;
                 case "--espeak":
                     espeak = i + 1 < args.Length ? args[++i] : null;
@@ -49,7 +57,7 @@ internal static class Program
                     break;
                 case "-h":
                 case "--help":
-                    Console.WriteLine("Tiisu.AudioGen [--out <dir>] [--sfx] [--voices] [--engine auto|sapi|espeak] [--espeak <exe>] [--list]");
+                    Console.WriteLine("Tiisu.AudioGen [--out <dir>] [--sfx] [--voices] [--bgm <wav>] [--gain dB] [--engine auto|sapi|espeak] [--list]");
                     return 0;
             }
         }
@@ -126,6 +134,16 @@ internal static class Program
                     Console.Error.WriteLine("语音生成失败（可用 --espeak 指定 espeak-ng 路径）");
                     return code;
                 }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(bgm))
+        {
+            Console.WriteLine("BGM：");
+            int bgmCode = BgmSynth.Convert(bgm!, Path.Combine(outDir, "bgm", "lobby.wav"), gainDb);
+            if (bgmCode != 0)
+            {
+                return bgmCode;
             }
         }
 

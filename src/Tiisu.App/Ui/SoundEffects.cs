@@ -27,9 +27,10 @@ public static class SoundEffects
     private const uint SndAsync = 0x0001;
     private const uint SndMemory = 0x0004;
     private const uint SndNoDefault = 0x0002;
+    private const uint SndLoop = 0x0008;
 
     [DllImport("winmm.dll", SetLastError = true)]
-    private static extern bool PlaySound(byte[] pszSound, IntPtr hmod, uint fdwSound);
+    private static extern bool PlaySound(byte[]? pszSound, IntPtr hmod, uint fdwSound);
 
     private static readonly Dictionary<Cue, byte[]> Cache = new();
 
@@ -240,6 +241,68 @@ public static class SoundEffects
     }
 
     private static readonly Dictionary<string, byte[]> Voices = new();
+    private static byte[]? _bgm;
+    private static bool _bgmPlaying;
+
+    /// <summary>播放背景音乐（Assets/bgm/lobby.wav，循环）。没有文件就静默。</summary>
+    public static void PlayBgm()
+    {
+        if (!Enabled || _bgmPlaying)
+        {
+            return;
+        }
+
+        try
+        {
+            _bgm ??= LoadBgm();
+            if (_bgm is null)
+            {
+                return;
+            }
+
+            PlaySound(_bgm, IntPtr.Zero, SndMemory | SndAsync | SndLoop | SndNoDefault);
+            _bgmPlaying = true;
+        }
+        catch
+        {
+            // 静默降级
+        }
+    }
+
+    public static void StopBgm()
+    {
+        if (!_bgmPlaying)
+        {
+            return;
+        }
+
+        try
+        {
+            PlaySound(null, IntPtr.Zero, 0);
+        }
+        catch
+        {
+            // 忽略
+        }
+
+        _bgmPlaying = false;
+    }
+
+    private static byte[]? LoadBgm()
+    {
+        string path = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "bgm", "lobby.wav");
+        return File.Exists(path) ? File.ReadAllBytes(path) : null;
+    }
+
+    /// <summary>音效开关变化时同步 BGM。'</summary>
+    public static void ApplyEnabled(bool enabled)
+    {
+        Enabled = enabled;
+        if (!enabled)
+        {
+            StopBgm();
+        }
+    }
 
     /// <summary>
     /// 播放报牌语音（Assets/voices/*.wav，由 espeak-ng 生成）。

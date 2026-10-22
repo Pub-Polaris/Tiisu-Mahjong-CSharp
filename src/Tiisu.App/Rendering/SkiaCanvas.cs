@@ -89,7 +89,7 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
             Color = ToSk(c),
             MaskFilter = null,
         };
-        using var font = new SKFont(GetTypeface(style.Bold), style.Size);
+        using var font = new SKFont(GetTypeface(style.Bold), BoostSize(style.Size));
         var align = style.Right ? SKTextAlign.Right : style.Center ? SKTextAlign.Center : SKTextAlign.Left;
 
         var metrics = font.Metrics;
@@ -109,6 +109,9 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
 
         _canvas.DrawText(text, x, baseline, align, font, paint);
     }
+
+    /// <summary>字号整体放大一档：小字 +2、中字 +3、大字 +4。</summary>
+    private static float BoostSize(float size) => size < 16f ? size + 2f : size < 24f ? size + 3f : size + 4f;
 
     private static SKTypeface GetTypeface(bool bold)
     {

@@ -109,6 +109,15 @@ public sealed class ScreenHost : SKControl
 
     private void SwitchTo(Screen next)
     {
+        bool lobby = next is MenuScreen or SettingsScreen;
+        if (lobby)
+        {
+            SoundEffects.PlayBgm();
+        }
+        else
+        {
+            SoundEffects.StopBgm();
+        }
         if (ReferenceEquals(next, _current))
         {
             return;
