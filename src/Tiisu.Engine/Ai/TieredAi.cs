@@ -36,6 +36,15 @@ public sealed record AiDecisionContext(
     /// <see cref="SeatWind"/> 取 <see cref="Scores"/> 下标（A 期约定的兼容口径）。
     /// </summary>
     public int PlayerIndex { get; init; } = -1;
+
+    /// <summary>
+    /// 四家副露（按座位顺序 0..3）。可选：提供时能按「某家副露数」精确计算威胁；
+    /// 未提供时回退为「自家副露 + 其余别家副露合并到下一家」的兼容口径。
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<Meld>>? AllMelds { get; init; }
+
+    /// <summary>外部显式提供的威胁模型输入；为 null 时由现有字段推导。</summary>
+    public ThreatInput? Threat { get; init; }
 }
 
 /// <summary>一个候选打牌及其评分明细（供测试与上层诊断）。</summary>
@@ -47,7 +56,11 @@ public sealed record AiCandidate(
     int Ukeire,
     double ExpectedValue,
     bool Genbutsu,
-    double KeepScore);
+    double KeepScore)
+{
+    /// <summary>这张牌的放铳危险度（0..1）；Simple 档与未启用防守的候选为 0。</summary>
+    public double Danger { get; init; }
+}
 
 /// <summary>完整决策结果。<see cref="Index"/> 为最终选择，<see cref="Ranking"/> 按分数降序。</summary>
 public sealed record AiDecision(
@@ -62,8 +75,8 @@ public sealed record AiDecision(
 ///
 /// <list type="bullet">
 /// <item>Simple：旧 <see cref="AiPlayer.ChooseDiscardIndex"/> 的启发式分值 + 噪声，不看进张。</item>
-/// <item>Normal：进张数为主，平手用旧启发式。</item>
-/// <item>Hard：进张 + 听牌后期望赋 + 现物安全。</item>
+/// <item>Normal：进张数为主，平手用旧启发式；残局且自家向听仍远时叠加轻量防守。</item>
+/// <item>Hard：进张 + 听牌后期望赋 + 现物安全 + 放铳危险度（<see cref="ThreatModel"/>）。</item>
 /// <item>Shura：A 期等同 Hard（MCTS 在 C 期）。</item>
 /// </list>
 ///
@@ -94,8 +107,15 @@ public static class TieredAi
         }
 
         var rivers = Rivers(ctx);
+        var threat = BuildThreatInput(ctx, rivers);
         var keepScores = ComputeKeepScores(ctx.Hand);
         var candidates = new List<AiCandidate>(ctx.Hand.Count);
+
+        // Normal 的防守是轻量、局部的：只在残局且自家向听仍远（≥2）时才生效。
+        bool lateDefense = level == AiLevel.Normal
+            && ctx.WallCount <= tuning.NormalDangerWallThreshold
+            && Shanten.Calculate(ctx.Hand, ctx.Melds).Shanten >= tuning.NormalDangerShantenThreshold;
+        bool useDanger = level is AiLevel.Hard or AiLevel.Shura || lateDefense;
 
         for (int i = 0; i < ctx.Hand.Count; i++)
         {
@@ -113,6 +133,7 @@ public static class TieredAi
             int ukeire = 0;
             double expectedValue = 0;
             bool genbutsu = IsGenbutsu(ctx.Hand[i], rivers);
+            double danger = useDanger ? ThreatModel.Danger(ctx.Hand[i], threat) : 0.0;
 
             if (level != AiLevel.Simple)
             {
@@ -134,11 +155,13 @@ public static class TieredAi
             {
                 AiLevel.Simple => -keepScores[i] + Noise(rng, tuning.SimpleNoise),
                 AiLevel.Normal => ukeire * tuning.NormalUkeireWeight
-                    - keepScores[i] * tuning.NormalHeuristicTiebreak,
+                    - keepScores[i] * tuning.NormalHeuristicTiebreak
+                    - danger * tuning.NormalDangerWeight,
                 _ => ukeire * tuning.HardUkeireWeight
                     + expectedValue * tuning.HardValueWeight
                     + (genbutsu ? tuning.HardGenbutsuWeight : 0.0)
-                    - keepScores[i] * tuning.HardHeuristicTiebreak,
+                    - keepScores[i] * tuning.HardHeuristicTiebreak
+                    - danger * tuning.HardDangerWeight,
             };
 
             candidates.Add(new AiCandidate(
@@ -149,7 +172,10 @@ public static class TieredAi
                 ukeire,
                 expectedValue,
                 genbutsu,
-                keepScores[i]));
+                keepScores[i])
+            {
+                Danger = danger,
+            });
         }
 
         candidates.Sort((a, b) =>
@@ -271,6 +297,52 @@ public static class TieredAi
 
     private static IReadOnlyList<IReadOnlyList<Tile>> Rivers(AiDecisionContext ctx) =>
         ctx.AllDiscards.Count > 0 ? ctx.AllDiscards : new[] { ctx.Discards };
+
+    /// <summary>
+    /// 从 <see cref="AiDecisionContext"/> 推导威胁输入。外部显式给了 <see cref="AiDecisionContext.Threat"/>
+    /// 时直接使用；否则四家副露在缺少座位归属时退化为「自家 + 其余合并到下一家」。
+    /// 只使用决策者可见的信息（牌河 / 副露 / 场况 / 自家手牌）。
+    /// </summary>
+    private static ThreatInput BuildThreatInput(
+        AiDecisionContext ctx,
+        IReadOnlyList<IReadOnlyList<Tile>> rivers)
+    {
+        if (ctx.Threat is not null)
+        {
+            return ctx.Threat;
+        }
+
+        int self = ctx.PlayerIndex is >= 0 and <= 3 ? ctx.PlayerIndex : (int)ctx.SeatWind;
+        var allMelds = new List<IReadOnlyList<Meld>>(4);
+        if (ctx.AllMelds is { Count: 4 } provided)
+        {
+            allMelds.AddRange(provided);
+        }
+        else
+        {
+            for (int seat = 0; seat < 4; seat++)
+            {
+                allMelds.Add(seat == self ? ctx.Melds : Array.Empty<Meld>());
+            }
+
+            if (ctx.OpponentMelds.Count > 0)
+            {
+                allMelds[(self + 1) % 4] = ctx.OpponentMelds;
+            }
+        }
+
+        return new ThreatInput(
+            rivers,
+            allMelds,
+            new[] { ctx.WallCount, ctx.WallCount, ctx.WallCount, ctx.WallCount },
+            ctx.WallCount,
+            ctx.Scores ?? Array.Empty<int>(),
+            ctx.Honba,
+            self)
+        {
+            SelfHand = ctx.Hand,
+        };
+    }
 
     private static bool IsGenbutsu(Tile tile, IReadOnlyList<IReadOnlyList<Tile>> rivers)
     {

@@ -145,8 +145,138 @@ public sealed class TieredAiTests
         double expected = best.Ukeire * 10.0
             + best.ExpectedValue
             + (best.Genbutsu ? 12.0 : 0.0)
-            - best.KeepScore * 0.01;
+            - best.KeepScore * 0.01
+            - best.Danger * 30.0;
         Assert.Equal(expected, best.Score, 9);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // B 期：防守威胁接入分档
+    // ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Hard_PrefersSafeTile_OverOneExtraUkeire()
+    {
+        // 4 组副露 + 两张单张：切 2z（现物）听 5s，还剩 1 张；切 5s（危险）听 2z，还剩 2 张。
+        // 只有这两个候选，进张差 1，危险差足够大。
+        var hand = Tiles("2z5s");
+        var ownMelds = new List<Meld>
+        {
+            new(MeldType.Chi, Tiles("123m")),
+            new(MeldType.Chi, Tiles("456m")),
+            new(MeldType.Chi, Tiles("789m")),
+            new(MeldType.Pon, Tiles("111p")),
+        };
+        var opponentMelds = new List<Meld>
+        {
+            new(MeldType.Chi, Tiles("345s")),
+            new(MeldType.Chi, Tiles("567s")),
+        };
+
+        var ctx = new AiDecisionContext(
+            hand,
+            ownMelds,
+            Array.Empty<Tile>(),
+            Rivers("2z", "", "", ""),
+            opponentMelds,
+            0,
+            70,
+            new[] { 25000, 25000, 25000, 25000 },
+            SeatWind.East,
+            SeatWind.East,
+            0,
+            0);
+
+        var decision = TieredAi.Decide(ctx, AiLevel.Hard, new FixedRandom(0.99));
+        var safe = decision.Ranking.Single(c => c.Tile == Tiles("2z")[0]);
+        var risky = decision.Ranking.Single(c => c.Tile == Tiles("5s")[0]);
+
+        Assert.Equal(2, decision.Ranking.Count);
+        Assert.Equal(risky.Ukeire - 1, safe.Ukeire);
+        Assert.True(safe.Danger < risky.Danger - 0.3);
+        Assert.False(decision.Mistake);
+        Assert.Equal(safe.Index, decision.Index);
+    }
+
+    [Fact]
+    public void Shura_UsesSameDefenseAsHard()
+    {
+        var ctx = DefenseContext(wall: 70);
+        var hard = TieredAi.Decide(ctx, AiLevel.Hard, new FixedRandom(0.99));
+        var shura = TieredAi.Decide(ctx, AiLevel.Shura, new FixedRandom(0.99));
+
+        Assert.Equal(hard.Index, shura.Index);
+        Assert.Equal(hard.Ranking[0].Score, shura.Ranking[0].Score, 9);
+        Assert.Equal(hard.Ranking[0].Danger, shura.Ranking[0].Danger, 9);
+    }
+
+    [Fact]
+    public void Normal_DefendsOnlyInLateGame_WhenShantenIsFar()
+    {
+        var hand = Tiles("1m4m7m2p5p8p3s6s9s1z2z4z6z7z");
+        var rivers = Rivers("1m", "9p", "", "");
+
+        var earlyCtx = Context(hand, allDiscards: rivers, wall: 70);
+        var lateCtx = Context(hand, allDiscards: rivers, wall: 10);
+
+        Assert.True(Shanten.Calculate(hand, Array.Empty<Meld>()).Shanten >= 2);
+
+        var early = TieredAi.Decide(earlyCtx, AiLevel.Normal, new FixedRandom(0.99));
+        var late = TieredAi.Decide(lateCtx, AiLevel.Normal, new FixedRandom(0.99));
+
+        var earlyFour = early.Ranking.Single(c => c.Tile == Tiles("4m")[0]);
+        var lateFour = late.Ranking.Single(c => c.Tile == Tiles("4m")[0]);
+
+        Assert.Equal(0.0, earlyFour.Danger, 9);
+        Assert.True(lateFour.Danger > 0.2);
+
+        // 开局：只有进张 + 旧启发式平手；残局：再减去 5 × 危险度。
+        double lateExpected = earlyFour.Score - lateFour.Danger * 5.0;
+        Assert.Equal(lateExpected, lateFour.Score, 9);
+    }
+
+    [Fact]
+    public void Normal_DoesNotDefend_WhenCloseToTenpai()
+    {
+        var hand = Tiles("123m456m789m11p23s5z");
+        var ctx = Context(hand, allDiscards: Rivers("1m", "9p", "", ""), wall: 10);
+
+        var decision = TieredAi.Decide(ctx, AiLevel.Normal, new FixedRandom(0.99));
+
+        Assert.All(decision.Ranking, candidate => Assert.Equal(0.0, candidate.Danger, 9));
+    }
+
+    [Fact]
+    public void Simple_IgnoresDanger()
+    {
+        var hand = Tiles("1m4m7m2p5p8p3s6s9s1z2z4z6z7z");
+        var rivers = Rivers("1m", "9p", "", "");
+
+        var early = TieredAi.Decide(
+            Context(hand, allDiscards: rivers, wall: 70),
+            AiLevel.Simple,
+            new FixedRandom(0.99));
+        var late = TieredAi.Decide(
+            Context(hand, allDiscards: rivers, wall: 10),
+            AiLevel.Simple,
+            new FixedRandom(0.99));
+
+        Assert.Equal(early.Index, late.Index);
+        Assert.All(early.Ranking, candidate => Assert.Equal(0.0, candidate.Danger, 9));
+        Assert.All(late.Ranking, candidate => Assert.Equal(0.0, candidate.Danger, 9));
+        for (int i = 0; i < early.Ranking.Count; i++)
+        {
+            Assert.Equal(early.Ranking[i].Score, late.Ranking[i].Score, 9);
+        }
+    }
+
+    [Fact]
+    public void Tuning_DefenseWeights_MatchDesign()
+    {
+        Assert.Equal(30.0, AiTuning.Default.HardDangerWeight, 9);
+        Assert.Equal(5.0, AiTuning.Default.NormalDangerWeight, 9);
+        Assert.Equal(30, AiTuning.Default.NormalDangerWallThreshold);
+        Assert.Equal(2, AiTuning.Default.NormalDangerShantenThreshold);
     }
 
     [Fact]
@@ -356,6 +486,26 @@ public sealed class TieredAiTests
 
         return result;
     }
+
+    /// <summary>B 期防守用例的固定牌局：现物 2z + 危险的 5s（对手两组吃都含 5s）。</summary>
+    private static AiDecisionContext DefenseContext(int wall) =>
+        new(
+            Tiles("123m456m789m111p2z5s"),
+            Array.Empty<Meld>(),
+            Array.Empty<Tile>(),
+            Rivers("2z", "", "", ""),
+            new List<Meld>
+            {
+                new(MeldType.Chi, Tiles("345s")),
+                new(MeldType.Chi, Tiles("567s")),
+            },
+            0,
+            wall,
+            new[] { 25000, 25000, 25000, 25000 },
+            SeatWind.East,
+            SeatWind.East,
+            0,
+            0);
 
     private sealed class FixedRandom : IRandomSource
     {
