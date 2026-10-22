@@ -257,30 +257,19 @@ public sealed class SettingsScreen : Screen
 
     private static (string Id, string Name)[] BuildOptionalOptions()
     {
-        string[] ids =
-        {
-            "same_color_old_young",
-            "same_color_double_old_young",
-            "two_color_double_old_young",
-            "double_even_ko",
-            "triple_even_ko",
-        };
-
-        var names = new Dictionary<string, string>(StringComparer.Ordinal);
         try
         {
             var data = YakuData.LoadDefault();
-            foreach (var yaku in data.Yaku.Concat(data.HighYaku))
-            {
-                names[yaku.Id] = yaku.Name;
-            }
+            return data.Yaku
+                .Where(y => y.Optional)
+                .Select(y => (y.Id, y.Name))
+                .ToArray();
         }
         catch
         {
-            // 数据读不到时退回 id，不影响设置功能。
+            // 数据读不到时不显示可选役开关（不影响其他设置项）。
+            return Array.Empty<(string Id, string Name)>();
         }
-
-        return ids.Select(id => (id, names.TryGetValue(id, out string? name) ? name : id)).ToArray();
     }
 
     private sealed class Row

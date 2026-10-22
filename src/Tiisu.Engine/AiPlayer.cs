@@ -724,23 +724,23 @@ public static class AiPlayer
         int visible = 0;
         if (winTile is Tile wt)
         {
-            for (int pi = 0; pi < obs.Players.Count; pi++)
+            // 和绝张口径：可见张数 = 四家弃牌河 + 四家副露（含杠）里该牌的数量。
+            // 手牌（含自己的暗手）不是可见信息，不能计入。
+            // 荣和时引擎已把放铳牌写进弃牌河，而它就是和牌张本身，统计时排除这一张。
+            int riverCount = 0;
+            foreach (var view in obs.Players)
             {
-                var view = obs.Players[pi];
-                if (pi == playerIndex)
-                {
-                    visible += Count(effectiveHand, wt);
-                }
-                else
-                {
-                    visible += Count(view.Hand, wt);
-                }
-
-                visible += Count(view.Discards, wt);
+                riverCount += Count(view.Discards, wt);
                 foreach (var meld in view.Melds)
                 {
                     visible += Count(meld.Tiles, wt);
                 }
+            }
+
+            visible += riverCount;
+            if (!selfDraw && riverCount > 0)
+            {
+                visible--;
             }
         }
 

@@ -1215,17 +1215,22 @@ public sealed partial class EngineHost
         int visible = 0;
         if (winTile is { } target)
         {
-            for (int pi = 0; pi < MahjongEngine.PlayerCount; pi++)
+            // 和绝张口径：可见张数 = 四家弃牌河 + 四家副露（含杠）里该牌的数量；手牌不计。
+            // 荣和时放铳牌已在弃牌河里，它就是和牌张本身，统计时排除这一张。
+            int riverCount = 0;
+            foreach (var player in _engine.Players)
             {
-                var player = _engine.Players[pi];
-                visible += pi == playerIndex
-                    ? Count(effectiveHand, target)
-                    : Count(player.Hand, target);
-                visible += Count(player.Discards, target);
+                riverCount += Count(player.Discards, target);
                 foreach (var meld in player.Melds)
                 {
                     visible += Count(meld.Tiles, target);
                 }
+            }
+
+            visible += riverCount;
+            if (!selfDraw && riverCount > 0)
+            {
+                visible--;
             }
         }
 

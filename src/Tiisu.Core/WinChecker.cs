@@ -19,6 +19,28 @@ public sealed partial class WinChecker
         "all_pungs", "two_ankou", "three_ankou", "one_color_triple",
     };
 
+    /// <summary>
+    /// 役种上下位排除表（北极星 2026-10-23 确认）：上位役成立时，下位役不再计，
+    /// 并从总赋里扣掉下位已加的赋。JS 侧 <c>winchecker.js</c> 的 <c>YAKU_EXCLUSIONS</c> 是同一张表。
+    /// </summary>
+    private static readonly (string Upper, string Lower)[] YakuExclusions =
+    {
+        ("three_color_straight", "two_color_straight"),          // 三色同顺 ⊃ 二色同顺
+        ("three_color_ko", "two_color_ko"),                      // 三色同刻 ⊃ 二色同刻
+        ("three_ankou", "two_ankou"),                            // 三暗刻 ⊃ 两暗刻
+        ("double_same_high", "same_high"),                       // 二同高 ⊃ 同高
+        ("three_kan", "two_kan"),                                // 三杠子 ⊃ 两杠子
+        ("four_kan", "three_kan"),                               // 四杠系 ⊃ 三杠子 / 两杠子
+        ("four_kan", "two_kan"),
+        ("four_minkan", "three_kan"),
+        ("four_minkan", "two_kan"),
+        ("four_ankan", "three_kan"),
+        ("four_ankan", "two_kan"),
+        ("same_color_double_old_young", "same_color_old_young"), // 同色双老少 ⊃ 同色老少
+        ("same_color_double_old_young", "two_color_double_old_young"),
+        ("triple_even_ko", "double_even_ko"),                    // 三双逢 ⊃ 双双逢
+    };
+
     private readonly YakuData _yakuData;
     private readonly HashSet<string> _optionalEnabled = new(StringComparer.Ordinal);
 
@@ -296,6 +318,11 @@ public sealed partial class WinChecker
 
         bool sevenHonors = handKind == HandKind.SevenPairs && IsSevenHonors(fullHand);
 
+        // 四子七对：七对结构里恰好一种牌是四张。两种及以上四张时「不能按七对和」（见下方普通役分支）。
+        // 注意：这里只约束普通七对子役；美人七对 / 纯正水中月 / 镜中花 等役满牌型本身就有
+        // 多个四张，必须仍能按七对结构识别，所以不改 IsSevenPairs 的结构判定。
+        int sevenPairsFourKindCount = handKind == HandKind.SevenPairs ? CountFourOfAKind(fullHand) : 0;
+
         int totalFuSum = 0;
         var activeYaku = new List<YakuResult>();
 
@@ -367,14 +394,24 @@ public sealed partial class WinChecker
         }
         else
         {
+            // 七对结构里出现两种及以上四张同牌：既不是七对子，也不是四子七对 → 该手不能按七对和。
+            // （役满/高役牌型在上面的 highFound 分支已经返回，不受此限。）
+            if (handKind == HandKind.SevenPairs && sevenPairsFourKindCount >= 2)
+            {
+                return NotFormed();
+            }
+
+            bool fourPairsSeven = handKind == HandKind.SevenPairs && sevenPairsFourKindCount == 1;
             foreach (var yaku in _yakuData.Yaku)
             {
-                if (yaku.Id == "seven_pairs")
+                if (yaku.Id is "seven_pairs" or "four_pairs_seven")
                 {
                     continue;
                 }
 
+                // 四子七对与普通役可叠（北极星 2026-10-23），因此四子七对分支不套用七对白名单。
                 if (handKind == HandKind.SevenPairs
+                    && !fourPairsSeven
                     && SevenPairExcludedYaku.Contains(yaku.Id, StringComparer.Ordinal))
                 {
                     continue;
@@ -399,13 +436,31 @@ public sealed partial class WinChecker
                 activeYaku.Add(YakuResult.Normal(yaku));
             }
 
-            totalFuSum += baseFu;
-
-            // 七对子：纯正水中月命中时覆盖七对子（该分支只可能出现在高役缺失时，保留判断以对齐 JS）。
+            // 七对子 / 四子七对：纯正水中月命中时覆盖七对子（该分支只可能出现在高役缺失时，保留判断以对齐 JS）。
             bool coverSevenPairs = activeYaku.Any(y => y.Id == "pure_moon_in_water");
             if (handKind == HandKind.SevenPairs && !coverSevenPairs)
             {
-                activeYaku.Add(new YakuResult { Name = "七对子", Fu = baseFu });
+                if (fourPairsSeven)
+                {
+                    // 四子七对：固定 7000 点（fixedPoints），与七对子互斥，其余役照常累加。
+                    var fourPairs = FindYaku("four_pairs_seven");
+                    int fourPairsFu = fourPairs?.Fu ?? baseFu;
+                    totalFuSum += fourPairsFu;
+                    activeYaku.Add(fourPairs is null
+                        ? new YakuResult
+                        {
+                            Name = "四子七对",
+                            Fu = fourPairsFu,
+                            Id = "four_pairs_seven",
+                            FixedPoints = 7000,
+                        }
+                        : YakuResult.Normal(fourPairs));
+                }
+                else
+                {
+                    totalFuSum += baseFu;
+                    activeYaku.Add(new YakuResult { Name = "七对子", Fu = baseFu });
+                }
             }
 
             activeYaku.RemoveAll(y => y.Name is "自摸" or "门前自摸" or "门清自摸");
@@ -438,10 +493,17 @@ public sealed partial class WinChecker
             }
 
             // 役牌：圈风 + 门风 + 三元；大三元/小三元达成时不再单独计三元役牌赋。
+            // 四喜和：自风/场风/三元役牌赋全部不计（北极星 2026-10-23 从三元扩展到风牌）。
             var honorYaku = GetHonorYaku(fullHand, _winCtx?.SeatWind, _winCtx?.RoundWind);
             bool suppressDragonYaku = activeYaku.Any(y => y.Id is "big_three_dragons" or "small_three_dragons");
+            bool suppressAllHonorYaku = activeYaku.Any(y => y.Id == "four_kings");
             foreach (var honor in honorYaku)
             {
+                if (suppressAllHonorYaku)
+                {
+                    continue;
+                }
+
                 if (suppressDragonYaku
                     && honor.Name is "白役牌" or "发役牌" or "中役牌")
                 {
@@ -513,20 +575,27 @@ public sealed partial class WinChecker
                     minkanFu = 1;
                 }
 
-                for (int i = 0; i < ankanCount; i++)
-                {
-                    totalFuSum += ankanFu;
-                    activeYaku.Add(new YakuResult { Name = "一暗杠（暗根）", Fu = ankanFu });
-                }
-
-                for (int i = 0; i < minkanCount; i++)
-                {
-                    totalFuSum += minkanFu;
-                    activeYaku.Add(new YakuResult { Name = "加杠/明杠（明根）", Fu = minkanFu });
-                }
-
                 int kanTotal = ankanCount + minkanCount;
-                if (kanTotal >= 2)
+
+                // 杠子役（两杠子 / 三杠子 / 四杠系）成立时「吃掉根」：不再另计一暗杠（暗根）/ 明根。
+                // 只有恰好单杠时才计根（北极星 2026-10-23）。
+                if (kanTotal == 1)
+                {
+                    if (ankanCount > 0)
+                    {
+                        totalFuSum += ankanFu;
+                        activeYaku.Add(new YakuResult { Name = "一暗杠（暗根）", Fu = ankanFu });
+                    }
+
+                    if (minkanCount > 0)
+                    {
+                        totalFuSum += minkanFu;
+                        activeYaku.Add(new YakuResult { Name = "加杠/明杠（明根）", Fu = minkanFu });
+                    }
+                }
+
+                // 带明杠时两杠子 3→2、三杠子 5→4（只在存在明杠时降 1）。
+                if (kanTotal == 2)
                 {
                     int twoKanFu = GetYakuFu("two_kan");
                     if (twoKanFu == 0)
@@ -540,7 +609,7 @@ public sealed partial class WinChecker
                     }
 
                     totalFuSum += twoKanFu;
-                    activeYaku.Add(new YakuResult { Name = "两杠子", Fu = twoKanFu });
+                    activeYaku.Add(new YakuResult { Name = "两杠子", Fu = twoKanFu, Id = "two_kan" });
                 }
 
                 if (kanTotal >= 3)
@@ -557,9 +626,12 @@ public sealed partial class WinChecker
                     }
 
                     totalFuSum += threeKanFu;
-                    activeYaku.Add(new YakuResult { Name = "三杠子", Fu = threeKanFu });
+                    activeYaku.Add(new YakuResult { Name = "三杠子", Fu = threeKanFu, Id = "three_kan" });
                 }
             }
+
+            // 上下位排除：上位成立时扣掉已计入的下位赋（数据驱动，见 YakuExclusions）
+            totalFuSum = ApplyYakuExclusions(activeYaku, totalFuSum);
         }
 
         // 大七星无视 7 赋起和门槛：它不计分，由 engine 直接结束本局。
@@ -593,6 +665,17 @@ public sealed partial class WinChecker
         if (fixedPointsYaku is not null)
         {
             specialPoints = fixedPointsYaku.FixedPoints;
+
+            // 四子七对是唯一「固定点数 + 可叠其他役」的役（北极星 2026-10-23）：
+            // 点数走 fixedPoints（7000），役表与总赋保留叠役，不做收敛。
+            if (fixedPointsYaku.Id != "four_pairs_seven")
+            {
+                // 其余固定点数役（人和 7000 / 三国将副露 7000 等）：硬编码点数，不叠任何其他役
+                // （北极星 2026-10-23）。totalFu / 役表都收敛到这一条，面板不再显示被叠的役。
+                totalFuSum = fixedPointsYaku.Fu;
+                activeYaku = new List<YakuResult> { fixedPointsYaku };
+                extraYaku.Clear();
+            }
         }
         else if (sevenHonors)
         {
@@ -640,7 +723,83 @@ public sealed partial class WinChecker
         return null;
     }
 
+    private YakuDefinition? FindYaku(string id)
+    {
+        foreach (var yaku in _yakuData.Yaku)
+        {
+            if (yaku.Id == id)
+            {
+                return yaku;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>七对结构里「四张同牌」的种数（0~3）。</summary>
+    private static int CountFourOfAKind(IReadOnlyList<Tile> hand)
+    {
+        var counts = TileCounts.Create(hand);
+        int fourKind = 0;
+        foreach (int count in counts)
+        {
+            if (count >= 4)
+            {
+                fourKind++;
+            }
+        }
+
+        return fourKind;
+    }
+
     private int GetYakuFu(string id) => _yakuData.GetYakuFu(id);
+
+    /// <summary>
+    /// 应用上下位排除表：上位成立时移除下位，并从总赋里扣掉下位已加的赋。
+    /// 就地修改 <paramref name="activeYaku"/>，返回修正后的总赋。
+    /// </summary>
+    private static int ApplyYakuExclusions(List<YakuResult> activeYaku, int totalFu)
+    {
+        if (activeYaku.Count == 0)
+        {
+            return totalFu;
+        }
+
+        var present = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var yaku in activeYaku)
+        {
+            if (yaku.Id is not null)
+            {
+                present.Add(yaku.Id);
+            }
+        }
+
+        var remove = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (upper, lower) in YakuExclusions)
+        {
+            if (present.Contains(upper))
+            {
+                remove.Add(lower);
+            }
+        }
+
+        if (remove.Count == 0)
+        {
+            return totalFu;
+        }
+
+        for (int i = activeYaku.Count - 1; i >= 0; i--)
+        {
+            var yaku = activeYaku[i];
+            if (yaku.Id is not null && remove.Contains(yaku.Id))
+            {
+                totalFu -= yaku.Fu;
+                activeYaku.RemoveAt(i);
+            }
+        }
+
+        return totalFu;
+    }
 
     /// <summary>JS 的 _highPoints：双役满 70000（三七之花荣和 35000），役满 28 赋 35000，其余 null。</summary>
     private int? HighPoints(YakuDefinition? yaku)

@@ -52,6 +52,12 @@ public sealed class Settings
     /// <summary>开启后写牌型日志（ASCII JSONL）。</summary>
     public bool RecordTiles { get; set; }
 
+    /// <summary>四档 AI 权重：简单 / 普通 / 困难 / 修罗。</summary>
+    public int[] AiWeights { get; set; } = { 30, 45, 20, 5 };
+
+    /// <summary>按座位锁定 AI 档位：-1 = 跟随随机，0..3 = 固定档。</summary>
+    public int[] AiSeatLocks { get; set; } = { -1, -1, -1, -1 };
+
     /// <summary>读 <c>settings.json</c>；文件不存在/损坏时返回默认值（与 Web 侧 <c>/api/settings</c> 同口径）。</summary>
     public static Settings Load(string? directory = null)
     {
@@ -70,6 +76,8 @@ public sealed class Settings
             }
 
             loaded.OptionalYaku ??= new List<string>();
+            loaded.AiWeights = NormalizeWeights(loaded.AiWeights);
+            loaded.AiSeatLocks = NormalizeLocks(loaded.AiSeatLocks);
             return loaded;
         }
         catch
@@ -95,12 +103,55 @@ public sealed class Settings
         ShowWallViewer = other.ShowWallViewer;
         RecordTiles = other.RecordTiles;
         SoundEnabled = other.SoundEnabled;
+        AiWeights = NormalizeWeights(other.AiWeights);
+        AiSeatLocks = NormalizeLocks(other.AiSeatLocks);
     }
 
     public Settings Clone()
     {
         var copy = new Settings();
         copy.CopyFrom(this);
+        return copy;
+    }
+
+    /// <summary>旧 settings.json 缺字段 / 字段非法时回退默认权重（30/45/20/5）。</summary>
+    private static int[] NormalizeWeights(int[]? weights)
+    {
+        if (weights is null || weights.Length != 4)
+        {
+            return new[] { 30, 45, 20, 5 };
+        }
+
+        var copy = new int[4];
+        int sum = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            if (weights[i] < 0)
+            {
+                return new[] { 30, 45, 20, 5 };
+            }
+
+            copy[i] = weights[i];
+            sum += weights[i];
+        }
+
+        return sum > 0 ? copy : new[] { 30, 45, 20, 5 };
+    }
+
+    /// <summary>旧 settings.json 缺字段 / 字段非法时回退全 -1（跟随随机）。</summary>
+    private static int[] NormalizeLocks(int[]? locks)
+    {
+        var copy = new[] { -1, -1, -1, -1 };
+        if (locks is null || locks.Length != 4)
+        {
+            return copy;
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            copy[i] = locks[i] is >= 0 and <= 3 ? locks[i] : -1;
+        }
+
         return copy;
     }
 }

@@ -47,7 +47,7 @@ public sealed class YakuResult
 
     public int? PointsBonus { get; init; }
 
-    /// <summary>固定点数（人和 7000 / 三国将副露 7000）；由 specialPoints 使用。</summary>
+    /// <summary>固定点数（人和 7000 / 三国将副露 7000 / 四子七对 7000）；由 specialPoints 使用。</summary>
     public int? FixedPoints { get; set; }
 
     public static YakuResult Normal(YakuDefinition definition) => new()

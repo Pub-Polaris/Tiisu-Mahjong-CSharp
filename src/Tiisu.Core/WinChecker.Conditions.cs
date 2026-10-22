@@ -495,7 +495,9 @@ public sealed partial class WinChecker
                 return _winCtx?.RiverFish == true;
 
             case "last_tile":
-                return _winCtx is not null && _winCtx.LastTileVisible >= 4;
+                // 和绝张：该牌在四家弃牌河 + 四家副露（含杠）里已见三张，以第四张和牌。
+                // 自己的手牌不计入可见张数（引擎侧 BuildWinContext 只统计河里与副露）。
+                return _winCtx is not null && _winCtx.LastTileVisible >= 3;
 
             case "hai_dei":
                 return _winCtx?.HaiDei == true;
@@ -655,6 +657,15 @@ public sealed partial class WinChecker
             case "four_minkan":
                 return _minkanCount >= 4;
 
+            // 四暗杠 / 四杠子（北极星 2026-10-23）：
+            //   4 杠全暗 → 四暗杠（70）；全明 → 四明杠（70）；混合暗明 → 四杠子（28）。
+            //   三者的上下位关系（四杠系 ⊃ 三/两杠子）由 YakuExclusions 与高役优先链保证。
+            case "four_ankan":
+                return _ankanCount >= 4;
+
+            case "four_kan":
+                return _ankanCount > 0 && _minkanCount > 0 && _ankanCount + _minkanCount >= 4;
+
             case "four_kings":
             {
                 var counts = TileCounts.Create(hand);
@@ -693,7 +704,11 @@ public sealed partial class WinChecker
                 return IsKokushi13(hand);
 
             case "nine_gates":
-                return IsNineGates(hand);
+                // 九莲宝灯门清：副露 / 杠一律不判九莲，该手若满足清一色照常按清一色计（普通役分支）。
+                return _melds.Count == 0
+                    && _ankanCount == 0
+                    && _minkanCount == 0
+                    && IsNineGates(hand);
 
             case "all_honors":
                 return hand.All(t => t.IsHonor);
@@ -1534,7 +1549,6 @@ public sealed partial class WinChecker
             TileCounts.Index(Suit.Pin, 1),
             TileCounts.Index(Suit.Pin, 3),
             TileCounts.Index(Suit.Pin, 5),
-            TileCounts.Index(Suit.Pin, 6),
             TileCounts.Index(Suit.Pin, 7),
             TileCounts.Index(Suit.Pin, 9),
         };
@@ -1558,7 +1572,32 @@ public sealed partial class WinChecker
         }
 
         int extra = hand.Count(t => t.Suit != Suit.Man);
-        return extra == 5;
+        if (extra != 5)
+        {
+            return false;
+        }
+
+        // 其余 5 张必须组成「一组面子 + 一组雀头」。红牌集合里没有连号，
+        // 所以面子只能是刻子（3 张同牌），雀头是另一对。
+        int triplets = 0;
+        int pairs = 0;
+        for (int index = 9; index < counts.Length; index++)
+        {
+            if (counts[index] == 3)
+            {
+                triplets++;
+            }
+            else if (counts[index] == 2)
+            {
+                pairs++;
+            }
+            else if (counts[index] != 0)
+            {
+                return false;
+            }
+        }
+
+        return triplets == 1 && pairs == 1;
     }
 
     // ── 役牌 ─────────────────────────────────────────────────────
