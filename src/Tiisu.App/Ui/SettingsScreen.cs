@@ -49,7 +49,8 @@ public sealed class SettingsScreen : Screen
         c.DrawText("设置", new RectF(0, 36, Width, 52), Gold,
             new TextStyle(32, Bold: true, Center: true));
 
-        var panel = new RectF(330, 100, 620, 440);
+        float panelH = Math.Min(560, 40 + (_rows.Count * 40));
+        var panel = new RectF(330, 90, 620, panelH);
         c.FillRoundRect(panel, 16, Color.Rgb(16, 24, 22).WithAlpha(232));
         c.StrokeRoundRect(panel, 16, Color.Rgb(60, 78, 70), 1.4f);
 
@@ -167,6 +168,17 @@ public sealed class SettingsScreen : Screen
                 _ => ToggleOptional(id)));
         }
 
+        _rows.Add(new Row("音效", () => OnOff(_settings.SoundEnabled), () => _settings.SoundEnabled, _ =>
+        {
+            _settings.SoundEnabled = !_settings.SoundEnabled;
+            SoundEffects.Enabled = _settings.SoundEnabled;
+            if (_settings.SoundEnabled)
+            {
+                SoundEffects.Play(SoundEffects.Cue.Call);
+            }
+
+            Save();
+        }));
         _rows.Add(new Row("显示岭上指示牌", () => OnOff(_settings.ShowMa), () => _settings.ShowMa, _ => Toggle(
             () => _settings.ShowMa,
             value => _settings.ShowMa = value)));

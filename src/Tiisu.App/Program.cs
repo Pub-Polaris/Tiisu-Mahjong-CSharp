@@ -88,6 +88,17 @@ internal static class Program
             return;
         }
 
+        // 音效自检：--export-sounds <dir>
+        if (args.Length >= 2 && args[0] == "--export-sounds")
+        {
+            foreach (var (cue, file, bytes) in SoundEffects.ExportWavs(args[1]))
+            {
+                Console.WriteLine($"  {cue,-9} {bytes,6} B  {file}");
+            }
+
+            return;
+        }
+
         // 动作按钮条出图：--render-actions <png>
         if (args.Length >= 2 && args[0] == "--render-actions")
         {

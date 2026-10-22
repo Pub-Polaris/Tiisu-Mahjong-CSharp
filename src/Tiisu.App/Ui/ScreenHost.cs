@@ -43,6 +43,7 @@ public sealed class ScreenHost : SKControl
 
         // 会话必须在 UI 线程构造：它捕获当前 SynchronizationContext 把事件回投到 UI。
         _settings = Settings.Load();
+        SoundEffects.Enabled = _settings.SoundEnabled;
         _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _menu = new MenuScreen(menuLayout, OnMenuAction);

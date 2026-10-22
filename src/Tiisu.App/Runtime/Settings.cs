@@ -46,6 +46,9 @@ public sealed class Settings
 
     public bool ShowWallViewer { get; set; }
 
+    /// <summary>音效开关（默认开）。</summary>
+    public bool SoundEnabled { get; set; } = true;
+
     /// <summary>开启后写牌型日志（ASCII JSONL）。</summary>
     public bool RecordTiles { get; set; }
 
@@ -91,6 +94,7 @@ public sealed class Settings
         ShowDebug = other.ShowDebug;
         ShowWallViewer = other.ShowWallViewer;
         RecordTiles = other.RecordTiles;
+        SoundEnabled = other.SoundEnabled;
     }
 
     public Settings Clone()

@@ -26,6 +26,10 @@ public sealed class TableScreen : Screen
     private readonly Action? _backToMenu;
     private RoundResult? _settlement;
     private int _hover = -1;
+    private int _lastHandCount = -1;
+    private int _lastDiscardTotal = -1;
+    private int _lastMeldTotal = -1;
+    private string _lastPhase = string.Empty;
 
     /// <summary>演示快照（<c>--render-table</c> / <c>--render-screen table</c> 用）。</summary>
     public TableScreen(TileAtlas? atlas)
@@ -85,6 +89,7 @@ public sealed class TableScreen : Screen
         _actionBar.Build(vm, _layout);
         _actionBar.DrawTenpai(c, vm, _layout);
         _actionBar.Draw(c);
+        PlayCues(vm);
         DrawHud(c, vm);
     }
 
@@ -204,6 +209,51 @@ public sealed class TableScreen : Screen
 
         _commands(GameCommand.Discard(index));
         return true;
+    }
+
+    /// <summary>按快照差异播报音效（不做精确事件对齐，够用且不会漏）。</summary>
+    private void PlayCues(TableViewModel vm)
+    {
+        if (vm.Seats.Count == 0)
+        {
+            return;
+        }
+
+        int hand = vm.Seats[0].Hand.Count;
+        int discards = 0;
+        int melds = 0;
+        foreach (var seat in vm.Seats)
+        {
+            discards += seat.Discards.Count;
+            melds += seat.Melds.Count;
+        }
+
+        if (_lastHandCount >= 0 && hand > _lastHandCount)
+        {
+            SoundEffects.Play(SoundEffects.Cue.Draw);
+        }
+
+        if (_lastDiscardTotal >= 0 && discards > _lastDiscardTotal)
+        {
+            SoundEffects.Play(SoundEffects.Cue.Discard);
+        }
+
+        if (_lastMeldTotal >= 0 && melds > _lastMeldTotal)
+        {
+            SoundEffects.Play(SoundEffects.Cue.Call);
+        }
+
+        if (_lastPhase != vm.Phase && vm.Phase is "round_end" or "match_over")
+        {
+            SoundEffects.Play(_settlement is { Kind: "win" or "tsumo" or "ron" }
+                ? SoundEffects.Cue.Win
+                : SoundEffects.Cue.Flow);
+        }
+
+        _lastHandCount = hand;
+        _lastDiscardTotal = discards;
+        _lastMeldTotal = melds;
+        _lastPhase = vm.Phase;
     }
 
     /// <summary>按钮点击 → 命令（与键盘快捷键同一条路径）。</summary>
