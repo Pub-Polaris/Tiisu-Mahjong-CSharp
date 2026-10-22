@@ -950,6 +950,10 @@ public sealed partial class MahjongEngine
         }
     }
 
+    /// <summary>听牌列表（UI 听牌提示用）：只读包装，不改任何状态。</summary>
+    public IReadOnlyList<TenpaiEntry> ListTenpaiFor(Player player) =>
+        TenpaiCalculator.ListTenpai(_checker, player.Hand, ToCoreMelds(player.Melds), BuildTenpaiOptions(player));
+
     private TenpaiOptions BuildTenpaiOptions(Player player) => new()
     {
         SelfDraw = true,

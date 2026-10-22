@@ -20,6 +20,7 @@ public sealed class TableScreen : Screen
     private readonly TableLayoutSpec _layout = new() { CanvasW = 1200f, CanvasH = 1200f };
     private readonly TableSceneSkia _scene = new();
     private readonly SettlementOverlay _overlay = new();
+    private readonly ActionBar _actionBar = new();
     private readonly Func<TableViewModel> _snapshot;
     private readonly Action<GameCommand>? _commands;
     private readonly Action? _backToMenu;
@@ -81,6 +82,9 @@ public sealed class TableScreen : Screen
             return;
         }
 
+        _actionBar.Build(vm, _layout);
+        _actionBar.DrawTenpai(c, vm, _layout);
+        _actionBar.Draw(c);
         DrawHud(c, vm);
     }
 
@@ -101,17 +105,6 @@ public sealed class TableScreen : Screen
             c.DrawText(vm.Message, box, Color.Rgb(255, 228, 120), new TextStyle(17, Bold: true));
         }
 
-        // 手牌上方：可用动作 / 局末提示
-        string line = ActionLine(vm);
-        if (line.Length == 0)
-        {
-            return;
-        }
-
-        var hand = _layout.HandRects[0];
-        var bar = new RectF(hand.X, hand.Y - 44, hand.W, 34);
-        c.FillRoundRect(bar, 8, Color.Rgb(0, 0, 0).WithAlpha(140));
-        c.DrawText(line, bar, Color.Rgb(255, 236, 180), new TextStyle(16, Bold: true));
     }
 
     private static string ActionLine(TableViewModel vm)
@@ -179,6 +172,12 @@ public sealed class TableScreen : Screen
             return false;
         }
 
+        if (_actionBar.HitTest(x, y) is not null)
+        {
+            _hover = -1;
+            return true;
+        }
+
         _hover = HitTest(x, y);
         return _hover >= 0;
     }
@@ -190,6 +189,13 @@ public sealed class TableScreen : Screen
             return false;
         }
 
+        var button = _actionBar.HitTest(x, y);
+        if (button is not null)
+        {
+            ActivateButton(button, _snapshot());
+            return true;
+        }
+
         int index = HitTest(x, y);
         if (index < 0 || _commands is null)
         {
@@ -198,6 +204,54 @@ public sealed class TableScreen : Screen
 
         _commands(GameCommand.Discard(index));
         return true;
+    }
+
+    /// <summary>按钮点击 → 命令（与键盘快捷键同一条路径）。</summary>
+    private void ActivateButton(ActionBar.Button b, TableViewModel vm)
+    {
+        if (b.Kind == ActionBar.Kind.Tenpai)
+        {
+            _actionBar.ToggleTenpai();
+            return;
+        }
+
+        if (_commands is null)
+        {
+            return;
+        }
+
+        switch (b.Kind)
+        {
+            case ActionBar.Kind.Kan:
+                if (vm.Phase == "human_meld")
+                {
+                    _commands(GameCommand.KanMinkan());
+                }
+                else
+                {
+                    _commands(vm.HasAnkan ? GameCommand.KanAn() : GameCommand.KanKakan());
+                }
+
+                break;
+            case ActionBar.Kind.Tsumo:
+                _commands(GameCommand.Tsumo());
+                break;
+            case ActionBar.Kind.Ron:
+                _commands(GameCommand.Ron());
+                break;
+            case ActionBar.Kind.Pon:
+                _commands(GameCommand.Pon());
+                break;
+            case ActionBar.Kind.Chi:
+                _commands(GameCommand.Chi(b.Option));
+                break;
+            case ActionBar.Kind.Pass:
+                _commands(GameCommand.Pass());
+                break;
+            case ActionBar.Kind.Flow:
+                _commands(GameCommand.Flow());
+                break;
+        }
     }
 
     public override bool OnKey(Keys key)

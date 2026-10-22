@@ -55,4 +55,28 @@ public static class TableDemoModel
             Seats = seats,
         };
     }
+
+    /// <summary>演示：人类回合且同时有杠/和/碰/吃/过/听牌，用于动作按钮条出图。</summary>
+    public static TableViewModel CreateWithActions()
+    {
+        var vm = Create(1);
+        return new TableViewModel
+        {
+            RoundLabel = vm.RoundLabel,
+            WallCount = vm.WallCount,
+            RinshanCount = vm.RinshanCount,
+            Honba = vm.Honba,
+            Kyotaku = vm.Kyotaku,
+            TurnIndex = vm.TurnIndex,
+            Seats = vm.Seats,
+            ModeTarget = vm.ModeTarget,
+            RevealHands = vm.RevealHands,
+            Rinshan = vm.Rinshan,
+            Phase = "human_meld",
+            Actions = HumanAction.Kan | HumanAction.Tsumo | HumanAction.Pon | HumanAction.Chi | HumanAction.Pass,
+            ActionLabels = new[] { "吃 4-5-6", "吃 5-6-7" },
+            Message = "副露窗口",
+            TenpaiTiles = new[] { "2m", "5p", "8s", "3z" },
+        };
+    }
 }

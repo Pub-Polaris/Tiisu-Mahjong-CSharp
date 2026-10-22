@@ -88,6 +88,13 @@ internal static class Program
             return;
         }
 
+        // 动作按钮条出图：--render-actions <png>
+        if (args.Length >= 2 && args[0] == "--render-actions")
+        {
+            RenderActionsToPng(args[1]);
+            return;
+        }
+
         // 设置屏出图：--render-settings <png>
         if (args.Length >= 2 && args[0] == "--render-settings")
         {
@@ -949,5 +956,34 @@ internal static class Program
             16, top + 58, SKTextAlign.Left, font, head);
         canvas.DrawText("（改完我出图，你再指；不需要你填表或改文件）",
             16, top + 88, SKTextAlign.Left, font, body);
+    }
+
+    /// <summary><c>--render-actions &lt;png&gt;</c>：动作按钮条 + 听牌提示出图（演示快照）。</summary>
+    private static void RenderActionsToPng(string path)
+    {
+        using var atlas = new TileAtlas(AssetsDir);
+        var vm = TableDemoModel.CreateWithActions();
+        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        YogaTableLayout.Apply(layout);
+
+        var info = new SKImageInfo((int)layout.CanvasW, (int)layout.CanvasH);
+        using var surface = SKSurface.Create(info);
+        var canvas = surface.Canvas;
+        canvas.Clear(new SKColor(20, 30, 24));
+
+        using (var ctx = new SkiaCanvas(canvas, atlas))
+        {
+            new TableSceneSkia().Draw(ctx, vm, layout, hoverHand: -1);
+            var bar = new ActionBar();
+            bar.Build(vm, layout);
+            bar.ToggleTenpai();
+            bar.DrawTenpai(ctx, vm, layout);
+            bar.Draw(ctx);
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+        Console.WriteLine($"rendered actions -> {path}  buttons={new TableLayoutSpec().CanvasW:0}");
     }
 }

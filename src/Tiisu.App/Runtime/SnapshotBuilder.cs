@@ -126,6 +126,36 @@ public static class SnapshotBuilder
             break;
         }
 
+        var tenpai = new List<string>();
+        if (phase == "human_discard")
+        {
+            for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+            {
+                var player = engine.Players[i];
+                if (!player.IsHuman)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    foreach (var entry in engine.ListTenpaiFor(player))
+                    {
+                        if (entry.Success)
+                        {
+                            tenpai.Add(TileNotation.AtlasId(entry.Tile));
+                        }
+                    }
+                }
+                catch
+                {
+                    // 听牌提示失败不影响主流程
+                }
+
+                break;
+            }
+        }
+
         return new TableViewModel
         {
             RoundLabel = engine.RoundLabel() + " / " + engine.ModeTarget + "局",
@@ -145,6 +175,7 @@ public static class SnapshotBuilder
             Message = message ?? string.Empty,
             Phase = phase,
             Seats = seats,
+            TenpaiTiles = tenpai,
         };
     }
 }

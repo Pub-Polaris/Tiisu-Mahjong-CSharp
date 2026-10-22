@@ -94,6 +94,9 @@ public sealed class TableViewModel
     /// <summary>吃牌等需要多选的按钮文案。</summary>
     public IReadOnlyList<string> ActionLabels { get; init; } = Array.Empty<string>();
 
+    /// <summary>听牌提示：当前可和的牌（牌面图集 id，如 1m / 5z）。仅人类出牌阶段填充。</summary>
+    public IReadOnlyList<string> TenpaiTiles { get; init; } = Array.Empty<string>();
+
     /// <summary>最近一条提示（和牌 / 流局 / 窗口提示）。</summary>
     public string Message { get; init; } = string.Empty;
 
