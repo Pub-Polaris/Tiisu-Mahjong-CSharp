@@ -10,4 +10,8 @@
     <ProjectReference Include="..\Tiisu.Core\Tiisu.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tiisu.Engine.Tests" />
+  </ItemGroup>
+
 </Project>

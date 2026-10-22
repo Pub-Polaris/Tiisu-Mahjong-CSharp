@@ -45,6 +45,13 @@ public sealed record AiDecisionContext(
 
     /// <summary>外部显式提供的威胁模型输入；为 null 时由现有字段推导。</summary>
     public ThreatInput? Threat { get; init; }
+
+    /// <summary>
+    /// 是否启用修罗档 MCTS（C 期，实验性，默认关闭）。
+    /// 只影响 <see cref="AiLevel.Shura"/>：为 false 时修罗完全等价困难档，行为与 A/B 期一致。
+    /// 由设置 <c>AiMctsEnabled</c> 传入（也可用 <see cref="TieredAi.Decide"/> 的参数覆盖）。
+    /// </summary>
+    public bool MctsEnabled { get; init; }
 }
 
 /// <summary>一个候选打牌及其评分明细（供测试与上层诊断）。</summary>
@@ -68,7 +75,11 @@ public sealed record AiDecision(
     AiLevel Level,
     bool NeedDeepThink,
     bool Mistake,
-    IReadOnlyList<AiCandidate> Ranking);
+    IReadOnlyList<AiCandidate> Ranking)
+{
+    /// <summary>本次决策是否真的走了 MCTS（仅修罗档且启用时可能为 true，供诊断 / 测试）。</summary>
+    public bool Mcts { get; init; }
+}
 
 /// <summary>
 /// 分档弃牌（A 期，新 API）。
@@ -90,12 +101,19 @@ public static class TieredAi
     public static int ChooseDiscard(AiDecisionContext ctx, AiLevel level, IRandomSource rng) =>
         Decide(ctx, level, rng).Index;
 
-    /// <summary>完整决策（含 NeedDeepThink / 失误标记 / 候选排名）。</summary>
+    /// <summary>
+    /// 完整决策（含 NeedDeepThink / 失误标记 / 候选排名）。
+    /// </summary>
+    /// <param name="mctsEnabled">
+    /// 修罗档 MCTS 开关；为 null 时取 <see cref="AiDecisionContext.MctsEnabled"/>。
+    /// 只影响 <see cref="AiLevel.Shura"/>，其余档位不受影响。
+    /// </param>
     public static AiDecision Decide(
         AiDecisionContext ctx,
         AiLevel level,
         IRandomSource rng,
-        AiTuning? tuning = null)
+        AiTuning? tuning = null,
+        bool? mctsEnabled = null)
     {
         ArgumentNullException.ThrowIfNull(ctx);
         ArgumentNullException.ThrowIfNull(rng);
@@ -106,6 +124,36 @@ public static class TieredAi
             return new AiDecision(-1, level, false, false, Array.Empty<AiCandidate>());
         }
 
+        var candidates = RankCandidates(ctx, level, rng, tuning);
+        bool needDeepThink = ComputeNeedDeepThink(candidates, tuning);
+
+        if (level == AiLevel.Shura && (mctsEnabled ?? ctx.MctsEnabled))
+        {
+            var options = MctsOptions.Adaptive(needDeepThink, tuning);
+            int mctsIndex = MctsAi.ChooseDiscard(ctx, rng, options, candidates, tuning);
+            return new AiDecision(mctsIndex, level, needDeepThink, false, candidates) { Mcts = true };
+        }
+
+        int selected = 0;
+        bool mistake = false;
+        if (candidates.Count > 1 && MistakeModel.ShouldMistake(ctx, level, rng, tuning))
+        {
+            selected = 1;
+            mistake = true;
+        }
+
+        return new AiDecision(candidates[selected].Index, level, needDeepThink, mistake, candidates);
+    }
+
+    /// <summary>
+    /// 只算候选排名（不掷失误、不跑 MCTS）。修罗档 MCTS 复用这里的困难档评分取前 K 个候选。
+    /// </summary>
+    internal static IReadOnlyList<AiCandidate> RankCandidates(
+        AiDecisionContext ctx,
+        AiLevel level,
+        IRandomSource rng,
+        AiTuning tuning)
+    {
         var rivers = Rivers(ctx);
         var threat = BuildThreatInput(ctx, rivers);
         var keepScores = ComputeKeepScores(ctx.Hand);
@@ -184,17 +232,7 @@ public static class TieredAi
             return byScore != 0 ? byScore : a.Index.CompareTo(b.Index);
         });
 
-        bool needDeepThink = ComputeNeedDeepThink(candidates, tuning);
-
-        int selected = 0;
-        bool mistake = false;
-        if (candidates.Count > 1 && MistakeModel.ShouldMistake(ctx, level, rng, tuning))
-        {
-            selected = 1;
-            mistake = true;
-        }
-
-        return new AiDecision(candidates[selected].Index, level, needDeepThink, mistake, candidates);
+        return candidates;
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -295,7 +333,7 @@ public static class TieredAi
     // 可见信息 / 旧启发式
     // ─────────────────────────────────────────────────────────────
 
-    private static IReadOnlyList<IReadOnlyList<Tile>> Rivers(AiDecisionContext ctx) =>
+    internal static IReadOnlyList<IReadOnlyList<Tile>> Rivers(AiDecisionContext ctx) =>
         ctx.AllDiscards.Count > 0 ? ctx.AllDiscards : new[] { ctx.Discards };
 
     /// <summary>
@@ -303,7 +341,7 @@ public static class TieredAi
     /// 时直接使用；否则四家副露在缺少座位归属时退化为「自家 + 其余合并到下一家」。
     /// 只使用决策者可见的信息（牌河 / 副露 / 场况 / 自家手牌）。
     /// </summary>
-    private static ThreatInput BuildThreatInput(
+    internal static ThreatInput BuildThreatInput(
         AiDecisionContext ctx,
         IReadOnlyList<IReadOnlyList<Tile>> rivers)
     {

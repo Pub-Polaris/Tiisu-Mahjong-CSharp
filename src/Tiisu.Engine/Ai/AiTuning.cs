@@ -50,6 +50,38 @@ public sealed class AiTuning
     /// <summary>自适应思考：最佳候选中打后向听 ≤ 此值时标记 NeedDeepThink（0=听牌，1=进听）。</summary>
     public int DeepThinkShantenThreshold { get; init; } = 1;
 
+    // ─── C 期：修罗档 MCTS（实验性，默认关闭）───────────────────────
+
+    /// <summary>MCTS 参与评分的候选数上限（按 Hard 评分取前 K）。</summary>
+    public int MctsCandidateLimit { get; init; } = 8;
+
+    /// <summary>普通局面的模拟次数。</summary>
+    public int MctsNormalSimulations { get; init; } = 100;
+
+    /// <summary>关键局面（NeedDeepThink）的模拟次数。</summary>
+    public int MctsDeepSimulations { get; init; } = 300;
+
+    /// <summary>单次 rollout 最多摸几张牌。</summary>
+    public int MctsMaxRolloutDraws { get; init; } = 12;
+
+    /// <summary>兜底时间预算（毫秒）；超时提前停，不再开新模拟。</summary>
+    public int MctsTimeBudgetMs { get; init; } = 200;
+
+    /// <summary>和牌率 × 期望赋 的权重。</summary>
+    public double MctsWinWeight { get; init; } = 1.0;
+
+    /// <summary>期望赋缺失（未听牌）时用于折算和牌率的基础值。</summary>
+    public double MctsBaseWinValue { get; init; } = 20.0;
+
+    /// <summary>听牌率权重。</summary>
+    public double MctsTenpaiWeight { get; init; } = 40.0;
+
+    /// <summary>放铳危险度权重（与 Hard 同量级：0.33 危险 ≈ 1 张进张）。</summary>
+    public double MctsDangerWeight { get; init; } = 30.0;
+
+    /// <summary>rollout 里「不按最优打」的概率（少量随机）。</summary>
+    public double MctsRolloutBlunder { get; init; } = 0.10;
+
     /// <summary>紧张度超过此阈值才在基线失误率上追加 1–3 个百分点。</summary>
     public double MistakeTensionThreshold { get; init; } = 0.35;
 
