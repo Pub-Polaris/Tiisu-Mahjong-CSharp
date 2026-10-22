@@ -30,6 +30,9 @@ internal static class Program
             case "--smoke-run":
                 Environment.ExitCode = SmokeRun(args);
                 return;
+            case "--smoke-ai":
+                Environment.ExitCode = SmokeAi(args);
+                return;
             case "--smoke-save":
                 Environment.ExitCode = SmokeSave(args);
                 return;
@@ -187,7 +190,7 @@ internal static class Program
         var settings = LoadSmokeSettings(args);
         var log = new RoundLogWriter { Enabled = settings.RecordTiles };
         var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), _ => { },
-            saveStore: null, stats: new StatsStore(), roundLog: log)
+            saveStore: null, stats: new StatsStore(), roundLog: log, matchSeed: seed)
         {
             AutoPilot = true,
         };
@@ -217,6 +220,77 @@ internal static class Program
         if (settings.RecordTiles)
         {
             Console.WriteLine("  roundlog: " + log.FilePath());
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// <c>--smoke-ai &lt;seed&gt; [mode]</c>：整场自走（人类座位也是 AutoPilot），
+    /// 打印四家 AI 档位、弃牌决策次数、是否完成、每步平均耗时。
+    /// </summary>
+    private static int SmokeAi(string[] args)
+    {
+        TryUseUtf8Console();
+        if (args.Length < 2
+            || !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint seed))
+        {
+            Console.Error.WriteLine("用法：--smoke-ai <seed> [mode]");
+            return 2;
+        }
+
+        int mode = 4;
+        if (args.Length >= 3 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedMode))
+        {
+            mode = parsedMode;
+        }
+
+        var settings = LoadSmokeSettings(args);
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: seed)
+        {
+            AutoPilot = true,
+        };
+
+        var clock = Stopwatch.StartNew();
+        runtime.StartMatch(mode);
+        int guard = 0;
+        while (runtime.Phase != MatchPhase.MatchOver && ++guard < 256)
+        {
+            if (runtime.Phase == MatchPhase.RoundEnded)
+            {
+                runtime.NextRound();
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        clock.Stop();
+        bool completed = runtime.Phase == MatchPhase.MatchOver;
+        var names = runtime.Engine.Players.Select(p => p.Name).ToArray();
+
+        Console.WriteLine($"smoke-ai seed={seed} mode={mode} matchSeed={runtime.MatchSeed}");
+        Console.WriteLine("  权重: " + string.Join("/", settings.AiWeights) + "  修罗MCTS: " + (settings.AiMctsEnabled ? "开" : "关"));
+        Console.WriteLine("  四家等级: " + string.Join("  ", names.Select((name, i) =>
+            name + "=" + runtime.AiLevels[i])));
+        Console.WriteLine("  弃牌决策: " + runtime.AiDiscardDecisions + " 次（" + string.Join(" ", names.Select((name, i) =>
+            name + "=" + runtime.AiDiscardDecisionsBySeat[i])) + "）");
+        Console.WriteLine(string.Format(
+            CultureInfo.InvariantCulture,
+            "  完成: {0}  rounds={1} handsPlayed={2}  总耗时={3:F0} ms  平均每步={4:F3} ms",
+            completed ? "是" : "否",
+            runtime.Rounds,
+            runtime.Engine.HandsPlayed,
+            clock.Elapsed.TotalMilliseconds,
+            runtime.AiDecisionAverageMilliseconds));
+        Console.WriteLine("  EventHash: " + runtime.EventHash);
+
+        if (!completed)
+        {
+            Console.Error.WriteLine($"smoke-ai 未终局（phase={runtime.Phase}）");
+            return 1;
         }
 
         return 0;

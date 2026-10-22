@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -7,6 +8,7 @@ using System.Threading;
 using Tiisu.App.Table;
 using Tiisu.Core;
 using Tiisu.Engine;
+using Tiisu.Engine.Ai;
 using Tiisu.Engine.Deal;
 using Tiisu.Engine.Random;
 using Tiisu.Engine.SelfPlay;
@@ -75,6 +77,13 @@ public sealed class MatchRuntime
     private readonly List<GameEvent> _events = new();
     private readonly List<ChiOption> _pendingChiList = new();
 
+    /// <summary>四家 AI 档位（人类座位不参与，由 <see cref="AssignAiLineup"/> 每场重算）。</summary>
+    private AiLevel[] _aiLevels = { AiLevel.Normal, AiLevel.Normal, AiLevel.Normal, AiLevel.Normal };
+
+    private readonly int[] _aiDiscardDecisionsBySeat = new int[MahjongEngine.PlayerCount];
+    private int _aiDiscardDecisions;
+    private double _aiDecisionTotalMilliseconds;
+
     private MahjongEngine _engine;
     private WinChecker _checker;
     private int _modeTarget = 1;
@@ -100,7 +109,8 @@ public sealed class MatchRuntime
         Action<UiEvent> emit,
         SaveStore? saveStore = null,
         StatsStore? stats = null,
-        RoundLogWriter? roundLog = null)
+        RoundLogWriter? roundLog = null,
+        uint? matchSeed = null)
     {
         _settings = (settings ?? new Settings()).Clone();
         _random = random ?? new SharedRandomSource();
@@ -108,6 +118,10 @@ public sealed class MatchRuntime
         _saveStore = saveStore;
         _stats = stats;
         _roundLog = roundLog;
+
+        // 本场种子：显式给了就用；否则从注入的随机源抽一次（同 seed 的 random 仍可复现）。
+        MatchSeed = matchSeed ?? (uint)(_random.NextDouble() * uint.MaxValue);
+
         if (_roundLog is not null)
         {
             _roundLog.Enabled = _settings.RecordTiles;
@@ -121,7 +135,7 @@ public sealed class MatchRuntime
         _engine.Players[0].IsDealer = true;
         _engine.UpdateSeatWinds();
         _scoresAtRoundStart = _engine.Scores.ToArray();
-        _snapshot = SnapshotBuilder.Build(_engine, PhaseWire, HumanAction.None, null, null, _settings);
+        _snapshot = SnapshotBuilder.Build(_engine, PhaseWire, HumanAction.None, null, null, _settings, AiLevelWires());
     }
 
     private string _session;
@@ -160,6 +174,22 @@ public sealed class MatchRuntime
 
     /// <summary>事件流 SHA256（小写十六进制）；同 seed + 同命令序列必然一致。</summary>
     public string EventHash => SelfPlayResult.ComputeHash(_events);
+
+    /// <summary>本场对局种子（AI 档位分配等派生用；同 seed 同分配）。</summary>
+    public uint MatchSeed { get; }
+
+    /// <summary>四家 AI 档位（人类座位为占位，不参与对局决策）。</summary>
+    public IReadOnlyList<AiLevel> AiLevels => _aiLevels;
+
+    /// <summary>本场走新 AI 的弃牌决策次数。</summary>
+    public int AiDiscardDecisions => _aiDiscardDecisions;
+
+    /// <summary>按座位统计的新 AI 弃牌决策次数（人类座位恒为 0）。</summary>
+    public IReadOnlyList<int> AiDiscardDecisionsBySeat => _aiDiscardDecisionsBySeat;
+
+    /// <summary>每次新 AI 弃牌决策的平均耗时（毫秒）；没有决策时为 0。</summary>
+    public double AiDecisionAverageMilliseconds =>
+        _aiDiscardDecisions == 0 ? 0.0 : _aiDecisionTotalMilliseconds / _aiDiscardDecisions;
 
     // ── 命令入口 ─────────────────────────────────────────────────
 
@@ -241,6 +271,7 @@ public sealed class MatchRuntime
         _roundLog?.Clear();
         _message = null;
         _engine.HandNumber++;
+        AssignAiLineup();
         StartNewRoundInternal();
         RunLoop();
     }
@@ -270,6 +301,7 @@ public sealed class MatchRuntime
             _engine.HandNumber++;
         }
 
+        AssignAiLineup();
         StartNewRoundInternal();
         Emit(new MessageEvent("已恢复存档继续 · " + _engine.RoundLabel(), false));
         RunLoop();
@@ -544,7 +576,8 @@ public sealed class MatchRuntime
             }
         }
 
-        int discardIndex = AiPlayer.ChooseDiscardIndex(player.Hand, _random.NextDouble());
+        var aiDecision = DecideAiDiscard(player);
+        int discardIndex = aiDecision.Index;
         if (discardIndex < 0 || discardIndex >= player.Hand.Count)
         {
             _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
@@ -565,6 +598,81 @@ public sealed class MatchRuntime
         EmitState();
         AfterDiscard(discarded.Value, pi);
     }
+
+    /// <summary>
+    /// 按本场种子与设置分配四家 AI 档位；人类座位只占位。
+    /// 权重 / 锁座来自 <see cref="Settings"/>，种子来自 <see cref="MatchSeed"/>（同 seed 同结果）。
+    /// </summary>
+    private void AssignAiLineup()
+    {
+        var humans = new bool[MahjongEngine.PlayerCount];
+        for (int i = 0; i < humans.Length; i++)
+        {
+            humans[i] = _engine.Players[i].IsHuman;
+        }
+
+        var lineup = AiLineup.FromWeights(_settings.AiWeights, MatchSeed, _settings.AiSeatLocks, humans);
+        _aiLevels = lineup.Levels.ToArray();
+    }
+
+    /// <summary>走新 AI（<see cref="TieredAi"/>）做一次弃牌决策，并累计耗时 / 次数。</summary>
+    private AiDecision DecideAiDiscard(Player player)
+    {
+        var ctx = BuildAiDecisionContext(player);
+        long started = Stopwatch.GetTimestamp();
+        try
+        {
+            return TieredAi.Decide(ctx, _aiLevels[player.Index], _random);
+        }
+        finally
+        {
+            _aiDiscardDecisions++;
+            _aiDiscardDecisionsBySeat[player.Index]++;
+            _aiDecisionTotalMilliseconds +=
+                (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
+        }
+    }
+
+    /// <summary>用「该玩家可见」的信息构造新 AI 的弃牌输入（不含别家手牌 / 牌山）。</summary>
+    private AiDecisionContext BuildAiDecisionContext(Player player)
+    {
+        var allDiscards = new List<IReadOnlyList<Tile>>(MahjongEngine.PlayerCount);
+        var allMelds = new List<IReadOnlyList<EngineMeld>>(MahjongEngine.PlayerCount);
+        var opponentMelds = new List<EngineMeld>();
+        for (int seat = 0; seat < MahjongEngine.PlayerCount; seat++)
+        {
+            var other = _engine.Players[seat];
+            allDiscards.Add(other.Discards);
+            allMelds.Add(other.Melds);
+            if (seat != player.Index)
+            {
+                opponentMelds.AddRange(other.Melds);
+            }
+        }
+
+        return new AiDecisionContext(
+            player.Hand,
+            player.Melds,
+            player.Discards,
+            allDiscards,
+            opponentMelds,
+            _engine.Honba,
+            _engine.Wall.Count,
+            _engine.Scores.ToArray(),
+            player.SeatWind,
+            _engine.RoundWind,
+            player.AnkanCount,
+            player.MinkanCount)
+        {
+            PlayerIndex = player.Index,
+            AllMelds = allMelds,
+            MctsEnabled = _settings.AiMctsEnabled,
+        };
+    }
+
+    /// <summary>快照调试字段用的档位名（与枚举同名，ASCII）。</summary>
+    private IReadOnlyList<string> AiLevelWires() =>
+        _aiLevels.Select(level => level.ToString()).ToArray();
 
     /// <summary>出牌后的反应链：特殊流局 → 人类荣和 → 他家荣和 → 杠/碰/吃（<c>afterDiscard</c>）。</summary>
     private void AfterDiscard(Tile discarded, int discPlayer)
@@ -1650,7 +1758,8 @@ public sealed class MatchRuntime
             AvailableActions(),
             ActionLabels(),
             _message,
-            _settings);
+            _settings,
+            AiLevelWires());
 
         _saveStore?.Save(CaptureSave(!_engine.MatchOver));
         Emit(new StateChangedEvent(_snapshot));

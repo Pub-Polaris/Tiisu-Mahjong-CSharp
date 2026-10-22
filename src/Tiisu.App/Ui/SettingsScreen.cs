@@ -16,6 +16,20 @@ public sealed class SettingsScreen : Screen
 {
     private static readonly int[] ThinkChoices = { 5, 10, 15, 20, 30, 60 };
 
+    /// <summary>权重预设：默认 30/45/20/5，其余几组供 ←→ 循环。</summary>
+    private static readonly int[][] WeightPresets =
+    {
+        new[] { 30, 45, 20, 5 },
+        new[] { 50, 35, 15, 0 },
+        new[] { 10, 35, 40, 15 },
+        new[] { 0, 0, 100, 0 },
+        new[] { 0, 0, 0, 100 },
+    };
+
+    private const float RowTop = 118f;
+    private const float RowStep = 36f;
+    private const float RowHeight = 32f;
+
     /// <summary>与 Web 设置页同一组可选役（5 项）；中文名取自 ike.json。</summary>
     private static readonly (string Id, string Name)[] OptionalYakuOptions = BuildOptionalOptions();
 
@@ -49,7 +63,7 @@ public sealed class SettingsScreen : Screen
         c.DrawText("设置", new RectF(0, 36, Width, 52), Gold,
             new TextStyle(32, Bold: true, Center: true));
 
-        float panelH = Math.Min(560, 40 + (_rows.Count * 40));
+        float panelH = Math.Min(640, 40 + (_rows.Count * RowStep));
         var panel = new RectF(330, 90, 620, panelH);
         c.FillRoundRect(panel, 16, Color.Rgb(16, 24, 22).WithAlpha(232));
         c.StrokeRoundRect(panel, 16, Color.Rgb(60, 78, 70), 1.4f);
@@ -57,7 +71,7 @@ public sealed class SettingsScreen : Screen
         for (int i = 0; i < _rows.Count; i++)
         {
             var row = _rows[i];
-            var rect = new RectF(350, 118 + (i * 40), 580, 36);
+            var rect = new RectF(350, RowTop + (i * RowStep), 580, RowHeight);
             bool selected = i == _selected;
             bool hover = i == _hover;
             var fill = selected ? Color.Rgb(44, 66, 60) : hover ? Color.Rgb(30, 44, 40) : Color.Transparent;
@@ -141,14 +155,14 @@ public sealed class SettingsScreen : Screen
             return -1;
         }
 
-        int index = (int)((y - 118) / 40);
+        int index = (int)((y - RowTop) / RowStep);
         if (index < 0 || index >= _rows.Count)
         {
             return -1;
         }
 
-        float top = 118 + (index * 40);
-        return y >= top && y <= top + 36 ? index : -1;
+        float top = RowTop + (index * RowStep);
+        return y >= top && y <= top + RowHeight ? index : -1;
     }
 
     private void BuildRows()
@@ -191,6 +205,98 @@ public sealed class SettingsScreen : Screen
         _rows.Add(new Row("调试信息", () => OnOff(_settings.ShowDebug), () => _settings.ShowDebug, _ => Toggle(
             () => _settings.ShowDebug,
             value => _settings.ShowDebug = value)));
+
+        _rows.Add(new Row(
+            "AI 难度权重",
+            WeightText,
+            () => true,
+            CycleWeights));
+        _rows.Add(new Row(
+            "修罗 MCTS",
+            () => OnOff(_settings.AiMctsEnabled),
+            () => _settings.AiMctsEnabled,
+            _ => Toggle(() => _settings.AiMctsEnabled, value => _settings.AiMctsEnabled = value)));
+        _rows.Add(new Row(
+            "按座位锁定",
+            LockText,
+            () => HasSeatLock(),
+            _ => { }));
+    }
+
+    /// <summary>权重展示：<c>30/45/20/5</c>（简单/普通/困难/修罗）。</summary>
+    private string WeightText()
+    {
+        var weights = _settings.AiWeights;
+        return weights is { Length: 4 } ? string.Join("/", weights) : "30/45/20/5";
+    }
+
+    /// <summary>锁座展示：<c>-/-/难/-</c>（东/南/西/北，- = 跟随随机）。</summary>
+    private string LockText()
+    {
+        var locks = _settings.AiSeatLocks;
+        if (locks is not { Length: 4 })
+        {
+            return "-/-/-/-";
+        }
+
+        return string.Join("/", locks.Select(value => value switch
+        {
+            0 => "简",
+            1 => "普",
+            2 => "难",
+            3 => "修",
+            _ => "-",
+        }));
+    }
+
+    private bool HasSeatLock() =>
+        _settings.AiSeatLocks is { Length: 4 } locks && locks.Any(value => value >= 0);
+
+    private void CycleWeights(int direction)
+    {
+        int index = -1;
+        var current = _settings.AiWeights;
+        if (current is { Length: 4 })
+        {
+            for (int i = 0; i < WeightPresets.Length; i++)
+            {
+                if (SameWeights(current, WeightPresets[i]))
+                {
+                    index = i;
+                    break;
+                }
+            }
+        }
+
+        if (index < 0)
+        {
+            index = direction >= 0 ? 0 : WeightPresets.Length - 1;
+        }
+        else
+        {
+            index = (index + direction + WeightPresets.Length) % WeightPresets.Length;
+        }
+
+        _settings.AiWeights = (int[])WeightPresets[index].Clone();
+        Save();
+    }
+
+    private static bool SameWeights(int[] a, int[] b)
+    {
+        if (a.Length != b.Length)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < a.Length; i++)
+        {
+            if (a[i] != b[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void CycleThink(int direction)

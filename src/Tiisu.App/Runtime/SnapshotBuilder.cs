@@ -25,7 +25,8 @@ public static class SnapshotBuilder
         HumanAction actions,
         IReadOnlyList<string>? actionLabels,
         string? message,
-        Settings? settings)
+        Settings? settings,
+        IReadOnlyList<string>? aiLevels = null)
     {
         ArgumentNullException.ThrowIfNull(engine);
 
@@ -191,6 +192,7 @@ public static class SnapshotBuilder
             Phase = phase,
             Seats = seats,
             TenpaiTiles = tenpai,
+            AiLevels = aiLevels ?? Array.Empty<string>(),
         };
     }
 }

@@ -142,6 +142,9 @@ public sealed class TableViewModel
     /// <summary>最近一条提示（和牌 / 流局 / 窗口提示）。</summary>
     public string Message { get; init; } = string.Empty;
 
+    /// <summary>调试：四家 AI 档位（Simple / Normal / Hard / Shura，按座位 0..3）。</summary>
+    public IReadOnlyList<string> AiLevels { get; init; } = Array.Empty<string>();
+
     /// <summary>运行阶段：idle / human_discard / human_ron / human_meld / round_end / match_over。</summary>
     public string Phase { get; init; } = "idle";
 }
