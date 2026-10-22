@@ -45,7 +45,7 @@ public static class SoundEffects
 
         try
         {
-            byte[] wav = Get(cue);
+            byte[] wav = TryLoadCueFile(cue) ?? Get(cue);
             PlaySound(wav, IntPtr.Zero, SndMemory | SndAsync | SndNoDefault);
         }
         catch
@@ -53,6 +53,48 @@ public static class SoundEffects
             // 没有音频设备 / 系统限制：静默降级
         }
     }
+
+    private static readonly Dictionary<Cue, byte[]?> CueFiles = new();
+
+    /// <summary>Assets/sounds/&lt;cue&gt;.wav（由 tools/Tiisu.AudioGen 生成）；缺失返回 null。</summary>
+    private static byte[]? TryLoadCueFile(Cue cue)
+    {
+        if (CueFiles.TryGetValue(cue, out var cached))
+        {
+            return cached;
+        }
+
+        byte[]? wav = null;
+        try
+        {
+            string path = System.IO.Path.Combine(
+                AppContext.BaseDirectory, "Assets", "sounds", cueName(cue) + ".wav");
+            if (File.Exists(path))
+            {
+                wav = File.ReadAllBytes(path);
+            }
+        }
+        catch
+        {
+            wav = null;
+        }
+
+        CueFiles[cue] = wav;
+        return wav;
+    }
+
+    private static string cueName(Cue cue) => cue switch
+    {
+        Cue.Draw => "draw",
+        Cue.Discard => "discard",
+        Cue.Call => "call",
+        Cue.Kan => "kan",
+        Cue.Win => "win",
+        Cue.Flow => "flow",
+        Cue.Deal => "deal",
+        Cue.Shuffle => "shuffle",
+        _ => "roundend",
+    };
 
     private static byte[] Get(Cue cue)
     {
