@@ -2,11 +2,16 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- SAPI（System.Speech）需要 Windows 目标框架 -->
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Tiisu.AudioGen</AssemblyName>
     <RootNamespace>Tiisu.AudioGen</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Speech" Version="9.0.0" />
+  </ItemGroup>
 
 </Project>

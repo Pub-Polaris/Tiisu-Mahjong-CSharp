@@ -20,6 +20,7 @@ internal static class Program
     {
         string? outDir = null;
         string? espeak = null;
+        string engine = "auto";
         bool sfx = false;
         bool voices = false;
         bool list = false;
@@ -30,6 +31,9 @@ internal static class Program
             {
                 case "--out":
                     outDir = i + 1 < args.Length ? args[++i] : null;
+                    break;
+                case "--engine":
+                    engine = i + 1 < args.Length ? args[++i] : "auto";
                     break;
                 case "--espeak":
                     espeak = i + 1 < args.Length ? args[++i] : null;
@@ -45,7 +49,7 @@ internal static class Program
                     break;
                 case "-h":
                 case "--help":
-                    Console.WriteLine("Tiisu.AudioGen [--out <dir>] [--sfx] [--voices] [--espeak <exe>] [--list]");
+                    Console.WriteLine("Tiisu.AudioGen [--out <dir>] [--sfx] [--voices] [--engine auto|sapi|espeak] [--espeak <exe>] [--list]");
                     return 0;
             }
         }
@@ -95,11 +99,33 @@ internal static class Program
         if (voices)
         {
             Console.WriteLine("语音：");
-            int code = VoiceSynth.Generate(Path.Combine(outDir, "voices"), espeak ?? VoiceSynth.DefaultEspeak);
-            if (code != 0)
+            string voiceDir = Path.Combine(outDir, "voices");
+            bool useSapi = engine is "sapi" or "auto" && SapiVoiceSynth.IsAvailable;
+
+            if (useSapi)
             {
-                Console.Error.WriteLine("语音生成失败（espeak-ng 未安装？可用 --espeak 指定路径）");
-                return code;
+                int code = SapiVoiceSynth.Generate(voiceDir);
+                if (code != 0 && engine == "sapi")
+                {
+                    return code;
+                }
+
+                useSapi = code == 0;
+            }
+
+            if (!useSapi)
+            {
+                if (engine == "auto")
+                {
+                    Console.WriteLine("（没有中文 SAPI 语音，改用 espeak-ng）");
+                }
+
+                int code = VoiceSynth.Generate(voiceDir, espeak ?? VoiceSynth.DefaultEspeak);
+                if (code != 0)
+                {
+                    Console.Error.WriteLine("语音生成失败（可用 --espeak 指定 espeak-ng 路径）");
+                    return code;
+                }
             }
         }
 
