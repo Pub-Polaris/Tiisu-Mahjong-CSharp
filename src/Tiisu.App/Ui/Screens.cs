@@ -30,6 +30,8 @@ public sealed class TableScreen : Screen
     private int _lastDiscardTotal = -1;
     private int _lastMeldTotal = -1;
     private string _lastPhase = string.Empty;
+    private int _lastTenpaiCount;
+    private string _lastRoundLabel = string.Empty;
 
     /// <summary>演示快照（<c>--render-table</c> / <c>--render-screen table</c> 用）。</summary>
     public TableScreen(TileAtlas? atlas)
@@ -211,6 +213,33 @@ public sealed class TableScreen : Screen
         return true;
     }
 
+    /// <summary>最新一组副露 → 语音名（吃 / 碰 / 杠）。</summary>
+    private static string NewestMeldVoice(TableViewModel vm)
+    {
+        foreach (var seat in vm.Seats)
+        {
+            if (seat.Melds.Count == 0)
+            {
+                continue;
+            }
+
+            string type = seat.Melds[^1].Type;
+            if (type.StartsWith("kan", StringComparison.Ordinal))
+            {
+                return "gang";
+            }
+
+            if (type == "chi")
+            {
+                return "chi";
+            }
+
+            return "peng";
+        }
+
+        return "peng";
+    }
+
     /// <summary>按快照差异播报音效（不做精确事件对齐，够用且不会漏）。</summary>
     private void PlayCues(TableViewModel vm)
     {
@@ -241,14 +270,37 @@ public sealed class TableScreen : Screen
         if (_lastMeldTotal >= 0 && melds > _lastMeldTotal)
         {
             SoundEffects.Play(SoundEffects.Cue.Call);
+            SoundEffects.PlayVoice(NewestMeldVoice(vm));
         }
 
         if (_lastPhase != vm.Phase && vm.Phase is "round_end" or "match_over")
         {
-            SoundEffects.Play(_settlement is { Kind: "win" or "tsumo" or "ron" }
-                ? SoundEffects.Cue.Win
-                : SoundEffects.Cue.Flow);
+            bool won = _settlement is { Details.Count: > 0 };
+            SoundEffects.Play(won ? SoundEffects.Cue.Win : SoundEffects.Cue.Flow);
+            if (_settlement is { Details.Count: > 0 } settled)
+            {
+                SoundEffects.PlayVoice(settled.Details[0].SelfDraw ? "zimo" : "ronghe");
+            }
+            else
+            {
+                SoundEffects.PlayVoice("liuju");
+            }
         }
+
+        if (_lastRoundLabel.Length > 0 && !string.Equals(_lastRoundLabel, vm.RoundLabel, StringComparison.Ordinal)
+            && vm.Phase is "human_discard" or "human_meld" or "human_ron")
+        {
+            SoundEffects.Play(SoundEffects.Cue.Deal);
+        }
+
+        _lastRoundLabel = vm.RoundLabel;
+
+        if (_lastTenpaiCount == 0 && vm.TenpaiTiles.Count > 0)
+        {
+            SoundEffects.PlayVoice("tingpai");
+        }
+
+        _lastTenpaiCount = vm.TenpaiTiles.Count;
 
         _lastHandCount = hand;
         _lastDiscardTotal = discards;
