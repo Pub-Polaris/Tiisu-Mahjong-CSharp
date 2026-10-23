@@ -1,4 +1,4 @@
-bin/
+﻿bin/
 obj/
 *.user
 .vs/
@@ -13,3 +13,4 @@ Generated/
 
 # ASP.NET 模板每次构建都会重写它（随机端口），不入库
 **/Properties/launchSettings.json
+src/Tiisu.App/Assets/bgm/*.wav
