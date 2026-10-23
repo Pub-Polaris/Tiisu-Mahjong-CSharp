@@ -55,6 +55,13 @@ public sealed class SeatView
     public bool IsDealer { get; init; }
     public bool IsHuman { get; init; }
     public bool IsTurn { get; init; }
+
+    /// <summary>已报听（叫胡）。</summary>
+    public bool IsCalled { get; init; }
+
+    /// <summary>流局时未听牌（手牌加盖 30% 黑遮罩「灰显」）；非流局态恒为 false。</summary>
+    public bool Noten { get; init; }
+
     public int HandCount { get; init; }
     public IReadOnlyList<TileView> Hand { get; init; } = Array.Empty<TileView>();   // 仅自己可见
     public IReadOnlyList<MeldView> Melds { get; init; } = Array.Empty<MeldView>();
@@ -91,6 +98,9 @@ public enum HumanAction
 
     /// <summary>推牌流局（九种九牌 / 十三不靠）。</summary>
     Flow = 128,
+
+    /// <summary>报听（叫胡）：真听牌时才可用；报听后变「已报听」。</summary>
+    DeclareCall = 256,
 }
 
 /// <summary>一屏牌桌所需的全部数据（渲染层不碰引擎）。</summary>
@@ -136,8 +146,14 @@ public sealed class TableViewModel
     /// <summary>吃牌等需要多选的按钮文案。</summary>
     public IReadOnlyList<string> ActionLabels { get; init; } = Array.Empty<string>();
 
-    /// <summary>听牌提示：当前可和的牌（牌面图集 id，如 1m / 5z）。仅人类出牌阶段填充。</summary>
+    /// <summary>听牌提示：当前可和的牌（牌面图集 id，如 1m / 5z）。真听牌时常显，不限阶段。</summary>
     public IReadOnlyList<string> TenpaiTiles { get; init; } = Array.Empty<string>();
+
+    /// <summary>自己已报听（叫胡）：按钮显示「已报听」。</summary>
+    public bool IsCalled { get; init; }
+
+    /// <summary>自己本局 / 本巡禁和（错和罚）。</summary>
+    public bool WinBanned { get; init; }
 
     /// <summary>最近一条提示（和牌 / 流局 / 窗口提示）。</summary>
     public string Message { get; init; } = string.Empty;

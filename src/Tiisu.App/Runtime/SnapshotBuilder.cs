@@ -93,6 +93,8 @@ public static class SnapshotBuilder
                 IsDealer = player.IsDealer,
                 IsHuman = player.IsHuman,
                 IsTurn = engine.TurnIndex == i && engine.State is not (EngineState.Idle or EngineState.Ended),
+                IsCalled = player.IsCalled,
+                Noten = i < engine.FlowTenpai.Count && !engine.FlowTenpai[i],
                 HandCount = player.Hand.Count,
                 Hand = hand,
                 Melds = melds,
@@ -140,34 +142,26 @@ public static class SnapshotBuilder
             break;
         }
 
+        // 待听牌提示：真听牌就常显（不再限定 human_discard 阶段）。
         var tenpai = new List<string>();
-        if (phase == "human_discard")
+        int selfIndex = -1;
+        for (int i = 0; i < MahjongEngine.PlayerCount; i++)
         {
-            for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+            if (engine.Players[i].IsHuman)
             {
-                var player = engine.Players[i];
-                if (!player.IsHuman)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    foreach (var entry in engine.ListTenpaiFor(player))
-                    {
-                        if (entry.Success)
-                        {
-                            tenpai.Add(TileNotation.AtlasId(entry.Tile));
-                        }
-                    }
-                }
-                catch
-                {
-                    // 听牌提示失败不影响主流程
-                }
-
+                selfIndex = i;
                 break;
             }
+        }
+
+        bool selfCalled = false;
+        bool selfBanned = false;
+        if (selfIndex >= 0)
+        {
+            var self = engine.Players[selfIndex];
+            selfCalled = self.IsCalled;
+            selfBanned = engine.IsWinBanned(self);
+            tenpai.AddRange(TenpaiTileIds(engine, self));
         }
 
         return new TableViewModel
@@ -192,8 +186,38 @@ public static class SnapshotBuilder
             Phase = phase,
             Seats = seats,
             TenpaiTiles = tenpai,
+            IsCalled = selfCalled,
+            WinBanned = selfBanned,
             AiLevels = aiLevels ?? Array.Empty<string>(),
         };
+    }
+
+    /// <summary>
+    /// 待牌提示：对「13 张形」手牌列可和牌（14 张形时按摸切口径去掉本次摸到的牌）。
+    /// 供快照与报听提示共用。
+    /// </summary>
+    public static IReadOnlyList<string> TenpaiTileIds(MahjongEngine engine, Player player)
+    {
+        var list = new List<string>();
+        try
+        {
+            var hand = engine.TenpaiHandOf(player);
+            var entries = engine.ListTenpaiForHand(
+                hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+            foreach (var entry in entries)
+            {
+                if (entry.Success)
+                {
+                    list.Add(TileNotation.AtlasId(entry.Tile));
+                }
+            }
+        }
+        catch
+        {
+            // 听牌提示失败不影响主流程
+        }
+
+        return list;
     }
 }
 

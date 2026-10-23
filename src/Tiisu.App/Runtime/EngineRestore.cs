@@ -40,6 +40,9 @@ internal static class EngineRestore
         }
 
         engine.UpdateSeatWinds();
+
+        // 报听 / 禁和标记（跨局的那部分才真正生效：玩家牌面在开新局时重置）。
+        engine.RestoreCallState(state.IsCalled, state.CallWinBanned, state.CallWinBannedNextHand);
     }
 
     private static void SetAutoProperty(object target, string property, object value)

@@ -21,7 +21,7 @@ public static class ReplayDriver
         "嵌张", "边张", "单钓", "双碰", "筋和", "特例加计", "倍满加计",
     };
 
-    public static ReplayReport Run(ReplayCorpus corpus)
+    public static ReplayReport Run(ReplayCorpus corpus, Action<ReplayEvent, MahjongEngine>? capture = null)
     {
         var report = new ReplayReport(corpus.Events.Count);
         MahjongEngine? engine = null;
@@ -129,6 +129,9 @@ public static class ReplayDriver
                     break;
             }
 
+            // 语料重算（--regen-engine-fixtures）在此取快照：与 Compare 的时点、口径完全一致。
+            capture?.Invoke(ev, engine);
+
             Compare(report, index, engine, ev);
             report.MarkProcessed();
 
@@ -141,6 +144,60 @@ public static class ReplayDriver
         }
 
         return report;
+    }
+
+    /// <summary>
+    /// 把引擎当前状态投影成语料格式的快照（<see cref="ReplaySnapshot"/>），字段内容与 <see cref="Compare"/> 的比对口径一致：
+    /// 暗手按牌序排序、弃牌保持打出顺序、副露保持加入顺序。供 <c>--regen-engine-fixtures</c> 用当前引擎重算快照。
+    /// </summary>
+    public static ReplaySnapshot CaptureSnapshot(MahjongEngine engine)
+    {
+        var snapshot = new ReplaySnapshot
+        {
+            RoundWindIdx = engine.RoundWindIdx,
+            Dealer = engine.DealerIndex,
+            HandNumber = engine.HandNumber,
+            HandsPlayed = engine.HandsPlayed,
+            Turn = engine.TurnIndex,
+            Wall = engine.Wall.Count,
+            Rinshan = engine.Rinshan.Count,
+            Wang = engine.WangDui.Count,
+            Honba = engine.Honba,
+            State = engine.State.Wire(),
+        };
+
+        for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+        {
+            snapshot.Scores.Add(engine.Scores[i]);
+        }
+
+        for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+        {
+            var player = engine.Players[i];
+            var entry = new ReplayPlayerSnapshot
+            {
+                SeatWind = player.SeatWind.Wire(),
+                Dealer = player.IsDealer,
+            };
+
+            var hand = player.Hand.ToList();
+            hand.Sort();
+            entry.Hand.AddRange(hand.Select(tile => tile.Id));
+
+            foreach (var meld in player.Melds)
+            {
+                entry.Melds.Add(new ReplayMeldSnapshot
+                {
+                    Type = meld.Type.Wire(),
+                    Tiles = meld.Tiles.Select(tile => tile.Id).ToList(),
+                });
+            }
+
+            entry.Discards.AddRange(player.Discards.Select(tile => tile.Id));
+            snapshot.Players.Add(entry);
+        }
+
+        return snapshot;
     }
 
     private static void HandleMeld(ReplayReport report, int index, MahjongEngine engine, ReplayEvent ev)

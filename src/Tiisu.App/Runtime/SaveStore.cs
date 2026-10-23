@@ -208,4 +208,16 @@ public sealed class SaveState
 
     [JsonPropertyName("inProgress")]
     public bool InProgress { get; set; }
+
+    /// <summary>四家是否已报听（叫胡）。</summary>
+    [JsonPropertyName("isCalled")]
+    public bool[] IsCalled { get; set; } = Array.Empty<bool>();
+
+    /// <summary>四家本局禁和（错和罚）。</summary>
+    [JsonPropertyName("callWinBanned")]
+    public bool[] CallWinBanned { get; set; } = Array.Empty<bool>();
+
+    /// <summary>四家下局禁和（重罚错和）。</summary>
+    [JsonPropertyName("callWinBannedNextHand")]
+    public bool[] CallWinBannedNextHand { get; set; } = Array.Empty<bool>();
 }

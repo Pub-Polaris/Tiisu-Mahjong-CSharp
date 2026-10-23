@@ -78,6 +78,8 @@ Web/logs/<session>/round_<NNN>_p<0-3>_<playerUUID>/events.jsonl
 | `observe` | 旁观 |
 | `special_flow` | 特殊流局 + `reason` |
 | `flow` | 流局 + `reason` |
+| `call` | 报听（叫胡）宣言 + `reason=via=discard|window` |
+| `call_foul` | 报听错和（本手赋不足起和线）+ `reason=fu=..:z=..` |
 | `tiisuin_win` | 大七星直接获胜 |
 | `witness` | 见证（大七星） |
 

@@ -67,33 +67,8 @@ public static class TenpaiCalculator
                 continue;
             }
 
-            var trial = new List<Tile>(hand.Count + 1);
-            trial.AddRange(hand);
-            trial.Add(candidate);
-
-            WinResult win;
-            try
-            {
-                win = checker.CheckWin(
-                    trial,
-                    options.SelfDraw,
-                    options.HasCalled,
-                    options.AnkanCount,
-                    options.MinkanCount,
-                    melds,
-                    options.FirstTurn,
-                    candidate,
-                    new WinContext
-                    {
-                        SeaMoon = false,
-                        HaiDei = false,
-                        RiverFish = false,
-                        LastTileVisible = 0,
-                        SeatWind = options.SeatWind.Wire(),
-                        RoundWind = options.RoundWind.Wire(),
-                    });
-            }
-            catch
+            var win = CheckCandidate(checker, hand, melds, options, candidate);
+            if (win is null)
             {
                 continue;
             }
@@ -103,5 +78,52 @@ public static class TenpaiCalculator
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 对单一候选张做一次「加进暗手后能否和」的判役，口径与 <see cref="ListTenpai"/> 完全一致（同一份
+    /// <see cref="TenpaiOptions"/>、同一个 <see cref="WinContext"/>）。判役异常时返回 null。
+    /// <para>
+    /// <paramref name="selfDraw"/> 为空时沿用 <paramref name="options.SelfDraw"/>；传 false 可按荣和口径判，
+    /// 用来只数「和牌本身成立的役」——自摸 2 赋 / 卡七自摸加成这类靠自摸才加的赋不是役。
+    /// </para>
+    /// </summary>
+    public static WinResult? CheckCandidate(
+        WinChecker checker,
+        IReadOnlyList<Tile> hand,
+        IReadOnlyList<Tiisu.Core.Meld> melds,
+        TenpaiOptions options,
+        Tile candidate,
+        bool? selfDraw = null)
+    {
+        var trial = new List<Tile>(hand.Count + 1);
+        trial.AddRange(hand);
+        trial.Add(candidate);
+
+        try
+        {
+            return checker.CheckWin(
+                trial,
+                selfDraw ?? options.SelfDraw,
+                options.HasCalled,
+                options.AnkanCount,
+                options.MinkanCount,
+                melds,
+                options.FirstTurn,
+                candidate,
+                new WinContext
+                {
+                    SeaMoon = false,
+                    HaiDei = false,
+                    RiverFish = false,
+                    LastTileVisible = 0,
+                    SeatWind = options.SeatWind.Wire(),
+                    RoundWind = options.RoundWind.Wire(),
+                });
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

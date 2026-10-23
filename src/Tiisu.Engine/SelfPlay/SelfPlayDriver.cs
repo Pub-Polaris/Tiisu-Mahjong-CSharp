@@ -534,28 +534,21 @@ public static class SelfPlayDriver
     private static void ValidatePlayState(MahjongEngine engine, int expectedScoreSum)
     {
         int total = engine.Wall.Count + engine.Rinshan.Count;
-        int claimedMelds = 0;
         for (int i = 0; i < MahjongEngine.PlayerCount; i++)
         {
             var player = engine.Players[i];
             total += player.Hand.Count + player.Discards.Count;
             foreach (var meld in player.Melds)
             {
+                // 261024 起：被鸣的牌会从放铳者牌河移除并进副露，这里不再需要扣重复。
                 total += meld.Tiles.Count;
-
-                // 副露的牌来自放铳者的弃牌，而 JS 不会把它从 discards 里删掉：
-                // 快照口径下这张牌同时出现在「副露」和「弃牌」里，物理上要扣掉这一次重复。
-                if (meld.Type != MeldType.Ankan)
-                {
-                    claimedMelds++;
-                }
             }
         }
 
-        if (total - claimedMelds != MahjongEngine.TotalTiles)
+        if (total != MahjongEngine.TotalTiles)
         {
             throw new InvalidOperationException(
-                $"牌总数不变量被破坏：{total} − 副露重复 {claimedMelds} != {MahjongEngine.TotalTiles}" +
+                $"牌总数不变量被破坏：{total} != {MahjongEngine.TotalTiles}" +
                 $"（第 {engine.HandNumber} 局，玩家 {engine.TurnIndex}）");
         }
 

@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Tiisu.Core;
 using Tiisu.Engine;
+using Tiisu.Engine.Replay;
 using CoreMeld = Tiisu.Core.Meld;
 using EngineMeld = Tiisu.Engine.Meld;
 
@@ -16,6 +17,8 @@ if (args.Length > 0)
             return RegenYakuFixtures.Run();
         case "--regen-ai-fixtures":
             return RegenAiFixtures.Run();
+        case "--regen-engine-fixtures":
+            return RegenEngineFixtures.Run();
         case "--probe-last-tile":
             return ProbeLastTile.Run();
     }
@@ -23,6 +26,7 @@ if (args.Length > 0)
 
 Console.WriteLine("Tiisu.Tools");
 Console.WriteLine("  --regen-yaku-fixtures  用当前 C# 实现重算 yaku golden 语料的期望值（就地重写）");
+Console.WriteLine("  --regen-engine-fixtures 用当前引擎重算 engine-golden.json 每个事件的快照（就地重写）");
 Console.WriteLine("  --probe-last-tile      校验和绝张的引擎可见张数口径（河里 + 副露，手牌不计）");
 return 0;
 
@@ -298,6 +302,110 @@ internal static class RegenYakuFixtures
 
         [JsonPropertyName("isBonus")]
         public bool IsBonus { get; init; }
+    }
+}
+
+/// <summary>
+/// 用当前引擎重算 engine-golden.json 每个事件的快照（<c>s</c> 字段），就地写回同一文件。
+/// 只替换 <c>s</c>，其余字段（动作 / 期望值 / 顺序 / 排版）原样保留：
+/// 先解析成 JsonNode，再逐事件把 <see cref="ReplayDriver.CaptureSnapshot"/> 的结果替换进去。
+/// </summary>
+internal static class RegenEngineFixtures
+{
+    private static readonly JsonSerializerOptions CompactJson = new()
+    {
+        WriteIndented = false,
+        NewLine = "\n",
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    public static int Run()
+    {
+        string path = FindCorpus();
+        string raw = File.ReadAllText(path, Encoding.UTF8);
+        var root = JsonNode.Parse(raw)?.AsObject()
+            ?? throw new InvalidOperationException($"语料解析失败: {path}");
+        var eventsNode = root["events"]?.AsArray()
+            ?? throw new InvalidOperationException("engine-golden.json 缺少 events");
+
+        var corpus = ReplayCorpus.Parse(raw);
+        if (corpus.Events.Count != eventsNode.Count)
+        {
+            throw new InvalidOperationException($"事件数不一致：{corpus.Events.Count} vs {eventsNode.Count}");
+        }
+
+        var beforeSnapshot = corpus.Events.Select(ev => JsonSerializer.Serialize(ev.Snapshot, CompactJson)).ToList();
+        var beforeOther = eventsNode.Select(node => StripSnapshot(node!)).ToList();
+
+        // 与 golden 比对完全同一时点取快照：capture 在 Compare 之前调用。
+        ReplayDriver.Run(corpus, (ev, engine) => ev.Snapshot = ReplayDriver.CaptureSnapshot(engine));
+
+        int changed = 0;
+        int changedOther = 0;
+        for (int index = 0; index < corpus.Events.Count; index++)
+        {
+            string after = JsonSerializer.Serialize(corpus.Events[index].Snapshot, CompactJson);
+            if (!string.Equals(beforeSnapshot[index], after, StringComparison.Ordinal))
+            {
+                changed++;
+                if (changed <= 3)
+                {
+                    Console.WriteLine($"  events[{index}] ({corpus.Events[index].Type}) 快照变化:");
+                    Console.WriteLine($"    - {Ellipsis(beforeSnapshot[index])}");
+                    Console.WriteLine($"    + {Ellipsis(after)}");
+                }
+            }
+
+            eventsNode[index]!["s"] = JsonNode.Parse(after);
+
+            string other = StripSnapshot(eventsNode[index]!);
+            if (!string.Equals(beforeOther[index], other, StringComparison.Ordinal))
+            {
+                changedOther++;
+            }
+        }
+
+        string output = root.ToJsonString(CompactJson) + "\n";
+        File.WriteAllText(path, output, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        Console.WriteLine($"[engine-golden.json] 共 {corpus.Events.Count} 个事件，快照变化 {changed} 条；非快照字段意外变化 {changedOther} 条");
+        Console.WriteLine($"已写回: {path}");
+
+        // 写回后再跑一遍：必须 0 差异（Replay_EveryEventSnapshot_Matches 的同一口径）。
+        var verify = ReplayDriver.Run(ReplayCorpus.LoadFromFile(path));
+        Console.WriteLine(verify.Clean
+            ? "[verify] 重读语料后 0 差异"
+            : "[verify] 仍有差异:\n" + verify.Describe());
+        return verify.Clean ? 0 : 1;
+    }
+
+    /// <summary>事件节点里除 <c>s</c> 以外的部分（序列化文本，用来确认只改了快照）。</summary>
+    private static string StripSnapshot(JsonNode node)
+    {
+        var copy = node.DeepClone().AsObject();
+        copy.Remove("s");
+        return copy.ToJsonString(CompactJson);
+    }
+
+    private static string Ellipsis(string text) =>
+        text.Length <= 240 ? text : text[..240] + "…";
+
+    /// <summary>从输出目录向上找仓库根的 tests/fixtures/engine-golden.json。</summary>
+    private static string FindCorpus()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            string candidate = Path.Combine(directory.FullName, "tests", "fixtures", "engine-golden.json");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new FileNotFoundException("找不到 tests/fixtures/engine-golden.json");
     }
 }
 

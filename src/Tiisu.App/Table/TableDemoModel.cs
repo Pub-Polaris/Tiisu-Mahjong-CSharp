@@ -83,6 +83,89 @@ public static class TableDemoModel
     }
 
     /// <summary>
+    /// 报听按钮演示：<paramref name="callable"/> = 真听牌（按钮可点 + 待牌提示）/
+    /// false = 不听牌（按钮灰显、无提示）。
+    /// </summary>
+    public static TableViewModel CreateWithCall(bool callable)
+    {
+        var vm = Create(0);
+        return new TableViewModel
+        {
+            RoundLabel = vm.RoundLabel,
+            WallCount = vm.WallCount,
+            RinshanCount = vm.RinshanCount,
+            Honba = vm.Honba,
+            Kyotaku = vm.Kyotaku,
+            TurnIndex = vm.TurnIndex,
+            Seats = vm.Seats,
+            ModeTarget = vm.ModeTarget,
+            Phase = "human_discard",
+            Actions = HumanAction.Discard | (callable ? HumanAction.DeclareCall : HumanAction.None),
+            TenpaiTiles = callable ? new[] { "2m", "5p", "8s", "3z" } : Array.Empty<string>(),
+            Message = callable ? "真听牌：报听按钮可点" : "不听牌：报听按钮灰显",
+            AiLevels = vm.AiLevels,
+        };
+    }
+
+    /// <summary>
+    /// 流局翻牌演示：四家手牌全翻；未听牌家灰显；已报听家标「报听」。
+    /// 座位 1、3 已报听（算听牌），座位 0、2 未报听且未听牌（灰显）。
+    /// </summary>
+    public static TableViewModel CreateWithFlow()
+    {
+        TileView T(string id) => new(id);
+        var vm = Create(0);
+
+        var hands = new[]
+        {
+            new[] { "1m", "2m", "3m", "5m", "5m", "7m", "2p", "3p", "4p", "1s", "3z", "6p", "8s" },
+            new[] { "1p", "2p", "3p", "5p", "5p", "7p", "2s", "3s", "4s", "1z", "1z", "6z", "7z" },
+            new[] { "4m", "5m", "6m", "7m", "8m", "9m", "9p", "9p", "1s", "1s", "2z", "2z", "3z" },
+            new[] { "1m", "4m", "7m", "2p", "5p", "8p", "3s", "6s", "9s", "4z", "5z", "6z", "7z" },
+        };
+
+        var seats = new List<SeatView>(4);
+        for (int i = 0; i < 4; i++)
+        {
+            var seat = vm.Seats[i];
+            bool called = i is 1 or 3;
+            seats.Add(new SeatView
+            {
+                Index = seat.Index,
+                Name = seat.Name,
+                Wind = seat.Wind,
+                Score = seat.Score,
+                IsDealer = seat.IsDealer,
+                IsHuman = seat.IsHuman,
+                IsTurn = false,
+                IsCalled = called,
+                Noten = !called,
+                HandCount = hands[i].Length,
+                Hand = hands[i].Select(T).ToArray(),
+                Melds = seat.Melds,
+                Discards = seat.Discards,
+                LastDiscard = seat.LastDiscard,
+            });
+        }
+
+        return new TableViewModel
+        {
+            RoundLabel = vm.RoundLabel,
+            WallCount = 0,
+            RinshanCount = vm.RinshanCount,
+            Honba = 1,
+            Kyotaku = 700,
+            TurnIndex = 0,
+            Seats = seats,
+            ModeTarget = vm.ModeTarget,
+            RevealHands = true,
+            Phase = "round_end",
+            Message = "荒牌流局：四家翻牌 · 未听牌灰显 · 已报听算听牌",
+            AiLevels = vm.AiLevels,
+        };
+    }
+
+    /// <summary>
     /// 暗杠展示演示：自家与对家各一组暗杠。
     /// <paramref name="settled"/> = false 为对局中（只翻第 2、4 张）；true 为和牌后（全翻 + 30% 黑遮罩）。
     /// </summary>

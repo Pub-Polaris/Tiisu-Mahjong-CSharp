@@ -13,6 +13,9 @@ using Tiisu.App.Table;
 using Tiisu.App.Svg;
 using Tiisu.Engine;
 using Tiisu.Engine.Random;
+using GameTile = Tiisu.Core.Tile;
+using GameSuit = Tiisu.Core.Suit;
+using Color = Tiisu.App.Rendering.Color;
 using UiScreen = Tiisu.App.Ui.Screen;
 
 namespace Tiisu.App;
@@ -62,6 +65,9 @@ internal static class Program
                 return;
             case "--smoke-layout-editor":
                 Environment.ExitCode = SmokeLayoutEditor();
+                return;
+            case "--smoke-call":
+                Environment.ExitCode = SmokeCall();
                 return;
         }
 
@@ -124,6 +130,13 @@ internal static class Program
                 Console.WriteLine($"  {cue,-9} {bytes,6} B  {file}");
             }
 
+            return;
+        }
+
+        // 报听三态出图：--render-call <png 基名>（_callable / _disabled / _noten 三张）
+        if (args.Length >= 2 && args[0] == "--render-call")
+        {
+            RenderCallToPng(args[1]);
             return;
         }
 
@@ -1439,7 +1452,6 @@ internal static class Program
             new TableSceneSkia().Draw(ctx, vm, layout, hoverHand: -1);
             var bar = new ActionBar();
             bar.Build(vm, layout);
-            bar.ToggleTenpai();
             bar.DrawTenpai(ctx, vm, layout);
             bar.Draw(ctx);
         }
@@ -1448,6 +1460,244 @@ internal static class Program
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(path, data.ToArray());
         Console.WriteLine($"rendered actions -> {path}  buttons={new TableLayoutSpec().CanvasW:0}");
+    }
+
+    /// <summary>
+    /// <c>--render-call &lt;png 基名&gt;</c>：报听三态出图 ——
+    /// <c>_callable</c>（真听牌，按钮可点 + 待牌提示）/ <c>_disabled</c>（不听牌，按钮灰显）/
+    /// <c>_noten</c>（荒牌流局：四家翻牌 + 未听牌灰显 + 已报听标记）。
+    /// </summary>
+    private static void RenderCallToPng(string basePath)
+    {
+        using var atlas = new TileAtlas(AssetsDir);
+        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        YogaTableLayout.Apply(layout);
+
+        RenderCallShot(basePath + "_callable.png", TableDemoModel.CreateWithCall(true), layout, atlas);
+        RenderCallShot(basePath + "_disabled.png", TableDemoModel.CreateWithCall(false), layout, atlas);
+        RenderCallShot(basePath + "_noten.png", TableDemoModel.CreateWithFlow(), layout, atlas);
+    }
+
+    private static void RenderCallShot(string path, TableViewModel vm, TableLayoutSpec layout, TileAtlas atlas)
+    {
+        var info = new SKImageInfo((int)layout.CanvasW, (int)layout.CanvasH);
+        using var surface = SKSurface.Create(info);
+        surface.Canvas.Clear(new SKColor(20, 30, 24));
+
+        using (var ctx = new SkiaCanvas(surface.Canvas, atlas))
+        {
+            new TableSceneSkia().Draw(ctx, vm, layout, hoverHand: -1);
+
+            var bar = new ActionBar();
+            bar.Build(vm, layout);
+            bar.DrawTenpai(ctx, vm, layout);
+            bar.Draw(ctx);
+
+            // 与牌桌屏同文案的 HUD：顶部消息 + 右上角状态。
+            if (!string.IsNullOrEmpty(vm.Message))
+            {
+                var box = new RectF(layout.CanvasW / 2f - 330, 18, 660, 38);
+                ctx.FillRoundRect(box, 10, Color.Rgb(0, 0, 0).WithAlpha(150));
+                ctx.DrawText(vm.Message, box, Color.Rgb(255, 228, 120), new TextStyle(17, Bold: true));
+            }
+
+            string status = vm.IsCalled ? "已报听" : vm.WinBanned ? "本局禁和" : string.Empty;
+            if (status.Length > 0)
+            {
+                var box = new RectF(layout.CanvasW - 190, 18, 166, 34);
+                ctx.FillRoundRect(box, 10, Color.Rgb(0, 0, 0).WithAlpha(150));
+                ctx.DrawText(status, box, Color.Rgb(255, 226, 140), new TextStyle(16, Bold: true));
+            }
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+        Console.WriteLine($"rendered call -> {path}  phase={vm.Phase} called={vm.IsCalled} actions={vm.Actions}");
+    }
+
+    /// <summary>
+    /// <c>--smoke-call</c>：无窗口走一遍报听机制（宣言 / 锁手拒绝 / 吃碰被拒 / 暗杠例外 /
+    /// 普通错和 / 重罚错和 / 禁和标记 / 流局报听者算听牌）。
+    /// </summary>
+    private static int SmokeCall()
+    {
+        TryUseUtf8Console();
+        int failures = 0;
+
+        void Check(string name, bool ok, string detail)
+        {
+            Console.WriteLine((ok ? "  PASS  " : "  FAIL  ") + name.PadRight(26) + detail);
+            if (!ok)
+            {
+                failures++;
+            }
+        }
+
+        static List<GameTile> Hand(string spec)
+        {
+            var tiles = new List<GameTile>();
+            var numbers = new List<int>();
+            foreach (char ch in spec)
+            {
+                if (ch >= '0' && ch <= '9')
+                {
+                    numbers.Add(ch - '0');
+                    continue;
+                }
+
+                GameSuit suit = ch switch
+                {
+                    'm' => GameSuit.Man,
+                    'p' => GameSuit.Pin,
+                    's' => GameSuit.Sou,
+                    _ => GameSuit.Honor,
+                };
+                foreach (int n in numbers)
+                {
+                    tiles.Add(new GameTile(suit, n));
+                }
+
+                numbers.Clear();
+            }
+
+            return tiles;
+        }
+
+        MahjongEngine NewRound(string selfHand, int dealer, out List<GameTile> hand)
+        {
+            var engine = new MahjongEngine();
+            hand = Hand(selfHand);
+            var hands = new List<IReadOnlyList<GameTile>>
+            {
+                hand,
+                Hand("1234m6789p12345s"),
+                Hand("6789m1234p6789s1z"),
+                Hand("2345m6789p2345s1z"),
+            };
+            engine.StartNewRound(new RoundDeal(dealer, 0, hands));
+            return engine;
+        }
+
+        // ── 1. 报听宣言 / 非听牌被拒 ──────────────────────────────
+        var engine = NewRound("1111m23m456m789m5z", 0, out var selfHand);
+        var player = engine.Players[0];
+        Check("13 张手牌听牌", engine.IsTenpai(player), "hand=1111m23m456m789m5z");
+        Check("报听宣言", engine.DeclareCall(player) && player.IsCalled,
+            "waitMask=" + player.CalledWaitMask.ToString("x"));
+        Check("重复宣言被拒", !engine.DeclareCall(player), "");
+        var junkEngine = NewRound("1234m6789p12345s", 0, out _);
+        Check("非听牌不能报", !junkEngine.DeclareCall(junkEngine.Players[0]), "hand=1234m6789p12345s");
+
+        // ── 2. 锁手：打掉会改听牌张的牌被拒 ──────────────────────
+        engine.Draw(player, new GameTile(GameSuit.Pin, 9));
+        string? breakReason = null;
+        GameTile? breakTile = null;
+        foreach (var tile in player.Hand)
+        {
+            if (!engine.CallAllowsDiscard(player, tile, out string? reason))
+            {
+                if (reason is not null && reason.Contains("听牌张", StringComparison.Ordinal))
+                {
+                    breakTile = tile;
+                    breakReason = reason;
+                    break;
+                }
+            }
+        }
+
+        Check("锁手拒绝改听牌张", breakTile is not null, breakTile is null ? "未找到破坏听牌形的打牌" : "tile=" + breakTile.Value.Id + " · " + breakReason);
+        if (breakTile is not null)
+        {
+            int before = player.Hand.Count;
+            var blocked = engine.Discard(player, breakTile.Value);
+            Check("越界弃牌被引擎拦下", blocked is null && player.Hand.Count == before, "hand=" + before);
+        }
+
+        // ── 3. 吃碰被拒 ─────────────────────────────────────────
+        bool ponDenied = !engine.CallAllowsMeld(player, MeldType.Pon, out string? ponReason);
+        bool chiDenied = !engine.CallAllowsMeld(player, MeldType.Chi, out _);
+        bool minkanDenied = !engine.CallAllowsMeld(player, MeldType.Minkan, out _);
+        bool kakanDenied = !engine.CallAllowsMeld(player, MeldType.Kakan, out _);
+        Check("禁吃碰明杠加杠", ponDenied && chiDenied && minkanDenied && kakanDenied, ponReason ?? string.Empty);
+
+        bool meldThrew = false;
+        try
+        {
+            engine.ApplyMeld(0, MeldType.Pon, new GameTile(GameSuit.Man, 1), 1);
+        }
+        catch (InvalidOperationException)
+        {
+            meldThrew = true;
+        }
+
+        Check("引擎硬拒绝副露", meldThrew, "ApplyMeld → InvalidOperationException");
+
+        // ── 4. 暗杠例外 ─────────────────────────────────────────
+        var kanEngine = NewRound("1111m23m456m789m5z", 0, out _);
+        var kanPlayer = kanEngine.Players[0];
+        bool kanDeclared = kanEngine.DeclareCall(kanPlayer);
+
+        // 摸 4m：暗杠 1m 后 23m 由 4m 补成 234m，听牌张仍是 5z（形不变 → 允许）。
+        kanEngine.Draw(kanPlayer, new GameTile(GameSuit.Man, 4));
+        bool ankanAllowed = kanEngine.CallAllowsAnkan(kanPlayer, new GameTile(GameSuit.Man, 1), out string? ankanYes);
+        bool ankanOther = kanEngine.CallAllowsAnkan(kanPlayer, new GameTile(GameSuit.Man, 2), out string? ankanNo);
+        Check("暗杠例外（形不变）", kanDeclared && ankanAllowed, ankanYes ?? "ankan 1m allowed");
+        Check("非四张暗杠被拒", !ankanOther, ankanNo ?? string.Empty);
+
+        var kakanEngine = NewRound("1111m23m456m789m5z", 0, out _);
+        var kakanPlayer = kakanEngine.Players[0];
+        kakanEngine.DeclareCall(kakanPlayer);
+        kakanEngine.Draw(kakanPlayer, new GameTile(GameSuit.Pin, 9));
+        kakanPlayer.AddMeld(MeldType.Pon, new[] { new GameTile(GameSuit.Honor, 5), new GameTile(GameSuit.Honor, 5), new GameTile(GameSuit.Honor, 5) });
+        Check("加杠被拒", !kakanEngine.DoKan(kakanPlayer, new GameTile(GameSuit.Honor, 5), MeldType.Kakan), "报听后加杠");
+
+        // ── 5. 普通错和（Z = 赋 × 700）──────────────────────────
+        var scoresBefore = engine.Scores.ToArray();
+        var penalty = engine.ApplyCallMisfire(0, 2);
+        bool minorOk = penalty is not null && !penalty.Severe && penalty.Z == 1400
+                       && engine.Scores[0] == scoresBefore[0] - 4200
+                       && engine.Scores[1] == scoresBefore[1] + 1400
+                       && engine.Scores[2] == scoresBefore[2] + 1400
+                       && engine.Scores[3] == scoresBefore[3] + 1400;
+        Check("普通错和 Z=赋×700", minorOk,
+            penalty is null ? "null" : $"fu={penalty.Fu} z={penalty.Z} scores={string.Join(",", engine.Scores)}");
+        Check("错和解除报听", !player.IsCalled, "isCalled=false");
+        Check("本巡禁和标记", engine.IsWinBanned(player), "isWinBanned=true");
+
+        // ── 6. 重罚错和（Z > 2100）──────────────────────────────
+        var severeEngine = NewRound("1111m23m456m789m5z", 1, out _);
+        var severePlayer = severeEngine.Players[0];
+        severeEngine.DeclareCall(severePlayer);
+        var severeScores = severeEngine.Scores.ToArray();
+        var severe = severeEngine.ApplyCallMisfire(0, 4);
+        bool severeOk = severe is not null && severe.Severe
+                        && severeEngine.Scores[1] == severeScores[1] + 14000
+                        && severeEngine.Scores[2] == severeScores[2] + 7000
+                        && severeEngine.Scores[3] == severeScores[3] + 7000
+                        && severeEngine.Scores[0] == severeScores[0] - 28000;
+        Check("重罚错和（子家违规）", severeOk,
+            severe is null ? "null" : $"z={severe.Z} paid={string.Join(",", severe.Paid)} scores={string.Join(",", severeEngine.Scores)}");
+        Check("重罚：本局+下局禁和",
+            severeEngine.IsWinBanned(severePlayer) && severeEngine.IsWinBannedNextHand(0), "hand+nextHand=true");
+
+        // ── 7. 流局：已报听者自动算听牌 ─────────────────────────
+        var flowEngine = NewRound("1111m23m456m789m5z", 0, out _);
+        var flowPlayer = flowEngine.Players[0];
+        flowEngine.DeclareCall(flowPlayer);
+        flowEngine.Players[3].IsCalled = true; // 非听牌但已报听（直接置位验证「自动算听牌」）
+        flowEngine.Flow();
+        Check("流局报听者算听牌",
+            flowEngine.FlowTenpai.Count == 4 && flowEngine.FlowTenpai[0] && flowEngine.FlowTenpai[3],
+            "tenpai=" + string.Join(",", flowEngine.FlowTenpai));
+        Check("流局未听牌家灰显依据",
+            !flowEngine.FlowTenpai[1] && !flowEngine.FlowTenpai[2],
+            "seat1/2 noten");
+        Check("流局翻牌", flowEngine.RevealHands, "revealHands=true");
+
+        Console.WriteLine();
+        Console.WriteLine(failures == 0 ? "smoke-call: all checks passed" : "smoke-call: " + failures + " failed");
+        return failures == 0 ? 0 : 1;
     }
 
     /// <summary>

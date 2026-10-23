@@ -238,6 +238,42 @@ public sealed class TableSceneSkia
         }
 
         DrawAiLevelBadges(c, vm, l);
+        DrawCallBadges(c, vm, l);
+    }
+
+    /// <summary>报听（已报听）小标：贴在自家手牌框下方的左右两端，不压动作条与牌河。</summary>
+    private static void DrawCallBadges(ICanvas c, TableViewModel vm, TableLayoutSpec l)
+    {
+        const float badgeW = 66f;
+        const float badgeH = 24f;
+
+        for (int seat = 0; seat < 4; seat++)
+        {
+            var view = Seat(vm, seat);
+            if (!view.IsCalled)
+            {
+                continue;
+            }
+
+            var frame = l.HandRects[seat];
+            if (frame.W <= 0f)
+            {
+                continue;
+            }
+
+            var box = seat switch
+            {
+                0 => new RectF(frame.Right - badgeW, frame.Bottom + 6, badgeW, badgeH),
+                2 => new RectF(frame.X, frame.Bottom + 8, badgeW, badgeH),
+                _ => new RectF(frame.X, frame.Bottom + 8, badgeW, badgeH),
+            };
+
+            bool self = seat == 0;
+            c.FillRoundRect(box, 7, Color.Rgb(96, 62, 12).WithAlpha(220));
+            c.StrokeRoundRect(box, 7, Color.Rgb(255, 206, 120).WithAlpha(180), 1.2f);
+            c.DrawText(self ? "已报听" : "报听", box,
+                Color.Rgb(255, 236, 190), new TextStyle(13, Bold: true, Center: true));
+        }
     }
 
     /// <summary>AI 档位小字：Simple=简 / Normal=普 / Hard=难 / Shura=修，人类座位不显示。</summary>
@@ -494,6 +530,9 @@ public sealed class TableSceneSkia
         var (horizontal, angle, _) = TableLayoutSpec.Axis(index);
         bool self = index == 0;
 
+        // 手牌翻开条件：自己恒可见；流局 / 和牌后四家全翻（流局必须翻牌）。
+        bool reveal = self || vm.RevealHands;
+
         int n = seat.Hand.Count > 0 ? seat.Hand.Count : seat.HandCount;
         if (n <= 0)
         {
@@ -509,7 +548,7 @@ public sealed class TableSceneSkia
             float cx = r.CenterX;
             float cy = r.CenterY - lift;
 
-            if (self && i < seat.Hand.Count)
+            if (reveal && i < seat.Hand.Count)
             {
                 // 牌面始终按未旋转的 50×68 画，旋转交给 Transform
                 Rot(c, seat.Hand[i].Id, cx, cy, angle, l.HandW, l.HandH);
@@ -523,6 +562,15 @@ public sealed class TableSceneSkia
             {
                 c.StrokeRoundRect(new RectF(cx - r.W / 2f, cy - r.H / 2f, r.W, r.H),
                     4, Color.Rgb(255, 228, 120), 2f);
+            }
+        }
+
+        // 流局灰显：未听牌家手牌盖 30% 黑遮罩。
+        if (seat.Noten)
+        {
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                c.FillRoundRect(tiles[i].Inflate(1f), 4, Color.Black.WithAlpha(AnkanMaskAlpha));
             }
         }
 

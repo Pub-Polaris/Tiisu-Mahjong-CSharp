@@ -41,6 +41,9 @@ public sealed class TableScreen : Screen
     private int _lastTenpaiCount;
     private string _lastRoundLabel = string.Empty;
 
+    /// <summary>报听待弃状态：点「报听」后，下一张手牌 = 打出并完成报听。</summary>
+    private bool _callArmed;
+
     /// <summary>演示快照（<c>--render-table</c> / <c>--render-screen table</c> 用）。</summary>
     public TableScreen(TileAtlas? atlas)
         : this(() => TableDemoModel.Create(1), null, null, atlas)
@@ -112,6 +115,11 @@ public sealed class TableScreen : Screen
         }
 
         _scene.Draw(c, vm, _layout, _hover);
+        if (_callArmed && vm.Phase != "human_discard")
+        {
+            _callArmed = false;
+        }
+
         _actionBar.Build(vm, _layout);
         _actionBar.DrawTenpai(c, vm, _layout);
         _actionBar.Draw(c);
@@ -194,6 +202,25 @@ public sealed class TableScreen : Screen
             c.DrawText(vm.Message, box, Color.Rgb(255, 228, 120), new TextStyle(17, Bold: true));
         }
 
+        // 报听待弃：点一张手牌打出即完成报听（无二次确认）。
+        if (_callArmed)
+        {
+            var box = new RectF(_layout.CanvasW / 2f - 300, 62, 600, 34);
+            c.FillRoundRect(box, 10, Color.Rgb(96, 62, 12).WithAlpha(220));
+            c.StrokeRoundRect(box, 10, Color.Rgb(255, 206, 120).WithAlpha(180), 1.2f);
+            c.DrawText("报听：点一张手牌打出（再点「报听」取消）", box,
+                Color.Rgb(255, 240, 200), new TextStyle(16, Bold: true));
+        }
+
+        // 已报听 / 禁和状态
+        string status = vm.IsCalled ? "已报听" : vm.WinBanned ? "本局禁和" : string.Empty;
+        if (status.Length > 0)
+        {
+            var box = new RectF(_layout.CanvasW - 190, 18, 166, 34);
+            c.FillRoundRect(box, 10, Color.Rgb(0, 0, 0).WithAlpha(150));
+            c.DrawText(status, box, vm.IsCalled ? Color.Rgb(255, 226, 140) : Color.Rgb(240, 150, 140),
+                new TextStyle(16, Bold: true));
+        }
     }
 
     private static string ActionLine(TableViewModel vm)
@@ -334,6 +361,14 @@ public sealed class TableScreen : Screen
             return index >= 0;
         }
 
+        if (_callArmed)
+        {
+            // 报听待弃：这张牌就是宣言时打出的牌。
+            _callArmed = false;
+            _commands(GameCommand.DeclareCall(index));
+            return true;
+        }
+
         _commands(GameCommand.Discard(index));
         return true;
     }
@@ -436,13 +471,13 @@ public sealed class TableScreen : Screen
     /// <summary>按钮点击 → 命令（与键盘快捷键同一条路径）。</summary>
     private void ActivateButton(ActionBar.Button b, TableViewModel vm)
     {
-        if (b.Kind == ActionBar.Kind.Tenpai)
+        if (b.Kind == ActionBar.Kind.DeclareCall)
         {
-            _actionBar.ToggleTenpai();
+            BeginDeclareCall(vm);
             return;
         }
 
-        if (_commands is null)
+        if (!b.Enabled || _commands is null)
         {
             return;
         }
@@ -479,6 +514,26 @@ public sealed class TableScreen : Screen
                 _commands(GameCommand.Flow());
                 break;
         }
+    }
+
+    /// <summary>
+    /// 报听入口：出牌阶段先进入「待弃」态（下一张手牌打出即报听，再点一次取消）；
+    /// 副露 / 荣和窗口立即宣言。真听牌之外（按钮灰显）不发命令。
+    /// </summary>
+    private void BeginDeclareCall(TableViewModel vm)
+    {
+        if (_commands is null || vm.IsCalled || (vm.Actions & HumanAction.DeclareCall) == 0)
+        {
+            return;
+        }
+
+        if (vm.Phase == "human_discard")
+        {
+            _callArmed = !_callArmed;
+            return;
+        }
+
+        _commands(GameCommand.DeclareCall());
     }
 
     public override bool OnKey(Keys key) => HandleKey(key, false);
@@ -601,6 +656,15 @@ public sealed class TableScreen : Screen
                 if ((vm.Actions & HumanAction.Flow) != 0)
                 {
                     _commands(GameCommand.Flow());
+                    return true;
+                }
+
+                return false;
+
+            case Keys.T:
+                if ((vm.Actions & HumanAction.DeclareCall) != 0 || vm.IsCalled)
+                {
+                    BeginDeclareCall(vm);
                     return true;
                 }
 

@@ -7,8 +7,10 @@ using Color = Tiisu.App.Rendering.Color;
 namespace Tiisu.App.Ui;
 
 /// <summary>
-/// 手牌上方的动作按钮条：杠 / 和 / 碰 / 吃（多组各一颗）/ 过 / 流局 + 听牌提示开关。
-/// 点击返回对应命令；键盘快捷键仍可用（H/P/C/K/Space/F）。
+/// 手牌上方的动作按钮条：杠 / 和 / 碰 / 吃（多组各一颗）/ 过 / 流局 + 报听（叫胡）。
+/// 点击返回对应命令；键盘快捷键仍可用（H/P/C/K/Space/F/T）。
+/// <para>报听按钮三态：见 <see cref="TableViewModel.IsCalled"/>（已报听）/ <see cref="HumanAction.DeclareCall"/>
+/// （真听牌，可点）/ 其余（灰显不可点）。</para>
 /// </summary>
 public sealed class ActionBar
 {
@@ -21,19 +23,16 @@ public sealed class ActionBar
         Chi,
         Pass,
         Flow,
-        Tenpai,
+
+        /// <summary>报听（叫胡）。</summary>
+        DeclareCall,
     }
 
-    public sealed record Button(Kind Kind, string Label, RectF Rect, int Option = 0);
+    public sealed record Button(Kind Kind, string Label, RectF Rect, int Option = 0, bool Enabled = true);
 
     private readonly List<Button> _buttons = new();
-    private bool _showTenpai;
 
     public IReadOnlyList<Button> Buttons => _buttons;
-
-    public bool ShowTenpai => _showTenpai;
-
-    public void ToggleTenpai() => _showTenpai = !_showTenpai;
 
     public bool HasAny => _buttons.Count > 0;
 
@@ -52,56 +51,57 @@ public sealed class ActionBar
             return;
         }
 
-        var items = new List<(Kind Kind, string Label, int Option)>();
+        var items = new List<(Kind Kind, string Label, int Option, bool Enabled)>();
 
         if ((vm.Actions & HumanAction.Kan) != 0)
         {
-            items.Add((Kind.Kan, "杠", 0));
+            items.Add((Kind.Kan, "杠", 0, true));
         }
 
         if ((vm.Actions & HumanAction.Tsumo) != 0)
         {
-            items.Add((Kind.Tsumo, "和牌", 0));
+            items.Add((Kind.Tsumo, "和牌", 0, true));
         }
         else if ((vm.Actions & HumanAction.Ron) != 0)
         {
-            items.Add((Kind.Ron, "荣和", 0));
+            items.Add((Kind.Ron, "荣和", 0, true));
         }
 
         if ((vm.Actions & HumanAction.Pon) != 0)
         {
-            items.Add((Kind.Pon, "碰", 0));
+            items.Add((Kind.Pon, "碰", 0, true));
         }
 
         if ((vm.Actions & HumanAction.Chi) != 0)
         {
             if (vm.ActionLabels.Count <= 1)
             {
-                items.Add((Kind.Chi, "吃", 0));
+                items.Add((Kind.Chi, "吃", 0, true));
             }
             else
             {
                 for (int i = 0; i < vm.ActionLabels.Count; i++)
                 {
-                    items.Add((Kind.Chi, vm.ActionLabels[i], i));
+                    items.Add((Kind.Chi, vm.ActionLabels[i], i, true));
                 }
             }
         }
 
         if ((vm.Actions & HumanAction.Pass) != 0)
         {
-            items.Add((Kind.Pass, "过", 0));
+            items.Add((Kind.Pass, "过", 0, true));
         }
 
         if ((vm.Actions & HumanAction.Flow) != 0)
         {
-            items.Add((Kind.Flow, "流局", 0));
+            items.Add((Kind.Flow, "流局", 0, true));
         }
 
-        // 听牌提示：只要手里有牌就给（自摸/副露窗口之外也允许看）
+        // 报听：只要自己手里有牌就占位（不可用时灰显），已报听则显示状态。
         if (vm.Seats.Count > 0 && vm.Seats[0].Hand.Count > 0)
         {
-            items.Add((Kind.Tenpai, _showTenpai ? "听牌 ✓" : "听牌", 0));
+            bool callable = (vm.Actions & HumanAction.DeclareCall) != 0;
+            items.Add((Kind.DeclareCall, vm.IsCalled ? "已报听" : "报听", 0, callable));
         }
 
         if (items.Count == 0)
@@ -120,9 +120,9 @@ public sealed class ActionBar
             y = 8;
         }
 
-        foreach (var (kind, label, option) in items)
+        foreach (var (kind, label, option, enabled) in items)
         {
-            _buttons.Add(new Button(kind, label, new RectF(x, y, bw, bh), option));
+            _buttons.Add(new Button(kind, label, new RectF(x, y, bw, bh), option, enabled));
             x += bw + gap;
         }
     }
@@ -131,6 +131,16 @@ public sealed class ActionBar
     {
         foreach (var b in _buttons)
         {
+            if (!b.Enabled)
+            {
+                // 灰显：不可点（真听牌之外 / 已报听）。
+                c.FillRoundRect(b.Rect, 10, Color.Rgb(34, 40, 36).WithAlpha(200));
+                c.StrokeRoundRect(b.Rect, 10, Color.Rgb(96, 104, 98), 1.2f);
+                c.DrawText(b.Label, b.Rect, Color.Rgb(140, 148, 142),
+                    new TextStyle(b.Label.Length > 4 ? 15 : 18, Bold: true));
+                continue;
+            }
+
             bool accent = b.Kind is Kind.Tsumo or Kind.Ron;
             var fill = accent ? Color.Rgb(120, 40, 36) : Color.Rgb(18, 30, 24);
             c.FillRoundRect(b.Rect, 10, fill.WithAlpha(230));
@@ -141,10 +151,10 @@ public sealed class ActionBar
         }
     }
 
-    /// <summary>画听牌提示（等待的牌 + 张数），在动作条上方。</summary>
+    /// <summary>画待听牌提示（等待的牌 + 张数），在动作条上方；真听牌时常显。</summary>
     public void DrawTenpai(ICanvas c, TableViewModel vm, TableLayoutSpec layout)
     {
-        if (!_showTenpai || vm.TenpaiTiles.Count == 0)
+        if (vm.TenpaiTiles.Count == 0)
         {
             return;
         }

@@ -93,9 +93,8 @@ public sealed class SelfPlayTests
                     lastWall = wall;
 
                     // 牌总数 = 手牌 + 副露 + 弃牌 + 墙（含王堆） + 岭上，行牌中恒为 136。
-                    // 副露的那张牌仍留在放铳者的弃牌里（JS 快照口径），所以要扣掉每组的 1 张重复。
+                    // 261024 起：被鸣的牌会从放铳者牌河移除并进副露，不再有“重复 1 张”要扣。
                     int total = wall + engine.Rinshan.Count;
-                    int claimedMelds = 0;
                     for (int i = 0; i < MahjongEngine.PlayerCount; i++)
                     {
                         var player = engine.Players[i];
@@ -103,14 +102,10 @@ public sealed class SelfPlayTests
                         foreach (var meld in player.Melds)
                         {
                             total += meld.Tiles.Count;
-                            if (meld.Type != MeldType.Ankan)
-                            {
-                                claimedMelds++;
-                            }
                         }
                     }
 
-                    Assert.Equal(MahjongEngine.TotalTiles, total - claimedMelds);
+                    Assert.Equal(MahjongEngine.TotalTiles, total);
                     Assert.Equal(roundBaseScoreSum, engine.Scores.Sum());
 
                     for (int i = 0; i < MahjongEngine.PlayerCount; i++)

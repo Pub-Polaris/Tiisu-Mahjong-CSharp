@@ -343,11 +343,8 @@ public sealed partial class MahjongEngine
         GameOver = true;
         RevealHands = true;
 
-        var tenpai = new bool[PlayerCount];
-        for (int i = 0; i < PlayerCount; i++)
-        {
-            tenpai[i] = IsTenpai(_players[i]);
-        }
+        // 报听：已报听者自动算听牌（不用再申报）；其余按实际听牌判定。
+        var tenpai = CaptureFlowTenpai();
 
         int tenpaiCount = tenpai.Count(x => x);
 
@@ -424,7 +421,15 @@ public sealed partial class MahjongEngine
 
     /// <summary>
     /// 鸣牌后无役听牌（4.4）：子家罚 1400（350×其他子家 + 庄家 700）；庄家罚 2100（三子家各 700）。
-    /// 判定与 JS 一致：已有副露、有听牌形（或差赋形）但所有和牌张都因 no_yaku 不成立。
+    /// <para>
+    /// 「无役」= 所有和牌张都数不出<b>一个役</b>（表外赋不算）。判定口径（261024 北极星）：
+    /// 对每张听牌张用 <see cref="TenpaiCalculator.CheckCandidate"/> 判一次，
+    /// <b>有役</b> = 役列表里存在 <c>Fu &gt; 0 &amp;&amp; !IsBonus</c> 的项——哪怕只有 1 赋的役牌也算，
+    /// 「断幺九 2 赋」也算有役；听牌型奖赏（嵌张 / 边张 / 单钓 / 双碰 / 筋和）与赐马是表外赋，不算。
+    /// 判役走荣和口径（<c>selfDraw: false</c>），因为自摸 2 赋 / 卡七自摸加成只是加赋、不是役，
+    /// 否则任何手都「有役」、罚项永不成立。
+    /// </para>
+    /// <para>只在「有副露 + 有听牌形 + 全部和牌张都无役」时才罚；门清不罚。</para>
     /// </summary>
     private void ApplyNoYakuTenpaiPenalty(bool[] tenpai, List<string> log)
     {
@@ -437,23 +442,29 @@ public sealed partial class MahjongEngine
                 continue;
             }
 
+            var melds = ToCoreMelds(player.Melds);
+            var options = BuildTenpaiOptions(player);
+
             List<TenpaiEntry> entries;
             try
             {
-                entries = TenpaiCalculator.ListTenpai(
-                    _checker,
-                    player.Hand,
-                    ToCoreMelds(player.Melds),
-                    BuildTenpaiOptions(player));
+                entries = TenpaiCalculator.ListTenpai(_checker, player.Hand, melds, options);
             }
             catch
             {
                 continue;
             }
 
-            bool shapeOk = entries.Any(x => x.Success || x.NoYakuGap > 0);
-            bool canWin = entries.Any(x => x.Success);
-            if (!shapeOk || canWin)
+            // 听牌形：至少一张牌能和出形（成和，或成和但赋数差起和线）。
+            var waits = entries.Where(x => x.Success || x.NoYakuGap > 0).ToList();
+            if (waits.Count == 0)
+            {
+                continue;
+            }
+
+            // 有役：任一张和牌张能数出役 → 不罚。
+            bool hasYaku = waits.Any(entry => TileHasYaku(player.Hand, melds, options, entry.Tile));
+            if (hasYaku)
             {
                 continue;
             }
@@ -490,6 +501,20 @@ public sealed partial class MahjongEngine
                 log.Add(player.Name + " 鸣牌后无役听牌 −1400");
             }
         }
+    }
+
+    /// <summary>
+    /// 该和牌张是否数得出至少一个役：役列表里存在 <c>Fu &gt; 0 &amp;&amp; !IsBonus</c> 的项。
+    /// 走荣和口径判役（自摸加赋不算役，见 <see cref="ApplyNoYakuTenpaiPenalty"/>）。
+    /// </summary>
+    private bool TileHasYaku(
+        IReadOnlyList<Tile> hand,
+        IReadOnlyList<Tiisu.Core.Meld> melds,
+        TenpaiOptions options,
+        Tile tile)
+    {
+        var win = TenpaiCalculator.CheckCandidate(_checker, hand, melds, options, tile, selfDraw: false);
+        return win is not null && win.ActiveYaku.Any(y => y.Fu > 0 && !y.IsBonus);
     }
 
     /// <summary>七日终战（4.3）：半庄 / 东风场本场数为 7 流局 → 强制过庄进入 ALL LAST。</summary>

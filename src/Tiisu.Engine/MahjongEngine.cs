@@ -235,6 +235,9 @@ public sealed partial class MahjongEngine
             player.FirstTurnTenpai = false;
         }
 
+        // 报听：清流局听牌表、轮转「下局禁和 → 本局禁和」。
+        ResetCallStateForNewRound();
+
         State = _players[TurnIndex].IsHuman ? EngineState.HumanDiscard : EngineState.AiTurn;
     }
 
@@ -392,6 +395,12 @@ public sealed partial class MahjongEngine
     /// </summary>
     public Tile? Discard(Player player, Tile tile)
     {
+        // 报听锁手：打出后听牌张集合必须不变（Runtime 会先给提示，这里是规则层兜底）。
+        if (!CallAllowsDiscard(player, tile, out _))
+        {
+            return null;
+        }
+
         int index = player.Hand.IndexOf(tile);
         if (index < 0)
         {
@@ -522,6 +531,9 @@ public sealed partial class MahjongEngine
         }
 
         TurnIndex = (TurnIndex + 1) % PlayerCount;
+
+        // 报听：轮到自己 → 解除「本巡禁和」（普通错和的罚则只到下一巡）。
+        ClearTurnBan(TurnIndex);
         if (_wall.Count == 0)
         {
             Flow();
@@ -544,6 +556,34 @@ public sealed partial class MahjongEngine
         }
     }
 
+    /// <summary>被鸣走的牌要从放铳者牌河移除：四家弃牌河 + 本局弃牌记录各删最后一张匹配的牌。</summary>
+    private void RemoveCalledTileFromRiver(int discarder, Tile tile)
+    {
+        if (discarder < 0 || discarder >= PlayerCount)
+        {
+            return;
+        }
+
+        var river = _players[discarder].Discards;
+        for (int i = river.Count - 1; i >= 0; i--)
+        {
+            if (river[i] == tile)
+            {
+                river.RemoveAt(i);
+                break;
+            }
+        }
+
+        for (int i = _roundDiscards.Count - 1; i >= 0; i--)
+        {
+            if (_roundDiscards[i].PlayerIndex == discarder && _roundDiscards[i].Tile == tile)
+            {
+                _roundDiscards.RemoveAt(i);
+                break;
+            }
+        }
+    }
+
     /// <summary>
     /// 执行副露（engine.js <c>applyMeld</c>）。<paramref name="chiTrio"/> 是吃牌组合（语料给出）；
     /// <paramref name="rinshanTile"/> 是明杠的岭上补摸牌（语料快照推出）。抢杠判定属于判役性决策，
@@ -558,6 +598,13 @@ public sealed partial class MahjongEngine
         Tile? rinshanTile = null)
     {
         var player = _players[playerIndex];
+
+        // 报听禁吃碰（含明杠）；暗杠走 DoKan 的听牌形校验，不从这里进。
+        if (!CallAllowsMeld(player, type, out string? callReason))
+        {
+            throw new InvalidOperationException(callReason ?? "报听后禁止吃碰");
+        }
+
         switch (type)
         {
             case MeldType.Pon:
@@ -607,6 +654,9 @@ public sealed partial class MahjongEngine
                 throw new ArgumentOutOfRangeException(nameof(type), type, "applyMeld 只接受 chi/pon/minkan");
         }
 
+        // 被鸣的那张牌要从放铳者的牌河拿走（现实里吃碰杠会取走对应牌）。
+        RemoveCalledTileFromRiver(discarder, tile);
+
         TileUtil.SortHand(player.Hand);
 
         if (type == MeldType.Minkan)
@@ -636,6 +686,15 @@ public sealed partial class MahjongEngine
         if (type is not (MeldType.Ankan or MeldType.Kakan))
         {
             throw new ArgumentOutOfRangeException(nameof(type), type, "doKan 只接受 ankan/kakan");
+        }
+
+        // 报听：只允许「听牌形不变」的暗杠；加杠 / 明杠一律拒绝。
+        if (player.IsCalled)
+        {
+            if (type != MeldType.Ankan || !CallAllowsAnkan(player, tile, out _))
+            {
+                return false;
+            }
         }
 
         RemoveTiles(player.Hand, tile, type == MeldType.Ankan ? 4 : 1);

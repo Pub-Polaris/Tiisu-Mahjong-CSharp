@@ -10,6 +10,9 @@ public static class GameEventTypes
     public const string Win = "win";
     public const string Flow = "flow";
     public const string RoundEnd = "round_end";
+
+    /// <summary>报听（叫胡）宣言 / 错和。事件名固定 <c>call</c>。</summary>
+    public const string Call = "call";
 }
 
 /// <summary>

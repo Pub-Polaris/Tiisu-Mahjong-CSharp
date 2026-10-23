@@ -45,7 +45,14 @@ public sealed record RoundResult(
 /// <summary>局末判定的内部记录（决定写哪种日志 / 统计）。</summary>
 internal sealed record RoundOutcome(string Kind, IReadOnlyList<int> Winners, string? Reason);
 
-internal sealed record PendingRon(Tile Tile, WinResult Result, int Discarder);
+/// <summary>
+/// 待决荣和。<see cref="Result"/> 为 null 表示「报听错和候选」：手牌成和形但赋不足起和线，
+/// 点荣和会走错和判罚（<see cref="MisfireFu"/> 是那手的赋数）。
+/// </summary>
+internal sealed record PendingRon(Tile Tile, WinResult? Result, int Discarder, int MisfireFu = 0)
+{
+    public bool IsMisfire => Result is null;
+}
 
 internal sealed record PendingMeld(Tile Tile, int Discarder);
 
@@ -234,6 +241,9 @@ public sealed class MatchRuntime
                 case GameCommandKind.Ron:
                     HumanRon();
                     break;
+                case GameCommandKind.DeclareCall:
+                    HumanDeclareCall(command.Index);
+                    break;
                 case GameCommandKind.Pass:
                     Pass();
                     break;
@@ -401,6 +411,9 @@ public sealed class MatchRuntime
         RoundWindIdx = _engine.RoundWindIdx,
         DealerCount = _engine.DealerCount,
         InProgress = inProgress && !_engine.MatchOver,
+        IsCalled = _engine.Players.Select(p => p.IsCalled).ToArray(),
+        CallWinBanned = _engine.CallWinBanned.ToArray(),
+        CallWinBannedNextHand = _engine.CallWinBannedNextHand.ToArray(),
     };
 
     // ── 主循环 ───────────────────────────────────────────────────
@@ -551,7 +564,7 @@ public sealed class MatchRuntime
 
         var observation = SelfPlayDriver.BuildObservation(_engine, pi);
         var tsumo = AiPlayer.CheckTsumo(observation, _checker);
-        if (tsumo.Success)
+        if (tsumo.Success && !_engine.IsWinBanned(player))
         {
             DeclareTsumo(pi, tsumo);
             return;
@@ -564,7 +577,7 @@ public sealed class MatchRuntime
             {
                 var afterKan = SelfPlayDriver.BuildObservation(_engine, pi);
                 var tsumo2 = AiPlayer.CheckTsumo(afterKan, _checker);
-                if (tsumo2.Success)
+                if (tsumo2.Success && !_engine.IsWinBanned(player))
                 {
                     DeclareTsumo(pi, tsumo2);
                     return;
@@ -684,7 +697,7 @@ public sealed class MatchRuntime
         }
 
         int human = HumanIndex;
-        if (human >= 0 && human != discPlayer)
+        if (human >= 0 && human != discPlayer && !_engine.IsWinBanned(_engine.Players[human]))
         {
             var result = TryRon(human, discarded);
             if (result is not null)
@@ -693,6 +706,17 @@ public sealed class MatchRuntime
                 _pendingChiList.Clear();
                 _phase = MatchPhase.HumanRon;
                 _message = "荣和机会：别人打出 " + Display(discarded) + " · " + (result.TotalFu ?? 0) + "赋可和";
+                return;
+            }
+
+            // 报听错和：手牌成和形但赋不足起和线，照样给荣和窗口（点了就走错和罚）。
+            int misfireFu = RonMisfireFu(human, discarded);
+            if (misfireFu > 0)
+            {
+                _pendingRon = new PendingRon(discarded, null, discPlayer, misfireFu);
+                _pendingChiList.Clear();
+                _phase = MatchPhase.HumanRon;
+                _message = "报听错和风险：这手只有 " + misfireFu + " 赋（不足 " + _engine.BaseFu + "）· 点荣和按错和罚";
                 return;
             }
         }
@@ -710,7 +734,7 @@ public sealed class MatchRuntime
     private void CheckMelds(Tile discarded, int discPlayer)
     {
         int human = HumanIndex;
-        if (human >= 0 && human != discPlayer)
+        if (human >= 0 && human != discPlayer && !_engine.Players[human].IsCalled)
         {
             var observation = SelfPlayDriver.BuildObservation(_engine, -1, discPlayer, discarded);
             var options = AiPlayer.GetMeldOptions(observation);
@@ -813,6 +837,111 @@ public sealed class MatchRuntime
         RunLoop();
     }
 
+    /// <summary>
+    /// 报听（叫胡）。出牌阶段：<paramref name="index"/> 是要打出的那张手牌，打出后立即宣言；
+    /// 副露 / 荣和窗口：传 -1，按当前 13 张形判定。无二次确认、不可主动取消。
+    /// </summary>
+    public void HumanDeclareCall(int index)
+    {
+        int human = HumanIndex;
+        if (human < 0)
+        {
+            return;
+        }
+
+        var player = _engine.Players[human];
+        if (player.IsCalled)
+        {
+            Notify("已经报听，不能重复宣言", false);
+            return;
+        }
+
+        // 副露窗口（吃碰杠）/ 荣和窗口：手牌已是 13 张形（荣和窗口临时留着待牌，按去掉待牌算）。
+        if (_phase is MatchPhase.HumanMeld or MatchPhase.HumanRon)
+        {
+            var hand = _phase == MatchPhase.HumanRon && _pendingRon is PendingRon pending && !pending.IsMisfire
+                ? WithoutTile(player.Hand, pending.Tile)
+                : new List<Tile>(player.Hand);
+
+            if (!_engine.DeclareCallWithHand(player, hand))
+            {
+                Notify("手牌没有听牌，不能报听", false);
+                EmitState();
+                return;
+            }
+
+            RecordCall(human, "window");
+            _message = "已报听 · 听 " + string.Join(" ", SnapshotBuilder.TenpaiTileIds(_engine, player));
+            EmitState();
+            return;
+        }
+
+        if (_phase != MatchPhase.HumanDiscard || _engine.TurnIndex != human)
+        {
+            Notify("现在不能报听", false);
+            return;
+        }
+
+        if (index < 0 || index >= player.Hand.Count)
+        {
+            Notify("请选择要打出的那张牌完成报听", false);
+            return;
+        }
+
+        var tile = player.Hand[index];
+        var after = WithoutTile(player.Hand, tile);
+        var mask = _engine.WaitMaskFor(
+            after, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+        if (mask == 0)
+        {
+            Notify("打出这张后不听牌，不能报听", false);
+            return;
+        }
+
+        var discarded = _engine.Discard(player, tile);
+        if (discarded is null)
+        {
+            Notify("这张牌不在手里", false);
+            return;
+        }
+
+        _phase = MatchPhase.Idle;
+        RecordEvent(GameEventTypes.Discard, human, discarded.Value, null);
+        RecordStep(human, "discard", discarded.Value);
+
+        if (!_engine.DeclareCallWithHand(player, player.Hand))
+        {
+            EmitState();
+            AfterDiscard(discarded.Value, human);
+            return;
+        }
+
+        RecordCall(human, "discard");
+        _message = "已报听 · 听 " + string.Join(" ", SnapshotBuilder.TenpaiTileIds(_engine, player));
+        EmitState();
+        AfterDiscard(discarded.Value, human);
+    }
+
+    /// <summary>报听事件：日志 / 回放事件名统一 <c>call</c>。</summary>
+    private void RecordCall(int playerIndex, string via)
+    {
+        RecordEvent(GameEventTypes.Call, playerIndex, null, "call:" + via);
+        RecordStep(playerIndex, "call", null, "via=" + via);
+    }
+
+    /// <summary>手牌去掉一张指定牌（不改原列表）。</summary>
+    private static List<Tile> WithoutTile(IReadOnlyList<Tile> hand, Tile tile)
+    {
+        var copy = new List<Tile>(hand);
+        int index = copy.IndexOf(tile);
+        if (index >= 0)
+        {
+            copy.RemoveAt(index);
+        }
+
+        return copy;
+    }
+
     public void Pass()
     {
         switch (_phase)
@@ -873,6 +1002,13 @@ public sealed class MatchRuntime
             return false;
         }
 
+        // 报听锁手：打这张会改听牌张 → 拒绝并提示（引擎里还有一层兜底）。
+        if (!_engine.CallAllowsDiscard(player, player.Hand[index], out string? callReason))
+        {
+            Notify(callReason ?? "报听后听牌张不能变", false);
+            return false;
+        }
+
         var discarded = _engine.Discard(player, player.Hand[index]);
         if (discarded is null)
         {
@@ -908,12 +1044,80 @@ public sealed class MatchRuntime
         var result = AiPlayer.CheckTsumo(observation, _checker);
         if (!result.Success)
         {
+            // 报听错和：手牌成和形但赋不足起和线，玩家仍主动宣布和牌 → 判罚。
+            if (IsMisfireResult(player, result) && !_engine.IsWinBanned(player))
+            {
+                ApplyMisfire(human, result.TotalFu ?? 0, selfDraw: true);
+                if (_engine.MatchOver)
+                {
+                    _lastOutcome = new RoundOutcome("special_flow", Array.Empty<int>(), "call_foul");
+                }
+
+                _phase = MatchPhase.HumanDiscard;
+                EmitState();
+                return true;
+            }
+
             Notify("手牌不能和", false);
+            return false;
+        }
+
+        if (_engine.IsWinBanned(player))
+        {
+            Notify("本局禁和（或本巡禁和），不能宣布和牌", false);
             return false;
         }
 
         DeclareTsumo(human, result);
         return true;
+    }
+
+    /// <summary>错和候选：报听 + 手牌成和形但赋不足起和线（<c>no_yaku</c>）。</summary>
+    private bool IsMisfireResult(Player player, WinResult result)
+    {
+        if (!player.IsCalled || result.Success || result.Reason != "no_yaku")
+        {
+            return false;
+        }
+
+        int fu = result.TotalFu ?? 0;
+        return fu > 0 && fu < _engine.BaseFu;
+    }
+
+    /// <summary>
+    /// 错和判罚落地：扣点 / 禁和标记 / 解除报听 / 事件与日志。返回 null 表示不构成错和。
+    /// 是否终局（出岭）由调用方用 <see cref="MahjongEngine.MatchOver"/> 收口。
+    /// </summary>
+    private CallPenalty? ApplyMisfire(int playerIndex, int fu, bool selfDraw)
+    {
+        var penalty = _engine.ApplyCallMisfire(playerIndex, fu);
+        if (penalty is null)
+        {
+            return null;
+        }
+
+        _message = penalty.Severe
+            ? "报听错和（重罚）：赋 " + fu + " 不足起和线 · 本局 + 下局禁和"
+            : "报听错和：赋 " + fu + " 不足起和线 · 向三家各付 " + penalty.Z;
+        RecordEvent(
+            GameEventTypes.Call,
+            playerIndex,
+            null,
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "call_foul:fu={0}:z={1}:{2}:{3}",
+                fu,
+                penalty.Z,
+                penalty.Severe ? "severe" : "minor",
+                selfDraw ? "tsumo" : "ron"));
+        RecordStep(
+            playerIndex,
+            "call_foul",
+            null,
+            string.Format(CultureInfo.InvariantCulture, "fu={0}:z={1}", fu, penalty.Z));
+        Emit(new MessageEvent(_message, true));
+        _engine.CheckDeungnyeong();
+        return penalty;
     }
 
     private bool KanSelfCore(MeldType requested)
@@ -966,9 +1170,34 @@ public sealed class MatchRuntime
         _phase = MatchPhase.Idle;
         _message = null;
 
+        var ronResult = pending.Result;
+        if (ronResult is null)
+        {
+            // 报听错和：本次和牌不成立（错和家不算和），解除报听并判罚；
+            // 同一张牌上其他家的真和牌照常结算（含双和子 / 过庄）。
+            ApplyMisfire(human, pending.MisfireFu, selfDraw: false);
+            if (_engine.MatchOver)
+            {
+                _lastOutcome = new RoundOutcome("special_flow", Array.Empty<int>(), "call_foul");
+                return true;
+            }
+
+            EmitState();
+
+            var others = CheckRonForAi(pending.Tile, pending.Discarder);
+            if (others.Count > 0)
+            {
+                DeclareMultiRon(others, pending.Discarder, pending.Tile);
+                return true;
+            }
+
+            CheckMelds(pending.Tile, pending.Discarder);
+            return true;
+        }
+
         var winners = new List<RonWinner>
         {
-            new(human, SelfPlayDriver.ToSettlement(pending.Result)),
+            new(human, SelfPlayDriver.ToSettlement(ronResult)),
         };
 
         foreach (var candidate in CheckRonForAi(pending.Tile, pending.Discarder))
@@ -1322,6 +1551,17 @@ public sealed class MatchRuntime
     /// <summary>副露（AI 与人类共用），含明杠岭上补摸。</summary>
     private void ApplyMeldCore(int playerIndex, MeldType type, Tile tile, int discarder, IReadOnlyList<Tile>? chiTrio)
     {
+        // 报听：禁吃碰明杠（规则层兜底提示，正常路径上面已经不给窗口）。
+        if (!_engine.CallAllowsMeld(_engine.Players[playerIndex], type, out string? callReason))
+        {
+            Notify(callReason ?? "报听后禁止吃碰", false);
+            EmitState();
+            return;
+        }
+
+        // 副露后这张牌的荣和窗口就结束了：清掉遗留的待荣和状态，否则「和牌」按钮会一直亮着。
+        _pendingRon = null;
+
         var player = _engine.Players[playerIndex];
         _engine.ApplyMeld(playerIndex, type, tile, discarder, chiTrio, _engine.PeekRinshanTile());
 
@@ -1436,6 +1676,52 @@ public sealed class MatchRuntime
         return result;
     }
 
+    /// <summary>
+    /// 报听荣和错和候选：手牌加上这张牌后成和形、但赋数不足起和线时返回该手赋数；否则返回 0。
+    /// 判定用的牌临时加进手牌再移走，不改对局状态。
+    /// </summary>
+    private int RonMisfireFu(int playerIndex, Tile tile)
+    {
+        var player = _engine.Players[playerIndex];
+        if (!player.IsCalled)
+        {
+            return 0;
+        }
+
+        if (player.Hand.Count != 13 - player.MeldTiles() + player.KongCount())
+        {
+            return 0;
+        }
+
+        player.Hand.Add(tile);
+        player.Hand.Sort();
+
+        var result = _checker.CheckWin(
+            player.Hand,
+            selfDraw: false,
+            hasCalled: player.Melds.Count > 0 || player.MinkanCount > 0,
+            ankanCount: player.AnkanCount,
+            minkanCount: player.MinkanCount,
+            melds: ToCoreMelds(player.Melds),
+            firstTurn: player.FirstTurn,
+            winTile: tile,
+            context: BuildWinContext(playerIndex, player.Hand, selfDraw: false, tile));
+
+        int position = player.Hand.FindIndex(t => t == tile);
+        if (position >= 0)
+        {
+            player.Hand.RemoveAt(position);
+        }
+
+        if (result.Success || result.Reason != "no_yaku")
+        {
+            return 0;
+        }
+
+        int fu = result.TotalFu ?? 0;
+        return fu > 0 && fu < _engine.BaseFu ? fu : 0;
+    }
+
     /// <summary>抢杠（<c>checkRobKan</c>）：加杠可被任意家抢；暗杠只有国士形能抢。</summary>
     private List<RonCandidate> CheckRobKan(Tile tile, MeldType type, int kanPlayer)
     {
@@ -1487,7 +1773,23 @@ public sealed class MatchRuntime
     private List<RonCandidate> CheckRonForAi(Tile discarded, int discPlayer)
     {
         var observation = SelfPlayDriver.BuildObservation(_engine, -1, discPlayer, discarded);
-        return AiPlayer.CheckRonDetailed(observation, _checker);
+        var candidates = AiPlayer.CheckRonDetailed(observation, _checker);
+        if (candidates.Count == 0)
+        {
+            return candidates;
+        }
+
+        // 禁和标记（错和罚）同样约束 AI。
+        var allowed = new List<RonCandidate>(candidates.Count);
+        foreach (var candidate in candidates)
+        {
+            if (!_engine.IsWinBanned(_engine.Players[candidate.PlayerIndex]))
+            {
+                allowed.Add(candidate);
+            }
+        }
+
+        return allowed;
     }
 
     private static bool IsKokushiShape(Player player)
@@ -1671,16 +1973,35 @@ public sealed class MatchRuntime
             {
                 actions |= HumanAction.Discard;
                 var player = _engine.Players[human];
+                bool banned = _engine.IsWinBanned(player);
                 if (player.TotalTiles() == 14 + player.KongCount())
                 {
                     var observation = SelfPlayDriver.BuildObservation(_engine, human);
-                    if (AiPlayer.CheckTsumo(observation, _checker).Success)
+                    var tsumo = AiPlayer.CheckTsumo(observation, _checker);
+                    if (tsumo.Success)
                     {
+                        if (!banned)
+                        {
+                            actions |= HumanAction.Tsumo;
+                        }
+                    }
+                    else if (!banned && IsMisfireResult(player, tsumo))
+                    {
+                        // 报听错和候选：手牌成和形但赋不足起和线，仍允许「宣布和牌」。
                         actions |= HumanAction.Tsumo;
                     }
                 }
 
-                if (AiPlayer.CanAnkan(player.Hand) is not null || AiPlayer.CanKakan(ViewOf(player)) is not null)
+                var ankan = AiPlayer.CanAnkan(player.Hand);
+                if (ankan is not null)
+                {
+                    // 报听：只有听牌形不变的暗杠可点。
+                    if (!player.IsCalled || _engine.CallAllowsAnkan(player, ankan.Value, out _))
+                    {
+                        actions |= HumanAction.Kan;
+                    }
+                }
+                else if (!player.IsCalled && AiPlayer.CanKakan(ViewOf(player)) is not null)
                 {
                     actions |= HumanAction.Kan;
                 }
@@ -1690,40 +2011,113 @@ public sealed class MatchRuntime
                     actions |= HumanAction.Flow;
                 }
 
+                if (!player.IsCalled && HasTenpaiDiscard(player))
+                {
+                    actions |= HumanAction.DeclareCall;
+                }
+
                 break;
             }
 
             case MatchPhase.HumanRon:
                 actions |= HumanAction.Ron | HumanAction.Pass;
+                if (!_engine.Players[human].IsCalled && _pendingRon is PendingRon ron && !ron.IsMisfire
+                    && ReturnsTenpai(_engine.Players[human], ron.Tile))
+                {
+                    actions |= HumanAction.DeclareCall;
+                }
+
                 break;
 
             case MatchPhase.HumanMeld:
                 if (_pendingMeld is PendingMeld pending)
                 {
+                    var player = _engine.Players[human];
                     var observation = SelfPlayDriver.BuildObservation(_engine, -1, pending.Discarder, pending.Tile);
                     var options = AiPlayer.GetMeldOptions(observation);
-                    if (options.Kan.Contains(human))
-                    {
-                        actions |= HumanAction.Kan;
-                    }
 
-                    if (options.Pon.Contains(human))
+                    // 报听后禁止吃碰（含明杠），只留「过」。
+                    if (!player.IsCalled)
                     {
-                        actions |= HumanAction.Pon;
-                    }
+                        if (options.Kan.Contains(human))
+                        {
+                            actions |= HumanAction.Kan;
+                        }
 
-                    if (options.Chi == human)
-                    {
-                        actions |= HumanAction.Chi;
+                        if (options.Pon.Contains(human))
+                        {
+                            actions |= HumanAction.Pon;
+                        }
+
+                        if (options.Chi == human)
+                        {
+                            actions |= HumanAction.Chi;
+                        }
                     }
 
                     actions |= HumanAction.Pass;
+
+                    if (!player.IsCalled && _engine.CanDeclareCall(player))
+                    {
+                        actions |= HumanAction.DeclareCall;
+                    }
                 }
 
                 break;
         }
 
         return actions;
+    }
+
+    /// <summary>报听按钮是否可用（出牌阶段）：打掉某一张后手牌真的听牌。</summary>
+    private bool HasTenpaiDiscard(Player player)
+    {
+        int total = player.TotalTiles();
+        if (total == 13 + player.KongCount())
+        {
+            return _engine.WaitMaskOf(player) != 0;
+        }
+
+        if (total != 14 + player.KongCount())
+        {
+            return false;
+        }
+
+        var seen = new HashSet<Tile>();
+        foreach (var tile in player.Hand)
+        {
+            if (!seen.Add(tile))
+            {
+                continue;
+            }
+
+            var after = WithoutTile(player.Hand, tile);
+            if (after.Count == player.Hand.Count)
+            {
+                continue;
+            }
+
+            if (_engine.WaitMaskFor(
+                    after, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn) != 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>荣和窗口里「去掉待牌」后是否已是听牌形（报听按钮用）。</summary>
+    private bool ReturnsTenpai(Player player, Tile pendingTile)
+    {
+        var hand = WithoutTile(player.Hand, pendingTile);
+        if (hand.Count + player.MeldTiles() != 13 + player.KongCount())
+        {
+            return false;
+        }
+
+        return _engine.WaitMaskFor(
+            hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn) != 0;
     }
 
     /// <summary>吃牌多选的按钮文案（如「吃 234m」）。</summary>

@@ -50,6 +50,15 @@ public sealed class Player
     /// <summary>本局第一张打出后是否已听牌（水滴石破）。</summary>
     public bool FirstTurnTenpai { get; set; }
 
+    /// <summary>已报听（叫胡）。报听后锁手、禁吃碰、只允许听牌形不变的暗杠。</summary>
+    public bool IsCalled { get; set; }
+
+    /// <summary>
+    /// 报听时锁定的听牌张位掩码（bit = <see cref="Tile.Index"/>，34 位）。
+    /// 锁手校验就是「当前听牌张集合必须与这个掩码相等」。
+    /// </summary>
+    public ulong CalledWaitMask { get; set; }
+
     /// <summary>副露/杠后免常规摸牌。</summary>
     public bool SkipDraw { get; set; }
 
@@ -63,6 +72,18 @@ public sealed class Player
         }
 
         return Hand.Count + meldTiles;
+    }
+
+    /// <summary>副露张数合计（暗手之外的牌）。</summary>
+    public int MeldTiles()
+    {
+        int meldTiles = 0;
+        foreach (var meld in Melds)
+        {
+            meldTiles += meld.Tiles.Count;
+        }
+
+        return meldTiles;
     }
 
     /// <summary>JS <c>kongCount()</c>：4 张面子即杠。</summary>
@@ -123,5 +144,7 @@ public sealed class Player
         RinshanDrawn = false;
         FirstTurnTenpai = false;
         SkipDraw = false;
+        IsCalled = false;
+        CalledWaitMask = 0;
     }
 }

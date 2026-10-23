@@ -12,6 +12,8 @@ public enum GameCommandKind
     KanKakan,
     Tsumo,
     Ron,
+    /// <summary>报听（叫胡）：<see cref="GameCommand.Index"/> ≥ 0 时同时打出该张手牌。</summary>
+    DeclareCall,
     Pass,
     Flow,
     NextRound,
@@ -50,6 +52,9 @@ public sealed record GameCommand(
     public static GameCommand Tsumo() => new(GameCommandKind.Tsumo);
 
     public static GameCommand Ron() => new(GameCommandKind.Ron);
+
+    /// <summary>报听。出牌阶段给 <paramref name="index"/>（要打出/摸切的手牌），副露窗口给 -1。</summary>
+    public static GameCommand DeclareCall(int index = -1) => new(GameCommandKind.DeclareCall, Index: index);
 
     public static GameCommand Pass() => new(GameCommandKind.Pass);
 
