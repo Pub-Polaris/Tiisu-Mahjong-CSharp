@@ -8,5 +8,8 @@ backup_*.tar.gz
 # 本地打包 / 截图产物（dotnet publish、NSIS、--shot）
 dist/
 
+# 构建时生成的版本号（Tiisu.App.csproj 的 GenerateBuildInfo Target）
+Generated/
+
 # ASP.NET 模板每次构建都会重写它（随机端口），不入库
 **/Properties/launchSettings.json

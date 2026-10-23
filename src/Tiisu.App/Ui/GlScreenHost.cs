@@ -17,7 +17,7 @@ internal sealed class GlScreenHost : SKGLControl
     public GlScreenHost(TileAtlas? atlas)
     {
         Dock = DockStyle.Fill;
-        _core = new ScreenHostCore(atlas, Invalidate);
+        _core = new ScreenHostCore(atlas, Invalidate, () => FindForm()?.Close());
     }
 
     protected override void OnPaintSurface(SKPaintGLSurfaceEventArgs e)

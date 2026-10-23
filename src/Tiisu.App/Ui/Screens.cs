@@ -611,6 +611,9 @@ public sealed class TableScreen : Screen
 /// <summary>菜单屏：完全由布局 JSON 驱动（菜单项 → action）。</summary>
 public sealed class MenuScreen : Screen
 {
+    /// <summary>右下角作者署名（版本号由 <see cref="BuildInfo"/> 在构建时写入）。</summary>
+    private const string Author = "公民北极星_Official·作";
+
     private readonly UiLayout _layout;
     private readonly Func<string, bool> _onAction;
     private readonly HashSet<string> _hover = new();
@@ -619,6 +622,15 @@ public sealed class MenuScreen : Screen
     {
         _layout = layout;
         _onAction = onAction;
+
+        // 版本行：布局 JSON 只负责位置，文案在构建时由 git 生成。
+        foreach (var el in _layout.Elements)
+        {
+            if (string.Equals(el.Id, "buildInfo", StringComparison.Ordinal))
+            {
+                el.Text = BuildInfo.Version + " · " + Author;
+            }
+        }
     }
 
     public override void Draw(ICanvas c, double time)
@@ -640,8 +652,12 @@ public sealed class MenuScreen : Screen
                     break;
 
                 case "text":
+                    string align = (el.Align ?? "center").Trim().ToLowerInvariant();
                     c.DrawText(el.Text ?? string.Empty, el.Rect,
-                        ParseColor(el.FontColor, Color.White), new TextStyle(el.FontSize, Center: true));
+                        ParseColor(el.FontColor, Color.White),
+                        new TextStyle(el.FontSize,
+                            Center: align != "left" && align != "right",
+                            Right: align == "right"));
                     break;
 
                 case "tile":

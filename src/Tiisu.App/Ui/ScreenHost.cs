@@ -24,6 +24,7 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly SettingsScreen _settingsScreen;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly System.Windows.Forms.Timer _frameTimer;
+    private readonly Action _close;
 
     private Screen _current;
     private Screen? _previous;
@@ -38,9 +39,10 @@ internal sealed class ScreenHostCore : IDisposable
 
     private bool _disposed;
 
-    public ScreenHostCore(TileAtlas? atlas, Action invalidate)
+    public ScreenHostCore(TileAtlas? atlas, Action invalidate, Action close)
     {
         _atlas = atlas;
+        _close = close ?? (() => { });
 
         // 会话必须在 UI 线程构造：它捕获当前 SynchronizationContext 把事件回投到 UI。
         _settings = Settings.Load();
@@ -95,6 +97,11 @@ internal sealed class ScreenHostCore : IDisposable
 
             case "settings":
                 SwitchTo(_settingsScreen);
+                return true;
+
+            case "quit":
+                // 菜单「退出」= 关主窗口（退出程序）；ESC 仍只做返回。
+                _close();
                 return true;
 
             default:

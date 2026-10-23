@@ -26,7 +26,7 @@ public sealed class MainForm : Form
         BackColor = Color.Black;
         KeyPreview = true;
 
-        // 退出程序只保留窗口关闭按钮；ESC 由各 Screen 处理成「返回」。
+        // 退出程序：菜单「退出」按钮 / 窗口关闭按钮；ESC 由各 Screen 处理成「返回」。
         // GPU（SKGLControl + GRContext）优先，不可用时工厂内部自动回退 CPU（SKControl）。
         Controls.Add(ScreenHostFactory.Create(atlas, forceCpuRender));
     }

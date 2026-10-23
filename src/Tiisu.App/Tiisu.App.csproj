@@ -38,4 +38,28 @@
     </None>
   </ItemGroup>
 
+  <!-- Generated/BuildInfo.g.cs 由下面的 Target 每次编译前重建，别再让默认 glob 收一遍（会重复 Include）。 -->
+  <ItemGroup>
+    <Compile Remove="Generated\**\*.cs" />
+  </ItemGroup>
+
+  <!--
+    构建时由 tools/get-buildinfo.ps1 从 git 取 short hash + 提交日期（yymmdd）生成版本号；
+    工作区有未提交改动时加 +，没有 git / 取不到信息时降级为 dev。
+    脚本同时负责写文件，避免 MSBuild 输出重定向对 % 与分号的转义问题。
+  -->
+  <Target Name="GenerateBuildInfo" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <_TiisuBuildInfoFile>$(MSBuildProjectDirectory)\Generated\BuildInfo.g.cs</_TiisuBuildInfoFile>
+    </PropertyGroup>
+
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\tools\get-buildinfo.ps1&quot; -ProjectDir &quot;$(MSBuildProjectDirectory)\..\..&quot; -OutFile &quot;$(_TiisuBuildInfoFile)&quot;"
+          StandardOutputImportance="low" StandardErrorImportance="low" />
+
+    <!-- 首次生成时文件还不存在，默认 glob 没收到它：这里补进编译列表。 -->
+    <ItemGroup>
+      <Compile Include="$(_TiisuBuildInfoFile)" />
+    </ItemGroup>
+  </Target>
+
 </Project>

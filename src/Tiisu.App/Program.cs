@@ -29,6 +29,10 @@ internal static class Program
         // 无窗口自检（不建窗口、不初始化 WinForms）
         switch (args.Length >= 1 ? args[0] : string.Empty)
         {
+            case "--version":
+                // 构建时由 Tiisu.App.csproj 从 git 生成；无 git 时为 dev。
+                Console.WriteLine(BuildInfo.Version);
+                return;
             case "--smoke-run":
                 Environment.ExitCode = SmokeRun(args);
                 return;
@@ -655,23 +659,33 @@ internal static class Program
         bool backAfterSecond = back;
 
         back = false;
-        var menu = new MenuScreen(
-            UiLayout.Load(Path.Combine(AssetsDir, "layout", "menu.json")),
-            _ => false);
+        string clicked = string.Empty;
+        var menuLayout = UiLayout.Load(Path.Combine(AssetsDir, "layout", "menu.json"));
+        var menu = new MenuScreen(menuLayout, action =>
+        {
+            clicked = action;
+            return true;
+        });
         bool lobbyHandled = menu.OnKey(Keys.Escape);
+        bool menuEscQuit = clicked.Length > 0;
+        var quitButton = menuLayout.Elements.First(el => el.Id == "btnQuit");
+        bool quitHandled = menu.OnClick(quitButton.Rect.CenterX, quitButton.Rect.CenterY);
 
         bool settingsBack = false;
         var settings = new SettingsScreen(Settings.Load(), _ => { }, () => settingsBack = true);
         bool settingsHandled = settings.OnKey(Keys.Escape);
 
         bool ok = meldHandled && meldCommand == "Pass" && !backAfterDismiss && dismissHandled
-                  && menuHandled && backAfterSecond && lobbyHandled && settingsHandled && settingsBack;
+                  && menuHandled && backAfterSecond && lobbyHandled && !menuEscQuit
+                  && quitHandled && clicked == "quit"
+                  && settingsHandled && settingsBack;
 
         Console.WriteLine("smoke-escape");
         Console.WriteLine($"  牌桌 ESC（有「过」）: handled={meldHandled} command={meldCommand}");
         Console.WriteLine($"  牌桌 ESC（结算弹窗）: handled={dismissHandled} 弹窗关闭={!backAfterDismiss}");
         Console.WriteLine($"  牌桌 ESC（弹窗已关）: handled={menuHandled} 回菜单={backAfterSecond}");
-        Console.WriteLine($"  菜单 ESC: handled={lobbyHandled}（不退出、不做事）");
+        Console.WriteLine($"  菜单 ESC: handled={lobbyHandled} 动作=\"{(menuEscQuit ? clicked : "-")}\"（不退出、不做事）");
+        Console.WriteLine($"  菜单「退出」按钮: handled={quitHandled} action=\"{clicked}\"");
         Console.WriteLine($"  设置 ESC: handled={settingsHandled} 回菜单={settingsBack}");
         return ok ? 0 : 1;
     }

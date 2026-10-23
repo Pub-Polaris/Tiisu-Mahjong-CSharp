@@ -26,9 +26,15 @@ public sealed class SettingsScreen : Screen
         new[] { 0, 0, 0, 100 },
     };
 
-    private const float RowTop = 118f;
-    private const float RowStep = 36f;
-    private const float RowHeight = 32f;
+    private const float RowTop = 100f;
+    private const float RowStep = 32f;
+    private const float RowHeight = 30f;
+
+    /// <summary>人类座位（引擎固定座位 0）；该行只展示「你」，不可锁。</summary>
+    private const int HumanSeat = 0;
+
+    /// <summary>座位名（按引擎四家顺序）。</summary>
+    private static readonly string[] SeatNames = { "东座", "南座", "西座", "北座" };
 
     /// <summary>与 Web 设置页同一组可选役（5 项）；中文名取自 ike.json。</summary>
     private static readonly (string Id, string Name)[] OptionalYakuOptions = BuildOptionalOptions();
@@ -63,8 +69,8 @@ public sealed class SettingsScreen : Screen
         c.DrawText("设置", new RectF(0, 36, Width, 52), Gold,
             new TextStyle(32, Bold: true, Center: true));
 
-        float panelH = Math.Min(640, 40 + (_rows.Count * RowStep));
-        var panel = new RectF(330, 90, 620, panelH);
+        float panelH = Math.Min(600, 40 + (_rows.Count * RowStep));
+        var panel = new RectF(330, 92, 620, panelH);
         c.FillRoundRect(panel, 16, Color.Rgb(16, 24, 22).WithAlpha(232));
         c.StrokeRoundRect(panel, 16, Color.Rgb(60, 78, 70), 1.4f);
 
@@ -87,14 +93,14 @@ public sealed class SettingsScreen : Screen
 
             c.DrawText(row.Label, new RectF(rect.X + 16, rect.Y, rect.W - 180, rect.H),
                 selected ? Color.Rgb(255, 244, 214) : TextColor,
-                new TextStyle(18, Bold: selected, Center: false));
+                new TextStyle(17, Bold: selected, Center: false));
 
             c.DrawText(row.Value(), new RectF(rect.Right - 170, rect.Y, 150, rect.H),
                 row.IsOn() ? Gold : Muted,
-                new TextStyle(17, Bold: row.IsOn(), Center: false, Right: true));
+                new TextStyle(16, Bold: row.IsOn(), Center: false, Right: true));
         }
 
-        c.DrawText("↑↓ 选择 · ←→ 切换 · Esc 返回", new RectF(0, 660, Width, 30), Muted,
+        c.DrawText("↑↓ 选择 · ←→ 切换 · Esc 返回 · 座位锁定下一场生效", new RectF(0, 684, Width, 28), Muted,
             new TextStyle(16, Center: true));
     }
 
@@ -216,11 +222,24 @@ public sealed class SettingsScreen : Screen
             () => OnOff(_settings.AiMctsEnabled),
             () => _settings.AiMctsEnabled,
             _ => Toggle(() => _settings.AiMctsEnabled, value => _settings.AiMctsEnabled = value)));
-        _rows.Add(new Row(
-            "按座位锁定",
-            LockText,
-            () => HasSeatLock(),
-            _ => { }));
+
+        // 按座位锁定：-1 = 随机（∅），0..3 = 简 / 普 / 难 / 修；人类座位只标注「你」。
+        for (int seat = 0; seat < 4; seat++)
+        {
+            int index = seat;
+            bool human = seat == HumanSeat;
+            _rows.Add(new Row(
+                "锁定 · " + SeatNames[seat] + (human ? "（你）" : string.Empty),
+                () => human ? "你" : LockName(SeatLock(index)),
+                () => !human && SeatLock(index) >= 0,
+                direction =>
+                {
+                    if (!human)
+                    {
+                        CycleSeatLock(index, direction);
+                    }
+                }));
+        }
     }
 
     /// <summary>权重展示：<c>30/45/20/5</c>（简单/普通/困难/修罗）。</summary>
@@ -230,27 +249,49 @@ public sealed class SettingsScreen : Screen
         return weights is { Length: 4 } ? string.Join("/", weights) : "30/45/20/5";
     }
 
-    /// <summary>锁座展示：<c>-/-/难/-</c>（东/南/西/北，- = 跟随随机）。</summary>
-    private string LockText()
+    /// <summary>锁档名：-1 = 随机，0..3 = 简单 / 普通 / 困难 / 修罗。</summary>
+    private static string LockName(int value) => value switch
+    {
+        0 => "简单",
+        1 => "普通",
+        2 => "困难",
+        3 => "修罗",
+        _ => "随机",
+    };
+
+    private int SeatLock(int seat)
     {
         var locks = _settings.AiSeatLocks;
-        if (locks is not { Length: 4 })
-        {
-            return "-/-/-/-";
-        }
-
-        return string.Join("/", locks.Select(value => value switch
-        {
-            0 => "简",
-            1 => "普",
-            2 => "难",
-            3 => "修",
-            _ => "-",
-        }));
+        return locks is { Length: 4 } ? locks[seat] : -1;
     }
 
-    private bool HasSeatLock() =>
-        _settings.AiSeatLocks is { Length: 4 } locks && locks.Any(value => value >= 0);
+    /// <summary>←→ 循环：随机 → 简单 → 普通 → 困难 → 修罗 → 随机。</summary>
+    private void CycleSeatLock(int seat, int direction)
+    {
+        if (_settings.AiSeatLocks is not { Length: 4 })
+        {
+            _settings.AiSeatLocks = new[] { -1, -1, -1, -1 };
+        }
+
+        int current = _settings.AiSeatLocks[seat];
+        if (current is < -1 or > 3)
+        {
+            current = -1;
+        }
+
+        int next = current + (direction >= 0 ? 1 : -1);
+        if (next > 3)
+        {
+            next = -1;
+        }
+        else if (next < -1)
+        {
+            next = 3;
+        }
+
+        _settings.AiSeatLocks[seat] = next;
+        Save();
+    }
 
     private void CycleWeights(int direction)
     {

@@ -53,6 +53,7 @@ public static class TableDemoModel
             Kyotaku = 0,
             TurnIndex = 0,
             Seats = seats,
+            AiLevels = new[] { "Simple", "Normal", "Simple", "Hard" },
         };
     }
 
@@ -77,6 +78,7 @@ public static class TableDemoModel
             ActionLabels = new[] { "吃 4-5-6", "吃 5-6-7" },
             Message = "副露窗口",
             TenpaiTiles = new[] { "2m", "5p", "8s", "3z" },
+            AiLevels = vm.AiLevels,
         };
     }
 
@@ -136,6 +138,7 @@ public static class TableDemoModel
             RevealHands = settled,
             Phase = settled ? "round_end" : "human_discard",
             Message = settled ? "和牌后：暗杠整组翻开" : "对局中：暗杠只翻第 2、4 张",
+            AiLevels = vm.AiLevels,
         };
     }
 }

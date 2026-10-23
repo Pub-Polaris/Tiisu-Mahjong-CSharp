@@ -14,7 +14,7 @@ internal sealed class CpuScreenHost : SKControl
     public CpuScreenHost(TileAtlas? atlas)
     {
         Dock = DockStyle.Fill;
-        _core = new ScreenHostCore(atlas, Invalidate);
+        _core = new ScreenHostCore(atlas, Invalidate, () => FindForm()?.Close());
     }
 
     protected override void OnPaintSurface(SKPaintSurfaceEventArgs e)

@@ -128,6 +128,75 @@ public sealed class TableSceneSkia
         {
             DrawSeat(c, vm, Seat(vm, seat), seat, l, seat == 0 ? hoverHand : -1);
         }
+
+        DrawAiLevelBadges(c, vm, l);
+    }
+
+    /// <summary>AI 档位小字：Simple=简 / Normal=普 / Hard=难 / Shura=修，人类座位不显示。</summary>
+    private static readonly string[] AiLevelBadges = { "简", "普", "难", "修" };
+
+    /// <summary>
+    /// 在每家 AI 手牌框外侧画一枚半透明小标（座位名 · 档位），贴合座位名牌位置，
+    /// 不压手牌与牌河。
+    /// </summary>
+    private static void DrawAiLevelBadges(ICanvas c, TableViewModel vm, TableLayoutSpec l)
+    {
+        var levels = vm.AiLevels;
+        if (levels.Count == 0)
+        {
+            return;
+        }
+
+        const float badgeW = 62f;
+        const float badgeH = 24f;
+
+        for (int seat = 1; seat < 4 && seat < levels.Count; seat++)
+        {
+            var view = Seat(vm, seat);
+            if (view.IsHuman)
+            {
+                continue;
+            }
+
+            string level = AiShort(levels[seat]);
+            if (level.Length == 0)
+            {
+                continue;
+            }
+
+            var frame = l.HandRects[seat];
+            var box = seat switch
+            {
+                // 对家（上）：手牌框右端下方。
+                2 => new RectF(frame.Right - badgeW, frame.Bottom + 8, badgeW, badgeH),
+
+                // 左右两家：手牌框上端外侧。
+                _ => new RectF(frame.X, frame.Top - badgeH - 8, badgeW, badgeH),
+            };
+
+            c.FillRoundRect(box, 7, Color.Rgb(0, 0, 0).WithAlpha(150));
+            c.StrokeRoundRect(box, 7, Color.Rgb(150, 170, 160).WithAlpha(90), 1f);
+            c.DrawText(view.Wind + "·" + level, box,
+                Color.Rgb(214, 230, 220), new TextStyle(13, Bold: true, Center: true));
+        }
+    }
+
+    /// <summary>档位名（Simple / Normal / Hard / Shura）→ 单字缩写；未知返回空。</summary>
+    private static string AiShort(string level)
+    {
+        if (string.IsNullOrEmpty(level))
+        {
+            return string.Empty;
+        }
+
+        return level switch
+        {
+            "Simple" => AiLevelBadges[0],
+            "Normal" => AiLevelBadges[1],
+            "Hard" => AiLevelBadges[2],
+            "Shura" => AiLevelBadges[3],
+            _ => string.Empty,
+        };
     }
 
     /// <summary>

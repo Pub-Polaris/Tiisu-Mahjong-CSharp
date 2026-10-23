@@ -46,5 +46,8 @@ public sealed class LayoutElement
     public float FontSize { get; set; } = 20f;
     public string? FontColor { get; set; }
 
+    /// <summary>文字水平对齐：center（默认）/ left / right。</summary>
+    public string? Align { get; set; }
+
     public RectF Rect => new(X, Y, W, H);
 }
