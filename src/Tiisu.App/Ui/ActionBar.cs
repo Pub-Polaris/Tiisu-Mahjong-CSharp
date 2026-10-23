@@ -109,10 +109,12 @@ public sealed class ActionBar
             return;
         }
 
-        const float bw = 96f, bh = 46f, gap = 10f;
+        const float bw = 96f, gap = 10f;
+        var bar = layout.ActionBarRect;
+        float bh = bar.H > 0f ? bar.H : 46f;
         float totalW = items.Count * bw + (items.Count - 1) * gap;
-        float x = hand.CenterX - totalW / 2f;
-        float y = hand.Y - bh - 16f;
+        float x = bar.W > 0f ? bar.CenterX - totalW / 2f : hand.CenterX - totalW / 2f;
+        float y = bar.W > 0f ? bar.Y : hand.Y - bh - 16f;
         if (y < 8)
         {
             y = 8;

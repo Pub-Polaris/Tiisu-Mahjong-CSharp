@@ -60,6 +60,16 @@ internal static class Program
             case "--smoke-credits":
                 Environment.ExitCode = SmokeCredits();
                 return;
+            case "--smoke-layout-editor":
+                Environment.ExitCode = SmokeLayoutEditor();
+                return;
+        }
+
+        // 编辑态出图：--render-layout-edit <png>
+        if (args.Length >= 2 && args[0] == "--render-layout-edit")
+        {
+            RenderLayoutEdit(args[1]);
+            return;
         }
 
         // 无窗口验证：--render <png> [time] [table|menu]
@@ -1438,5 +1448,206 @@ internal static class Program
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(path, data.ToArray());
         Console.WriteLine($"rendered actions -> {path}  buttons={new TableLayoutSpec().CanvasW:0}");
+    }
+
+    /// <summary>
+    /// <c>--smoke-layout-editor</c>：区域可枚举 → F2 进入 → 拖动 10,10 → S 保存 →
+    /// 重新加载断言生效 → R 两次恢复默认断言回原值；另测非法 JSON / 缺字段 / 启动不崩。
+    /// </summary>
+    private static int SmokeLayoutEditor()
+    {
+        TryUseUtf8Console();
+        string dir = Path.Combine(Path.GetTempPath(), "tiisu-layout-smoke-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+
+        int pass = 0;
+        int total = 0;
+        void Check(string label, bool ok)
+        {
+            total++;
+            if (ok)
+            {
+                pass++;
+            }
+
+            Console.WriteLine($"  [{(ok ? "PASS" : "FAIL")}] {label}");
+        }
+
+        Console.WriteLine("smoke-layout-editor");
+
+        try
+        {
+            var layout = NewLayout();
+            var editor = new LayoutEditor(layout, dir);
+
+            string[] required =
+            {
+                "hand-self", "meld-self", "river-self", "plate",
+                "hud", "action-bar", "settlement", "thumbnail",
+            };
+            Check($"区域可枚举（{layout.Regions.Count} 个，≥16）", layout.Regions.Count >= 16);
+            Check("覆盖必需区域", required.All(id => layout.Regions.Any(r => r.Id == id)));
+
+            int index = 0;
+            for (int i = 0; i < layout.Regions.Count; i++)
+            {
+                if (layout.Regions[i].Id == "hand-self")
+                {
+                    index = i;
+                }
+            }
+
+            var before = layout.Regions[index].Rect;
+            Console.WriteLine($"  默认 hand-self = {before.X:0},{before.Y:0} {before.W:0}×{before.H:0}");
+
+            editor.Enter();
+            Check("进入编辑模式", editor.Active);
+            editor.Select(index);
+            editor.PointerDown(before.CenterX, before.CenterY);
+            editor.PointerMove(before.CenterX + 10f, before.CenterY + 10f);
+            editor.PointerUp();
+
+            var moved = layout.Regions[index].Rect;
+            Console.WriteLine($"  拖动后 hand-self = {moved.X:0},{moved.Y:0} {moved.W:0}×{moved.H:0}");
+            Check("拖拽 +10,+10 生效",
+                Math.Abs(moved.X - before.X - 10f) < 0.01f
+                && Math.Abs(moved.Y - before.Y - 10f) < 0.01f
+                && Math.Abs(moved.W - before.W) < 0.01f
+                && Math.Abs(moved.H - before.H) < 0.01f);
+
+            editor.Save();
+            string file = CustomLayoutStore.PathFor(dir);
+            Check("S 保存文件", File.Exists(file));
+            string savedJson = File.ReadAllText(file);
+            Check("JSON 含 version 与区域 x/y/w/h",
+                savedJson.Contains("\"version\": 1", StringComparison.Ordinal)
+                && savedJson.Contains("\"hand-self\"", StringComparison.Ordinal)
+                && savedJson.Contains("\"x\": 267", StringComparison.Ordinal));
+
+            var reloaded = NewLayout();
+            bool applied = CustomLayoutStore.Load(reloaded, dir);
+            var afterReload = reloaded.Regions[index].Rect;
+            Console.WriteLine($"  重新加载 hand-self = {afterReload.X:0},{afterReload.Y:0}");
+            Check("重新加载生效",
+                applied
+                && Math.Abs(afterReload.X - moved.X) < 0.01f
+                && Math.Abs(afterReload.Y - moved.Y) < 0.01f);
+
+            var editor2 = new LayoutEditor(reloaded, dir);
+            editor2.Enter();
+            editor2.Select(index);
+            editor2.RestoreDefault();
+            Check("R 第一次只提醒（文件保留）", File.Exists(file) && editor2.Status.Contains("R", StringComparison.Ordinal));
+            editor2.RestoreDefault();
+            Check("R 第二次删除自定义文件", !File.Exists(file));
+
+            var afterReset = reloaded.Regions[index].Rect;
+            Console.WriteLine($"  恢复默认 hand-self = {afterReset.X:0},{afterReset.Y:0}");
+            Check("恢复默认回原值",
+                Math.Abs(afterReset.X - before.X) < 0.01f
+                && Math.Abs(afterReset.Y - before.Y) < 0.01f
+                && Math.Abs(afterReset.W - before.W) < 0.01f
+                && Math.Abs(afterReset.H - before.H) < 0.01f);
+
+            // 破坏性测试 1：非法 JSON。
+            File.WriteAllText(file, "{ 这不是 json ,,,", new System.Text.UTF8Encoding(false));
+            var broken = NewLayout();
+            bool brokenApplied = CustomLayoutStore.Load(broken, dir);
+            var brokenRect = broken.Regions[index].Rect;
+            Check("非法 JSON：不崩、不生效",
+                !brokenApplied
+                && Math.Abs(brokenRect.X - before.X) < 0.01f
+                && Math.Abs(brokenRect.Y - before.Y) < 0.01f);
+
+            // 破坏性测试 2：字段缺失。
+            File.WriteAllText(file,
+                "{\"version\":1,\"regions\":{\"hand-self\":{\"x\":12},\"no-such\":{\"x\":1,\"y\":2,\"w\":3,\"h\":4}}}",
+                new System.Text.UTF8Encoding(false));
+            var partial = NewLayout();
+            bool partialApplied = CustomLayoutStore.Load(partial, dir);
+            var partialRect = partial.Regions[index].Rect;
+            Check("字段缺失 / 未知区域：忽略并继续用默认",
+                !partialApplied && Math.Abs(partialRect.X - before.X) < 0.01f);
+
+            // 破坏性测试 3：真实启动路径（默认目录写坏文件后构造 TableScreen）。
+            string realPath = CustomLayoutStore.PathFor();
+            byte[]? backup = File.Exists(realPath) ? File.ReadAllBytes(realPath) : null;
+            bool startupOk;
+            try
+            {
+                Directory.CreateDirectory(Settings.DefaultDirectory);
+                File.WriteAllText(realPath, "{ \"version\": 1, \"regions\": ]", new System.Text.UTF8Encoding(false));
+                var screen = new TableScreen((Func<TableViewModel>)(() => TableDemoModel.Create(1)), null, null, null);
+                startupOk = Math.Abs(screen.CanvasWidth - 1200f) < 0.01f
+                            && Math.Abs(screen.CanvasHeight - 1200f) < 0.01f;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("  启动异常: " + ex);
+                startupOk = false;
+            }
+            finally
+            {
+                if (backup is not null)
+                {
+                    File.WriteAllBytes(realPath, backup);
+                }
+                else if (File.Exists(realPath))
+                {
+                    File.Delete(realPath);
+                }
+            }
+
+            Check("启动时布局文件损坏 → 正常启动", startupOk);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(dir, true);
+            }
+            catch (IOException)
+            {
+                // 临时目录清理失败不影响结果。
+            }
+        }
+
+        Console.WriteLine($"smoke-layout-editor: {pass}/{total} passed");
+        return pass == total ? 0 : 1;
+    }
+
+    /// <summary><c>--render-layout-edit &lt;png&gt;</c>：编辑态截图（含区域框、名称、坐标、选中高亮）。</summary>
+    private static void RenderLayoutEdit(string path)
+    {
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen((Func<TableViewModel>)(() => TableDemoModel.Create(1)), null, null, atlas);
+        var editor = screen.Editor;
+        editor.Enter();
+        for (int i = 0; i < editor.Regions.Count; i++)
+        {
+            if (editor.Regions[i].Id == "hand-self")
+            {
+                editor.Select(i);
+            }
+        }
+
+        string? dir = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        var info = new SKImageInfo((int)screen.CanvasWidth, (int)screen.CanvasHeight);
+        using var surface = SKSurface.Create(info);
+        surface.Canvas.Clear(new SKColor(20, 30, 24));
+        using (var ctx = new SkiaCanvas(surface.Canvas, atlas))
+        {
+            screen.Draw(ctx, 0.6);
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+        Console.WriteLine($"rendered layout-edit -> {path}  regions={editor.Regions.Count} selected={editor.Selected + 1}");
     }
 }

@@ -28,7 +28,17 @@ public abstract class Screen
     /// <summary>返回 true 表示事件被消费。</summary>
     public virtual bool OnPointerMove(float x, float y) => false;
 
+    public virtual bool OnPointerDown(float x, float y) => false;
+
+    public virtual bool OnPointerUp(float x, float y) => false;
+
+    /// <summary>滚轮：<paramref name="delta"/> 为宿主原始增量（通常 ±120）。</summary>
+    public virtual bool OnWheel(float x, float y, int delta, bool shift) => false;
+
     public virtual bool OnClick(float x, float y) => false;
 
     public virtual bool OnKey(Keys key) => false;
+
+    /// <summary>带修饰键的键盘入口；默认退回 <see cref="OnKey(Keys)"/>。</summary>
+    public virtual bool OnKey(Keys key, bool shift) => OnKey(key);
 }

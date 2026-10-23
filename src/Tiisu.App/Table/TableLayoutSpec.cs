@@ -58,6 +58,84 @@ public sealed class TableLayoutSpec
     public RectF PlateRect { get; set; }
     public RectF[] HandRects { get; } = new RectF[4];
 
+    /// <summary>四家副露区（参考框；副露几何仍由手牌框 + 右手方向推导，绘制不读这里）。</summary>
+    public RectF[] MeldRects { get; } = new RectF[4];
+
+    /// <summary>四家牌河外接矩形；<see cref="River"/> 由它反推锚点，可被自定义布局覆盖。</summary>
+    public RectF[] RiverRects { get; } = new RectF[4];
+
+    /// <summary>左上角快捷键提示条。</summary>
+    public RectF HudRect { get; set; } = new RectF(24, 20, 300, 34);
+
+    /// <summary>动作按钮条锚框：按钮纵向顶边与水平中心取自这里（见 <see cref="Ui.ActionBar.Build"/>）。</summary>
+    public RectF ActionBarRect { get; set; }
+
+    /// <summary>结算面板默认外框（编辑器参考框；绘制未自定义时仍按内容动态居中）。</summary>
+    public static readonly RectF DefaultSettlementRect = new(436, 46, 748, 660);
+
+    /// <summary>结算左侧缩略图默认外框。</summary>
+    public static readonly RectF DefaultThumbRect = new(18, 402, 396, 396);
+
+    /// <summary>结算面板框；与 <see cref="DefaultSettlementRect"/> 相同表示未自定义（自动居中）。</summary>
+    public RectF SettlementRect { get; set; } = DefaultSettlementRect;
+
+    /// <summary>结算左侧缩略图框。</summary>
+    public RectF ThumbRect { get; set; } = DefaultThumbRect;
+
+    /// <summary>是否有外部（保存的 JSON / 编辑器）覆盖过布局；false 时绘制走原生的动态计算。</summary>
+    public bool OverridesActive { get; set; }
+
+    /// <summary>
+    /// 区域清单：名称 + 读写访问器。绘制继续读原有字段，编辑器通过 <see cref="LayoutRegion.Set"/> 写回。
+    /// 牌河 / 副露 / HUD / 按钮条 / 结算面板 / 缩略图都在这里出现一次。
+    /// </summary>
+    public IReadOnlyList<LayoutRegion> Regions => _regions ??= BuildRegions();
+
+    private IReadOnlyList<LayoutRegion>? _regions;
+
+    /// <summary>一个命名区域的可读写视图。</summary>
+    public readonly record struct LayoutRegion(string Id, string Note, Func<RectF> Get, Action<RectF> Set)
+    {
+        public RectF Rect => Get();
+    }
+
+    private IReadOnlyList<LayoutRegion> BuildRegions()
+    {
+        var list = new List<LayoutRegion>(20);
+        string[] keys = { "self", "right", "top", "left" };
+        string[] notes = { "自家", "下家", "对家", "上家" };
+
+        for (int i = 0; i < 4; i++)
+        {
+            int seat = i;
+            list.Add(new($"hand-{keys[i]}", notes[i] + "手牌", () => HandRects[seat],
+                r => HandRects[seat] = r));
+        }
+
+        // 副露区：参考框。副露仍贴着手牌框的右手侧摆（绘制不改），这里给出可枚举的锚位。
+        for (int i = 0; i < 4; i++)
+        {
+            int seat = i;
+            list.Add(new($"meld-{keys[i]}", notes[i] + "副露区", () => MeldRects[seat],
+                r => MeldRects[seat] = r));
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            int seat = i;
+            list.Add(new($"river-{keys[i]}", notes[i] + "牌河", () => RiverRects[seat],
+                r => RiverRects[seat] = r));
+        }
+
+        list.Add(new("plate", "中央板（牌山）", () => PlateRect, r => PlateRect = r));
+        list.Add(new("hud", "HUD 提示条", () => HudRect, r => HudRect = r));
+        list.Add(new("action-bar", "动作按钮条", () => ActionBarRect, r => ActionBarRect = r));
+        list.Add(new("settlement", "结算面板", () => SettlementRect, r => SettlementRect = r));
+        list.Add(new("thumbnail", "结算缩略图", () => ThumbRect, r => ThumbRect = r));
+
+        return list;
+    }
+
     /// <summary>
     /// 牌河几何：沿「该家左手边」对齐中央框边沿，行向远离中央框的方向长。
     /// <para><see cref="RiverGeometry.Origin"/> 是第 0 张牌的锚点（画牌用）；
@@ -65,6 +143,36 @@ public sealed class TableLayoutSpec
     /// 两者不同：负向步进的座位，锚点在外接矩形的一端。</para>
     /// </summary>
     public RiverGeometry River(int seat)
+    {
+        var bounds = RiverRects[seat];
+        if (bounds.W > 0f && bounds.H > 0f)
+        {
+            return RiverFromBounds(seat, bounds);
+        }
+
+        return RiverFromPlate(seat);
+    }
+
+    /// <summary>由可编辑的外接矩形反推牌河几何（锚点随方向落在矩形不同角上）。</summary>
+    private RiverGeometry RiverFromBounds(int seat, RectF b)
+    {
+        float w = RiverW, h = RiverH, gap = RiverGap;
+        return seat switch
+        {
+            0 => new RiverGeometry(b, b, w + gap, 0, 0, h + gap, 0f),
+            1 => new RiverGeometry(
+                new RectF(b.X, b.Bottom - w, b.W, b.H), b,
+                0, -(w + gap), h + gap, 0, -90f),
+            2 => new RiverGeometry(
+                new RectF(b.Right - w, b.Bottom - h, b.W, b.H), b,
+                -(w + gap), 0, 0, -(h + gap), 180f),
+            _ => new RiverGeometry(
+                new RectF(b.Right - h, b.Y, b.W, b.H), b,
+                0, w + gap, -(h + gap), 0, 90f),
+        };
+    }
+
+    private RiverGeometry RiverFromPlate(int seat)
     {
         float w = RiverW, h = RiverH, gap = RiverGap;
         float span = RiverSpan, depth = RiverDepth;

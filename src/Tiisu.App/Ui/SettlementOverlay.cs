@@ -41,7 +41,8 @@ public sealed class SettlementOverlay
     /// 画一屏结算。调用方负责只在本局已结束时调用。
     /// <paramref name="thumbnail"/> 负责在左侧缩略图区域内画牌桌（面板让出位置，不遮文字）。
     /// </summary>
-    public void Draw(ICanvas c, RoundResult result, TableViewModel vm, Action<ICanvas, RectF>? thumbnail = null)
+    public void Draw(ICanvas c, RoundResult result, TableViewModel vm, Action<ICanvas, RectF>? thumbnail = null,
+        TableLayoutSpec? layout = null)
     {
         bool matchOver = vm.Phase == "match_over" || result.MatchOver;
         var details = result.Details ?? Array.Empty<SettlementDetail>();
@@ -56,19 +57,41 @@ public sealed class SettlementOverlay
         float panelBottom = scoreY + 220f;
         float panelH = panelBottom - PanelY;
 
+        // 只有外框被编辑器 / JSON 改过才用自定义矩形；默认值与矩形相同表示仍走原动态居中。
+        bool panelCustom = layout is not null && layout.SettlementRect != TableLayoutSpec.DefaultSettlementRect;
+        bool thumbCustom = layout is not null && layout.ThumbRect != TableLayoutSpec.DefaultThumbRect;
+        float panelX = panelCustom ? layout!.SettlementRect.X : PanelX;
+        float panelW = panelCustom && layout!.SettlementRect.W > 0 ? layout.SettlementRect.W : PanelW;
+        float panelY = panelCustom ? layout!.SettlementRect.Y : PanelY;
+        if (panelCustom && layout!.SettlementRect.H > 0)
+        {
+            panelH = layout.SettlementRect.H;
+        }
+
         c.FillRect(new RectF(0, 0, CanvasW, CanvasH), Color.Black.WithAlpha(190));
 
         // 面板垂直居中；内容坐标固定，整体平移。
-        float dy = ((CanvasH - panelH) / 2f) - PanelY;
-        if (PanelY + dy < 36f)
+        float dy = panelCustom ? panelY - PanelY : ((CanvasH - panelH) / 2f) - PanelY;
+        if (!panelCustom && PanelY + dy < 36f)
         {
             dy = 36f - PanelY;
         }
 
+        float dx = panelCustom ? panelX - PanelX : 0f;
+
         // 左侧牌桌缩略图：高度跟着面板走，面板太矮时按比例缩。
-        float thumbSize = Math.Min(ThumbSize, Math.Max(160f, panelH - 32f));
-        float thumbY = PanelY + dy + ((panelH - thumbSize) / 2f);
-        var thumb = new RectF(ThumbX, thumbY, thumbSize, thumbSize);
+        RectF thumb;
+        if (thumbCustom)
+        {
+            thumb = layout!.ThumbRect;
+        }
+        else
+        {
+            float thumbSize = Math.Min(ThumbSize, Math.Max(160f, panelH - 32f));
+            float thumbY = PanelY + dy + ((panelH - thumbSize) / 2f);
+            thumb = new RectF(ThumbX, thumbY, thumbSize, thumbSize);
+        }
+
         c.FillRoundRect(thumb, 10, Color.Rgb(12, 18, 16));
         if (thumbnail is not null)
         {
@@ -82,10 +105,10 @@ public sealed class SettlementOverlay
         c.StrokeRoundRect(thumb, 10, Gold, 1.5f);
 
         c.Save();
-        c.Translate(0, dy);
+        c.Translate(dx, dy);
 
-        c.FillRoundRect(new RectF(PanelX, PanelY, PanelW, panelH), 18, PanelFill);
-        c.StrokeRoundRect(new RectF(PanelX, PanelY, PanelW, panelH), 18, Gold, 2f);
+        c.FillRoundRect(new RectF(PanelX, PanelY, panelW, panelH), 18, PanelFill);
+        c.StrokeRoundRect(new RectF(PanelX, PanelY, panelW, panelH), 18, Gold, 2f);
 
         string title = matchOver ? "终局" : "本局结算";
         c.DrawText(title, new RectF(Left, 68, Right - Left, 44), Gold,

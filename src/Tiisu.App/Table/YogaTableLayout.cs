@@ -105,6 +105,52 @@ public static class YogaTableLayout
         l.HandRects[2] = Offset(colOrigin, topHand);
         l.HandRects[3] = ToRect(leftHand);
         l.HandRects[1] = ToRect(rightHand);
+
+        ApplyDefaultRegions(l);
+    }
+
+    /// <summary>
+    /// 把可编辑区域重置成由 Yoga 结果推导的默认值。
+    /// 每次 <see cref="Apply"/> 都重算，编辑器「恢复默认」只要再调一次即可。
+    /// </summary>
+    private static void ApplyDefaultRegions(TableLayoutSpec l)
+    {
+        l.OverridesActive = false;
+        l.HudRect = new RectF(24, 20, 300, 34);
+        l.ActionBarRect = new RectF(
+            l.HandRects[0].CenterX - 300f,
+            Math.Max(8f, l.HandRects[0].Y - 46f - 16f),
+            600f,
+            46f);
+        l.SettlementRect = TableLayoutSpec.DefaultSettlementRect;
+        l.ThumbRect = TableLayoutSpec.DefaultThumbRect;
+
+        // 牌河：先清空覆盖，让 River() 走中央板推导，再固化成可编辑矩形。
+        for (int seat = 0; seat < 4; seat++)
+        {
+            l.RiverRects[seat] = default;
+        }
+
+        for (int seat = 0; seat < 4; seat++)
+        {
+            l.RiverRects[seat] = l.River(seat).Bounds;
+        }
+
+        // 副露区参考框：手牌框右手侧（与绘制同一套轴向规则）。
+        const float meldBand = 210f;
+        for (int seat = 0; seat < 4; seat++)
+        {
+            var f = l.HandRects[seat];
+            var (horizontal, _, rightDir) = TableLayoutSpec.Axis(seat);
+            l.MeldRects[seat] = horizontal
+                ? new RectF(
+                    rightDir > 0 ? f.Right + l.HandMeldGap : f.X - l.HandMeldGap - meldBand,
+                    f.Y, meldBand, f.H)
+                : new RectF(
+                    f.X,
+                    rightDir > 0 ? f.Bottom + l.HandMeldGap : f.Y - l.HandMeldGap - meldBand,
+                    f.W, meldBand);
+        }
     }
 
     private static void SetPad(YogaNode n, float p)

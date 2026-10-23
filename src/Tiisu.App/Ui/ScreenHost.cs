@@ -212,17 +212,36 @@ internal sealed class ScreenHostCore : IDisposable
         _current.OnClick(lx, ly);
     }
 
+    public void PointerDown(int x, int y)
+    {
+        var (lx, ly) = ToLogical(x, y);
+        _current.OnPointerDown(lx, ly);
+    }
+
+    public void PointerUp(int x, int y)
+    {
+        var (lx, ly) = ToLogical(x, y);
+        _current.OnPointerUp(lx, ly);
+    }
+
+    public void Wheel(int x, int y, int delta, bool shift)
+    {
+        var (lx, ly) = ToLogical(x, y);
+        _current.OnWheel(lx, ly, delta, shift);
+    }
+
     /// <summary>返回 true 表示已消费（与原来的 e.Handled 等价）。</summary>
-    public bool KeyDown(Keys key)
+    public bool KeyDown(Keys key, bool shift = false)
     {
         if (key == Keys.M
+            && !shift
             && (ReferenceEquals(_current, _menu) || ReferenceEquals(_current, _table)))
         {
             SwitchTo(ReferenceEquals(_current, _menu) ? _table : _menu);
             return true;
         }
 
-        _current.OnKey(key);
+        _current.OnKey(key, shift);
         return false;
     }
 

@@ -22,6 +22,7 @@ public sealed class TableScreen : Screen
     private readonly TableSceneSkia _scene = new();
     private readonly SettlementOverlay _overlay = new();
     private readonly ActionBar _actionBar = new();
+    private readonly LayoutEditor _editor;
     private readonly Func<TableViewModel> _snapshot;
     private readonly Action<GameCommand>? _commands;
     private readonly Action? _backToMenu;
@@ -62,7 +63,14 @@ public sealed class TableScreen : Screen
         _backToMenu = backToMenu;
         _atlas = atlas;
         YogaTableLayout.Apply(_layout);
+
+        // 启动时应用自定义布局（文件不存在 / 损坏 → 保持默认，不崩）。
+        CustomLayoutStore.Load(_layout);
+        _editor = new LayoutEditor(_layout);
     }
+
+    /// <summary>布局编辑器（F2）。自检 / 出图直接驱动它。</summary>
+    public LayoutEditor Editor => _editor;
 
     /// <summary>无窗口自检：直接把一份局末结果交给结算层。</summary>
     public void ShowSettlement(RoundResult result)
@@ -98,7 +106,8 @@ public sealed class TableScreen : Screen
         if (vm.Phase is "round_end" or "match_over" && _settlement is { } settlement && !_settlementHidden)
         {
             // 结算层在左侧缩略图里重画牌桌（暗杠已按和牌后规则翻开），面板让到右侧。
-            _overlay.Draw(c, settlement, vm, (thumbCanvas, thumbRect) => DrawTableThumbnail(thumbCanvas, vm, thumbRect));
+            _overlay.Draw(c, settlement, vm, (thumbCanvas, thumbRect) => DrawTableThumbnail(thumbCanvas, vm, thumbRect), _layout);
+            _editor.Draw(c);
             return;
         }
 
@@ -108,6 +117,7 @@ public sealed class TableScreen : Screen
         _actionBar.Draw(c);
         PlayCues(vm);
         DrawHud(c, vm);
+        _editor.Draw(c);
     }
 
     /// <summary>
@@ -170,7 +180,7 @@ public sealed class TableScreen : Screen
     private void DrawHud(ICanvas c, TableViewModel vm)
     {
         // 左上：快捷键
-        var hint = new RectF(24, 20, 300, 34);
+        var hint = _layout.HudRect;
         c.FillRoundRect(hint, 8, Color.Rgb(0, 0, 0).WithAlpha(130));
         c.DrawText("M / ESC：菜单",
             new RectF(hint.X + 12, hint.Y + 8, hint.W - 16, 20),
@@ -245,6 +255,12 @@ public sealed class TableScreen : Screen
 
     public override bool OnPointerMove(float x, float y)
     {
+        if (_editor.Active)
+        {
+            _editor.PointerMove(x, y);
+            return true;
+        }
+
         if (_snapshot().Phase is "round_end" or "match_over")
         {
             _hover = -1;
@@ -261,8 +277,38 @@ public sealed class TableScreen : Screen
         return _hover >= 0;
     }
 
+    public override bool OnPointerDown(float x, float y) => _editor.Active && _editor.PointerDown(x, y);
+
+    public override bool OnPointerUp(float x, float y)
+    {
+        if (!_editor.Active)
+        {
+            return false;
+        }
+
+        _editor.PointerUp();
+        return true;
+    }
+
+    public override bool OnWheel(float x, float y, int delta, bool shift)
+    {
+        if (!_editor.Active || delta == 0)
+        {
+            return false;
+        }
+
+        // 滚轮上滚放大，下滚缩小；Shift 只改高度（都以左上角为锚）。
+        _editor.ScaleBy(delta > 0 ? 1.1f : 1f / 1.1f, shift);
+        return true;
+    }
+
     public override bool OnClick(float x, float y)
     {
+        if (_editor.Active)
+        {
+            return true;
+        }
+
         if (_snapshot().Phase is "round_end" or "match_over")
         {
             return false;
@@ -428,8 +474,23 @@ public sealed class TableScreen : Screen
         }
     }
 
-    public override bool OnKey(Keys key)
+    public override bool OnKey(Keys key) => HandleKey(key, false);
+
+    public override bool OnKey(Keys key, bool shift) => HandleKey(key, shift);
+
+    private bool HandleKey(Keys key, bool shift)
     {
+        if (key == Keys.F2)
+        {
+            _editor.Toggle();
+            return true;
+        }
+
+        if (_editor.Active)
+        {
+            return _editor.OnKey(key, shift);
+        }
+
         if (key == Keys.Escape)
         {
             return HandleEscape();

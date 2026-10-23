@@ -40,10 +40,41 @@ internal sealed class CpuScreenHost : SKControl
         _core.Click(e.X, e.Y);
     }
 
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+        if (e.Button == MouseButtons.Left)
+        {
+            _core.PointerDown(e.X, e.Y);
+        }
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        base.OnMouseUp(e);
+        if (e.Button == MouseButtons.Left)
+        {
+            _core.PointerUp(e.X, e.Y);
+        }
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        base.OnMouseWheel(e);
+        _core.Wheel(e.X, e.Y, e.Delta, (ModifierKeys & Keys.Shift) == Keys.Shift);
+    }
+
+    /// <summary>Tab / F2 / 方向键默认会被 WinForms 当导航键吞掉，这里声明为输入键。</summary>
+    protected override bool IsInputKey(Keys keyData) => (keyData & Keys.KeyCode) switch
+    {
+        Keys.Tab or Keys.F2 or Keys.Left or Keys.Right or Keys.Up or Keys.Down => true,
+        _ => base.IsInputKey(keyData),
+    };
+
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (_core.KeyDown(e.KeyCode))
+        if (_core.KeyDown(e.KeyCode, e.Shift))
         {
             e.Handled = true;
         }
