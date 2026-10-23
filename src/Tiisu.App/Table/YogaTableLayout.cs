@@ -123,7 +123,7 @@ public static class YogaTableLayout
             600f,
             46f);
         l.SettlementRect = TableLayoutSpec.DefaultSettlementRect;
-        l.ThumbRect = TableLayoutSpec.DefaultThumbRect;
+        l.SettlementHandRect = TableLayoutSpec.DefaultSettlementHandRect;
 
         // 牌河：先清空覆盖，让 River() 走中央板推导，再固化成可编辑矩形。
         for (int seat = 0; seat < 4; seat++)

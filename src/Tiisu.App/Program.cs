@@ -12,6 +12,7 @@ using Tiisu.App.Ui;
 using Tiisu.App.Table;
 using Tiisu.App.Svg;
 using Tiisu.Engine;
+using Tiisu.Engine.Ai;
 using Tiisu.Engine.Random;
 using GameTile = Tiisu.Core.Tile;
 using GameSuit = Tiisu.Core.Suit;
@@ -71,6 +72,9 @@ internal static class Program
                 return;
             case "--smoke-call":
                 Environment.ExitCode = SmokeCall();
+                return;
+            case "--smoke-call-flow":
+                Environment.ExitCode = SmokeCallFlow(args);
                 return;
         }
 
@@ -615,8 +619,9 @@ internal static class Program
         using var atlas = new TileAtlas(AssetsDir);
         var screen = new TableScreen(session, atlas);
 
-        // 与 TableScreen 内部同一份布局参数（1200×1200 + Yoga）。
+        // 与 TableScreen 内部同一份布局参数（1200×1200 + Mixed 安全区 + Yoga）。
         var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        layout.ApplyMixedSafeArea();
         YogaTableLayout.Apply(layout);
 
         session.Post(GameCommand.StartMatch(mode));
@@ -952,28 +957,55 @@ internal static class Program
     /// <summary>
     /// <c>--render-roundend &lt;png&gt; [seed] [mode]</c>：无窗口跑到第一次局末（人类 AutoPilot），
     /// 再按牌桌屏 + 结算覆盖层出图。明细打印到控制台供对数。
+    /// <para><c>--double</c>：双和演示（验证「第 1/2 位 + 下一家」）；<c>--flow</c>：荒牌流局演示。</para>
     /// </summary>
     private static int RenderRoundEndToPng(string[] args)
     {
         TryUseUtf8Console();
         string path = args[1];
-        uint seed = 1;
+        bool doubleWin = args.Contains("--double", StringComparer.Ordinal);
+        bool flow = args.Contains("--flow", StringComparer.Ordinal);
+
+        if (args.Contains("--ankan", StringComparer.Ordinal))
+        {
+            RenderAnkanSettlement(path, doubleWin);
+            Console.WriteLine($"rendered roundend(ankan demo) -> {path}");
+            return 0;
+        }
+
+        if (flow)
+        {
+            RenderFlowSettlement(path);
+            Console.WriteLine($"rendered roundend(flow demo) -> {path}");
+            return 0;
+        }
+
+        if (doubleWin)
+        {
+            // --page 2：点「下一家」翻到第 2 位（同时验证按钮可点）。
+            int page = 1;
+            int pageAt = Array.IndexOf(args, "--page");
+            if (pageAt >= 0 && pageAt + 1 < args.Length)
+            {
+                int.TryParse(args[pageAt + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out page);
+            }
+
+            int reached = RenderDoubleSettlement(path, Math.Max(1, page));
+            Console.WriteLine($"rendered roundend(double demo) -> {path}  page={reached}");
+            return 0;
+        }
+
+        // 默认 seed=2：第一局是单家和牌（seed=1 是荒牌流局，交给 --flow 演示）。
+        uint seed = 2;
         if (args.Length >= 3 && !uint.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out seed))
         {
-            seed = 1;
+            seed = 2;
         }
 
         int mode = 1;
         if (args.Length >= 4 && !int.TryParse(args[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out mode))
         {
             mode = 1;
-        }
-
-        if (args.Contains("--ankan", StringComparer.Ordinal))
-        {
-            RenderAnkanSettlement(path, doubleWin: args.Contains("--double", StringComparer.Ordinal));
-            Console.WriteLine($"rendered roundend(ankan demo) -> {path}");
-            return 0;
         }
 
         RoundResult? captured = null;
@@ -1102,6 +1134,125 @@ internal static class Program
 
         using var atlas = new TileAtlas(AssetsDir);
         var screen = new TableScreen(() => TableDemoModel.CreateWithAnkan(settled: true), null, null, atlas);
+        screen.ShowSettlement(result);
+        RenderScreen(path, screen, atlas);
+    }
+
+    /// <summary>
+    /// <c>--render-roundend &lt;png&gt; --double [--page 2]</c>：双和演示 —— 两家和牌详情可翻页，
+    /// 验证「第 1/2 位 + 下一家」与两家不同的手牌 / 役种。page&gt;1 时走真实点击翻页。
+    /// </summary>
+    private static int RenderDoubleSettlement(string path, int page)
+    {
+        TryUseUtf8Console();
+        var result = BuildDoubleSettlementResult();
+
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(TableDemoModel.CreateForSettlement, null, null, atlas);
+        screen.ShowSettlement(result);
+
+        if (page > 1)
+        {
+            // 先画一帧让按钮矩形有值，再按按钮中心真实点击（同时验证「下一家」可点）。
+            DrawScreenOnce(screen, atlas);
+            for (int i = 1; i < page; i++)
+            {
+                var button = screen.SettlementOverlay.NextButtonBounds;
+                if (button.W <= 0f)
+                {
+                    break;
+                }
+
+                screen.OnClick(button.CenterX, button.CenterY);
+            }
+        }
+
+        RenderScreen(path, screen, atlas);
+        return screen.SettlementOverlay.CurrentIndex(result) + 1;
+    }
+
+    /// <summary>双和演示用的固定结算结果（西家荣和南家的放铳）。</summary>
+    private static RoundResult BuildDoubleSettlementResult()
+    {
+        var details = new List<SettlementDetail>
+        {
+            new()
+            {
+                WinnerIndex = 0,
+                SelfDraw = true,
+                Yaku = new (string Name, int Fu, SettlementYakuFlag Flag)[]
+                {
+                    ("门清", 10, SettlementYakuFlag.Normal),
+                    ("平和", 1, SettlementYakuFlag.Normal),
+                    ("自摸", 2, SettlementYakuFlag.Normal),
+                    ("单钓", 1, SettlementYakuFlag.Tableless),
+                    ("赐马", 1, SettlementYakuFlag.Ma),
+                },
+                TotalFu = 15,
+                MaFu = 1,
+                FinalPoints = 12000,
+                PayEach = 4000,
+                PaymentText = "自摸 · 每家 4000",
+            },
+            new()
+            {
+                WinnerIndex = 2,
+                SelfDraw = false,
+                PayerIndex = 1,
+                Yaku = new (string Name, int Fu, SettlementYakuFlag Flag)[]
+                {
+                    ("混一色", 20, SettlementYakuFlag.Normal),
+                    ("门清", 10, SettlementYakuFlag.Normal),
+                },
+                TotalFu = 30,
+                FinalPoints = 8000,
+                PaymentText = "荣和 · 放铳者付 8000",
+            },
+        };
+
+        return new RoundResult(
+            2,
+            "ron",
+            new[] { 0, 2 },
+            null,
+            new[] { 60300, 19900, 46100, 23700 },
+            1,
+            0,
+            false,
+            details,
+            null,
+            new[] { 48300, 31900, 42100, 27700 });
+    }
+
+    /// <summary>画一帧但不落盘（自检里让结算按钮先算好命中矩形）。</summary>
+    private static void DrawScreenOnce(UiScreen screen, TileAtlas? atlas)
+    {
+        var info = new SKImageInfo((int)screen.CanvasWidth, (int)screen.CanvasHeight);
+        using var surface = SKSurface.Create(info);
+        using var ctx = new SkiaCanvas(surface.Canvas, atlas);
+        screen.Update(0.2);
+        screen.Draw(ctx, 0.2);
+    }
+
+    /// <summary><c>--render-roundend &lt;png&gt; --flow</c>：荒牌流局演示（不列役，只给四家分数变化）。</summary>
+    private static void RenderFlowSettlement(string path)
+    {
+        TryUseUtf8Console();
+        var result = new RoundResult(
+            2,
+            "flow",
+            Array.Empty<int>(),
+            null,
+            new[] { 48300, 31900, 42100, 27700 },
+            1,
+            0,
+            false,
+            Array.Empty<SettlementDetail>(),
+            "exhaustive",
+            new[] { 48300, 31900, 42100, 27700 });
+
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(TableDemoModel.CreateWithFlow, null, null, atlas);
         screen.ShowSettlement(result);
         RenderScreen(path, screen, atlas);
     }
@@ -1307,10 +1458,11 @@ internal static class Program
         Console.WriteLine("rendered table -> " + path);
     }
 
-    /// <summary>1200×1200 的新布局（Yoga 计算）。</summary>
+    /// <summary>1200×1200 的新布局（Yoga 计算，Mixed 档安全区）。</summary>
     private static TableLayoutSpec NewLayout()
     {
         var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        layout.ApplyMixedSafeArea();
         YogaTableLayout.Apply(layout);
         return layout;
     }
@@ -1332,6 +1484,7 @@ internal static class Program
         using var atlas = new TileAtlas(AssetsDir);
 
         var layout = new TableLayoutSpec { CanvasW = canvas, CanvasH = canvas };
+        layout.ApplyMixedSafeArea();
         YogaTableLayout.Apply(layout);
 
         var info = new SKImageInfo((int)layout.CanvasW, (int)layout.CanvasH);
@@ -1639,6 +1792,7 @@ internal static class Program
     {
         using var atlas = new TileAtlas(AssetsDir);
         var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        layout.ApplyMixedSafeArea();
         YogaTableLayout.Apply(layout);
 
         RenderCallShot(basePath + "_callable.png", TableDemoModel.CreateWithCall(true), layout, atlas);
@@ -1866,6 +2020,318 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine(failures == 0 ? "smoke-call: all checks passed" : "smoke-call: " + failures + " failed");
         return failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--smoke-call-flow &lt;seed&gt; [mode]</c>：报听真实流程回归（无窗口）。
+    /// 自动打一场，人类座位按向听最优化出牌；出现报听时机时先用 T 键进入 / 取消「报听」待弃态
+    /// （与点按钮同一条 <c>BeginDeclareCall</c>），再发与点手牌同一条 <see cref="GameCommand.DeclareCall"/>
+    /// 命令（弃一张 + 宣言）。断言：
+    /// <list type="bullet">
+    /// <item>点「报听」但还没出牌时只改 UI 状态、不发命令、不卡死；</item>
+    /// <item>报听并弃牌后牌局立刻推进（不停在 idle，回合交给下一家）；</item>
+    /// <item>报听后按钮变成「已报听」灰显，且锁手仍允许出牌；</item>
+    /// <item>整场在时限内终局（真卡住时这里的耗时会先耗尽）。</item>
+    /// </list>
+    /// </summary>
+    private static int SmokeCallFlow(string[] args)
+    {
+        TryUseUtf8Console();
+        if (args.Length < 2
+            || !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint seed))
+        {
+            Console.Error.WriteLine("用法：--smoke-call-flow <seed> [mode]");
+            return 2;
+        }
+
+        int mode = 4;
+        if (args.Length >= 3 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedMode))
+        {
+            mode = parsedMode;
+        }
+
+        // 固定默认设置：不读用户 settings.json（MCTS 开关 / 权重会改变耗时与 AI 档位），
+        // 保证「同 seed 同结果」的确定性复现。
+        var settings = new Settings();
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: seed);
+
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(() => runtime.Snapshot, runtime.Execute, null, atlas);
+        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        YogaTableLayout.Apply(layout);
+
+        int failures = 0;
+        void Check(string name, bool ok, string detail)
+        {
+            Console.WriteLine((ok ? "  PASS  " : "  FAIL  ") + name.PadRight(26) + detail);
+            if (!ok)
+            {
+                failures++;
+            }
+        }
+
+        var clock = Stopwatch.StartNew();
+        var budget = TimeSpan.FromSeconds(20);
+        runtime.StartMatch(mode);
+
+        bool armOk = false;
+        bool declared = false;
+        bool advanceOk = false;
+        string advanceDetail = "未出现报听时机";
+        bool callButtonOk = false;
+        bool callButtonChecked = false;
+        bool postCallDiscardOk = false;
+        int postCallTurns = 0;
+        int actions = 0;
+        string stuck = string.Empty;
+
+        while (clock.Elapsed < budget)
+        {
+            if (++actions > 50_000)
+            {
+                stuck = "动作数超过 50000";
+                break;
+            }
+
+            var phase = runtime.Phase;
+            if (phase == MatchPhase.MatchOver)
+            {
+                break;
+            }
+
+            if (phase == MatchPhase.RoundEnded)
+            {
+                runtime.NextRound();
+                continue;
+            }
+
+            if (phase == MatchPhase.HumanRon)
+            {
+                runtime.HumanRon();
+                continue;
+            }
+
+            if (phase == MatchPhase.HumanMeld)
+            {
+                runtime.Pass();
+                continue;
+            }
+
+            if (phase != MatchPhase.HumanDiscard)
+            {
+                stuck = "牌局停在 " + phase + "，无人推进";
+                break;
+            }
+
+            var vm = runtime.Snapshot;
+            int human = runtime.HumanIndex;
+            var player = runtime.Engine.Players[human];
+
+            if ((vm.Actions & HumanAction.Tsumo) != 0)
+            {
+                runtime.HumanTsumo();
+                continue;
+            }
+
+            // 报听时机：按钮可用（真听牌）。先只用 T 键进入 / 取消「待弃」态（UI 路径，
+            // 与点「报听」按钮同一条 BeginDeclareCall），再发与点手牌同一条 DeclareCall 命令。
+            if (!declared && (vm.Actions & HumanAction.DeclareCall) != 0)
+            {
+                int index = TenpaiDiscardIndex(runtime.Engine, player);
+                if (index < 0 || index >= player.Hand.Count)
+                {
+                    stuck = "报听按钮可用但找不到保持听牌的弃牌";
+                    break;
+                }
+
+                // 1. 只点「报听」不进牌：只进入待弃态，不发命令、牌局不动、也不卡。
+                var beforeArm = runtime.Snapshot;
+                bool armed = screen.OnKey(Keys.T);
+                bool armStable = armed && ReferenceEquals(beforeArm, runtime.Snapshot)
+                                 && runtime.Phase == MatchPhase.HumanDiscard;
+                bool cancelled = screen.OnKey(Keys.T);
+                bool cancelStable = cancelled && ReferenceEquals(beforeArm, runtime.Snapshot)
+                                    && runtime.Phase == MatchPhase.HumanDiscard;
+                armOk = armStable && cancelStable;
+
+                // 2. 点手牌 = 打出这张并宣言（TableScreen 的待弃点击发的就是这条命令）。
+                var tile = player.Hand[index];
+                int turnBefore = runtime.Engine.TurnIndex;
+                int wallBefore = runtime.Engine.Wall.Count;
+                var before = runtime.Snapshot;
+                runtime.Execute(GameCommand.DeclareCall(index));
+                declared = player.IsCalled && !ReferenceEquals(before, runtime.Snapshot);
+                // 推进的判据：宣言后主循环真的跑了（有人摸牌 → 牌山变少），或本局直接结束；
+                // 停在 Idle、牌山数不变就是「报听后卡住」。
+                advanceOk = declared
+                            && runtime.Phase != MatchPhase.Idle
+                            && runtime.Snapshot.Phase != "idle"
+                            && (runtime.Engine.Wall.Count != wallBefore
+                                || runtime.Phase is MatchPhase.RoundEnded or MatchPhase.MatchOver);
+                Console.WriteLine(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "  报听: 打出={0} isCalled={1} 阶段={2} 回合={3}->{4} 牌山={5}->{6} 用时={7:F0}ms",
+                    tile.Id, player.IsCalled, runtime.Phase, turnBefore,
+                    runtime.Engine.TurnIndex, wallBefore, runtime.Engine.Wall.Count,
+                    clock.Elapsed.TotalMilliseconds));
+
+                advanceDetail = "宣言后阶段=" + runtime.Phase + "，回合 " + turnBefore + "->"
+                                + runtime.Engine.TurnIndex + "，牌山 " + wallBefore + "->"
+                                + runtime.Engine.Wall.Count;
+                if (!advanceOk)
+                {
+                    stuck = "报听并弃牌后牌局没有推进（阶段=" + runtime.Phase + "，回合已到 "
+                            + runtime.Engine.TurnIndex + "，牌山仍为 " + runtime.Engine.Wall.Count + "）";
+                    break;
+                }
+
+                // 3. 三态：报听后按钮必须是「已报听」灰显（本局已结束则按钮不可见，跳过）。
+                if (runtime.Phase == MatchPhase.HumanDiscard)
+                {
+                    var bar = new ActionBar();
+                    bar.Build(runtime.Snapshot, layout);
+                    var callButton = bar.Buttons.FirstOrDefault(b => b.Kind == ActionBar.Kind.DeclareCall);
+                    callButtonOk = callButton is not null && callButton.Label == "已报听" && !callButton.Enabled;
+                    callButtonChecked = true;
+                }
+
+                continue;
+            }
+
+            // 已报听：只打锁手允许的牌；未报听：按向听最优化出牌（让人类尽快听牌）。
+            int pick = player.IsCalled
+                ? LegalCalledDiscardIndex(runtime.Engine, player)
+                : BestShantenDiscardIndex(player);
+            if (pick < 0 || pick >= player.Hand.Count)
+            {
+                stuck = "没有可打出的手牌";
+                break;
+            }
+
+            if (player.IsCalled)
+            {
+                postCallTurns++;
+            }
+
+            var beforeDiscard = runtime.Snapshot;
+            runtime.Execute(GameCommand.Discard(pick));
+            bool accepted = !ReferenceEquals(beforeDiscard, runtime.Snapshot);
+            if (!accepted)
+            {
+                stuck = "出牌未被接受（手牌=" + player.Hand.Count + "，阶段=" + runtime.Phase
+                        + "，动作=" + vm.Actions + "，下标=" + pick + "，牌=" + player.Hand[pick].Id + "）";
+                break;
+            }
+
+            if (player.IsCalled)
+            {
+                postCallDiscardOk = true;
+            }
+        }
+
+        clock.Stop();
+        var final = runtime.Snapshot;
+        bool completed = runtime.Phase == MatchPhase.MatchOver;
+        bool inTime = clock.Elapsed < budget;
+
+        Console.WriteLine($"smoke-call-flow seed={seed} mode={mode}");
+        Console.WriteLine($"  报听时机={(declared ? "已宣言" : "未出现")} 人类动作={actions} 用时={clock.Elapsed.TotalSeconds:F2}s");
+        Check("点报听未出牌不卡", armOk, "待弃态只改 UI，不发命令；取消后仍可正常出牌");
+        Check("报听并弃牌", declared, "人类 isCalled=true");
+        Check("报听后牌局推进", advanceOk, stuck.Length > 0 ? stuck : advanceDetail);
+        Check("报听按钮三态", !callButtonChecked || callButtonOk,
+            callButtonChecked ? "报听后为「已报听」灰显" : "本局已结束，跳过按钮检查");
+        Check("报听后仍能出牌", postCallTurns == 0 || postCallDiscardOk,
+            postCallTurns == 0 ? "本局未再轮到出牌" : "锁手允许的弃牌被接受");
+        Check("整场在时限内终局", completed && inTime,
+            $"阶段={final.Phase} 用时={clock.Elapsed.TotalSeconds:F2}s / 上限 {budget.TotalSeconds:F0}s");
+
+        if (stuck.Length > 0)
+        {
+            Console.WriteLine("  卡住: " + stuck);
+        }
+
+        Console.WriteLine(failures == 0 ? "smoke-call-flow: all checks passed" : "smoke-call-flow: " + failures + " failed");
+        return failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>smoke 用：找一张「打出后仍然听牌」的手牌下标（找不到 -1）。</summary>
+    private static int TenpaiDiscardIndex(MahjongEngine engine, Player player)
+    {
+        var seen = new HashSet<GameTile>();
+        for (int i = 0; i < player.Hand.Count; i++)
+        {
+            if (!seen.Add(player.Hand[i]))
+            {
+                continue;
+            }
+
+            var after = new List<GameTile>(player.Hand);
+            after.RemoveAt(i);
+            if (after.Count + player.MeldTiles() != 13 + player.KongCount())
+            {
+                continue;
+            }
+
+            ulong mask = engine.WaitMaskFor(
+                after, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+            if (mask != 0)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>smoke 用：按向听数挑一张最有利的弃牌（同分取手牌靠前者）。</summary>
+    private static int BestShantenDiscardIndex(Player player)
+    {
+        var seen = new HashSet<GameTile>();
+        int best = -1;
+        int bestShanten = int.MaxValue;
+        for (int i = 0; i < player.Hand.Count; i++)
+        {
+            if (!seen.Add(player.Hand[i]))
+            {
+                continue;
+            }
+
+            var after = new List<GameTile>(player.Hand);
+            after.RemoveAt(i);
+            int shanten = Shanten.Calculate(after, player.Melds.Count, player.KongCount()).Shanten;
+            if (shanten < bestShanten)
+            {
+                bestShanten = shanten;
+                best = i;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>smoke 用：报听后合法的一张弃牌（摸切优先，找不到 -1）。</summary>
+    private static int LegalCalledDiscardIndex(MahjongEngine engine, Player player)
+    {
+        if (player.LastDraw is GameTile drawn)
+        {
+            int index = player.Hand.IndexOf(drawn);
+            if (index >= 0 && engine.CallAllowsDiscard(player, player.Hand[index], out _))
+            {
+                return index;
+            }
+        }
+
+        for (int i = 0; i < player.Hand.Count; i++)
+        {
+            if (engine.CallAllowsDiscard(player, player.Hand[i], out _))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>

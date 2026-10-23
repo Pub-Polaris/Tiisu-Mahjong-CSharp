@@ -151,6 +151,69 @@ public static class TableDemoModel
     }
 
     /// <summary>
+    /// 结算屏出图演示：四家手牌全部翻开，和牌者的手牌恰好 14 张（西家带一组碰，验证副露排版）。
+    /// 只用于 <c>--render-roundend --double / --flow</c> 的固定截图，不参与真实对局。
+    /// </summary>
+    public static TableViewModel CreateForSettlement()
+    {
+        TileView T(string id) => new(id);
+        MeldView M(string type, params string[] ids) => new() { Type = type, Tiles = ids.Select(T).ToArray() };
+
+        var seats = new List<SeatView>
+        {
+            new()
+            {
+                Index = 0, Name = "你", Wind = "东", Score = 48300, IsDealer = true, IsHuman = true,
+                HandCount = 14,
+                Hand = new[] { "1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "2p", "3p", "4p", "5p", "5p" }
+                    .Select(T).ToArray(),
+                Discards = new[] { "3p", "8p", "1z", "9s", "2p", "5s" }.Select(T).ToArray(),
+            },
+            new()
+            {
+                Index = 1, Name = "南 AI", Wind = "南", Score = 31900,
+                HandCount = 13,
+                Hand = new[] { "1p", "1p", "1p", "2s", "3s", "4s", "6s", "7s", "8s", "1z", "2z", "3z", "9m" }
+                    .Select(T).ToArray(),
+                Discards = new[] { "2m", "9m", "6p", "3z", "7s" }.Select(T).ToArray(),
+            },
+            new()
+            {
+                Index = 2, Name = "西 AI", Wind = "西", Score = 42100,
+                HandCount = 11,
+                Hand = new[] { "2m", "3m", "4m", "6p", "7p", "8p", "1s", "2s", "3s", "9s", "9s" }
+                    .Select(T).ToArray(),
+                Melds = new[] { M("pon", "7z", "7z", "7z") },
+                Discards = new[] { "1p", "2p", "3p", "4p", "5p" }.Select(T).ToArray(),
+            },
+            new()
+            {
+                Index = 3, Name = "北 AI", Wind = "北", Score = 27700,
+                HandCount = 13,
+                Hand = new[] { "1m", "4m", "7m", "2p", "5p", "8p", "3s", "6s", "9s", "4z", "5z", "6z", "7z" }
+                    .Select(T).ToArray(),
+                Discards = new[] { "9m", "8m", "7m", "6m" }.Select(T).ToArray(),
+            },
+        };
+
+        return new TableViewModel
+        {
+            RoundLabel = "东 2 局 · 1 本场",
+            WallCount = 0,
+            RinshanCount = 4,
+            Honba = 1,
+            Kyotaku = 700,
+            TurnIndex = 0,
+            Seats = seats,
+            ModeTarget = 4,
+            RevealHands = true,
+            Phase = "round_end",
+            Message = string.Empty,
+            AiLevels = new[] { "Simple", "Normal", "Simple", "Hard" },
+        };
+    }
+
+    /// <summary>
     /// 报听按钮演示：<paramref name="callable"/> = 真听牌（按钮可点 + 待牌提示）/
     /// false = 不听牌（按钮灰显、无提示）。
     /// </summary>

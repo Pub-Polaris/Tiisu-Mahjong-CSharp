@@ -46,6 +46,19 @@ public sealed class TableLayoutSpec
     public float PlateGap = 14f;
     public float Margin = 16f;
 
+    /// <summary>
+    /// Mixed 档的安全区：透视桌面要整块缩进画布，内容（四家手牌 / 牌河 / 中央板）跟着收进来，
+    /// 四边留 40–60px，保证手牌不被窗口裁切。Flat / Light / Medium 不调用，保持原来的 16px 布局。
+    /// 只改布局参数，不改命中测试：绘制与点击仍读这些矩形。
+    /// </summary>
+    public void ApplyMixedSafeArea()
+    {
+        Margin = 96f;
+        EdgePad = 6f;
+        PlateGap = 6f;
+        CenterSize = 320f;
+    }
+
     public float CanvasW = 1200f;
     public float CanvasH = 1200f;
 
@@ -73,14 +86,17 @@ public sealed class TableLayoutSpec
     /// <summary>结算面板默认外框（编辑器参考框；绘制未自定义时仍按内容动态居中）。</summary>
     public static readonly RectF DefaultSettlementRect = new(436, 46, 748, 660);
 
-    /// <summary>结算左侧缩略图默认外框。</summary>
-    public static readonly RectF DefaultThumbRect = new(18, 402, 396, 396);
+    /// <summary>结算左侧「和牌者手牌」区默认外框（原牌桌缩略图的位置，改为直接画牌面）。</summary>
+    public static readonly RectF DefaultSettlementHandRect = new(64, 190, 636, 900);
 
     /// <summary>结算面板框；与 <see cref="DefaultSettlementRect"/> 相同表示未自定义（自动居中）。</summary>
     public RectF SettlementRect { get; set; } = DefaultSettlementRect;
 
-    /// <summary>结算左侧缩略图框。</summary>
-    public RectF ThumbRect { get; set; } = DefaultThumbRect;
+    /// <summary>
+    /// 结算左侧手牌区框（原 <c>ThumbRect</c>）。区域 id 仍为 <c>thumbnail</c>：
+    /// 老的自定义布局 JSON 继续生效，布局编辑器里改的就是这块。
+    /// </summary>
+    public RectF SettlementHandRect { get; set; } = DefaultSettlementHandRect;
 
     /// <summary>是否有外部（保存的 JSON / 编辑器）覆盖过布局；false 时绘制走原生的动态计算。</summary>
     public bool OverridesActive { get; set; }
@@ -131,7 +147,9 @@ public sealed class TableLayoutSpec
         list.Add(new("hud", "HUD 提示条", () => HudRect, r => HudRect = r));
         list.Add(new("action-bar", "动作按钮条", () => ActionBarRect, r => ActionBarRect = r));
         list.Add(new("settlement", "结算面板", () => SettlementRect, r => SettlementRect = r));
-        list.Add(new("thumbnail", "结算缩略图", () => ThumbRect, r => ThumbRect = r));
+
+        // id 保留 "thumbnail"：老的 layout-custom.json 里的同名区域继续作用于结算手牌区。
+        list.Add(new("thumbnail", "结算手牌区", () => SettlementHandRect, r => SettlementHandRect = r));
 
         return list;
     }
@@ -235,9 +253,8 @@ public sealed class TableSceneSkia
     public void Draw(ICanvas c, TableViewModel vm, TableLayoutSpec l, int hoverHand = -1)
     {
         var m = Metrics;
-        DrawTableSurface(c, l, m);
+        DrawTableSurface(c, vm, l, m);
 
-        DrawCenter(c, vm, l.PlateRect);
         DrawRivers(c, vm, l);
 
         for (int seat = 0; seat < 4; seat++)
@@ -250,17 +267,18 @@ public sealed class TableSceneSkia
     }
 
     /// <summary>
-    /// 桌面背景。Flat 走原来的实心圆角矩形；Light/Medium 用「上窄下宽」的梯形模拟；
-    /// Mixed 把整层桌面 Save → 真透视矩阵 → 底板/渐变/暗角/桌沿 → Restore，
+    /// 桌面背景 + 中央信息板。Flat 走原来的实心圆角矩形；Light/Medium 用「上窄下宽」的梯形模拟；
+    /// Mixed 把整层（底板/渐变/暗角/桌沿 + 中央板）Save → 真透视矩阵 → 绘制 → Restore，
     /// 牌与牌河恢复逻辑坐标后再画，位置一个都不动。
     /// </summary>
-    private static void DrawTableSurface(ICanvas c, TableLayoutSpec l, TableRenderMetrics m)
+    private static void DrawTableSurface(ICanvas c, TableViewModel vm, TableLayoutSpec l, TableRenderMetrics m)
     {
         if (!m.UsePerspective && !m.HasTileDepth && m.TableTopInset <= 0f)
         {
             c.FillRect(new RectF(0, 0, l.CanvasW, l.CanvasH), Color.Rgb(20, 30, 24));
             c.FillRoundRect(new RectF(l.Margin, l.Margin, l.CanvasW - l.Margin * 2, l.CanvasH - l.Margin * 2),
                 20, Color.Rgb(46, 72, 56));
+            DrawCenter(c, vm, l.PlateRect);
             return;
         }
 
@@ -268,7 +286,7 @@ public sealed class TableSceneSkia
 
         if (m.UsePerspective)
         {
-            DrawPerspectiveSurface(c, l, m);
+            DrawPerspectiveSurface(c, vm, l, m);
             return;
         }
 
@@ -312,13 +330,15 @@ public sealed class TableSceneSkia
             new CanvasPoint(quad[0].X + 6, top + 5f),
         };
         c.FillPolygon(topGlow, Color.Rgb(186, 224, 190).WithAlpha(m.EdgeHighlightAlpha));
+
+        DrawCenter(c, vm, l.PlateRect);
     }
 
     /// <summary>
-    /// 真透视桌面层：Save → ConcatPerspective → 画整块桌面（底板/渐变/暗角/桌沿/远边高光）→ Restore。
-    /// 输入仍是 1200×1200 逻辑坐标，透视只发生在这一层。
+    /// 真透视桌面层：Save → ConcatPerspective → 画整块桌面（底板/渐变/暗角/桌沿/远边高光）
+    /// + 中央信息板 → Restore。输入仍是 1200×1200 逻辑坐标，透视只发生在这一层。
     /// </summary>
-    private static void DrawPerspectiveSurface(ICanvas c, TableLayoutSpec l, TableRenderMetrics m)
+    private static void DrawPerspectiveSurface(ICanvas c, TableViewModel vm, TableLayoutSpec l, TableRenderMetrics m)
     {
         c.Save();
         c.ConcatPerspective(new PerspectiveCamera(
@@ -331,12 +351,16 @@ public sealed class TableSceneSkia
             l.CanvasW,
             l.CanvasH,
             m.PerspectiveZoom,
-            m.PerspectiveOffsetY));
+            m.PerspectiveOffsetY,
+            m.PerspectiveZoomY));
 
-        float left = l.Margin;
-        float top = l.Margin;
-        float right = l.CanvasW - l.Margin;
-        float bottom = l.CanvasH - l.Margin;
+        // 桌面整块缩进画布：四边从逻辑矩形推到画布外，后倾投影后正好收在画布内（约 45–55px 边距）。
+        var area = m.TableQuad ?? new RectF(
+            l.Margin, l.Margin, l.CanvasW - l.Margin * 2f, l.CanvasH - l.Margin * 2f);
+        float left = area.X;
+        float top = area.Y;
+        float right = area.Right;
+        float bottom = area.Bottom;
 
         var quad = new[]
         {
@@ -373,6 +397,9 @@ public sealed class TableSceneSkia
             new CanvasPoint(left + 6, top + 5f),
         };
         c.FillPolygon(topGlow, Color.Rgb(186, 224, 190).WithAlpha(m.EdgeHighlightAlpha));
+
+        // 中央信息板：与桌面同一套透视矩阵画，斜度自然一致（牌不套矩阵，仍在外面画）。
+        DrawCenter(c, vm, l.PlateRect);
 
         c.Restore();
     }
@@ -789,8 +816,46 @@ public sealed class TableSceneSkia
         return sum - l.MeldGroupGap;
     }
 
-    private void Rot(ICanvas c, string id, float cx, float cy, float angle, float w, float h)
+    /// <summary>
+    /// 在任意矩形里画一张正面牌（不旋转）：复用牌桌的牌身厚度 / 左上高光 / 投影，
+    /// 供结算屏的手牌区直接画牌面。牌面始终按 <paramref name="rect"/> 缩放。
+    /// </summary>
+    /// <param name="depth">false = 只画平面牌面（密集小牌用，免得厚度边糊成一片）。</param>
+    public static void DrawTileFace(ICanvas c, string tileId, RectF rect,
+        TableRenderStyle style = TableRenderStyle.Mixed, bool depth = true)
     {
+        var m = TableRenderMetrics.For(style);
+        float cx = rect.CenterX;
+        float cy = rect.CenterY;
+
+        if (depth)
+        {
+            DrawTileShadow(c, cx, cy, 0f, rect.W, rect.H, m);
+        }
+
+        c.Save();
+        c.Translate(cx, cy);
+        if (depth)
+        {
+            DrawTileSide(c, rect.W, rect.H, m, back: false);
+        }
+
+        if (depth)
+        {
+            DrawTileHighlight(c, rect.W, rect.H, m);
+        }
+
+        var face = new RectF(-rect.W / 2f, -rect.H / 2f, rect.W, rect.H);
+        c.DrawTile(tileId, face);
+        if (m.FaceBevelAlpha > 0)
+        {
+            c.StrokeRoundRect(face, 4f, Color.Rgb(255, 252, 235).WithAlpha(m.FaceBevelAlpha), 0.8f);
+        }
+
+        c.Restore();
+    }
+
+    private void Rot(ICanvas c, string id, float cx, float cy, float angle, float w, float h)    {
         var m = Metrics;
         DrawTileShadow(c, cx, cy, angle, w, h, m);
 

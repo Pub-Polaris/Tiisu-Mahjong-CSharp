@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Tiisu.App.Rendering;
 
 /// <summary>
-/// 牌桌观感。Flat 与旧版逐像素一致；Mixed 是默认档（Light 的牌身 + 真透视桌面）；
+/// 牌桌观感。Flat 与旧版逐像素一致；Mixed 是默认档（更厚的牌身 + 真透视桌面 + 透视中央板）；
 /// Light25D / Medium25D 保留原来的梯形桌面档位。
 /// 布局与命中测试仍用原来的逻辑矩形（<see cref="Table.TableLayoutSpec"/>），不参与输入坐标。
 /// </summary>
@@ -62,22 +62,35 @@ public sealed class TableRenderMetrics
     /// <summary>桌面层是否走真透视矩阵（<see cref="ICanvas.ConcatPerspective"/>），而不是梯形模拟。</summary>
     public bool UsePerspective { get; init; }
 
+    /// <summary>
+    /// 透视桌面在逻辑坐标里的矩形（可越出画布：投影后会收回画布内）。
+    /// <c>null</c> = 按布局 <see cref="Table.TableLayoutSpec.Margin"/> 内缩画布。
+    /// Mixed 用 (60, −62, 1080, 1262)：投影后是左右 ~45 / 上 ~55 / 下 ~55 的梯形，
+    /// 外圈留给深色渐变背景。
+    /// </summary>
+    public RectF? TableQuad { get; init; }
+
     // 真透视参数：桌面平面绕 X 轴后倾 rotateX，距相机 distance，再按 fov 投影。
     // aspect 用画布真实宽高比（1200×1200 为 1.0）；near/far 只影响深度映射，不影响平面上的 x/y。
     public float PerspectiveFov { get; init; } = 55f;
     public float PerspectiveAspect { get; init; } = 1f;
     public float PerspectiveNear { get; init; } = 1f;
     public float PerspectiveFar { get; init; } = 100f;
+
+    /// <summary>桌面平面后倾角。Mixed 用 28°（老档位 55°，太陡会把手牌顶出画布）。</summary>
     public float PerspectiveRotateX { get; init; } = 55f;
 
-    /// <summary>相机到桌面中心的距离（逻辑像素）。越小透视越强。</summary>
+    /// <summary>相机到桌面中心的距离（逻辑像素）。越大透视越弱、越接近正交。</summary>
     public float PerspectiveDistance { get; init; } = 1010f;
 
-    /// <summary>投影后等比缩放，用来把桌面铺满画布。</summary>
+    /// <summary>投影后横向等比缩放，用来把桌面铺到画布上。</summary>
     public float PerspectiveZoom { get; init; } = 1.16f;
 
     /// <summary>投影后的整体竖直位移（负 = 上移）。</summary>
     public float PerspectiveOffsetY { get; init; } = -282f;
+
+    /// <summary>纵向单独缩放（0 = 跟随 <see cref="PerspectiveZoom"/>），用来补回后倾压扁的高度。</summary>
+    public float PerspectiveZoomY { get; init; }
 
     public static readonly TableRenderMetrics Flat = new()
     {
@@ -113,25 +126,26 @@ public sealed class TableRenderMetrics
     };
 
     /// <summary>
-    /// 方案 C（默认）：牌身沿用 Light 档的厚度 4 / 投影 2，并加左上高光边；
-    /// 桌面不用梯形，改走真透视矩阵（55° FOV、后倾 55°、相机距离 1010）。
+    /// 方案 C（默认）：牌身比 Light 档更厚（7px + 加深投影），桌面走后倾 28° 的真透视矩阵，
+    /// 梯形整块缩进画布（投影后左右 ≈45、上下 ≈55）留出深色渐变背景；
+    /// 中央信息板与桌面同一套矩阵，牌仍按逻辑坐标画。
     /// </summary>
     public static readonly TableRenderMetrics Mixed = new()
     {
-        TileThickness = 4f,
-        ShadowOffsetX = 1.5f,
-        ShadowOffsetY = 2f,
-        ShadowBlur = 2f,
-        ShadowAlpha = 120,
+        TileThickness = 7f,
+        ShadowOffsetX = 3f,
+        ShadowOffsetY = 5f,
+        ShadowBlur = 4f,
+        ShadowAlpha = 155,
         TableTopInset = 0f,
-        TableBottomLip = 6f,
-        VignetteAlpha = 46,
+        TableBottomLip = 8f,
+        VignetteAlpha = 44,
         EdgeHighlightAlpha = 90,
         TableTop = Color.Rgb(38, 60, 47),
         TableBottom = Color.Rgb(54, 84, 64),
         TableLip = Color.Rgb(26, 40, 31),
-        SurroundTop = Color.Rgb(14, 22, 18),
-        SurroundBottom = Color.Rgb(10, 16, 13),
+        SurroundTop = Color.Rgb(26, 38, 32),
+        SurroundBottom = Color.Rgb(15, 22, 18),
         TileSideTop = Color.Rgb(188, 174, 136),
         TileSideBottom = Color.Rgb(132, 116, 82),
         TileBackSideTop = Color.Rgb(28, 88, 134),
@@ -139,6 +153,14 @@ public sealed class TableRenderMetrics
         FaceBevelAlpha = 70,
         TileHighlightAlpha = 200,
         UsePerspective = true,
+        TableQuad = new RectF(60f, -62f, 1080f, 1262f),
+        PerspectiveFov = 45f,
+        PerspectiveRotateX = 28f,
+        PerspectiveDistance = 6000f,
+        PerspectiveNear = 100f,
+        PerspectiveFar = 20000f,
+        PerspectiveZoom = 4.059f,
+        PerspectiveOffsetY = 0f,
     };
 
     public static readonly TableRenderMetrics Medium = new()

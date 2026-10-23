@@ -1022,6 +1022,7 @@ public sealed class MatchRuntime
         {
             EmitState();
             AfterDiscard(discarded.Value, human);
+            RunLoop();
             return;
         }
 
@@ -1029,6 +1030,11 @@ public sealed class MatchRuntime
         _message = "已报听 · 听 " + string.Join(" ", SnapshotBuilder.TenpaiTileIds(_engine, player));
         EmitState();
         AfterDiscard(discarded.Value, human);
+
+        // 出牌阶段的报听已经完成弃牌，必须自己把主循环续上：
+        // AfterDiscard 只把回合交给下一家（或开副露 / 荣和窗口），不会替 AI 行动；
+        // 漏掉这一句会让牌局停在 Idle —— 不能出牌、AI 也不行动。
+        RunLoop();
     }
 
     /// <summary>报听事件：日志 / 回放事件名统一 <c>call</c>。</summary>

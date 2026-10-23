@@ -60,8 +60,9 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
 
         float cx = cam.CanvasWidth / 2f;
         float cy = cam.CanvasHeight / 2f;
+        float zoomY = cam.ZoomY > 0f ? cam.ZoomY : cam.Zoom;
         float kx = (cot / cam.Aspect) * (cam.CanvasWidth / 2f) * cam.Zoom;
-        float ky = cot * (cam.CanvasHeight / 2f) * cam.Zoom;
+        float ky = cot * (cam.CanvasHeight / 2f) * zoomY;
 
         // 标准 OpenGL 投影的 z 行；只影响深度，不影响桌面平面上的 x/y。
         float zScale = (cam.Far + cam.Near) / (cam.Near - cam.Far);

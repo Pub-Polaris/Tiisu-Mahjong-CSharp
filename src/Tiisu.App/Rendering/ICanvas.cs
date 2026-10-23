@@ -11,6 +11,8 @@ public readonly record struct CanvasPoint(float X, float Y);
 /// 距相机 <see cref="Distance"/>，按 <see cref="FovDegrees"/> 投影到
 /// <see cref="CanvasWidth"/>×<see cref="CanvasHeight"/> 的画布。
 /// 只用于桌面图层；牌与命中测试仍在逻辑坐标里。
+/// <para><c>ZoomY</c> 是纵向单独缩放（0 = 跟随 <c>Zoom</c>）：相机后倾后桌面会被
+/// <c>cos(rotateX)</c> 压扁，画到 1200×1200 画布上需要把纵向补偿回来。</para>
 /// </summary>
 public readonly record struct PerspectiveCamera(
     float FovDegrees,
@@ -22,7 +24,8 @@ public readonly record struct PerspectiveCamera(
     float CanvasWidth,
     float CanvasHeight,
     float Zoom = 1f,
-    float OffsetY = 0f);
+    float OffsetY = 0f,
+    float ZoomY = 0f);
 
 /// <summary>绘制用矩形（逻辑坐标，左上原点）。</summary>
 public readonly record struct RectF(float X, float Y, float W, float H)

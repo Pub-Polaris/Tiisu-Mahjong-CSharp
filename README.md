@@ -49,6 +49,8 @@ dotnet run --project src/Tiisu.App
 ```powershell
 dotnet run --project src/Tiisu.App -- --smoke-run 1 4          # 自走一场
 dotnet run --project src/Tiisu.App -- --smoke-ai 1 4           # AI 档位与耗时
+dotnet run --project src/Tiisu.App -- --smoke-call              # 报听规则（宣言 / 锁手 / 暗杠 / 错和）
+dotnet run --project src/Tiisu.App -- --smoke-call-flow 1 4     # 报听真实流程（自动打一场并中途报听）
 dotnet run --project src/Tiisu.App -- --render-screen out.png menu
 dotnet run --project src/Tiisu.App -- --bench-gl 60            # GPU 基准
 ```

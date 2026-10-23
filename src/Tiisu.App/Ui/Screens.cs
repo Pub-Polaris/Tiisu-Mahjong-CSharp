@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using SkiaSharp;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
@@ -26,13 +25,10 @@ public sealed class TableScreen : Screen
     private readonly Func<TableViewModel> _snapshot;
     private readonly Action<GameCommand>? _commands;
     private readonly Action? _backToMenu;
-    private readonly TileAtlas? _atlas;
+    /// <summary>结算覆盖层：左侧直接画和牌者手牌，右侧只给结果；多人和牌可翻页。</summary>
     private RoundResult? _settlement;
     private bool _settlementHidden;
 
-    /// <summary>结算缩略图缓存：同一份快照只渲染一次 1200×1200 离屏图。</summary>
-    private SKImage? _thumbImage;
-    private TableViewModel? _thumbVm;
     private int _hover = -1;
     private int _lastHandCount = -1;
     private int _lastDiscardTotal = -1;
@@ -72,8 +68,15 @@ public sealed class TableScreen : Screen
         _snapshot = snapshot;
         _commands = commands;
         _backToMenu = backToMenu;
-        _atlas = atlas;
         _scene.Style = renderStyle;
+
+        // Mixed 的透视桌面缩进画布：内容整体内收，四边留安全边距（手牌不再贴/出窗口底边）。
+        // Flat / Light / Medium 不调用，保持原来的 16px 布局。
+        if (renderStyle == TableRenderStyle.Mixed)
+        {
+            _layout.ApplyMixedSafeArea();
+        }
+
         YogaTableLayout.Apply(_layout);
 
         // 启动时应用自定义布局（文件不存在 / 损坏 → 保持默认，不崩）。
@@ -83,6 +86,9 @@ public sealed class TableScreen : Screen
 
     /// <summary>布局编辑器（F2）。自检 / 出图直接驱动它。</summary>
     public LayoutEditor Editor => _editor;
+
+    /// <summary>结算覆盖层（自检用：翻页按钮 / 当前和牌者）。</summary>
+    internal SettlementOverlay SettlementOverlay => _overlay;
 
     /// <summary>无窗口自检：直接把一份局末结果交给结算层。</summary>
     public void ShowSettlement(RoundResult result)
@@ -117,8 +123,8 @@ public sealed class TableScreen : Screen
         var vm = _snapshot();
         if (vm.Phase is "round_end" or "match_over" && _settlement is { } settlement && !_settlementHidden)
         {
-            // 结算层在左侧缩略图里重画牌桌（暗杠已按和牌后规则翻开），面板让到右侧。
-            _overlay.Draw(c, settlement, vm, (thumbCanvas, thumbRect) => DrawTableThumbnail(thumbCanvas, vm, thumbRect), _layout);
+            // 结算层直接用牌面画和牌者的手牌（不再渲染牌桌缩略图）。
+            _overlay.Draw(c, settlement, vm, _layout);
             _editor.Draw(c);
             return;
         }
@@ -135,63 +141,6 @@ public sealed class TableScreen : Screen
         PlayCues(vm);
         DrawHud(c, vm);
         _editor.Draw(c);
-    }
-
-    /// <summary>
-    /// 结算缩略图：优先把 1200×1200 牌桌场景渲染到离屏 surface 再等比画进缩略框；
-    /// 非 Skia 后端直接矢量缩放兜底。
-    /// </summary>
-    private void DrawTableThumbnail(ICanvas c, TableViewModel vm, RectF rect)
-    {
-        if (c is SkiaCanvas skia)
-        {
-            var image = GetThumbnail(vm, skia.Atlas ?? _atlas);
-            if (image is not null)
-            {
-                skia.DrawImage(image, rect);
-                return;
-            }
-        }
-
-        float scale = Math.Min(rect.W / _layout.CanvasW, rect.H / _layout.CanvasH);
-        float w = _layout.CanvasW * scale;
-        float h = _layout.CanvasH * scale;
-        c.Save();
-        c.ClipRect(rect);
-        c.Translate(rect.X + ((rect.W - w) / 2f), rect.Y + ((rect.H - h) / 2f));
-        c.Scale(scale);
-        _scene.Draw(c, vm, _layout, -1);
-        c.Restore();
-    }
-
-    /// <summary>缓存离屏缩略图：同一份快照（结算态静止）不重复渲染。</summary>
-    private SKImage? GetThumbnail(TableViewModel vm, TileAtlas? atlas)
-    {
-        if (_thumbImage is not null && ReferenceEquals(_thumbVm, vm))
-        {
-            return _thumbImage;
-        }
-
-        _thumbImage?.Dispose();
-        _thumbImage = null;
-        _thumbVm = null;
-
-        var info = new SKImageInfo((int)_layout.CanvasW, (int)_layout.CanvasH);
-        using var surface = SKSurface.Create(info);
-        if (surface is null)
-        {
-            return null;
-        }
-
-        surface.Canvas.Clear(new SKColor(20, 30, 24));
-        using (var off = new SkiaCanvas(surface.Canvas, atlas))
-        {
-            _scene.Draw(off, vm, _layout, -1);
-        }
-
-        _thumbImage = surface.Snapshot();
-        _thumbVm = vm;
-        return _thumbImage;
     }
 
     /// <summary>左上角「菜单」按钮（点击即回菜单，不必依赖 ESC）。</summary>
@@ -305,7 +254,7 @@ public sealed class TableScreen : Screen
         if (_snapshot().Phase is "round_end" or "match_over")
         {
             _hover = -1;
-            return false;
+            return _settlement is { } settled && !_settlementHidden && _overlay.SetPointer(x, y, settled);
         }
 
         if (_actionBar.HitTest(x, y) is not null)
@@ -361,6 +310,13 @@ public sealed class TableScreen : Screen
 
         if (_snapshot().Phase is "round_end" or "match_over")
         {
+            // 多人和牌：点右上角「下一家 ▶」翻到下一位的和牌详情。
+            if (_settlement is { } settled && !_settlementHidden && _overlay.HitNextButton(x, y, settled))
+            {
+                _overlay.Step(settled, 1);
+                return true;
+            }
+
             return false;
         }
 
@@ -584,6 +540,11 @@ public sealed class TableScreen : Screen
         // 局末 / 终局：面板外点击无效，这里只认键盘。
         if (vm.Phase == "match_over")
         {
+            if (TryFlipWinner(key))
+            {
+                return true;
+            }
+
             if (key is Keys.R or Keys.Enter)
             {
                 _backToMenu?.Invoke();
@@ -595,6 +556,11 @@ public sealed class TableScreen : Screen
 
         if (vm.Phase == "round_end")
         {
+            if (TryFlipWinner(key))
+            {
+                return true;
+            }
+
             if (key is Keys.Enter or Keys.Space or Keys.N)
             {
                 _commands?.Invoke(GameCommand.NextRound());
@@ -698,6 +664,17 @@ public sealed class TableScreen : Screen
             default:
                 return false;
         }
+    }
+
+    /// <summary>多人和牌：← / → 翻页；只有一家或面板已关时返回 false（按键继续走后面的逻辑）。</summary>
+    private bool TryFlipWinner(Keys key)
+    {
+        if (key is not (Keys.Left or Keys.Right) || _settlement is not { } settled || _settlementHidden)
+        {
+            return false;
+        }
+
+        return _overlay.Step(settled, key == Keys.Right ? 1 : -1);
     }
 
     /// <summary>
