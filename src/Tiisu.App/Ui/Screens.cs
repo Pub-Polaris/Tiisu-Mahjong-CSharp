@@ -616,12 +616,16 @@ public sealed class MenuScreen : Screen
 
     private readonly UiLayout _layout;
     private readonly Func<string, bool> _onAction;
+    private readonly Action<string>? _openUrl;
     private readonly HashSet<string> _hover = new();
+    private string _hoverLinkId = string.Empty;
+    private int _hoverLinkIndex = -1;
 
-    public MenuScreen(UiLayout layout, Func<string, bool> onAction) : base("menu")
+    public MenuScreen(UiLayout layout, Func<string, bool> onAction, Action<string>? openUrl = null) : base("menu")
     {
         _layout = layout;
         _onAction = onAction;
+        _openUrl = openUrl;
 
         // 版本行：布局 JSON 只负责位置，文案在构建时由 git 生成。
         foreach (var el in _layout.Elements)
@@ -652,12 +656,7 @@ public sealed class MenuScreen : Screen
                     break;
 
                 case "text":
-                    string align = (el.Align ?? "center").Trim().ToLowerInvariant();
-                    c.DrawText(el.Text ?? string.Empty, el.Rect,
-                        ParseColor(el.FontColor, Color.White),
-                        new TextStyle(el.FontSize,
-                            Center: align != "left" && align != "right",
-                            Right: align == "right"));
+                    DrawTextElement(c, el);
                     break;
 
                 case "tile":
@@ -682,24 +681,117 @@ public sealed class MenuScreen : Screen
         }
     }
 
+    /// <summary>
+    /// 普通文字直接整段绘制；带 <see cref="LayoutElement.Links"/> 的按片段横排，
+    /// 悬停片段换成亮色（只变色不加粗，避免宽度跳动导致点击区错位）。
+    /// </summary>
+    private void DrawTextElement(ICanvas c, LayoutElement el)
+    {
+        string align = (el.Align ?? "center").Trim().ToLowerInvariant();
+
+        if (el.Links is { Count: > 0 })
+        {
+            var color = ParseColor(el.FontColor, Color.White);
+            var hover = Color.Rgb(242, 230, 190);
+            var rects = LinkRects(el);
+            for (int i = 0; i < rects.Count; i++)
+            {
+                var (link, rect) = rects[i];
+                bool lit = link.Url.Length > 0 && _hoverLinkId == el.Id && _hoverLinkIndex == i;
+                c.DrawText(link.Text, rect, lit ? hover : color,
+                    new TextStyle(el.FontSize, Center: false));
+            }
+
+            return;
+        }
+
+        c.DrawText(el.Text ?? string.Empty, el.Rect,
+            ParseColor(el.FontColor, Color.White),
+            new TextStyle(el.FontSize,
+                Center: align != "left" && align != "right",
+                Right: align == "right"));
+    }
+
+    /// <summary>署名片段各自的矩形（与绘制同一套测量，点击区=可见文字区）。</summary>
+    public static IReadOnlyList<(LinkSegment Link, RectF Rect)> LinkRects(LayoutElement el)
+    {
+        var result = new List<(LinkSegment, RectF)>();
+        if (el.Links is not { Count: > 0 })
+        {
+            return result;
+        }
+
+        var style = new TextStyle(el.FontSize, Center: false);
+        float total = 0f;
+        foreach (var link in el.Links)
+        {
+            total += SkiaCanvas.Measure(link.Text, style);
+        }
+
+        string align = (el.Align ?? "center").Trim().ToLowerInvariant();
+        float x = align == "left" ? el.Rect.X
+            : align == "right" ? el.Rect.Right - total
+            : el.Rect.CenterX - (total / 2f);
+
+        foreach (var link in el.Links)
+        {
+            float w = SkiaCanvas.Measure(link.Text, style);
+            result.Add((link, new RectF(x, el.Rect.Y, w, el.Rect.H)));
+            x += w;
+        }
+
+        return result;
+    }
+
     public override bool OnPointerMove(float x, float y)
     {
         _hover.Clear();
+        _hoverLinkId = string.Empty;
+        _hoverLinkIndex = -1;
+        bool overLink = false;
+
         foreach (var el in _layout.Elements)
         {
+            if (el.Links is { Count: > 0 } && el.Rect.Contains(x, y))
+            {
+                var rects = LinkRects(el);
+                for (int i = 0; i < rects.Count; i++)
+                {
+                    if (rects[i].Link.Url.Length > 0 && rects[i].Rect.Contains(x, y))
+                    {
+                        _hoverLinkId = el.Id;
+                        _hoverLinkIndex = i;
+                        overLink = true;
+                    }
+                }
+            }
+
             if (el.Type == "button" && el.Rect.Contains(x, y))
             {
                 _hover.Add(el.Id);
             }
         }
 
-        return _hover.Count > 0;
+        return overLink || _hover.Count > 0;
     }
 
     public override bool OnClick(float x, float y)
     {
         foreach (var el in _layout.Elements)
         {
+            // 署名链接优先于按钮：两者不重叠，顺序只是让 URL 片段先命中。
+            if (el.Links is { Count: > 0 } && el.Rect.Contains(x, y))
+            {
+                foreach (var (link, rect) in LinkRects(el))
+                {
+                    if (link.Url.Length > 0 && rect.Contains(x, y))
+                    {
+                        _openUrl?.Invoke(link.Url);
+                        return true;
+                    }
+                }
+            }
+
             if (el.Type == "button" && el.Rect.Contains(x, y) && !string.IsNullOrEmpty(el.Action))
             {
                 return _onAction(el.Action!);

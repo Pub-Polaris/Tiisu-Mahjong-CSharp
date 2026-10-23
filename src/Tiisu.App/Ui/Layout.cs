@@ -49,5 +49,18 @@ public sealed class LayoutElement
     /// <summary>文字水平对齐：center（默认）/ left / right。</summary>
     public string? Align { get; set; }
 
+    /// <summary>
+    /// 可点击文字片段。非空时按顺序横排绘制，<see cref="Text"/> 仅作说明/兜底；
+    /// 片段 <see cref="LinkSegment.Url"/> 为空表示只是分隔符，不可点。
+    /// </summary>
+    public List<LinkSegment>? Links { get; set; }
+
     public RectF Rect => new(X, Y, W, H);
+}
+
+/// <summary>一行署名里的一个片段：显示文字 + 点击打开的 URL（空 URL = 纯文字）。</summary>
+public sealed class LinkSegment
+{
+    public string Text { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
 }

@@ -114,6 +114,16 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
         _canvas.DrawText(text, x, baseline, align, font, paint);
     }
 
+    /// <summary>量文字宽度：与 DrawText 共用同一 typeface / 字号（含 BoostSize），保证点击区与字形对齐。</summary>
+    public float MeasureText(string text, TextStyle style) => Measure(text, style);
+
+    /// <summary>无 canvas 的静态测量（命中测试、署名片段排版用）。</summary>
+    public static float Measure(string text, TextStyle style)
+    {
+        using var font = new SKFont(GetTypeface(style.Bold), BoostSize(style.Size));
+        return font.MeasureText(text);
+    }
+
     /// <summary>字号整体放大一档：小字 +2、中字 +3、大字 +4。</summary>
     private static float BoostSize(float size) => size < 16f ? size + 2f : size < 24f ? size + 3f : size + 4f;
 

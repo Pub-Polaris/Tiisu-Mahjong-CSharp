@@ -49,7 +49,7 @@ internal sealed class ScreenHostCore : IDisposable
         SoundEffects.Enabled = _settings.SoundEnabled;
         _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
-        _menu = new MenuScreen(menuLayout, OnMenuAction);
+        _menu = new MenuScreen(menuLayout, OnMenuAction, OpenUrl);
         _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () => SwitchTo(_menu));
         _table = new TableScreen(_session, atlas, () => SwitchTo(_menu));
 
@@ -106,6 +106,24 @@ internal sealed class ScreenHostCore : IDisposable
 
             default:
                 return false;
+        }
+    }
+
+    /// <summary>用系统默认浏览器打开外链（署名 / 许可证 / 仓库）；失败只静默，不影响游戏。</summary>
+    private static void OpenUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+            // 没有默认浏览器 / 系统拒绝：忽略
         }
     }
 

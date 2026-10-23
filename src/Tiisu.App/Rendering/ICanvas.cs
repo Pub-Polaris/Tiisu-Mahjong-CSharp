@@ -50,6 +50,9 @@ public interface ICanvas
     void FillCircle(float cx, float cy, float radius, Color c);
     void DrawText(string text, RectF box, Color c, TextStyle style);
 
+    /// <summary>量一段文字的宽度（与 <see cref="DrawText"/> 同一字体/字号），用于可点击文字排版。</summary>
+    float MeasureText(string text, TextStyle style);
+
     /// <summary>画一张牌面（雪碧图切片）。tileId 形如 1m / 5z。</summary>
     void DrawTile(string tileId, RectF dst, float alpha = 1f);
 }

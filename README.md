@@ -87,5 +87,8 @@ golden 语料在 `tests/fixtures/`（`yaku-golden*.json`、`engine-golden.json`�
 
 代码采用 [MIT License](LICENSE)（与主仓 `Tiisu-Mahjong-main` 一致）。
 
-**第三方素材**：`src/Tiisu.App/Assets/bgm/lobby.wav` 取自商业音源《音词典 VOL2》，**不在 MIT 授权范围内**，
-目前仅用于个人测试；公开发布前需替换为自有或已授权音乐。其余音效与语音均由 `tools/Tiisu.AudioGen` 程序生成。
+**第三方素材**：`src/Tiisu.App/Assets/bgm/lobby.wav` 为 Kevin MacLeod 的《Parisian》
+（[incompetech.com](https://incompetech.com/music/royalty-free/)），按
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) 授权，随仓库分发；
+已作 -5 dB 音量调整并循环播放。其余音效与语音均由 `tools/Tiisu.AudioGen` 程序生成。
+完整清单见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)，主菜单底部也提供可点击署名。

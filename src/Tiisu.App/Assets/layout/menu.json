@@ -29,6 +29,16 @@
       "text": "设置", "action": "settings", "fontSize": 20 },
 
     { "id": "buildInfo", "type": "text", "x": 24, "y": 670, "w": 1232, "h": 24,
-      "text": "", "fontSize": 16, "fontColor": "#7f9189", "align": "right" }
+      "text": "", "fontSize": 16, "fontColor": "#7f9189", "align": "right" },
+
+    { "id": "credits", "type": "text", "x": 32, "y": 669, "w": 1100, "h": 24,
+      "text": "音乐 Parisian · Kevin MacLeod · CC BY 4.0 ｜ 开源信息",
+      "fontSize": 14, "fontColor": "#8fa79d", "align": "left",
+      "links": [
+        { "text": "音乐 Parisian · Kevin MacLeod · ", "url": "https://incompetech.com/music/royalty-free/" },
+        { "text": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/" },
+        { "text": " ｜ ", "url": "" },
+        { "text": "开源信息", "url": "https://github.com/Pub-Polaris/Tiisu-Mahjong-CSharp" }
+      ] }
   ]
 }

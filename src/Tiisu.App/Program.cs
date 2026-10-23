@@ -57,6 +57,9 @@ internal static class Program
             case "--smoke-escape":
                 Environment.ExitCode = SmokeEscape();
                 return;
+            case "--smoke-credits":
+                Environment.ExitCode = SmokeCredits();
+                return;
         }
 
         // 无窗口验证：--render <png> [time] [table|menu]
@@ -687,6 +690,74 @@ internal static class Program
         Console.WriteLine($"  菜单 ESC: handled={lobbyHandled} 动作=\"{(menuEscQuit ? clicked : "-")}\"（不退出、不做事）");
         Console.WriteLine($"  菜单「退出」按钮: handled={quitHandled} action=\"{clicked}\"");
         Console.WriteLine($"  设置 ESC: handled={settingsHandled} 回菜单={settingsBack}");
+        return ok ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--smoke-credits</c>：无窗口验证菜单底部署名 —— 每个可点片段的矩形中心点下去
+    /// 是否打开对应 URL，以及 ESC / 「退出」按钮行为是否仍与原来一致（不真的开浏览器）。
+    /// </summary>
+    private static int SmokeCredits()
+    {
+        TryUseUtf8Console();
+        var layout = UiLayout.Load(Path.Combine(AssetsDir, "layout", "menu.json"));
+        var opened = new List<string>();
+        string clickedAction = string.Empty;
+        var menu = new MenuScreen(layout, action =>
+        {
+            clickedAction = action;
+            return true;
+        }, opened.Add);
+
+        var credits = layout.Elements.First(el => el.Id == "credits");
+        var rects = MenuScreen.LinkRects(credits);
+        var expected = new (string Needle, string Url)[]
+        {
+            ("Parisian", "https://incompetech.com/music/royalty-free/"),
+            ("CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"),
+            ("开源信息", "https://github.com/Pub-Polaris/Tiisu-Mahjong-CSharp"),
+        };
+
+        bool ok = rects.Count == credits.Links!.Count;
+        Console.WriteLine("smoke-credits");
+        Console.WriteLine($"  署名行: \"{credits.Text}\"  y={credits.Y:F0}  fontSize={credits.FontSize:F0}");
+        foreach (var (needle, url) in expected)
+        {
+            var hit = rects.FirstOrDefault(r => r.Link.Url == url && r.Link.Text.Contains(needle, StringComparison.Ordinal));
+            if (hit.Link is null)
+            {
+                Console.WriteLine($"  [缺失] {needle} → {url}");
+                ok = false;
+                continue;
+            }
+
+            int before = opened.Count;
+            bool overLink = menu.OnPointerMove(hit.Rect.CenterX, hit.Rect.CenterY);
+            bool clicked = menu.OnClick(hit.Rect.CenterX, hit.Rect.CenterY);
+            bool openedRight = opened.Count == before + 1 && opened[^1] == url;
+            Console.WriteLine(string.Format(
+                CultureInfo.InvariantCulture,
+                "  {0,-12} x={1:F0}..{2:F0} y={3:F0}..{4:F0}  hover={5} click={6} url={7}",
+                needle, hit.Rect.Left, hit.Rect.Right, hit.Rect.Top, hit.Rect.Bottom, overLink, clicked, openedRight));
+            ok &= overLink && clicked && openedRight;
+        }
+
+        bool emptyUrlIgnored = rects.FirstOrDefault(r => r.Link.Url.Length == 0).Link is not null;
+        bool escapeHandled = menu.OnKey(Keys.Escape);
+        bool noActionOnEsc = clickedAction.Length == 0;
+        var quit = layout.Elements.First(el => el.Id == "btnQuit");
+        bool quitHandled = menu.OnClick(quit.Rect.CenterX, quit.Rect.CenterY);
+        bool quitAction = clickedAction == "quit";
+        bool overlap = rects.Any(r => layout.Elements.Any(el =>
+            el.Type == "button" && el.Rect.Contains(r.Rect.CenterX, r.Rect.CenterY)));
+
+        Console.WriteLine($"  分隔符（空 URL）保留: {emptyUrlIgnored}");
+        Console.WriteLine($"  ESC: handled={escapeHandled} 无动作={noActionOnEsc}");
+        Console.WriteLine($"  「退出」按钮: handled={quitHandled} action=\"{clickedAction}\"");
+        Console.WriteLine($"  与按钮重叠: {overlap}");
+
+        ok &= emptyUrlIgnored && escapeHandled && noActionOnEsc && quitHandled && quitAction && !overlap;
+        Console.WriteLine(ok ? "  OK" : "  FAIL");
         return ok ? 0 : 1;
     }
 
