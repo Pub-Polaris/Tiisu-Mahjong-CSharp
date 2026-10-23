@@ -311,6 +311,30 @@ public sealed class CallDeclarationTests
     }
 
     [Fact]
+    public void Win_AfterCall_SettlesNormally_AndClearsCallNextRound()
+    {
+        var engine = NewRound(out var player);
+        Assert.True(engine.DeclareCall(player));
+
+        // 自摸白（5z）→ 正常和牌（报听不影响和牌，正常结算）
+        engine.Draw(player, new Tile(Suit.Honor, 5));
+        engine.DeclareWin(0, selfDraw: true, new WinSettlement { TotalFu = 10 });
+
+        Assert.True(engine.GameOver);
+        Assert.True(engine.RevealHands);
+
+        // 下一局：报听解除（和牌 / 流局都是这个路径）
+        engine.StartNewRound(new RoundDeal(0, 0, new List<IReadOnlyList<Tile>>
+        {
+            Hand(TenpaiHand),
+            Hand("1234m6789p12345s"),
+            Hand("6789m1234p6789s1z"),
+            Hand("2345m6789p2345s1z"),
+        }));
+        Assert.False(engine.Players[0].IsCalled);
+    }
+
+    [Fact]
     public void RoundReset_ClearsCalled()
     {
         var engine = NewRound(out var player);
