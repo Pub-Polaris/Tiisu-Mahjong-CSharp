@@ -14,6 +14,12 @@ namespace Tiisu.App.Ui;
 /// 两个宿主控件（<see cref="GlScreenHost"/> / <see cref="CpuScreenHost"/>）只负责提供 surface，
 /// 绘制代码（<see cref="ICanvas"/> / <see cref="SkiaCanvas"/>）与这里完全无关。
 /// </summary>
+/// <summary>窗口层按键路由：没有焦点时也能把按键送到当前的 Screen。</summary>
+internal interface IKeyRouter
+{
+    bool RouteKey(Keys key, bool shift);
+}
+
 internal sealed class ScreenHostCore : IDisposable
 {
     private readonly TileAtlas? _atlas;
@@ -149,6 +155,20 @@ internal sealed class ScreenHostCore : IDisposable
         _previous = _current;
         _current = next;
         _transition = 0;
+
+        if (Environment.GetEnvironmentVariable("TIISU_LOG_KEYS") == "1")
+        {
+            try
+            {
+                File.AppendAllText(
+                    Path.Combine(Path.GetTempPath(), "tiisu-keys.log"),
+                    $"{DateTime.Now:HH:mm:ss.fff} screen->{next.Id}{Environment.NewLine}");
+            }
+            catch
+            {
+                // 调试日志失败忽略
+            }
+        }
     }
 
     /// <summary>一帧：CPU 的 <see cref="SKCanvas"/> 与 GPU 的 <see cref="SKCanvas"/> 走同一条路径。</summary>

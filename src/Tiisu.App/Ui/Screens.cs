@@ -309,6 +309,13 @@ public sealed class TableScreen : Screen
             return true;
         }
 
+        // 左上角「M / ESC：菜单」也可以直接点，避免只能靠键盘返回。
+        if (_backToMenu is not null && _layout.HudRect.Contains(x, y))
+        {
+            _backToMenu();
+            return true;
+        }
+
         if (_snapshot().Phase is "round_end" or "match_over")
         {
             return false;

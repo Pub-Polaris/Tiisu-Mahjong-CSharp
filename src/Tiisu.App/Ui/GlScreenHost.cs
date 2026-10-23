@@ -10,7 +10,7 @@ namespace Tiisu.App.Ui;
 /// 每帧把同一个 <see cref="ScreenHostCore.Draw"/> 画到 GL surface 上。
 /// 尺寸变化 / 最小化恢复由控件在一次新的 paint 里重建 render target（<see cref="SKGLControl"/> 内部处理）。
 /// </summary>
-internal sealed class GlScreenHost : SKGLControl
+internal sealed class GlScreenHost : SKGLControl, IKeyRouter
 {
     private readonly ScreenHostCore _core;
 
@@ -63,8 +63,12 @@ internal sealed class GlScreenHost : SKGLControl
         _core.Click(e.X, e.Y);
     }
 
+    /// <summary>窗口层转发：即使控件没焦点也能响应按键。</summary>
+    public bool RouteKey(Keys key, bool shift) => _core.KeyDown(key, shift);
+
     protected override void OnMouseDown(MouseEventArgs e)
     {
+        Focus();
         base.OnMouseDown(e);
         if (e.Button == MouseButtons.Left)
         {

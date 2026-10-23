@@ -48,6 +48,10 @@ public sealed class SettingsScreen : Screen
     private readonly Action _back;
     private readonly List<Row> _rows = new();
 
+    /// <summary>左上角「← 返回」按钮：键盘没送达时也能靠鼠标离开设置屏。</summary>
+    private static readonly RectF BackButton = new(28, 22, 132, 42);
+
+    private bool _backHover;
     private int _selected;
     private int _hover = -1;
 
@@ -68,6 +72,11 @@ public sealed class SettingsScreen : Screen
 
         c.DrawText("设置", new RectF(0, 36, Width, 52), Gold,
             new TextStyle(32, Bold: true, Center: true));
+
+        // 左上角返回按钮
+        c.FillRoundRect(BackButton, 10, _backHover ? Color.Rgb(44, 66, 60) : Color.Rgb(24, 34, 30).WithAlpha(200));
+        c.StrokeRoundRect(BackButton, 10, Gold, 1.2f);
+        c.DrawText("← 返回", BackButton, TextColor, new TextStyle(18, Bold: false, Center: true));
 
         float panelH = Math.Min(600, 40 + (_rows.Count * RowStep));
         var panel = new RectF(330, 92, 620, panelH);
@@ -106,12 +115,19 @@ public sealed class SettingsScreen : Screen
 
     public override bool OnPointerMove(float x, float y)
     {
+        _backHover = BackButton.Contains(x, y);
         _hover = RowAt(x, y);
-        return _hover >= 0;
+        return _backHover || _hover >= 0;
     }
 
     public override bool OnClick(float x, float y)
     {
+        if (BackButton.Contains(x, y))
+        {
+            _back();
+            return true;
+        }
+
         int index = RowAt(x, y);
         if (index < 0)
         {

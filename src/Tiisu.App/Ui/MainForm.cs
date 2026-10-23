@@ -1,11 +1,16 @@
+using System;
+using System.IO;
+using System.Windows.Forms;
 using Tiisu.App.Assets;
 
 namespace Tiisu.App.Ui;
 
-/// <summary>主窗口：只做一件事 —— 把一个铺满的 ScreenHost 丢上去。</summary>
+/// <summary>主窗口：把铺满的 ScreenHost 放上去，并在窗口层接管键盘（不依赖控件焦点）。</summary>
 public sealed class MainForm : Form
 {
     private readonly TileAtlas _atlas;
+    private readonly Control _host;
+    private readonly bool _logKeys = Environment.GetEnvironmentVariable("TIISU_LOG_KEYS") == "1";
 
     public MainForm(TileAtlas atlas, bool forceCpuRender = false)
     {
@@ -28,7 +33,47 @@ public sealed class MainForm : Form
 
         // 退出程序：菜单「退出」按钮 / 窗口关闭按钮；ESC 由各 Screen 处理成「返回」。
         // GPU（SKGLControl + GRContext）优先，不可用时工厂内部自动回退 CPU（SKControl）。
-        Controls.Add(ScreenHostFactory.Create(atlas, forceCpuRender));
+        _host = ScreenHostFactory.Create(atlas, forceCpuRender);
+        Controls.Add(_host);
+
+        // 启动/激活时把焦点交给画布，否则键盘事件没有落点。
+        Shown += (_, _) => _host.Focus();
+        Activated += (_, _) => _host.Focus();
+    }
+
+    /// <summary>窗口层接管按键：KeyPreview 保证这里先收到，再转给当前 Screen。</summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Handled)
+        {
+            return;
+        }
+
+        if (_logKeys)
+        {
+            Log($"key={e.KeyCode} shift={e.Shift}");
+        }
+
+        if (_host is IKeyRouter router && router.RouteKey(e.KeyCode, e.Shift))
+        {
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+        }
+    }
+
+    private static void Log(string line)
+    {
+        try
+        {
+            File.AppendAllText(
+                Path.Combine(Path.GetTempPath(), "tiisu-keys.log"),
+                $"{DateTime.Now:HH:mm:ss.fff} {line}{Environment.NewLine}");
+        }
+        catch
+        {
+            // 调试日志失败不影响游戏
+        }
     }
 
     protected override void Dispose(bool disposing)
