@@ -24,6 +24,8 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        TryUseUtf8Console();
+
         // 无窗口自检（不建窗口、不初始化 WinForms）
         switch (args.Length >= 1 ? args[0] : string.Empty)
         {
@@ -145,7 +147,7 @@ internal static class Program
             return;
         }
 
-        // 帧率基准：--bench <frames>
+        // 帧率基准：--bench <frames>（CPU 光栅，离屏 surface）
         if (args.Length >= 1 && args[0] == "--bench")
         {
             int frames = args.Length >= 2 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 300;
@@ -153,9 +155,18 @@ internal static class Program
             return;
         }
 
+        // GPU 帧率基准：--bench-gl [frames]（隐藏 GL 窗口 → 离屏 GPU surface；无 GPU 时跳过）
+        if (args.Length >= 1 && args[0] == "--bench-gl")
+        {
+            int frames = args.Length >= 2 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 300;
+            Environment.ExitCode = BenchGl(frames);
+            return;
+        }
+
         ApplicationConfiguration.Initialize();
+        bool forceCpuRender = args.Contains("--cpu-render", StringComparer.Ordinal);
         var atlas = new TileAtlas(AssetsDir);   // 所有权交给 MainForm
-        Application.Run(new MainForm(atlas));
+        Application.Run(new MainForm(atlas, forceCpuRender));
     }
 
     // ── 无窗口自检 ────────────────────────────────────────────────
@@ -1015,6 +1026,66 @@ internal static class Program
         Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
             "bench: {0} frames, avg {1:F2} ms ({2:F1} fps), p95 {3:F2} ms, atlas={4}",
             frames, avg, 1000.0 / avg, times[idx], atlas.IsLoaded));
+    }
+
+    /// <summary>
+    /// <c>--bench-gl [frames]</c>：隐藏 GL 窗口拿到 <see cref="GRContext"/>，在离屏 GPU surface 上跑同样帧数。
+    /// 无 GPU / 驱动不可用时打印「GL 不可用，跳过」并返回 0（不阻塞 CI / 无显卡机器）。
+    /// </summary>
+    private static int BenchGl(int frames)
+    {
+        TryUseUtf8Console();
+        frames = Math.Max(1, frames);
+
+        using GlHostWindow? host = GlHostWindow.TryCreate(out string renderer, out string? error);
+        var gr = host?.Context;
+        if (host is null || gr is null)
+        {
+            Console.WriteLine($"GL 不可用，跳过：{error ?? "未知原因"}");
+            return 0;
+        }
+
+        using var atlas = new TileAtlas(AssetsDir);
+        var table = new TableScreen(atlas);
+        var info = new SKImageInfo((int)table.CanvasWidth, (int)table.CanvasHeight);
+        using var surface = SKSurface.Create(gr, true, info);
+        if (surface is null)
+        {
+            Console.WriteLine("GL 不可用，跳过：离屏 GPU surface 创建失败");
+            return 0;
+        }
+
+        for (int i = 0; i < 10; i++)
+        {
+            using var warm = new SkiaCanvas(surface.Canvas, atlas);
+            table.Draw(warm, i * 0.016);
+        }
+
+        gr.Submit(true);
+        gr.CheckAsyncWorkCompletion();
+
+        var times = new double[frames];
+        var total = Stopwatch.StartNew();
+        for (int i = 0; i < frames; i++)
+        {
+            var one = Stopwatch.StartNew();
+            using var ctx = new SkiaCanvas(surface.Canvas, atlas);
+            table.Draw(ctx, i * 0.016);
+            surface.Canvas.Flush();
+            gr.Submit(true);
+            gr.CheckAsyncWorkCompletion();
+            one.Stop();
+            times[i] = one.Elapsed.TotalMilliseconds;
+        }
+
+        total.Stop();
+        Array.Sort(times);
+        double avg = total.Elapsed.TotalMilliseconds / frames;
+        int idx = Math.Clamp((int)(frames * 0.95) - 1, 0, frames - 1);
+        Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
+            "bench-gl: {0} frames, avg {1:F2} ms ({2:F1} fps), p95 {3:F2} ms, renderer={4}, atlas={5}",
+            frames, avg, 1000.0 / avg, times[idx], renderer, atlas.IsLoaded));
+        return 0;
     }
 
     private static void RenderTableToPng(string path, bool debug = false)

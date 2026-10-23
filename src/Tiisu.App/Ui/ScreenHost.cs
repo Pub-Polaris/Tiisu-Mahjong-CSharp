@@ -1,8 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Windows.Forms;
 using SkiaSharp;
-using SkiaSharp.Views.Desktop;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
@@ -10,11 +10,11 @@ using Tiisu.App.Runtime;
 namespace Tiisu.App.Ui;
 
 /// <summary>
-/// 屏幕宿主：整个窗口唯一的控件。
-/// 负责：DPI/letterbox、把输入换算到逻辑坐标、在两屏之间切换（带淡入淡出），
-/// 以及持有唯一的 <see cref="GameSession"/>（后台引擎线程）。
+/// 屏幕宿主的共享状态：唯一的 <see cref="GameSession"/>、屏幕切换、DPI/letterbox 变换与输入换算。
+/// 两个宿主控件（<see cref="GlScreenHost"/> / <see cref="CpuScreenHost"/>）只负责提供 surface，
+/// 绘制代码（<see cref="ICanvas"/> / <see cref="SkiaCanvas"/>）与这里完全无关。
 /// </summary>
-public sealed class ScreenHost : SKControl
+internal sealed class ScreenHostCore : IDisposable
 {
     private readonly TileAtlas? _atlas;
     private readonly GameSession _session;
@@ -36,10 +36,11 @@ public sealed class ScreenHost : SKControl
     private float _canvasW = Screen.Width;
     private float _canvasH = Screen.Height;
 
-    public ScreenHost(TileAtlas? atlas)
+    private bool _disposed;
+
+    public ScreenHostCore(TileAtlas? atlas, Action invalidate)
     {
         _atlas = atlas;
-        Dock = DockStyle.Fill;
 
         // 会话必须在 UI 线程构造：它捕获当前 SynchronizationContext 把事件回投到 UI。
         _settings = Settings.Load();
@@ -53,20 +54,21 @@ public sealed class ScreenHost : SKControl
         _current = _menu;
 
         _frameTimer = new System.Windows.Forms.Timer { Interval = 16 };
-        _frameTimer.Tick += (_, _) => Invalidate();
+        _frameTimer.Tick += (_, _) => invalidate();
         _frameTimer.Start();
     }
 
-    protected override void Dispose(bool disposing)
+    public void Dispose()
     {
-        if (disposing)
+        if (_disposed)
         {
-            _frameTimer.Stop();
-            _frameTimer.Dispose();
-            _session.Dispose();
+            return;
         }
 
-        base.Dispose(disposing);
+        _disposed = true;
+        _frameTimer.Stop();
+        _frameTimer.Dispose();
+        _session.Dispose();
     }
 
     private bool OnMenuAction(string action)
@@ -124,10 +126,9 @@ public sealed class ScreenHost : SKControl
         _transition = 0;
     }
 
-    protected override void OnPaintSurface(SKPaintSurfaceEventArgs e)
+    /// <summary>一帧：CPU 的 <see cref="SKCanvas"/> 与 GPU 的 <see cref="SKCanvas"/> 走同一条路径。</summary>
+    public void Draw(SKCanvas canvas, SKImageInfo info)
     {
-        var canvas = e.Surface.Canvas;
-        var info = e.Info;
         var bg = _current.Background;
         canvas.Clear(new SKColor(bg.R, bg.G, bg.B, bg.A));
 
@@ -174,39 +175,30 @@ public sealed class ScreenHost : SKControl
         canvas.Restore();
     }
 
-    protected override void OnMouseMove(MouseEventArgs e)
+    public Cursor PointerMove(int x, int y)
     {
-        base.OnMouseMove(e);
-        var (lx, ly) = ToLogical(e.X, e.Y);
-        Cursor = _current.OnPointerMove(lx, ly) ? Cursors.Hand : Cursors.Default;
+        var (lx, ly) = ToLogical(x, y);
+        return _current.OnPointerMove(lx, ly) ? Cursors.Hand : Cursors.Default;
     }
 
-    protected override void OnMouseLeave(EventArgs e)
+    public void Click(int x, int y)
     {
-        base.OnMouseLeave(e);
-        Cursor = Cursors.Default;
-    }
-
-    protected override void OnMouseClick(MouseEventArgs e)
-    {
-        base.OnMouseClick(e);
-        var (lx, ly) = ToLogical(e.X, e.Y);
+        var (lx, ly) = ToLogical(x, y);
         _current.OnClick(lx, ly);
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
+    /// <summary>返回 true 表示已消费（与原来的 e.Handled 等价）。</summary>
+    public bool KeyDown(Keys key)
     {
-        base.OnKeyDown(e);
-
-        if (e.KeyCode == Keys.M
+        if (key == Keys.M
             && (ReferenceEquals(_current, _menu) || ReferenceEquals(_current, _table)))
         {
             SwitchTo(ReferenceEquals(_current, _menu) ? _table : _menu);
-            e.Handled = true;
-            return;
+            return true;
         }
 
-        _current.OnKey(e.KeyCode);
+        _current.OnKey(key);
+        return false;
     }
 
     private (float X, float Y) ToLogical(int px, int py)

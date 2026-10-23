@@ -7,7 +7,7 @@ public sealed class MainForm : Form
 {
     private readonly TileAtlas _atlas;
 
-    public MainForm(TileAtlas atlas)
+    public MainForm(TileAtlas atlas, bool forceCpuRender = false)
     {
         _atlas = atlas;
 
@@ -27,7 +27,8 @@ public sealed class MainForm : Form
         KeyPreview = true;
 
         // 退出程序只保留窗口关闭按钮；ESC 由各 Screen 处理成「返回」。
-        Controls.Add(new ScreenHost(atlas));
+        // GPU（SKGLControl + GRContext）优先，不可用时工厂内部自动回退 CPU（SKControl）。
+        Controls.Add(ScreenHostFactory.Create(atlas, forceCpuRender));
     }
 
     protected override void Dispose(bool disposing)
