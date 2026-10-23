@@ -11,7 +11,7 @@ namespace Tiisu.App.Runtime;
 ///
 /// 线程规则（与"纯 Skia、同进程直连"的改造一致）：
 /// <list type="bullet">
-/// <item>引擎 / 决策 / 存档 / 日志全在后台线程，UI 线程一帧都不会被卡住；</item>
+/// <item>引擎 / 决策 / 日志全在后台线程，UI 线程一帧都不会被卡住；</item>
 /// <item>命令只由 UI 线程 <see cref="Post"/> 投递（<see cref="BlockingCollection{T}"/> 逐条消费）；</item>
 /// <item>事件通过构造时捕获的 <see cref="SynchronizationContext"/> Marshal 回 UI 线程；</item>
 /// <item>UI 只读 <see cref="LatestSnapshot"/>（不可变快照），绝不触碰引擎对象。</item>
@@ -23,7 +23,6 @@ public sealed class GameSession : IDisposable
     private readonly Thread _worker;
     private readonly SynchronizationContext? _uiContext;
     private readonly MatchRuntime _runtime;
-    private readonly SaveStore? _saveStore;
 
     private TableViewModel _latest;
     private string? _lastError;
@@ -34,7 +33,7 @@ public sealed class GameSession : IDisposable
     /// <param name="dataDirectory">数据目录；null = <c>%APPDATA%\TiisuMahjong</c>。</param>
     /// <param name="uiContext">事件回投的同步上下文；null = 当前线程的上下文。</param>
     /// <param name="random">随机源（测试可注入 seed）。</param>
-    /// <param name="useStores">是否读写磁盘（存档 / 统计 / 日志）；无窗口自检也用真目录。</param>
+    /// <param name="useStores">是否读写磁盘（统计 / 日志）；无窗口自检也用真目录。对局存档已整体停用，不再建 <see cref="SaveStore"/>。</param>
     /// <param name="aiStepDelayMilliseconds">每个 AI 回合后的停顿；0 = 全速（自检用）。</param>
     public GameSession(
         Settings settings,
@@ -48,18 +47,19 @@ public sealed class GameSession : IDisposable
         _uiContext = uiContext ?? SynchronizationContext.Current;
 
         string directory = dataDirectory ?? Settings.DefaultDirectory;
-        SaveStore? save = null;
+
+        // 「存档 / 恢复上局」已整体停用：不建 SaveStore，state.json 不读也不写。
+        // 统计与牌谱日志不受影响。
         StatsStore? stats = null;
         RoundLogWriter? log = null;
         if (useStores)
         {
-            save = new SaveStore(directory);
             stats = new StatsStore(directory);
             log = new RoundLogWriter(directory) { Enabled = settings.RecordTiles };
-            _saveStore = save;
         }
 
-        _runtime = new MatchRuntime(settings, random ?? new SystemRandomSource(), Dispatch, save, stats, log)
+        _runtime = new MatchRuntime(settings, random ?? new SystemRandomSource(), Dispatch,
+            saveStore: null, stats: stats, roundLog: log)
         {
             AiStepDelayMilliseconds = aiStepDelayMilliseconds,
         };
@@ -102,22 +102,6 @@ public sealed class GameSession : IDisposable
             // 队列已关闭（正在 Dispose）。
         }
     }
-
-    /// <summary>读磁盘存档并投递 Resume；无可恢复存档返回 false。</summary>
-    public bool PostResume()
-    {
-        var save = _saveStore?.Load();
-        if (save is null || !save.InProgress)
-        {
-            return false;
-        }
-
-        Post(GameCommand.Resume(save));
-        return true;
-    }
-
-    /// <summary>存档文件路径（UI / 自检打印用）。</summary>
-    public string? StatePath => _saveStore?.StatePath;
 
     private void WorkerLoop()
     {
@@ -186,7 +170,6 @@ public sealed class GameSession : IDisposable
             // 线程尚未启动（构造中途失败）。
         }
 
-        _saveStore?.Dispose();
         _queue.Dispose();
     }
 

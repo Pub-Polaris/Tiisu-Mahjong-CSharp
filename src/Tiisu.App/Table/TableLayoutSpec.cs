@@ -223,11 +223,19 @@ public sealed class TableLayoutSpec
 /// <summary>牌桌渲染：按 Yoga 算出的矩形绘制。</summary>
 public sealed class TableSceneSkia
 {
+    /// <summary>
+    /// 观感。默认 <see cref="TableRenderStyle.Mixed"/>（Light 牌身 + 真透视桌面）；
+    /// 运行时由设置项 <c>tableRenderStyle</c> 注入，出图由 <c>--render-25d --variant</c> 指定。
+    /// 只影响绘制，不改布局与命中测试。
+    /// </summary>
+    public TableRenderStyle Style { get; set; } = TableRenderStyle.Mixed;
+
+    private TableRenderMetrics Metrics => TableRenderMetrics.For(Style);
+
     public void Draw(ICanvas c, TableViewModel vm, TableLayoutSpec l, int hoverHand = -1)
     {
-        c.FillRect(new RectF(0, 0, l.CanvasW, l.CanvasH), Color.Rgb(20, 30, 24));
-        c.FillRoundRect(new RectF(l.Margin, l.Margin, l.CanvasW - l.Margin * 2, l.CanvasH - l.Margin * 2),
-            20, Color.Rgb(46, 72, 56));
+        var m = Metrics;
+        DrawTableSurface(c, l, m);
 
         DrawCenter(c, vm, l.PlateRect);
         DrawRivers(c, vm, l);
@@ -239,6 +247,157 @@ public sealed class TableSceneSkia
 
         DrawAiLevelBadges(c, vm, l);
         DrawCallBadges(c, vm, l);
+    }
+
+    /// <summary>
+    /// 桌面背景。Flat 走原来的实心圆角矩形；Light/Medium 用「上窄下宽」的梯形模拟；
+    /// Mixed 把整层桌面 Save → 真透视矩阵 → 底板/渐变/暗角/桌沿 → Restore，
+    /// 牌与牌河恢复逻辑坐标后再画，位置一个都不动。
+    /// </summary>
+    private static void DrawTableSurface(ICanvas c, TableLayoutSpec l, TableRenderMetrics m)
+    {
+        if (!m.UsePerspective && !m.HasTileDepth && m.TableTopInset <= 0f)
+        {
+            c.FillRect(new RectF(0, 0, l.CanvasW, l.CanvasH), Color.Rgb(20, 30, 24));
+            c.FillRoundRect(new RectF(l.Margin, l.Margin, l.CanvasW - l.Margin * 2, l.CanvasH - l.Margin * 2),
+                20, Color.Rgb(46, 72, 56));
+            return;
+        }
+
+        c.FillLinearGradient(new RectF(0, 0, l.CanvasW, l.CanvasH), 0, m.SurroundTop, m.SurroundBottom);
+
+        if (m.UsePerspective)
+        {
+            DrawPerspectiveSurface(c, l, m);
+            return;
+        }
+
+        float top = l.Margin;
+        float bottom = l.CanvasH - l.Margin;
+        float left = l.Margin;
+        float right = l.CanvasW - l.Margin;
+
+        var quad = new[]
+        {
+            new CanvasPoint(left + m.TableTopInset, top),
+            new CanvasPoint(right - m.TableTopInset, top),
+            new CanvasPoint(right, bottom),
+            new CanvasPoint(left, bottom),
+        };
+
+        c.FillPolygonGradient(quad, m.TableTop, m.TableBottom);
+
+        // 桌面下沿：一条更暗的窄带，读作桌体厚度。
+        if (m.TableBottomLip > 0f)
+        {
+            var lip = new[]
+            {
+                new CanvasPoint(left, bottom),
+                new CanvasPoint(right, bottom),
+                new CanvasPoint(right, bottom + m.TableBottomLip),
+                new CanvasPoint(left, bottom + m.TableBottomLip),
+            };
+            c.FillPolygon(lip, m.TableLip);
+        }
+
+        DrawVignette(c, l, m);
+
+        // 远边（上沿）受光：外框描边 + 内侧一条窄高光。
+        c.StrokePolygon(quad, Color.Rgb(150, 190, 160).WithAlpha(m.EdgeHighlightAlpha), 1.2f);
+        var topGlow = new[]
+        {
+            new CanvasPoint(quad[0].X + 6, top + 1.5f),
+            new CanvasPoint(quad[1].X - 6, top + 1.5f),
+            new CanvasPoint(quad[1].X - 6, top + 5f),
+            new CanvasPoint(quad[0].X + 6, top + 5f),
+        };
+        c.FillPolygon(topGlow, Color.Rgb(186, 224, 190).WithAlpha(m.EdgeHighlightAlpha));
+    }
+
+    /// <summary>
+    /// 真透视桌面层：Save → ConcatPerspective → 画整块桌面（底板/渐变/暗角/桌沿/远边高光）→ Restore。
+    /// 输入仍是 1200×1200 逻辑坐标，透视只发生在这一层。
+    /// </summary>
+    private static void DrawPerspectiveSurface(ICanvas c, TableLayoutSpec l, TableRenderMetrics m)
+    {
+        c.Save();
+        c.ConcatPerspective(new PerspectiveCamera(
+            m.PerspectiveFov,
+            m.PerspectiveAspect,
+            m.PerspectiveNear,
+            m.PerspectiveFar,
+            m.PerspectiveRotateX,
+            m.PerspectiveDistance,
+            l.CanvasW,
+            l.CanvasH,
+            m.PerspectiveZoom,
+            m.PerspectiveOffsetY));
+
+        float left = l.Margin;
+        float top = l.Margin;
+        float right = l.CanvasW - l.Margin;
+        float bottom = l.CanvasH - l.Margin;
+
+        var quad = new[]
+        {
+            new CanvasPoint(left, top),
+            new CanvasPoint(right, top),
+            new CanvasPoint(right, bottom),
+            new CanvasPoint(left, bottom),
+        };
+
+        c.FillPolygonGradient(quad, m.TableTop, m.TableBottom);
+
+        // 桌沿/桌体厚度：近边下沿一条更暗的窄带。
+        if (m.TableBottomLip > 0f)
+        {
+            var lip = new[]
+            {
+                new CanvasPoint(left, bottom),
+                new CanvasPoint(right, bottom),
+                new CanvasPoint(right, bottom + m.TableBottomLip),
+                new CanvasPoint(left, bottom + m.TableBottomLip),
+            };
+            c.FillPolygon(lip, m.TableLip);
+        }
+
+        DrawVignette(c, l, m);
+
+        // 远边（上沿）受光：透视后是一条横贯上方的亮边，两侧收向消失点。
+        c.StrokePolygon(quad, Color.Rgb(150, 190, 160).WithAlpha(m.EdgeHighlightAlpha), 1.2f);
+        var topGlow = new[]
+        {
+            new CanvasPoint(left + 6, top + 1.5f),
+            new CanvasPoint(right - 6, top + 1.5f),
+            new CanvasPoint(right - 6, top + 5f),
+            new CanvasPoint(left + 6, top + 5f),
+        };
+        c.FillPolygon(topGlow, Color.Rgb(186, 224, 190).WithAlpha(m.EdgeHighlightAlpha));
+
+        c.Restore();
+    }
+
+    /// <summary>四边暗角：上/下/左/右各压一条渐变，制造「斜放桌面」的纵深。</summary>
+    private static void DrawVignette(ICanvas c, TableLayoutSpec l, TableRenderMetrics m)
+    {
+        if (m.VignetteAlpha == 0)
+        {
+            return;
+        }
+
+        byte a = m.VignetteAlpha;
+        byte side = (byte)(a * 3 / 4);
+        float w = l.CanvasW;
+        float h = l.CanvasH;
+
+        c.FillLinearGradient(new RectF(0, 0, w, 170), 0,
+            Color.Black.WithAlpha(a), Color.Transparent);
+        c.FillLinearGradient(new RectF(0, h - 140, w, 140), 0,
+            Color.Transparent, Color.Black.WithAlpha(side));
+        c.FillLinearGradient(new RectF(0, 0, 170, h), 0,
+            Color.Black.WithAlpha(side), Color.Transparent, horizontal: true);
+        c.FillLinearGradient(new RectF(w - 170, 0, 170, h), 0,
+            Color.Transparent, Color.Black.WithAlpha(side), horizontal: true);
     }
 
     /// <summary>报听（已报听）小标：贴在自家手牌框下方的左右两端，不压动作条与牌河。</summary>
@@ -488,7 +647,7 @@ public sealed class TableSceneSkia
         c.DrawText(w, r, Color.Rgb(240, 244, 240), new TextStyle(21, Bold: true, Center: true));
     }
 
-    private static void DrawRivers(ICanvas c, TableViewModel vm, TableLayoutSpec l)
+    private void DrawRivers(ICanvas c, TableViewModel vm, TableLayoutSpec l)
     {
         for (int seat = 0; seat < 4; seat++)
         {
@@ -525,7 +684,7 @@ public sealed class TableSceneSkia
     /// <summary>和牌后暗杠整组的 30% 黑遮罩（0.3 × 255 ≈ 77）。</summary>
     private const byte AnkanMaskAlpha = 77;
 
-    private static void DrawSeat(ICanvas c, TableViewModel vm, SeatView seat, int index, TableLayoutSpec l, int hover = -1)
+    private void DrawSeat(ICanvas c, TableViewModel vm, SeatView seat, int index, TableLayoutSpec l, int hover = -1)
     {
         var (horizontal, angle, _) = TableLayoutSpec.Axis(index);
         bool self = index == 0;
@@ -560,7 +719,8 @@ public sealed class TableSceneSkia
 
             if (i == hover)
             {
-                c.StrokeRoundRect(new RectF(cx - r.W / 2f, cy - r.H / 2f, r.W, r.H),
+                float depth = Metrics.HasTileDepth ? Metrics.TileThickness * TileDepthScale(r.W, r.H) : 0f;
+                c.StrokeRoundRect(new RectF(cx - r.W / 2f, cy - r.H / 2f, r.W + depth, r.H + depth),
                     4, Color.Rgb(255, 228, 120), 2f);
             }
         }
@@ -629,8 +789,11 @@ public sealed class TableSceneSkia
         return sum - l.MeldGroupGap;
     }
 
-    private static void Rot(ICanvas c, string id, float cx, float cy, float angle, float w, float h)
+    private void Rot(ICanvas c, string id, float cx, float cy, float angle, float w, float h)
     {
+        var m = Metrics;
+        DrawTileShadow(c, cx, cy, angle, w, h, m);
+
         c.Save();
         c.Translate(cx, cy);
         if (Math.Abs(angle) > 0.01f)
@@ -638,16 +801,100 @@ public sealed class TableSceneSkia
             c.RotateDegrees(angle);
         }
 
-        c.DrawTile(id, new RectF(-w / 2f, -h / 2f, w, h));
+        DrawTileSide(c, w, h, m, back: false);
+        DrawTileHighlight(c, w, h, m);
+        var face = new RectF(-w / 2f, -h / 2f, w, h);
+        c.DrawTile(id, face);
+        if (m.FaceBevelAlpha > 0)
+        {
+            c.StrokeRoundRect(face, 4f, Color.Rgb(255, 252, 235).WithAlpha(m.FaceBevelAlpha), 0.8f);
+        }
+
         c.Restore();
     }
 
-    private static void Back(ICanvas c, float cx, float cy, float w, float h)
+    private void Back(ICanvas c, float cx, float cy, float w, float h)
     {
-        var r = new RectF(cx - w / 2f, cy - h / 2f, w, h);
+        var m = Metrics;
+        DrawTileShadow(c, cx, cy, 0f, w, h, m);
+
+        c.Save();
+        c.Translate(cx, cy);
+        DrawTileSide(c, w, h, m, back: true);
+        DrawTileHighlight(c, w, h, m);
+
+        var r = new RectF(-w / 2f, -h / 2f, w, h);
         c.FillRoundRect(r, 4, Color.Rgb(46, 138, 198));
         c.StrokeRoundRect(r, 4, Color.Rgb(16, 40, 62), 1f);
+        if (m.FaceBevelAlpha > 0)
+        {
+            c.StrokeRoundRect(r.Inflate(-0.5f), 3.5f, Color.Rgb(176, 220, 246).WithAlpha(m.FaceBevelAlpha), 0.8f);
+        }
+
+        c.Restore();
     }
+
+    /// <summary>
+    /// 牌身左上受光边。贴在正面轮廓外侧（右下是侧面与投影，正好反衬），
+    /// 读作实体牌被左上光打亮的一条亮边；在正面之前画，正面圆角处还能透出一点。
+    /// </summary>
+    private static void DrawTileHighlight(ICanvas c, float w, float h, TableRenderMetrics m)
+    {
+        if (m.TileHighlightAlpha == 0)
+        {
+            return;
+        }
+
+        float edge = Math.Max(1.2f, 2.2f * TileDepthScale(w, h));
+        var lit = Color.Rgb(255, 252, 236).WithAlpha(m.TileHighlightAlpha);
+        c.FillRect(new RectF(-w / 2f - edge, -h / 2f, edge, h), lit);
+        c.FillRect(new RectF(-w / 2f, -h / 2f - edge, w + edge, edge), lit);
+    }
+
+    /// <summary>
+    /// 牌身右下侧的厚度。轴向与牌面一致（在旋转后的局部坐标里画），
+    /// 副露小牌按尺寸缩小厚度，免得 24×33 的牌顶着一圈 8px 边。
+    /// </summary>
+    private static void DrawTileSide(ICanvas c, float w, float h, TableRenderMetrics m, bool back)
+    {
+        if (!m.HasTileDepth)
+        {
+            return;
+        }
+
+        float scale = TileDepthScale(w, h);
+        float thickness = m.TileThickness * scale;
+        var side = new RectF(-w / 2f, -h / 2f, w + thickness, h + thickness);
+        c.FillLinearGradient(side, 4f + thickness,
+            back ? m.TileBackSideTop : m.TileSideTop,
+            back ? m.TileBackSideBottom : m.TileSideBottom);
+        c.StrokeRoundRect(side, 4f + thickness, Color.Rgb(42, 34, 22).WithAlpha(110), 0.8f);
+    }
+
+    /// <summary>投影按牌面在屏幕上的外接矩形画（全局光从左上打），不随牌旋转反向。</summary>
+    private static void DrawTileShadow(ICanvas c, float cx, float cy, float angle, float w, float h,
+        TableRenderMetrics m)
+    {
+        if (!m.HasTileDepth)
+        {
+            return;
+        }
+
+        float scale = TileDepthScale(w, h);
+        bool sideways = Math.Abs(Math.Abs(angle) % 180f - 90f) < 1f;
+        float fw = sideways ? h : w;
+        float fh = sideways ? w : h;
+        var r = new RectF(
+            cx - fw / 2f + (m.ShadowOffsetX * scale),
+            cy - fh / 2f + (m.ShadowOffsetY * scale),
+            fw,
+            fh);
+        c.FillShadow(r, 4f, m.ShadowBlur * scale, Color.Black.WithAlpha(m.ShadowAlpha));
+    }
+
+    /// <summary>牌面 50×68 为 1.0；小牌（副露 24×33）最薄也保留 0.5 的比例，避免完全看不出厚度。</summary>
+    private static float TileDepthScale(float w, float h) =>
+        Math.Clamp(Math.Min(w / 50f, h / 68f), 0.5f, 1f);
 
     private static SeatView Seat(TableViewModel vm, int i) =>
         i < vm.Seats.Count ? vm.Seats[i] : new SeatView { Index = i };

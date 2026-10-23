@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Tiisu.App.Rendering;
 
 namespace Tiisu.App.Runtime;
 
@@ -61,6 +62,14 @@ public sealed class Settings
     /// <summary>修罗档 MCTS（实验性，默认关闭）。关闭时修罗完全等价困难档；旧存档缺字段即关闭。</summary>
     public bool AiMctsEnabled { get; set; }
 
+    /// <summary>
+    /// 牌桌观感：Mixed（默认，方案 C）/ Flat / Light25D / Medium25D。只影响绘制，不改布局与命中测试。
+    /// 旧 settings.json 没有这个键、或新装第一次写盘，都落到 Mixed；
+    /// 想回平面写 <c>"tableRenderStyle": "Flat"</c> 即可（重启生效）。
+    /// </summary>
+    [JsonPropertyName("tableRenderStyle")]
+    public TableRenderStyle TableRender { get; set; } = TableRenderStyle.Mixed;
+
     /// <summary>读 <c>settings.json</c>；文件不存在/损坏时返回默认值（与 Web 侧 <c>/api/settings</c> 同口径）。</summary>
     public static Settings Load(string? directory = null)
     {
@@ -109,6 +118,7 @@ public sealed class Settings
         AiWeights = NormalizeWeights(other.AiWeights);
         AiSeatLocks = NormalizeLocks(other.AiSeatLocks);
         AiMctsEnabled = other.AiMctsEnabled;
+        TableRender = other.TableRender;
     }
 
     public Settings Clone()

@@ -40,7 +40,7 @@
 | `type` | `rect` / `text` / `tile` / `button` / `image`（image 预留） |
 | `x,y,w,h` | 逻辑坐标矩形（左上原点） |
 | `tileId` | 牌面：`1m`…`9m`、`1p`…、`1s`…、`1z`东 … `7z`中 |
-| `action` | 点击时触发的动作码（`start` / `resume` / `quit` / 自定义） |
+| `action` | 点击时触发的动作码（`mode:N` / `settings` / `quit` / 自定义；`resume` 已随「继续上局」停用，不再有入口） |
 | `fill` / `border` / `fontColor` | `#RRGGBB` 或 `#RRGGBBAA` |
 | `radius` | 圆角；0 = 直角 |
 | `fontSize` | 字号（像素） |

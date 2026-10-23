@@ -90,6 +90,8 @@ public sealed class MatchRuntime
     private readonly int[] _aiDiscardDecisionsBySeat = new int[MahjongEngine.PlayerCount];
     private int _aiDiscardDecisions;
     private double _aiDecisionTotalMilliseconds;
+    private readonly int[] _aiCallDeclarationsBySeat = new int[MahjongEngine.PlayerCount];
+    private int _aiCallDeclarations;
 
     private MahjongEngine _engine;
     private WinChecker _checker;
@@ -138,7 +140,7 @@ public sealed class MatchRuntime
         _checker = new WinChecker(SharedYaku, _settings.OptionalYaku);
         _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random);
         _engine.SetMode(_modeTarget);
-        _engine.Players[0].IsHuman = true;
+        _engine.Players[0].IsHuman = !AllSeatsAi;
         _engine.Players[0].IsDealer = true;
         _engine.UpdateSeatWinds();
         _scoresAtRoundStart = _engine.Scores.ToArray();
@@ -197,6 +199,15 @@ public sealed class MatchRuntime
     /// <summary>每次新 AI 弃牌决策的平均耗时（毫秒）；没有决策时为 0。</summary>
     public double AiDecisionAverageMilliseconds =>
         _aiDiscardDecisions == 0 ? 0.0 : _aiDecisionTotalMilliseconds / _aiDiscardDecisions;
+
+    /// <summary>本场 AI 报听（叫胡）宣言次数。</summary>
+    public int AiCallDeclarations => _aiCallDeclarations;
+
+    /// <summary>按座位统计的 AI 报听宣言次数（人类座位通常为 0）。</summary>
+    public IReadOnlyList<int> AiCallDeclarationsBySeat => _aiCallDeclarationsBySeat;
+
+    /// <summary>smoke 用：取消人类座位，四家全部走 AI（须在对局开始前设置）。</summary>
+    public bool AllSeatsAi { get; set; }
 
     // ── 命令入口 ─────────────────────────────────────────────────
 
@@ -281,9 +292,16 @@ public sealed class MatchRuntime
         _roundLog?.Clear();
         _message = null;
         _engine.HandNumber++;
+        ApplySeatModes();
         AssignAiLineup();
         StartNewRoundInternal();
         RunLoop();
+    }
+
+    /// <summary>人类座位开关（smoke 的 <c>--smoke-ai-call</c> 需要四家全 AI）。</summary>
+    private void ApplySeatModes()
+    {
+        _engine.Players[0].IsHuman = !AllSeatsAi;
     }
 
     /// <summary>会话恢复：应用存档头 → handNumber++ → 开新局（与 Web 侧 <c>maybeResume</c> 同序）。</summary>
@@ -314,8 +332,7 @@ public sealed class MatchRuntime
         AssignAiLineup();
         StartNewRoundInternal();
         Emit(new MessageEvent("已恢复存档继续 · " + _engine.RoundLabel(), false));
-        RunLoop();
-    }
+        RunLoop();    }
 
     /// <summary>完整重置（回到未开局）。</summary>
     public void ResetAll()
@@ -329,7 +346,7 @@ public sealed class MatchRuntime
         _message = "已重置";
         _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random);
         _engine.SetMode(_modeTarget);
-        _engine.Players[0].IsHuman = true;
+        _engine.Players[0].IsHuman = !AllSeatsAi;
         _engine.Players[0].IsDealer = true;
         _engine.UpdateSeatWinds();
         _scoresAtRoundStart = _engine.Scores.ToArray();
@@ -571,6 +588,13 @@ public sealed class MatchRuntime
         }
 
         var kan = AiPlayer.DecideKan(observation);
+        if (kan is not null && player.IsCalled
+            && (kan.Type != MeldType.Ankan || !_engine.CallAllowsAnkan(player, kan.Tile, out _)))
+        {
+            // 报听后只允许「听牌形不变」的暗杠；加杠 / 会改听牌形的暗杠一律不尝试。
+            kan = null;
+        }
+
         if (kan is not null)
         {
             if (DoKanWithRobCheck(player, kan.Tile, kan.Type))
@@ -589,8 +613,26 @@ public sealed class MatchRuntime
             }
         }
 
-        var aiDecision = DecideAiDiscard(player);
+        var ctx = BuildAiDecisionContext(player);
+        var aiDecision = DecideAiDiscard(player, ctx);
         int discardIndex = aiDecision.Index;
+
+        bool declareCall = false;
+        if (player.IsCalled)
+        {
+            // 报听后锁手：只能打「听牌张集合不变」的牌；优先按 AI 原选择，不行就摸切。
+            discardIndex = EnsureCalledDiscard(player, discardIndex);
+        }
+        else
+        {
+            var call = AiCallPolicy.Evaluate(ctx, _aiLevels[pi], AiTuning.Default, PreferenceOrder(aiDecision));
+            if (call.Declare && call.DiscardIndex >= 0)
+            {
+                discardIndex = call.DiscardIndex;
+                declareCall = true;
+            }
+        }
+
         if (discardIndex < 0 || discardIndex >= player.Hand.Count)
         {
             _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
@@ -606,10 +648,70 @@ public sealed class MatchRuntime
             return;
         }
 
+        _phase = MatchPhase.Idle;
         RecordEvent(GameEventTypes.Discard, pi, discarded.Value, null);
         RecordStep(pi, "discard", discarded.Value);
+
+        if (declareCall && _engine.DeclareCallWithHand(player, player.Hand))
+        {
+            RecordCall(pi, "discard");
+            _aiCallDeclarations++;
+            _aiCallDeclarationsBySeat[pi]++;
+            _message = "已报听 · 听 " + string.Join(" ", SnapshotBuilder.TenpaiTileIds(_engine, player));
+        }
+
         EmitState();
         AfterDiscard(discarded.Value, pi);
+    }
+
+    /// <summary>AI 报听候选的优先顺序：先按 AI 最终选择，再按评分排名。</summary>
+    private static IReadOnlyList<int> PreferenceOrder(AiDecision decision)
+    {
+        var order = new List<int>(decision.Ranking.Count + 1);
+        if (decision.Index >= 0)
+        {
+            order.Add(decision.Index);
+        }
+
+        foreach (var candidate in decision.Ranking)
+        {
+            if (candidate.Index != decision.Index)
+            {
+                order.Add(candidate.Index);
+            }
+        }
+
+        return order;
+    }
+
+    /// <summary>报听锁手兜底：AI 的原选择若会改听牌形，退到摸切，再退到任意合法牌。</summary>
+    private int EnsureCalledDiscard(Player player, int preferred)
+    {
+        if (preferred >= 0
+            && preferred < player.Hand.Count
+            && _engine.CallAllowsDiscard(player, player.Hand[preferred], out _))
+        {
+            return preferred;
+        }
+
+        if (player.LastDraw is Tile drawn)
+        {
+            int index = player.Hand.IndexOf(drawn);
+            if (index >= 0 && _engine.CallAllowsDiscard(player, player.Hand[index], out _))
+            {
+                return index;
+            }
+        }
+
+        for (int i = 0; i < player.Hand.Count; i++)
+        {
+            if (_engine.CallAllowsDiscard(player, player.Hand[i], out _))
+            {
+                return i;
+            }
+        }
+
+        return preferred;
     }
 
     /// <summary>
@@ -629,9 +731,8 @@ public sealed class MatchRuntime
     }
 
     /// <summary>走新 AI（<see cref="TieredAi"/>）做一次弃牌决策，并累计耗时 / 次数。</summary>
-    private AiDecision DecideAiDiscard(Player player)
+    private AiDecision DecideAiDiscard(Player player, AiDecisionContext ctx)
     {
-        var ctx = BuildAiDecisionContext(player);
         long started = Stopwatch.GetTimestamp();
         try
         {
@@ -680,6 +781,7 @@ public sealed class MatchRuntime
             PlayerIndex = player.Index,
             AllMelds = allMelds,
             MctsEnabled = _settings.AiMctsEnabled,
+            FirstTurn = player.FirstTurn,
         };
     }
 
@@ -759,6 +861,13 @@ public sealed class MatchRuntime
         var meldObservation = SelfPlayDriver.BuildObservation(_engine, -1, discPlayer, discarded);
         var decision = AiPlayer.DecideMeld(meldObservation, _random.NextDouble());
         if (!decision.Applied)
+        {
+            NextTurnInternal();
+            return;
+        }
+
+        // 报听后禁吃碰（含明杠）：AI 决策层直接避开，不依赖规则层抛异常。
+        if (_engine.Players[decision.Target].IsCalled)
         {
             NextTurnInternal();
             return;
@@ -1263,6 +1372,13 @@ public sealed class MatchRuntime
         var observation = SelfPlayDriver.BuildObservation(_engine, -1, pending.Discarder, pending.Tile);
         var decision = AiPlayer.DecideMeld(observation, _random.NextDouble());
         if (!decision.Applied)
+        {
+            NextTurnInternal();
+            return true;
+        }
+
+        // 报听后禁吃碰（含明杠）：AI 决策层直接避开。
+        if (_engine.Players[decision.Target].IsCalled)
         {
             NextTurnInternal();
             return true;
@@ -2254,6 +2370,8 @@ public sealed class MatchRuntime
         _pendingRon = null;
         _pendingMeld = null;
         _pendingChiList.Clear();
+        Array.Clear(_aiCallDeclarationsBySeat);
+        _aiCallDeclarations = 0;
     }
 
     private void ApplyOptionalYaku()

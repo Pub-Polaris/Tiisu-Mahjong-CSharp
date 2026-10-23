@@ -34,6 +34,61 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     public void RotateDegrees(float degrees) => _canvas.RotateDegrees(degrees);
     public void ClipRect(RectF r) => _canvas.ClipRect(new SKRect(r.X, r.Y, r.Right, r.Bottom));
 
+    /// <summary>
+    /// 真透视：M = V · P · T(0,0,-distance) · R_x(-rotateX) · T(-cx,-cy)。
+    /// 桌面平面（z=0）经绕 X 轴后倾、透视投影、视口缩放后落到画布上；
+    /// 不是把矩形四角手动收窄的梯形近似。
+    /// </summary>
+    public void ConcatPerspective(in PerspectiveCamera camera)
+    {
+        var matrix = BuildPerspective(camera);
+        _canvas.Concat(in matrix);
+    }
+
+    /// <summary>
+    /// 直接把 4×4 透视矩阵写成 SKMatrix44。SkiaSharp 4.153.1 没有
+    /// <c>SKMatrix44.CreatePerspective</c>，这里按同一套标准投影公式构造：
+    /// P 的 x/y 缩放 = cot(fov/2)，w = -z；再把旋转、相机距离和视口缩放乘进去。
+    /// SKMatrix44 的索引器是 [列, 行]。
+    /// </summary>
+    private static SKMatrix44 BuildPerspective(in PerspectiveCamera cam)
+    {
+        float halfFov = cam.FovDegrees * MathF.PI / 360f;
+        float cot = 1f / MathF.Tan(halfFov);
+        float sin = MathF.Sin(cam.RotateXDegrees * MathF.PI / 180f);
+        float cos = MathF.Cos(cam.RotateXDegrees * MathF.PI / 180f);
+
+        float cx = cam.CanvasWidth / 2f;
+        float cy = cam.CanvasHeight / 2f;
+        float kx = (cot / cam.Aspect) * (cam.CanvasWidth / 2f) * cam.Zoom;
+        float ky = cot * (cam.CanvasHeight / 2f) * cam.Zoom;
+
+        // 标准 OpenGL 投影的 z 行；只影响深度，不影响桌面平面上的 x/y。
+        float zScale = (cam.Far + cam.Near) / (cam.Near - cam.Far);
+        float zShift = 2f * cam.Far * cam.Near / (cam.Near - cam.Far);
+
+        var m = new SKMatrix44();
+
+        // 行 0（x）
+        m[0, 0] = kx;
+        m[1, 0] = -cx * sin;
+        m[3, 0] = cx * (cam.Distance + sin * cy - kx);
+
+        // 行 1（y）
+        m[1, 1] = ky * cos - (cy + cam.OffsetY) * sin;
+        m[3, 1] = (cy + cam.OffsetY) * (cam.Distance + sin * cy) - ky * cos * cy;
+
+        // 行 2（z）
+        m[2, 2] = zScale;
+        m[3, 2] = zShift;
+
+        // 行 3（w）：近边（画布下方）w 更小 → 更靠近相机。
+        m[1, 3] = -sin;
+        m[3, 3] = cam.Distance + sin * cy;
+
+        return m;
+    }
+
     private static SKColor ToSk(Color c) => new(c.R, c.G, c.B, c.A);
 
     public void Clear(Color c) => _canvas.Clear(ToSk(c));
@@ -60,12 +115,14 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
         _canvas.DrawRoundRect(new SKRect(r.X, r.Y, r.Right, r.Bottom), radius, radius, _stroke);
     }
 
-    public void FillLinearGradient(RectF r, float radius, Color top, Color bottom)
+    public void FillLinearGradient(RectF r, float radius, Color top, Color bottom, bool horizontal = false)
     {
         var rect = new SKRect(r.X, r.Y, r.Right, r.Bottom);
+        var start = new SKPoint(rect.Left, rect.Top);
+        var end = horizontal ? new SKPoint(rect.Right, rect.Top) : new SKPoint(rect.Left, rect.Bottom);
         using var shader = SKShader.CreateLinearGradient(
-            new SKPoint(rect.Left, rect.Top),
-            new SKPoint(rect.Left, rect.Bottom),
+            start,
+            end,
             new[] { ToSk(top), ToSk(bottom) },
             null,
             SKShaderTileMode.Clamp);
@@ -73,6 +130,89 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
         _fill.Color = SKColors.White;
         _canvas.DrawRoundRect(rect, radius, radius, _fill);
         _fill.Shader = null;
+    }
+
+    private static SKPath BuildPath(IReadOnlyList<CanvasPoint> points)
+    {
+        using var builder = new SKPathBuilder();
+        if (points.Count > 0)
+        {
+            builder.MoveTo(points[0].X, points[0].Y);
+            for (int i = 1; i < points.Count; i++)
+            {
+                builder.LineTo(points[i].X, points[i].Y);
+            }
+
+            builder.Close();
+        }
+
+        return builder.Detach();
+    }
+
+    public void FillPolygon(IReadOnlyList<CanvasPoint> points, Color c)
+    {
+        using var path = BuildPath(points);
+        _fill.Color = ToSk(c);
+        _fill.Shader = null;
+        _canvas.DrawPath(path, _fill);
+    }
+
+    public void FillPolygonGradient(IReadOnlyList<CanvasPoint> points, Color top, Color bottom)
+    {
+        if (points.Count == 0)
+        {
+            return;
+        }
+
+        float minY = float.MaxValue;
+        float maxY = float.MinValue;
+        for (int i = 0; i < points.Count; i++)
+        {
+            minY = Math.Min(minY, points[i].Y);
+            maxY = Math.Max(maxY, points[i].Y);
+        }
+
+        if (Math.Abs(maxY - minY) < 0.01f)
+        {
+            FillPolygon(points, top);
+            return;
+        }
+
+        using var path = BuildPath(points);
+        using var shader = SKShader.CreateLinearGradient(
+            new SKPoint(0f, minY),
+            new SKPoint(0f, maxY),
+            new[] { ToSk(top), ToSk(bottom) },
+            null,
+            SKShaderTileMode.Clamp);
+        _fill.Shader = shader;
+        _fill.Color = SKColors.White;
+        _canvas.DrawPath(path, _fill);
+        _fill.Shader = null;
+    }
+
+    public void StrokePolygon(IReadOnlyList<CanvasPoint> points, Color c, float width)
+    {
+        using var path = BuildPath(points);
+        _stroke.Color = ToSk(c);
+        _stroke.StrokeWidth = width;
+        _stroke.Shader = null;
+        _canvas.DrawPath(path, _stroke);
+    }
+
+    public void FillShadow(RectF r, float radius, float blur, Color c)
+    {
+        var rect = new SKRect(r.X, r.Y, r.Right, r.Bottom);
+        using var paint = new SKPaint { IsAntialias = true, Color = ToSk(c) };
+        if (blur > 0.01f)
+        {
+            using var mask = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, blur);
+            paint.MaskFilter = mask;
+            _canvas.DrawRoundRect(rect, radius, radius, paint);
+            return;
+        }
+
+        _canvas.DrawRoundRect(rect, radius, radius, paint);
     }
 
     public void FillCircle(float cx, float cy, float radius, Color c)

@@ -50,21 +50,30 @@ public sealed class TableScreen : Screen
     {
     }
 
+    /// <summary>演示快照 + 指定观感（<c>--render-25d</c> 用）。</summary>
+    public TableScreen(TileAtlas? atlas, TableRenderStyle renderStyle)
+        : this(() => TableDemoModel.Create(1), null, null, atlas, renderStyle)
+    {
+    }
+
     /// <summary>正式牌桌：只读会话快照 + 投递命令。</summary>
-    public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu = null)
-        : this(() => session.LatestSnapshot, session.Post, backToMenu, atlas)
+    public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu = null,
+        TableRenderStyle renderStyle = TableRenderStyle.Mixed)
+        : this(() => session.LatestSnapshot, session.Post, backToMenu, atlas, renderStyle)
     {
         session.UiEvent += OnSessionEvent;
     }
 
     /// <summary>自检 / 预览用：直接给快照与命令通道（不订阅会话事件）。</summary>
-    public TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands, Action? backToMenu = null, TileAtlas? atlas = null)
+    public TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands, Action? backToMenu = null,
+        TileAtlas? atlas = null, TableRenderStyle renderStyle = TableRenderStyle.Mixed)
         : base("table")
     {
         _snapshot = snapshot;
         _commands = commands;
         _backToMenu = backToMenu;
         _atlas = atlas;
+        _scene.Style = renderStyle;
         YogaTableLayout.Apply(_layout);
 
         // 启动时应用自定义布局（文件不存在 / 损坏 → 保持默认，不崩）。
@@ -296,10 +305,12 @@ public sealed class TableScreen : Screen
 
         if (_actionBar.HitTest(x, y) is not null)
         {
+            _actionBar.SetPointer(x, y);
             _hover = -1;
             return true;
         }
 
+        _actionBar.ClearPointer();
         _hover = HitTest(x, y);
         return _hover >= 0;
     }

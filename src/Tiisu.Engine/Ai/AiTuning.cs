@@ -44,6 +44,20 @@ public sealed class AiTuning
     /// <summary>Normal 档启用残局防守时的最小自家向听（≥ 此值才防守，越接近听牌越不弃安全）。</summary>
     public int NormalDangerShantenThreshold { get; init; } = 2;
 
+    // ─── 报听（叫胡）──────────────────────────────────────────────
+
+    /// <summary>Hard 档报听的最低期望赋（荣和口径，按待牌剩余张数加权）。</summary>
+    public double HardCallMinExpectedFu { get; init; } = 7.0;
+
+    /// <summary>Shura 档报听的最低期望赋；比 Hard 更严。</summary>
+    public double ShuraCallMinExpectedFu { get; init; } = 10.0;
+
+    /// <summary>Hard 档报听允许的最大放铳危险度（0..1，只算要打出的那张）。</summary>
+    public double HardCallMaxDanger { get; init; } = 0.60;
+
+    /// <summary>Shura 档报听允许的最大放铳危险度；比 Hard 更严。</summary>
+    public double ShuraCallMaxDanger { get; init; } = 0.35;
+
     /// <summary>自适应思考：top1 与 top2 相对分差低于此值时标记 NeedDeepThink。</summary>
     public double DeepThinkScoreGap { get; init; } = 0.05;
 

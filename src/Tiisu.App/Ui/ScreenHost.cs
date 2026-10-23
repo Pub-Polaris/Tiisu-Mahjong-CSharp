@@ -57,7 +57,7 @@ internal sealed class ScreenHostCore : IDisposable
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _menu = new MenuScreen(menuLayout, OnMenuAction, OpenUrl);
         _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () => SwitchTo(_menu));
-        _table = new TableScreen(_session, atlas, () => SwitchTo(_menu));
+        _table = new TableScreen(_session, atlas, () => SwitchTo(_menu), _settings.TableRender);
 
         _current = _menu;
 
@@ -91,10 +91,7 @@ internal sealed class ScreenHostCore : IDisposable
 
         switch (action)
         {
-            case "resume":
-                SwitchTo(_table);
-                _session.PostResume();
-                return true;
+            // 「继续上局」已整体停用：菜单没有入口，这里也不再有 resume 分支。
 
             case "next":
                 SwitchTo(_table);

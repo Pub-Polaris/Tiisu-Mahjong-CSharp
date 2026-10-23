@@ -57,6 +57,74 @@ public static class TableDemoModel
         };
     }
 
+    /// <summary>
+    /// 合并 UI SVG 演示：恰好五个动作按钮（杠 / 和 / 碰 / 吃 / 报听），
+    /// 用来导出带语义色的 <c>btn-*</c> 图层；牌桌、四家手牌/副露/牌河沿用演示快照。
+    /// </summary>
+    public static TableViewModel CreateForUiExport()
+    {
+        var vm = CreateWithActions();
+
+        // 四家都至少有一组副露，保证导出里 meld-self / meld-right / meld-top / meld-left 四个图层齐全。
+        MeldView M(string type, params string[] ids) => new()
+        {
+            Type = type,
+            Tiles = ids.Select(id => new TileView(id)).ToArray(),
+        };
+
+        var extras = new[]
+        {
+            M("chi", "1m", "2m", "3m"),
+            M("pon", "5z", "5z", "5z"),
+            M("minkan", "3s", "3s", "3s", "3s"),
+        };
+
+        var seats = new List<SeatView>(vm.Seats.Count);
+        for (int i = 0; i < vm.Seats.Count; i++)
+        {
+            var s = vm.Seats[i];
+            seats.Add(i == 0
+                ? s
+                : new SeatView
+                {
+                    Index = s.Index,
+                    Name = s.Name,
+                    Wind = s.Wind,
+                    Score = s.Score,
+                    IsDealer = s.IsDealer,
+                    IsHuman = s.IsHuman,
+                    IsTurn = s.IsTurn,
+                    IsCalled = s.IsCalled,
+                    Noten = s.Noten,
+                    HandCount = s.HandCount,
+                    Hand = s.Hand,
+                    Melds = new[] { extras[i - 1] },
+                    Discards = s.Discards,
+                    LastDiscard = s.LastDiscard,
+                });
+        }
+
+        return new TableViewModel
+        {
+            RoundLabel = vm.RoundLabel,
+            WallCount = vm.WallCount,
+            RinshanCount = vm.RinshanCount,
+            Honba = vm.Honba,
+            Kyotaku = vm.Kyotaku,
+            TurnIndex = vm.TurnIndex,
+            Seats = seats,
+            ModeTarget = vm.ModeTarget,
+            RevealHands = vm.RevealHands,
+            Rinshan = vm.Rinshan,
+            Phase = "human_meld",
+            Actions = HumanAction.Kan | HumanAction.Tsumo | HumanAction.Pon | HumanAction.Chi | HumanAction.DeclareCall,
+            ActionLabels = new[] { "吃" },
+            TenpaiTiles = vm.TenpaiTiles,
+            Message = "合并 UI 导出：五个语义动作按钮",
+            AiLevels = vm.AiLevels,
+        };
+    }
+
     /// <summary>演示：人类回合且同时有杠/和/碰/吃/过/听牌，用于动作按钮条出图。</summary>
     public static TableViewModel CreateWithActions()
     {

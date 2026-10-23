@@ -15,5 +15,6 @@
   <Folder Name="/tools/">
     <Project Path="tools/Tiisu.AudioGen/Tiisu.AudioGen.csproj" />
     <Project Path="tools/Tiisu.Tools/Tiisu.Tools.csproj" />
+    <Project Path="tools/Tiisu.DevTools/Tiisu.DevTools.csproj" />
   </Folder>
 </Solution>

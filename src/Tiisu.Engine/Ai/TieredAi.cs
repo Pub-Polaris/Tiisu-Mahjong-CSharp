@@ -46,6 +46,9 @@ public sealed record AiDecisionContext(
     /// <summary>外部显式提供的威胁模型输入；为 null 时由现有字段推导。</summary>
     public ThreatInput? Threat { get; init; }
 
+    /// <summary>是否首巡（影响人和 / 首巡听牌口径，报听判定用）。</summary>
+    public bool FirstTurn { get; init; }
+
     /// <summary>
     /// 是否启用修罗档 MCTS（C 期，实验性，默认关闭）。
     /// 只影响 <see cref="AiLevel.Shura"/>：为 false 时修罗完全等价困难档，行为与 A/B 期一致。

@@ -11,6 +11,10 @@ namespace Tiisu.App.Runtime;
 /// 会话存档（<c>%APPDATA%\TiisuMahjong\state.json</c>）。
 /// 字段名与 Web 侧 <c>engine.js saveSessionState()</c> 完全一致，旧 JS 存档可直接读、也能被旧代码读回。
 /// 写入按 200ms 节流：调用方每步都可 <see cref="Save"/>，真正落盘由节流器合并。
+///
+/// <para><b>已整体停用：</b><see cref="Enabled"/> 默认 false，<see cref="Save"/> / <see cref="SaveNow"/> /
+/// <see cref="Flush"/> 一律不落盘、<see cref="Load"/> 一律返回 null。保留类与字段定义只为了文件格式与旧数据对照，
+/// 应用不再构造它，也不再读写 <c>state.json</c>。</para>
 /// </summary>
 public sealed class SaveStore : IDisposable
 {
@@ -35,6 +39,9 @@ public sealed class SaveStore : IDisposable
     private DateTime _lastWriteUtc = DateTime.MinValue;
     private bool _disposed;
 
+    /// <summary>存档读写总开关。默认 false（功能停用）；置 true 才会真正读写磁盘。</summary>
+    public bool Enabled { get; set; }
+
     public SaveStore(string? directory = null)
     {
         DirectoryPath = Path.GetFullPath(directory ?? Settings.DefaultDirectory);
@@ -46,10 +53,10 @@ public sealed class SaveStore : IDisposable
 
     public string StatePath => Path.Combine(DirectoryPath, "state.json");
 
-    /// <summary>读存档；不存在 / 损坏返回 null（调用方按"无存档"处理）。</summary>
+    /// <summary>读存档；功能停用 / 不存在 / 损坏返回 null（调用方按"无存档"处理）。</summary>
     public SaveState? Load()
     {
-        if (!File.Exists(StatePath))
+        if (!Enabled || !File.Exists(StatePath))
         {
             return null;
         }
@@ -64,10 +71,10 @@ public sealed class SaveStore : IDisposable
         }
     }
 
-    /// <summary>节流写入：距上次落盘 ≥200ms 立即写，否则合并到 200ms 窗口末尾。</summary>
+    /// <summary>节流写入：距上次落盘 ≥200ms 立即写，否则合并到 200ms 窗口末尾。停用时直接忽略。</summary>
     public void Save(SaveState state)
     {
-        if (state is null)
+        if (state is null || !Enabled)
         {
             return;
         }
@@ -92,10 +99,10 @@ public sealed class SaveStore : IDisposable
         }
     }
 
-    /// <summary>立刻落盘（终局 / 存档命令用，绕过节流）。</summary>
+    /// <summary>立刻落盘（终局 / 存档命令用，绕过节流）。停用时直接忽略。</summary>
     public void SaveNow(SaveState state)
     {
-        if (state is null)
+        if (state is null || !Enabled)
         {
             return;
         }
@@ -110,6 +117,11 @@ public sealed class SaveStore : IDisposable
     /// <summary>把挂起的写入立即落盘。</summary>
     public void Flush()
     {
+        if (!Enabled)
+        {
+            return;
+        }
+
         lock (_gate)
         {
             if (_pending is { } pending)

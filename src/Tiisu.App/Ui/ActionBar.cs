@@ -30,11 +30,98 @@ public sealed class ActionBar
 
     public sealed record Button(Kind Kind, string Label, RectF Rect, int Option = 0, bool Enabled = true);
 
+    /// <summary>一个按钮在某一状态下的三色：底色 / 边框 / 文字。</summary>
+    public readonly record struct ButtonColors(Color Fill, Color Border, Color Text);
+
+    /// <summary>
+    /// 语义色基准表（唯一改动点）。按钮底色取基准色的深色版，边框 / 文字取亮色版；
+    /// 灰显态不区分 Kind，统一去饱和 + 灰字。
+    /// </summary>
+    private static readonly Dictionary<Kind, Color> Accents = new()
+    {
+        [Kind.Chi] = Color.Rgb(0x3B, 0x82, 0xF6),          // 蓝  #3B82F6
+        [Kind.Pon] = Color.Rgb(0xE5, 0x39, 0x9B),          // 品红 #E5399B
+        [Kind.Kan] = Color.Rgb(0x3F, 0xB9, 0x50),          // 绿  #3FB950
+        [Kind.DeclareCall] = Color.Rgb(0x22, 0xC3, 0xD6),  // 青  #22C3D6
+        [Kind.Tsumo] = Color.Rgb(0xF2, 0xC9, 0x4C),        // 黄  #F2C94C（和牌）
+        [Kind.Ron] = Color.Rgb(0xF2, 0xC9, 0x4C),          // 荣和同用黄
+        [Kind.Pass] = Color.Rgb(0x7E, 0x8C, 0x83),         // 中性灰绿
+        [Kind.Flow] = Color.Rgb(0x7E, 0x8C, 0x83),
+    };
+
+    private static readonly ButtonColors DisabledColors =
+        new(Color.Rgb(34, 40, 36), Color.Rgb(89, 99, 92), Color.Rgb(140, 148, 142));
+
     private readonly List<Button> _buttons = new();
+    private float _pointerX;
+    private float _pointerY;
+    private bool _hasPointer;
 
     public IReadOnlyList<Button> Buttons => _buttons;
 
     public bool HasAny => _buttons.Count > 0;
+
+    /// <summary>语义色基准（供 SVG 导出 / 调色板复用）。</summary>
+    public static Color Accent(Kind kind) => Accents.TryGetValue(kind, out var c) ? c : Color.Rgb(140, 170, 150);
+
+    /// <summary>按钮在 可用 / 悬停 / 灰显 三态下的配色。</summary>
+    public static ButtonColors ColorsFor(Kind kind, bool hover = false, bool enabled = true)
+    {
+        if (!enabled)
+        {
+            return DisabledColors;
+        }
+
+        var accent = Accent(kind);
+        if (hover)
+        {
+            return new ButtonColors(
+                Darken(accent, 0.40f),
+                Mix(accent, Color.White, 0.28f),
+                Mix(accent, Color.White, 0.82f));
+        }
+
+        return new ButtonColors(
+            Darken(accent, 0.26f),
+            accent,
+            Mix(accent, Color.White, 0.68f));
+    }
+
+    /// <summary>SVG / 自动化用的稳定 id 片段：吃/碰/杠/报听/和。</summary>
+    public static string SemanticId(Kind kind) => kind switch
+    {
+        Kind.Chi => "chi",
+        Kind.Pon => "pon",
+        Kind.Kan => "kan",
+        Kind.DeclareCall => "call",
+        Kind.Tsumo or Kind.Ron => "win",
+        Kind.Pass => "pass",
+        Kind.Flow => "flow",
+        _ => "action",
+    };
+
+    private static Color Darken(Color c, float factor) =>
+        new((byte)(c.R * factor), (byte)(c.G * factor), (byte)(c.B * factor), c.A);
+
+    private static Color Mix(Color a, Color b, float t)
+    {
+        t = Math.Clamp(t, 0f, 1f);
+        return new Color(
+            (byte)(a.R + (b.R - a.R) * t),
+            (byte)(a.G + (b.G - a.G) * t),
+            (byte)(a.B + (b.B - a.B) * t),
+            (byte)(a.A + (b.A - a.A) * t));
+    }
+
+    /// <summary>记录指针位置（用于悬停态）；宿主在指针离开按钮条时调用 <see cref="ClearPointer"/>。</summary>
+    public void SetPointer(float x, float y)
+    {
+        _pointerX = x;
+        _pointerY = y;
+        _hasPointer = true;
+    }
+
+    public void ClearPointer() => _hasPointer = false;
 
     /// <summary>按快照重建按钮（每帧调用，纯计算）。</summary>
     public void Build(TableViewModel vm, TableLayoutSpec layout)
@@ -131,24 +218,20 @@ public sealed class ActionBar
     {
         foreach (var b in _buttons)
         {
-            if (!b.Enabled)
-            {
-                // 灰显：不可点（真听牌之外 / 已报听）。
-                c.FillRoundRect(b.Rect, 10, Color.Rgb(34, 40, 36).WithAlpha(200));
-                c.StrokeRoundRect(b.Rect, 10, Color.Rgb(96, 104, 98), 1.2f);
-                c.DrawText(b.Label, b.Rect, Color.Rgb(140, 148, 142),
-                    new TextStyle(b.Label.Length > 4 ? 15 : 18, Bold: true));
-                continue;
-            }
-
-            bool accent = b.Kind is Kind.Tsumo or Kind.Ron;
-            var fill = accent ? Color.Rgb(120, 40, 36) : Color.Rgb(18, 30, 24);
-            c.FillRoundRect(b.Rect, 10, fill.WithAlpha(230));
-            c.StrokeRoundRect(b.Rect, 10, accent ? Color.Rgb(255, 196, 120) : Color.Rgb(140, 170, 150), 1.5f);
-            c.DrawText(b.Label, b.Rect,
-                accent ? Color.Rgb(255, 240, 210) : Color.Rgb(230, 240, 230),
-                new TextStyle(b.Label.Length > 4 ? 15 : 18, Bold: true));
+            bool hover = b.Enabled && _hasPointer && b.Rect.Contains(_pointerX, _pointerY);
+            DrawButton(c, b.Kind, b.Label, b.Rect, b.Enabled, hover);
         }
+    }
+
+    /// <summary>
+    /// 画一颗按钮（三态）；游戏内与 <c>--render-actions</c> 调色板共用同一条绘制路径。
+    /// </summary>
+    public static void DrawButton(ICanvas c, Kind kind, string label, RectF rect, bool enabled, bool hover = false)
+    {
+        var colors = ColorsFor(kind, hover, enabled);
+        c.FillRoundRect(rect, 10, colors.Fill.WithAlpha((byte)(enabled ? (hover ? 245 : 230) : 200)));
+        c.StrokeRoundRect(rect, 10, colors.Border, hover ? 2.2f : 1.5f);
+        c.DrawText(label, rect, colors.Text, new TextStyle(label.Length > 4 ? 15 : 18, Bold: true));
     }
 
     /// <summary>画待听牌提示（等待的牌 + 张数），在动作条上方；真听牌时常显。</summary>

@@ -42,6 +42,9 @@ internal static class Program
             case "--smoke-ai":
                 Environment.ExitCode = SmokeAi(args);
                 return;
+            case "--smoke-ai-call":
+                Environment.ExitCode = SmokeAiCall(args);
+                return;
             case "--smoke-save":
                 Environment.ExitCode = SmokeSave(args);
                 return;
@@ -98,6 +101,13 @@ internal static class Program
         if (args.Length >= 2 && args[0] == "--export-svg")
         {
             ExportSvg(args[1]);
+            return;
+        }
+
+        // 合并 UI SVG（牌桌 + 四家 + 五个语义动作按钮 + HUD）：--export-ui-svg <file>
+        if (args.Length >= 2 && args[0] == "--export-ui-svg")
+        {
+            ExportUiSvg(args[1]);
             return;
         }
 
@@ -174,6 +184,13 @@ internal static class Program
             float canvasY = args.Length >= 3 ? float.Parse(args[2], CultureInfo.InvariantCulture) : 1200f;
             int meldsY = args.Length >= 4 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 1;
             RenderYogaToPng(args[1], canvasY, meldsY);
+            return;
+        }
+
+        // 2.5D 观感出图：--render-25d <png> --variant mixed|flat|light|medium
+        if (args.Length >= 2 && args[0] == "--render-25d")
+        {
+            Render25DToPng(args);
             return;
         }
 
@@ -344,88 +361,35 @@ internal static class Program
     }
 
     /// <summary>
-    /// <c>--smoke-save [--record]</c>：跑到第 3 局结束（handsPlayed = 2）后写存档并退出，
-    /// 供 <c>--smoke-resume</c> 验证续局。
+    /// <c>--smoke-ai-call &lt;seed&gt; [mode]</c>：四家全 AI 打一整场（人类座位也交给 AI），
+    /// 统计四家报听（叫胡）次数。
     /// </summary>
-    private static int SmokeSave(string[] args)
+    private static int SmokeAiCall(string[] args)
     {
         TryUseUtf8Console();
-        var settings = LoadSmokeSettings(args);
-        var save = new SaveStore();
-        var runtime = new MatchRuntime(settings, new Mulberry32Random(1), _ => { },
-            save, new StatsStore(), new RoundLogWriter { Enabled = settings.RecordTiles })
+        if (args.Length < 2
+            || !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint seed))
         {
-            AutoPilot = true,
-        };
-
-        runtime.StartMatch(4);
-        int guard = 0;
-        while (runtime.Phase != MatchPhase.MatchOver
-               && !(runtime.Phase == MatchPhase.RoundEnded && runtime.Engine.HandsPlayed >= 2)
-               && ++guard < 256)
-        {
-            runtime.NextRound();
-        }
-
-        if (runtime.Phase != MatchPhase.RoundEnded)
-        {
-            Console.Error.WriteLine($"没有停在可存档的局末（phase={runtime.Phase}）");
-            return 1;
-        }
-
-        var state = runtime.CaptureSave(inProgress: true);
-        save.SaveNow(state);
-        save.Flush();
-
-        Console.WriteLine("smoke-save");
-        Console.WriteLine($"  已打 {runtime.Rounds} 局，存档: {save.StatePath}");
-        Console.WriteLine(string.Format(
-            CultureInfo.InvariantCulture,
-            "  handNumber={0} handsPlayed={1} scores=[{2}] dealer={3} honba={4} roundWindIdx={5} dealerCount={6} inProgress={7}",
-            state.HandNumber,
-            state.HandsPlayed,
-            string.Join(",", state.Scores),
-            state.DealerIndex,
-            state.Honba,
-            state.RoundWindIdx,
-            state.DealerCount,
-            state.InProgress));
-        save.Dispose();
-        return 0;
-    }
-
-    /// <summary><c>--smoke-resume [--record]</c>：读上一份存档，从下一局继续打完整场。</summary>
-    private static int SmokeResume(string[] args)
-    {
-        TryUseUtf8Console();
-        var settings = LoadSmokeSettings(args);
-        var save = new SaveStore();
-        var state = save.Load();
-        if (state is null || !state.InProgress)
-        {
-            Console.Error.WriteLine("没有可恢复的进行中存档（先跑 --smoke-save）");
+            Console.Error.WriteLine("用法：--smoke-ai-call <seed> [mode]");
             return 2;
         }
 
-        var runtime = new MatchRuntime(settings, new Mulberry32Random(2), _ => { },
-            save, new StatsStore(), new RoundLogWriter { Enabled = settings.RecordTiles })
+        int mode = 4;
+        if (args.Length >= 3 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedMode))
+        {
+            mode = parsedMode;
+        }
+
+        var settings = LoadSmokeSettings(args);
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: seed)
         {
             AutoPilot = true,
+            AllSeatsAi = true,
         };
 
-        Console.WriteLine("smoke-resume");
-        Console.WriteLine(string.Format(
-            CultureInfo.InvariantCulture,
-            "  读档: handNumber={0} handsPlayed={1} scores=[{2}] dealer={3} honba={4} roundWindIdx={5} dealerCount={6}",
-            state.HandNumber,
-            state.HandsPlayed,
-            string.Join(",", state.Scores),
-            state.DealerIndex,
-            state.Honba,
-            state.RoundWindIdx,
-            state.DealerCount));
-
-        runtime.Resume(state);
+        var clock = Stopwatch.StartNew();
+        runtime.StartMatch(mode);
         int guard = 0;
         while (runtime.Phase != MatchPhase.MatchOver && ++guard < 256)
         {
@@ -439,15 +403,106 @@ internal static class Program
             }
         }
 
-        if (runtime.Phase != MatchPhase.MatchOver)
+        clock.Stop();
+        bool completed = runtime.Phase == MatchPhase.MatchOver;
+        var names = runtime.Engine.Players.Select(p => p.Name).ToArray();
+        var calls = runtime.AiCallDeclarationsBySeat;
+
+        Console.WriteLine($"smoke-ai-call seed={seed} mode={mode} matchSeed={runtime.MatchSeed}");
+        Console.WriteLine("  四家等级: " + string.Join("  ", names.Select((name, i) =>
+            name + "=" + runtime.AiLevels[i])));
+        Console.WriteLine("  报听次数: 总=" + runtime.AiCallDeclarations + "（" + string.Join(" ", names.Select((name, i) =>
+            name + "=" + calls[i])) + "）");
+        Console.WriteLine("  弃牌决策: " + runtime.AiDiscardDecisions + " 次");
+        Console.WriteLine(string.Format(
+            CultureInfo.InvariantCulture,
+            "  完成: {0}  rounds={1} handsPlayed={2}  总耗时={3:F0} ms",
+            completed ? "是" : "否",
+            runtime.Rounds,
+            runtime.Engine.HandsPlayed,
+            clock.Elapsed.TotalMilliseconds));
+        Console.WriteLine("  EventHash: " + runtime.EventHash);
+
+        if (!completed)
         {
-            Console.Error.WriteLine($"续局未终局（phase={runtime.Phase}）");
+            Console.Error.WriteLine($"smoke-ai-call 未终局（phase={runtime.Phase}）");
             return 1;
         }
 
-        PrintSmoke(runtime);
-        save.Dispose();
         return 0;
+    }
+
+    /// <summary>
+    /// <c>--smoke-save</c>：验证对局存档已停用 —— 把 <see cref="SaveStore"/> 接进运行时打完整场，
+    /// <c>state.json</c> 必须不新建、不改写。<see cref="SaveStore"/> 的字段格式保留，但 <c>Enabled</c> 默认 false。
+    /// </summary>
+    private static int SmokeSave(string[] args)
+    {
+        TryUseUtf8Console();
+        var settings = LoadSmokeSettings(args);
+        using var save = new SaveStore();
+        string statePath = save.StatePath;
+        bool existedBefore = File.Exists(statePath);
+        byte[]? before = existedBefore ? File.ReadAllBytes(statePath) : null;
+
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(1), _ => { },
+            save, new StatsStore(), new RoundLogWriter { Enabled = settings.RecordTiles })
+        {
+            AutoPilot = true,
+        };
+
+        runtime.StartMatch(4);
+        int guard = 0;
+        while (runtime.Phase != MatchPhase.MatchOver && ++guard < 256)
+        {
+            if (runtime.Phase == MatchPhase.RoundEnded)
+            {
+                runtime.NextRound();
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        save.Flush();
+        bool existedAfter = File.Exists(statePath);
+        byte[]? after = existedAfter ? File.ReadAllBytes(statePath) : null;
+        bool unchanged = before is null
+            ? after is null
+            : after is not null && before.AsSpan().SequenceEqual(after);
+        bool completed = runtime.Phase == MatchPhase.MatchOver;
+        bool ok = !save.Enabled && completed && existedAfter == existedBefore && unchanged;
+
+        Console.WriteLine("smoke-save（验证存档已停用）");
+        Console.WriteLine($"  SaveStore.Enabled={save.Enabled}  打完 {runtime.Rounds} 局: {completed}");
+        Console.WriteLine($"  存档路径: {statePath}");
+        Console.WriteLine($"  文件存在: {existedBefore} → {existedAfter}  内容: {(unchanged ? "未变" : "已变")}");
+        Console.WriteLine($"  结论: {(ok ? "未写盘" : "写盘了（停用失效）")}");
+        return ok ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--smoke-resume</c>：验证「恢复上局」已整体停用 —— 菜单没有 resume 入口、
+    /// <see cref="GameSession"/> 没有 PostResume、<see cref="SaveStore.Load"/> 读不出任何存档。
+    /// </summary>
+    private static int SmokeResume(string[] args)
+    {
+        TryUseUtf8Console();
+        var layout = UiLayout.Load(Path.Combine(AssetsDir, "layout", "menu.json"));
+        bool hasMenuEntry = layout.Elements.Any(el =>
+            string.Equals(el.Action, "resume", StringComparison.Ordinal));
+        bool hasPostResume = typeof(GameSession).GetMethod("PostResume") is not null;
+        using var save = new SaveStore();
+        bool loadBlocked = save.Load() is null;
+        bool ok = !hasMenuEntry && !hasPostResume && loadBlocked;
+
+        Console.WriteLine("smoke-resume（验证恢复已停用）");
+        Console.WriteLine($"  菜单 action=resume 入口: {(hasMenuEntry ? "有" : "无")}");
+        Console.WriteLine($"  GameSession.PostResume: {(hasPostResume ? "存在" : "不存在")}");
+        Console.WriteLine($"  SaveStore.Load（{save.StatePath}）: {(loadBlocked ? "null（不读档）" : "读出存档")}");
+        Console.WriteLine($"  结论: {(ok ? "无恢复入口" : "恢复入口仍在")}");
+        return ok ? 0 : 1;
     }
 
     /// <summary>
@@ -1196,6 +1251,37 @@ internal static class Program
         return 0;
     }
 
+    /// <summary>
+    /// <c>--render-25d &lt;png&gt; --variant mixed|flat|light|medium</c>：按指定观感出 1200×1200 牌桌图。
+    /// 与游戏内同一条 TableScreen 绘制路径（含手牌、牌河、动作条、HUD），便于对照可读性。
+    /// </summary>
+    private static void Render25DToPng(string[] args)
+    {
+        string path = args[1];
+        var style = TableRenderStyle.Mixed;
+        for (int i = 2; i + 1 < args.Length; i++)
+        {
+            if (!string.Equals(args[i], "--variant", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            style = args[i + 1].ToLowerInvariant() switch
+            {
+                "mixed" or "c" => TableRenderStyle.Mixed,
+                "flat" or "2d" => TableRenderStyle.Flat,
+                "medium" or "medium25d" => TableRenderStyle.Medium25D,
+                "light" or "light25d" => TableRenderStyle.Light25D,
+                var other => throw new ArgumentException($"未知 --variant：{other}（mixed | flat | light | medium）"),
+            };
+        }
+
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(atlas, style);
+        RenderScreen(path, screen, atlas);
+        Console.WriteLine($"rendered 25d variant={style} -> {path}");
+    }
+
     private static void RenderTableToPng(string path, bool debug = false)
     {
         using var atlas = new TileAtlas(AssetsDir);
@@ -1287,6 +1373,34 @@ internal static class Program
             SvgExporter.BuildLayoutMarkdown(layout), new System.Text.UTF8Encoding(false));
 
         Console.WriteLine($"exported svg -> {main}（内嵌牌面 {exporter.TileCount} 张）/ table-regions.svg / layout.json / layout.md");
+    }
+
+    /// <summary>
+    /// <c>--export-ui-svg &lt;file&gt;</c>：合并导出一张 1200×1200 SVG ——
+    /// 牌桌底板 + 四家手牌/副露/牌河 + 五个语义色动作按钮 + HUD。
+    /// 每个图层带 <c>id</c>/<c>data-name</c>，便于在 Illustrator 里定位修改。
+    /// </summary>
+    private static void ExportUiSvg(string path)
+    {
+        string? dir = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        string tilesDir = Path.Combine(FindWebDir(), "mj_tiles");
+        var layout = NewLayout();
+        var vm = TableDemoModel.CreateForUiExport();
+        var exporter = new SvgExporter(tilesDir, layout);
+
+        File.WriteAllText(path, exporter.BuildUi(vm), new System.Text.UTF8Encoding(false));
+
+        var bar = new ActionBar();
+        bar.Build(vm, layout);
+        var info = new FileInfo(path);
+        Console.WriteLine($"exported merged ui svg -> {path}");
+        Console.WriteLine($"  size = {info.Length} B   canvas = {layout.CanvasW:0}×{layout.CanvasH:0}   tiles = {exporter.TileCount}   buttons = {bar.Buttons.Count}");
+        Console.WriteLine("  ids  = " + string.Join(", ", bar.Buttons.Select(b => "btn-" + ActionBar.SemanticId(b.Kind))));
     }
 
     /// <summary>从 exe 目录向上找仓库里的 Web 目录（mj_tiles 来源）。</summary>
@@ -1434,32 +1548,86 @@ internal static class Program
         File.WriteAllBytes(path, data.ToArray());
     }
 
-    /// <summary><c>--render-actions &lt;png&gt;</c>：动作按钮条 + 听牌提示出图（演示快照）。</summary>
+    /// <summary>
+    /// <c>--render-actions &lt;png&gt;</c>：动作按钮语义色调色板 ——
+    /// 五个动作 × 可用 / 悬停 / 灰显三态，与游戏内共用 <see cref="ActionBar.DrawButton"/>。
+    /// </summary>
     private static void RenderActionsToPng(string path)
     {
-        using var atlas = new TileAtlas(AssetsDir);
-        var vm = TableDemoModel.CreateWithActions();
-        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
-        YogaTableLayout.Apply(layout);
-
-        var info = new SKImageInfo((int)layout.CanvasW, (int)layout.CanvasH);
+        var info = new SKImageInfo(1200, 1200);
         using var surface = SKSurface.Create(info);
         var canvas = surface.Canvas;
-        canvas.Clear(new SKColor(20, 30, 24));
+        canvas.Clear(new SKColor(16, 24, 19));
 
-        using (var ctx = new SkiaCanvas(canvas, atlas))
+        using (var ctx = new SkiaCanvas(canvas, atlas: null))
         {
-            new TableSceneSkia().Draw(ctx, vm, layout, hoverHand: -1);
-            var bar = new ActionBar();
-            bar.Build(vm, layout);
-            bar.DrawTenpai(ctx, vm, layout);
-            bar.Draw(ctx);
+            ctx.FillLinearGradient(new RectF(0, 0, 1200, 1200), 0,
+                Color.Rgb(24, 38, 30), Color.Rgb(13, 19, 15));
+
+            ctx.DrawText("动作按钮 · 语义色", new RectF(0, 58, 1200, 40),
+                Color.Rgb(236, 242, 232), new TextStyle(30, Bold: true));
+            ctx.DrawText("可用（深底 + 亮边） / 悬停（更亮） / 灰显（去饱和 + 灰字）",
+                new RectF(0, 104, 1200, 24), Color.Rgb(150, 166, 154), new TextStyle(16));
+
+            var kinds = new[] { ActionBar.Kind.Chi, ActionBar.Kind.Pon, ActionBar.Kind.Kan,
+                ActionBar.Kind.DeclareCall, ActionBar.Kind.Tsumo };
+            var labels = new[] { "吃", "碰", "杠", "报听", "和牌" };
+            var states = new[] { "可用", "悬停", "灰显" };
+
+            const float bw = 176f, bh = 64f, gap = 20f;
+            float totalW = kinds.Length * bw + (kinds.Length - 1) * gap;
+            float x0 = (1200f - totalW) / 2f + 40f;
+            float y0 = 300f, rowGap = 118f;
+
+            for (int col = 0; col < kinds.Length; col++)
+            {
+                var accent = ActionBar.Accent(kinds[col]);
+                float cx = x0 + col * (bw + gap);
+                ctx.DrawText(labels[col], new RectF(cx, 196, bw, 30), accent,
+                    new TextStyle(22, Bold: true));
+                ctx.DrawText($"#{accent.R:X2}{accent.G:X2}{accent.B:X2}",
+                    new RectF(cx, 228, bw, 20), Color.Rgb(126, 140, 130), new TextStyle(14));
+            }
+
+            for (int row = 0; row < states.Length; row++)
+            {
+                float y = y0 + row * rowGap;
+                ctx.DrawText(states[row], new RectF(36, y + bh / 2f - 12, 90, 24),
+                    row == 2 ? Color.Rgb(140, 148, 142) : Color.Rgb(214, 226, 214),
+                    new TextStyle(18, Bold: true, Center: false));
+
+                for (int col = 0; col < kinds.Length; col++)
+                {
+                    var rect = new RectF(x0 + col * (bw + gap), y, bw, bh);
+                    ActionBar.DrawButton(ctx, kinds[col], labels[col], rect,
+                        enabled: row != 2, hover: row == 1);
+                }
+            }
+
+            // 关键说明：和牌已由红改黄。
+            var note = new RectF(0, 724, 1200, 30);
+            ctx.DrawText("和牌 / 荣和 / 自摸统一用黄色（原红色已废弃）；过 / 流局为中性灰绿。",
+                note, Color.Rgb(196, 208, 196), new TextStyle(16));
+
+            // 底部图例：色块 + 名称 + 十六进制，便于对照实现。
+            float ly = 806f;
+            ctx.DrawText("语义色表", new RectF(0, ly, 1200, 24),
+                Color.Rgb(236, 242, 232), new TextStyle(18, Bold: true));
+            for (int i = 0; i < kinds.Length; i++)
+            {
+                var accent = ActionBar.Accent(kinds[i]);
+                float bx = 120 + i * 200;
+                ctx.FillRoundRect(new RectF(bx, ly + 44, 34, 26), 6, accent);
+                ctx.DrawText($"{labels[i]}  #{accent.R:X2}{accent.G:X2}{accent.B:X2}",
+                    new RectF(bx + 44, ly + 44, 150, 26), Color.Rgb(210, 222, 210),
+                    new TextStyle(15, Center: false));
+            }
         }
 
         using var image = surface.Snapshot();
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(path, data.ToArray());
-        Console.WriteLine($"rendered actions -> {path}  buttons={new TableLayoutSpec().CanvasW:0}");
+        Console.WriteLine($"rendered action palette -> {path}  (5 kinds x 3 states)");
     }
 
     /// <summary>

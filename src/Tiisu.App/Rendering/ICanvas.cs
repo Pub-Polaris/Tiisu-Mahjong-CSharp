@@ -3,6 +3,27 @@ using System.Collections.Generic;
 
 namespace Tiisu.App.Rendering;
 
+/// <summary>绘制用点（逻辑坐标，左上原点）。</summary>
+public readonly record struct CanvasPoint(float X, float Y);
+
+/// <summary>
+/// 真透视相机参数（逻辑像素）：桌面平面绕 X 轴后倾 <see cref="RotateXDegrees"/>，
+/// 距相机 <see cref="Distance"/>，按 <see cref="FovDegrees"/> 投影到
+/// <see cref="CanvasWidth"/>×<see cref="CanvasHeight"/> 的画布。
+/// 只用于桌面图层；牌与命中测试仍在逻辑坐标里。
+/// </summary>
+public readonly record struct PerspectiveCamera(
+    float FovDegrees,
+    float Aspect,
+    float Near,
+    float Far,
+    float RotateXDegrees,
+    float Distance,
+    float CanvasWidth,
+    float CanvasHeight,
+    float Zoom = 1f,
+    float OffsetY = 0f);
+
 /// <summary>绘制用矩形（逻辑坐标，左上原点）。</summary>
 public readonly record struct RectF(float X, float Y, float W, float H)
 {
@@ -42,11 +63,32 @@ public interface ICanvas
     void RotateDegrees(float degrees);
     void ClipRect(RectF r);
 
+    /// <summary>
+    /// 把当前坐标系乘以真透视矩阵（不是梯形近似）。只在 <see cref="Save"/> / <see cref="Restore"/>
+    /// 之间用于桌面图层；恢复后牌仍按逻辑坐标绘制。
+    /// </summary>
+    void ConcatPerspective(in PerspectiveCamera camera);
+
     void Clear(Color c);
     void FillRect(RectF r, Color c);
     void FillRoundRect(RectF r, float radius, Color c);
     void StrokeRoundRect(RectF r, float radius, Color c, float width);
-    void FillLinearGradient(RectF r, float radius, Color top, Color bottom);
+
+    /// <summary>用 top→bottom 的竖直渐变填充矩形；<paramref name="horizontal"/> = true 时改为 left→right。</summary>
+    void FillLinearGradient(RectF r, float radius, Color top, Color bottom, bool horizontal = false);
+
+    /// <summary>填充任意四边形/多边形（顶点顺序顺/逆时针均可）。</summary>
+    void FillPolygon(IReadOnlyList<CanvasPoint> points, Color c);
+
+    /// <summary>用上→下的竖直渐变填充多边形（桌面梯形用）。</summary>
+    void FillPolygonGradient(IReadOnlyList<CanvasPoint> points, Color top, Color bottom);
+
+    /// <summary>描边多边形。</summary>
+    void StrokePolygon(IReadOnlyList<CanvasPoint> points, Color c, float width);
+
+    /// <summary>带模糊的投影（牌身下方）。<paramref name="blur"/> 为 0 时等同实心圆角矩形。</summary>
+    void FillShadow(RectF r, float radius, float blur, Color c);
+
     void FillCircle(float cx, float cy, float radius, Color c);
     void DrawText(string text, RectF box, Color c, TextStyle style);
 
