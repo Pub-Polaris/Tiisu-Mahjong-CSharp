@@ -194,14 +194,19 @@ public sealed class TableScreen : Screen
         return _thumbImage;
     }
 
+    /// <summary>左上角「菜单」按钮（点击即回菜单，不必依赖 ESC）。</summary>
+    private RectF MenuButtonRect => new(_layout.HudRect.X + 6, _layout.HudRect.Y + 4, 96, _layout.HudRect.H - 8);
+
     private void DrawHud(ICanvas c, TableViewModel vm)
     {
-        // 左上：快捷键
-        var hint = _layout.HudRect;
-        c.FillRoundRect(hint, 8, Color.Rgb(0, 0, 0).WithAlpha(130));
-        c.DrawText("M / ESC：菜单",
-            new RectF(hint.X + 12, hint.Y + 8, hint.W - 16, 20),
-            Color.Rgb(230, 236, 226), new TextStyle(15, Center: false));
+        // 左上：可点击的「菜单」按钮 + 快捷键提示
+        var btn = MenuButtonRect;
+        c.FillRoundRect(btn, 9, Color.Rgb(28, 40, 36).WithAlpha(235));
+        c.StrokeRoundRect(btn, 9, Color.Rgb(96, 122, 108), 1.3f);
+        c.DrawText("菜单", btn, Color.Rgb(236, 242, 232), new TextStyle(18, Bold: true, Center: true));
+        c.DrawText("M / ESC",
+            new RectF(btn.Right + 10, btn.Y + 8, 90, 20),
+            Color.Rgb(170, 186, 172), new TextStyle(14, Center: false));
 
         // 顶部中央：提示消息（和牌 / 流局 / 窗口提示）
         if (!string.IsNullOrEmpty(vm.Message))
@@ -347,8 +352,8 @@ public sealed class TableScreen : Screen
             return true;
         }
 
-        // 左上角「M / ESC：菜单」也可以直接点，避免只能靠键盘返回。
-        if (_backToMenu is not null && _layout.HudRect.Contains(x, y))
+        // 左上角「菜单」按钮：点击回菜单（不必依赖 ESC）。
+        if (_backToMenu is not null && MenuButtonRect.Contains(x, y))
         {
             _backToMenu();
             return true;
