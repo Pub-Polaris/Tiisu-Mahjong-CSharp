@@ -1,126 +1,91 @@
-# Tiisu-Mahjong-CSharp
-七子麻将的 C# 实现（原 Web 版：`Pub-Polaris/Tiisu-Mahjong-main`）。
+# 七子麻将 · C# 桌面版
 
-> 本目录放 **C# 实现**；原 HTML/CSS/JS 版在 `..\Web\`，作为**行为基准（oracle）**，不改动。
-> 外部知识库在 `..\Web\docs\knowledge\`（随 Web 仓库版本化）。
+七子麻将（Tiisu Mahjong）的 C# 桌面实现：Skia 自绘牌桌、后台引擎线程、四档人机 AI。
+
+- 规则主仓（含完整规则书）：[Pub-Polaris/Tiisu-Mahjong-main](https://github.com/Pub-Polaris/Tiisu-Mahjong-main)
+- 本仓是**桌面客户端**：把 Web 版的判役/引擎/AI 等价迁移到 C#，并重做成原生窗口程序
+
+![牌桌](docs/images/table.png)
+
+| 动作按钮 | 局末结算 |
+|---|---|
+| ![动作](docs/images/actions.png) | ![结算](docs/images/settlement.png) |
+
+## 已实现
+
+**规则与引擎**
+- 判役：50 普通役 + 20 高役；`yaku-golden` **10115 条 0 差异**
+- 引擎状态机：705 事件回放逐字段 0 差异（吃碰杠/抢杠/多家和/流局/连庄）
+- 计分：赋 → 阈值锚点 → 点数；庄家 1.5、本场 700/根、场赏 700×连庄、双和子、赐马
+- 七对特殊形：四子七对（固定 7000）；九莲副露降级清一色
+
+**桌面程序**
+- Skia 自绘 1200×1200 牌桌；GPU 渲染（`SKGLControl` + `GRContext`），无 GPU 自动回退 CPU
+- 后台引擎线程 + 不可变快照；UI 只读快照，事件驱动（不轮询）
+- 吃/碰/杠/和/听牌全部可点击；键盘快捷键 H/P/C/K/Space/F/N/M/Esc
+- 菜单 / 设置 / 局末结算（含牌桌缩略图）；局间存档；设置热更新
+- 音效：程序合成 + 中文报牌语音；菜单 BGM
+
+**人机 AI**（`src/Tiisu.Engine/Ai/`）
+- 四档：简单 / 普通 / 困难 / 修罗（MCTS，实验性、默认关）
+- 向听数 + 进张 + 打点期望 + 放铳风险（现物/筋/壁/副露/残局）
+- 不读别家手牌与牌山；同 seed 同决策；按权重 30/45/20/5 随机分配，支持按座位锁定
+
+## 快速开始
+
+**安装版**：运行 `dist/TiisuMahjong-Setup.exe`（由 `installer/build_installer.ps1` 生成），
+安装到 `%LOCALAPPDATA%\Programs\TiisuMahjong`；需要 .NET 10 Desktop Runtime。
+
+**源码运行**
+
+```powershell
+cd NET
+dotnet build Tiisu.slnx
+dotnet run --project src/Tiisu.App
+```
+
+无窗口自检命令（开发用）：
+
+```powershell
+dotnet run --project src/Tiisu.App -- --smoke-run 1 4          # 自走一场
+dotnet run --project src/Tiisu.App -- --smoke-ai 1 4           # AI 档位与耗时
+dotnet run --project src/Tiisu.App -- --render-screen out.png menu
+dotnet run --project src/Tiisu.App -- --bench-gl 60            # GPU 基准
+```
 
 ## 结构
 
 ```
 NET\
-  global.json          # 固定 SDK 10.0.402（避免误用 11 RC）
-  Tiisu.slnx           # 新解决方案格式（.NET 10 SDK 生成）
-  src\Tiisu.Core\      # 纯逻辑核心（无 HTTP / DOM / 时间 / 随机）
-  tests\Tiisu.Core.Tests\  # xUnit
-  tools\Tiisu.Tools\   # golden 生成 / 对比 / fuzz 控制台
+  src\Tiisu.Core\      # 判役 / 计分（无 IO、无时间、无随机）
+  src\Tiisu.Engine\    # 状态机 + AI（Ai/）
+  src\Tiisu.App\       # WinForms 宿主 + Skia 绘制（Table/ Ui/ Runtime/）
+  src\Tiisu.Updater\   # 替换式更新器
+  src\Tiisu.Shell\     # 控制台自走壳（对拍用）
+  tools\Tiisu.Tools\        # golden 重算 / 探针
+  tools\Tiisu.AudioGen\     # 音效与语音生成（espeak-ng / SAPI）
+  tests\               # xUnit（Api / Core / Engine）
+  installer\           # NSIS 打包脚本
 ```
 
-## 常用命令
+## 质量门
 
 ```powershell
-cd E:\工程文件\TiisuMahjong\NET
-dotnet build                 # 构建
-dotnet test                  # 跑测试
-dotnet run --project tools/Tiisu.Tools
+dotnet build Tiisu.slnx     # 0 警告 0 错误
+dotnet test  Tiisu.slnx     # Api 7 / Core 39 / Engine 105
 ```
 
-## 约束
+golden 语料在 `tests/fixtures/`（`yaku-golden*.json`、`engine-golden.json`、`ai-golden.json`）。
+`*.legacy.json` 是规则变更前的旧语料，仅作对比组，不参与测试。
 
-- **不修改 `..\Web\` 下的产品代码**（它是基准）。
-- Core 内禁止出现 HTTP、文件、DOM、时间、随机数（用接口注入）。
-- 目标框架 `net10.0`；SDK 由 `global.json` 固定在 10.0.402。
-- 迁移策略：先用现有 JS 生成 **golden corpus**，C# 逐字段对比，**0 差异**才继续。
+## 版本号
 
-## 当前进度
+构建时自动从 git 取：`yymmdd-<短 hash>`（如 `261023-31f41c6`），工作区有未提交改动时追加 `+`。
+主菜单右下角显示版本与作者。
 
-| 里程碑 | 状态 |
-|---|---|
-| **M1 判役核心**（tiles/notation/handAnalyzer/tenpai/winchecker） | ✅ **完成**：10115 条 golden 逐字段 **0 差异** |
-| **M2 engine 状态机** | ✅ **完成**：705 事件回放逐字段 **0 差异**（回放式，AI 决策未含） |
-| M3 API（ASP.NET Core Minimal API） | 未开始 |
+## 授权
 
-### M1 产物
+代码采用 [MIT License](LICENSE)（与主仓 `Tiisu-Mahjong-main` 一致）。
 
-| 文件 | 内容 |
-|---|---|
-| `src/Tiisu.Core/Tile.cs` | `Suit` / `Tile`（`readonly record struct`）与解析 |
-| `src/Tiisu.Core/Group.cs` | 面子与雀头 |
-| `src/Tiisu.Core/HandKind.cs` | 和牌形状枚举 |
-| `src/Tiisu.Core/YakuData.cs` | 读 `ike.json`（含 fu/kaishoku/optional/menzen/doubleYakuman/selfDrawDouble/notIf/tokurei/fixedPoints…） |
-| `src/Tiisu.Core/WinChecker.cs` | 判定流程：国士旁路 → 七对 → 标准形 → 高役优先权链 → 普通役 → 门槛/奖赏/点数 |
-| `src/Tiisu.Core/WinChecker.Split.cs` | 拆牌：单解 + 全部解（高目优先） |
-| `src/Tiisu.Core/WinChecker.Conditions.cs` | 61 个判据 + 9 个流程例外 |
-| `src/Tiisu.Core/WinResult.cs` | 结果（success/reason/totalFu/activeYaku/specialPoints/sevenHonors） |
-| `tests/Tiisu.Core.Tests/GoldenTests.cs` | 数据驱动：读两份 fixture、逐字段比对、聚合差异 |
-
-### 跑验收
-
-```powershell
-cd E:\工程文件\TiisuMahjong\NET
-dotnet test Tiisu.slnx
-# 期望：Engine 15 passed（705 事件回放 0 差异）+ Core 1 passed（10115 条判役 golden 0 差异）
-```
-
-### M2 产物（engine 状态机）
-
-| 文件 | 行数 | 内容 |
-|---|---|---|
-| `src/Tiisu.Engine/MahjongEngine.cs` | 855 | 开局/摸打/副露/杠/推进/特殊流局/听牌 |
-| `src/Tiisu.Engine/MahjongEngine.Scoring.cs` | 599 | 和牌支付/多家荣和/流局罚符/连庄/终局 |
-| `src/Tiisu.Engine/Replay/ReplayDriver.cs` | 472 | 逐事件执行 + 逐字段比对 + 岭上补摸反推 |
-| `src/Tiisu.Engine/Replay/ReplayCorpus.cs` | 258 | 语料 DTO |
-| `src/Tiisu.Engine/Tenpai.cs` | 105 | tenpai.js 移植（复用 Core 判役） |
-| 其余 | ~300 | Player / Enums / Models / TileUtil / WinSettlement / PointsConfig |
-
-**策略：回放式**。语料记录 JS 做过的动作与每步快照，C# 只执行相同动作并比对状态 ——
-AI 决策与洗牌被隔离在状态机验证之外（AI 决策另列 M2b）。
-
-### engine 语料重生成
-
-```powershell
-cd ..\Web
-python scripts\gen_engine_golden.py -g 5 -n 1 --seed 20261018
-# 产物写到 ..\NET\tests\fixtures\engine-golden.json
-```
-
-> 同种子重跑 SHA256 一致（已验证可复现）。桩掉 `fetch`/`Math.random`/`Date`/`setTimeout`/`gameLog`。
-
-### M2 已知未覆盖（诚实标注）
-
-- **AI 决策**（暗杠/加杠判断、吃碰选择、出牌）未移植 —— 回放模式不需要
-- `flow()` / 听牌罚符 / 四风连打 / 拔厄：代码已移植但**本语料未触发**，无 golden 验证
-- 抢杠判定：本语料无抢杠事件
-- 人类交互路径：仅结构移植（语料是全 AI 对局）
-
-### 注意：`ike.json` 是副本
-
-`src/Tiisu.Core/Data/ike.json` 是从 `..\Web\ike.json` **复制**来的（2026-10-18 哈希一致）。
-Web 侧一改役表就必须同步：
-
-```powershell
-Copy-Item ..\Web\ike.json src\Tiisu.Core\Data\ike.json -Force
-```
-
-### 语料重生成（Web 判役变动后）
-
-```powershell
-cd ..\Web
-python scripts\gen_golden.py                     # 断言语料（115 条）
-python scripts\gen_golden_random.py -n 10000     # 随机语料（种子 20261018）
-# 产物写到 ..\NET\tests\fixtures\，然后在本仓提交
-```
-
-> 每条语料带 `maxSplit` 字段（缺省 true）：验证台的「高目优先」用例会临时关掉开关做对照，必须如实记录。
-
-## M1 移植踩坑（C# 复刻 JS 时实际踩到）
-
-| 坑 | 说明 |
-|---|---|
-| 字牌 `num` 是字符串 | JS 里 `tile.num` 对字牌是 `'1'..'7'`，C# 若统一转 int 会让数牌比较误吃字牌。`two_color_ko` / `three_color_ko` / `one_color_triple` / `three_kingdoms` / `north_south_self` / `_tokureiBonus` 都要显式排除字牌 |
-| 合成字牌 `z9` | 验证台用 `ytBuild('z',99)` 造过 `z9`，语料里真的存在 → `Tile` 的字牌范围放宽到 1..9、计数槽 36 格，不要断言「字牌只有 7 种」 |
-| `isChidaichi` 的 `extra` | 是「**非万子的张数**」（含字牌），不是「非万子数牌张数」 |
-| 高目枚举顺序 | `splitStandardAll` 的产出顺序必须与 JS 一致，否则「并列取先出现」会漂 |
-| 门槛与奖赏 | 先判 `totalFu < 7` 返回 `no_yaku`，再叠加嵌张/边张/单钓/双碰/筋和 |
-
-以上已由 10115 条语料验证；改判役后按上文重生成即可回归。
-
+**第三方素材**：`src/Tiisu.App/Assets/bgm/lobby.wav` 取自商业音源《音词典 VOL2》，**不在 MIT 授权范围内**，
+目前仅用于个人测试；公开发布前需替换为自有或已授权音乐。其余音效与语音均由 `tools/Tiisu.AudioGen` 程序生成。
