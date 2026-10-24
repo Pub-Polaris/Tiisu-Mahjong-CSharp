@@ -2066,6 +2066,7 @@ internal static class Program
             int ronWindows = 0;
             int ronPasses = 0;
             int callDeclares = 0;
+            int misfireHints = 0;
             string stall = string.Empty;
             int lastTurn = -1;
             MatchPhase lastPhase = MatchPhase.Idle;
@@ -2154,6 +2155,11 @@ internal static class Program
 
                         if ((vm.Actions & HumanAction.DeclareCall) != 0 && rng.NextDouble() < 0.4)
                         {
+                            if (vm.CallWouldMisfire)
+                            {
+                                misfireHints++;
+                            }
+
                             int idx = TenpaiDiscardIndex(runtime.Engine, player!);
                             if (idx >= 0 && idx < player!.Hand.Count)
                             {
@@ -2197,7 +2203,7 @@ internal static class Program
 
             Console.WriteLine($"play-real game={game + 1}/{games} seed={gameSeed} mode={mode} "
                 + $"耗时={clock.Elapsed.TotalSeconds:F1}s 步数={steps} 荣和窗口={ronWindows} 过牌={ronPasses} "
-                + $"报听={callDeclares} 阶段={runtime.Phase} 结果={(stall.Length == 0 ? "OK" : "FAIL " + stall)}");
+                + $"报听={callDeclares} 错和提示={misfireHints} 阶段={runtime.Phase} 结果={(stall.Length == 0 ? "OK" : "FAIL " + stall)}");
 
             if (stall.Length > 0)
             {
