@@ -138,6 +138,16 @@ public sealed class TableScreen : Screen
         _actionBar.Build(vm, _layout);
         _actionBar.DrawTenpai(c, vm, _layout);
         _actionBar.Draw(c);
+
+        // 【错和可能】：牌形听牌但所有待牌赋数不足 → 报和必错和，提醒玩家。
+        if (vm.CallWouldMisfire)
+        {
+            var bar = _layout.ActionBarRect;
+            var hint = new RectF(bar.CenterX - 190, bar.Y - 30, 380, 24);
+            c.DrawText("【错和可能】待牌赋数不足，报和会被判错和",
+                hint, Color.Rgb(255, 176, 64), new TextStyle(16, Bold: true, Center: true));
+        }
+
         PlayCues(vm);
         DrawHud(c, vm);
         _editor.Draw(c);

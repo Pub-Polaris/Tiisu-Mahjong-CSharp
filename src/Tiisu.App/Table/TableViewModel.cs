@@ -152,6 +152,12 @@ public sealed class TableViewModel
     /// <summary>自己已报听（叫胡）：按钮显示「已报听」。</summary>
     public bool IsCalled { get; init; }
 
+    /// <summary>
+    /// 报听后和牌会算错和：听牌形成立、但所有待牌的最高赋都低于起和线。
+    /// UI 用它在报听按钮附近显示【错和可能】提示。
+    /// </summary>
+    public bool CallWouldMisfire { get; init; }
+
     /// <summary>自己本局 / 本巡禁和（错和罚）。</summary>
     public bool WinBanned { get; init; }
 

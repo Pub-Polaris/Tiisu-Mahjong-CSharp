@@ -3,7 +3,14 @@ using Tiisu.Core;
 namespace Tiisu.Engine;
 
 /// <summary>listTenpai 的一行结果（tenpai.js 的 <c>{tile, success, totalFu, noYakuGap}</c>）。</summary>
-public sealed record TenpaiEntry(Tile Tile, bool Success, int TotalFu, int NoYakuGap);
+public sealed record TenpaiEntry(Tile Tile, bool Success, int TotalFu, int NoYakuGap)
+{
+    /// <summary>
+    /// 牌形成和（<c>true</c> = 加这张能拆成和牌形）。<c>no_yaku</c> 行也算 <c>true</c>——
+    /// 赋数不够起和线只是不能和，牌形本身是听着的。报听可用性 / 锁手只看这个标志。
+    /// </summary>
+    public bool Formed { get; init; }
+}
 
 /// <summary>listTenpai 的入参（engine.js 里给 <c>listTenpai</c> 的第二层 opts）。</summary>
 public sealed class TenpaiOptions
@@ -74,7 +81,10 @@ public static class TenpaiCalculator
             }
 
             int noYakuGap = win.Reason == "no_yaku" ? options.BaseFu - (win.TotalFu ?? 0) : 0;
-            result.Add(new TenpaiEntry(candidate, win.Success, win.TotalFu ?? 0, noYakuGap));
+            result.Add(new TenpaiEntry(candidate, win.Success, win.TotalFu ?? 0, noYakuGap)
+            {
+                Formed = win.Reason != "not_formed",
+            });
         }
 
         return result;

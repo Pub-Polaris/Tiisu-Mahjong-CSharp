@@ -76,6 +76,9 @@ internal static class Program
             case "--smoke-call-flow":
                 Environment.ExitCode = SmokeCallFlow(args);
                 return;
+            case "--play-real":
+                Environment.ExitCode = PlayReal(args);
+                return;
         }
 
         // 编辑态出图：--render-layout-edit <png>
@@ -2019,6 +2022,190 @@ internal static class Program
 
         Console.WriteLine();
         Console.WriteLine(failures == 0 ? "smoke-call: all checks passed" : "smoke-call: " + failures + " failed");
+        return failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--play-real &lt;seed&gt; [mode] [games]</c>：像真人一样打牌（无窗口）。
+    /// 人类座位会：正常出牌、能报听时报听、荣和窗口随机「和」或「过」、副露窗口随机「过」。
+    /// 每一步都校验手牌张数与牌局推进，卡住或牌数异常立即报错退出。
+    /// </summary>
+    private static int PlayReal(string[] args)
+    {
+        TryUseUtf8Console();
+        if (args.Length < 2
+            || !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint seed))
+        {
+            Console.Error.WriteLine("用法：--play-real <seed> [mode] [games]");
+            return 2;
+        }
+
+        int mode = 4;
+        if (args.Length >= 3 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int m))
+        {
+            mode = m;
+        }
+
+        int games = 3;
+        if (args.Length >= 4 && int.TryParse(args[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int g))
+        {
+            games = g;
+        }
+
+        int failures = 0;
+        for (int game = 0; game < games; game++)
+        {
+            uint gameSeed = seed + (uint)game;
+            var rng = new Mulberry32Random(gameSeed);
+            var runtime = new MatchRuntime(new Settings(), new Mulberry32Random(gameSeed), _ => { },
+                saveStore: null, stats: null, roundLog: null, matchSeed: gameSeed);
+            runtime.StartMatch(mode);
+
+            var clock = Stopwatch.StartNew();
+            int steps = 0;
+            int ronWindows = 0;
+            int ronPasses = 0;
+            int callDeclares = 0;
+            string stall = string.Empty;
+            int lastTurn = -1;
+            MatchPhase lastPhase = MatchPhase.Idle;
+            int sameState = 0;
+
+            while (clock.Elapsed < TimeSpan.FromSeconds(45))
+            {
+                if (++steps > 200_000)
+                {
+                    stall = "动作数超过 200000";
+                    break;
+                }
+
+                var phase = runtime.Phase;
+                if (phase == MatchPhase.MatchOver)
+                {
+                    break;
+                }
+
+                if (phase == MatchPhase.RoundEnded)
+                {
+                    runtime.NextRound();
+                    continue;
+                }
+
+                // 死循环检测：阶段 + 回合 + 人类手牌张数 连续不变。
+                var player = runtime.HumanIndex >= 0 ? runtime.Engine.Players[runtime.HumanIndex] : null;
+                int handCount = player?.Hand.Count ?? -1;
+                if (phase == lastPhase && runtime.Engine.TurnIndex == lastTurn)
+                {
+                    if (++sameState > 400)
+                    {
+                        stall = $"卡在 {phase}（回合={runtime.Engine.TurnIndex}，手牌={handCount}，动作={runtime.Snapshot.Actions}）";
+                        break;
+                    }
+                }
+                else
+                {
+                    sameState = 0;
+                    lastPhase = phase;
+                    lastTurn = runtime.Engine.TurnIndex;
+                    if (Environment.GetEnvironmentVariable("TIISU_PLAY_TRACE") == "1")
+                    {
+                        Console.WriteLine($"    [{steps}] phase={phase} turn={runtime.Engine.TurnIndex} hand={handCount}"
+                            + $" called={player?.IsCalled} wall={runtime.Engine.Wall.Count}");
+                    }
+                }
+
+                switch (phase)
+                {
+                    case MatchPhase.HumanRon:
+                    {
+                        ronWindows++;
+                        int beforeCount = handCount;
+                        bool pass = rng.NextDouble() < 0.5;
+                        runtime.Execute(pass ? GameCommand.Pass() : GameCommand.Ron());
+                        if (pass && player is not null)
+                        {
+                            ronPasses++;
+                            int meldTiles = player.Melds.Sum(m => m.Tiles.Count);
+                            int concealed = 13 - meldTiles + player.KongCount();
+                            // 过牌后牌局可能已经推进到人类自己摸牌，所以允许 13（13 张形）/14（摸牌后）两种；
+                            // 关键是不能少牌（小相公）也不能多出两张以上。
+                            if (player.Hand.Count < concealed || player.Hand.Count > concealed + 1)
+                            {
+                                stall = $"过牌后手牌张数异常：{beforeCount} -> {player.Hand.Count}"
+                                        + $"（应在 {concealed}..{concealed + 1}）";
+                            }
+                        }
+
+                        break;
+                    }
+
+                    case MatchPhase.HumanMeld:
+                        runtime.Execute(GameCommand.Pass());
+                        break;
+
+                    case MatchPhase.HumanDiscard:
+                    {
+                        var vm = runtime.Snapshot;
+                        if ((vm.Actions & HumanAction.Tsumo) != 0)
+                        {
+                            runtime.Execute(GameCommand.Tsumo());
+                            break;
+                        }
+
+                        if ((vm.Actions & HumanAction.DeclareCall) != 0 && rng.NextDouble() < 0.4)
+                        {
+                            int idx = TenpaiDiscardIndex(runtime.Engine, player!);
+                            if (idx >= 0 && idx < player!.Hand.Count)
+                            {
+                                runtime.Execute(GameCommand.DeclareCall(idx));
+                                callDeclares++;
+                                break;
+                            }
+                        }
+
+                        int pick = player!.IsCalled
+                            ? LegalCalledDiscardIndex(runtime.Engine, player)
+                            : BestShantenDiscardIndex(player);
+                        if (pick < 0 || pick >= player.Hand.Count)
+                        {
+                            stall = "找不到可打的牌（手牌=" + player.Hand.Count + "："
+                                    + string.Join(" ", player.Hand.Select(t => t.Id))
+                                    + "，报听=" + player.IsCalled + "）";
+                            break;
+                        }
+
+                        runtime.Execute(GameCommand.Discard(pick));
+                        break;
+                    }
+
+                    default:
+                        break;
+                }
+
+                if (stall.Length > 0)
+                {
+                    break;
+                }
+            }
+
+            clock.Stop();
+            bool completed = runtime.Phase == MatchPhase.MatchOver;
+            if (stall.Length == 0 && !completed)
+            {
+                stall = "45 秒内未终局（阶段=" + runtime.Phase + "）";
+            }
+
+            Console.WriteLine($"play-real game={game + 1}/{games} seed={gameSeed} mode={mode} "
+                + $"耗时={clock.Elapsed.TotalSeconds:F1}s 步数={steps} 荣和窗口={ronWindows} 过牌={ronPasses} "
+                + $"报听={callDeclares} 阶段={runtime.Phase} 结果={(stall.Length == 0 ? "OK" : "FAIL " + stall)}");
+
+            if (stall.Length > 0)
+            {
+                failures++;
+            }
+        }
+
+        Console.WriteLine(failures == 0 ? "play-real: all games passed" : $"play-real: {failures} game(s) failed");
         return failures == 0 ? 0 : 1;
     }
 

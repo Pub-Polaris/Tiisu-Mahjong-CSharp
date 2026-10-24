@@ -53,8 +53,15 @@ public sealed partial class MahjongEngine
     // ── 宣言 ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// 报听条件：本局未结束、尚未报听、手牌是 13 张形（<c>13 + 杠数</c>）且真的听牌。
-    /// 荣和窗口里手牌含待牌，用 <see cref="DeclareCallWithHand"/> 另行判定。
+    /// 报听条件：本局未结束、尚未报听，且手牌是听牌形。
+    /// <list type="bullet">
+    /// <item><b>13 张形（<c>13 + 杠数</c>，副露 / 荣和窗口）</b>：沿用「真听牌」口径
+    /// （<see cref="IsTenpai"/>：赋达起和线的待牌）。</item>
+    /// <item><b>14 张形（<c>14 + 杠数</c>，自家摸牌后）</b>：「打一张即听」——存在某张手牌打出后是
+    /// <b>听牌形</b>（向听 0；按牌形口径，不要求赋达起和线）。</item>
+    /// </list>
+    /// 14 张用牌形口径的原因：14 张常是「已成和形但赋 &lt; 起和线」的手，这种手点「和牌」按钮会走错和，
+    /// 必须允许先报听；若按赋数门槛判，就会出现「既不能和、又不能报听」的灰按钮。
     /// </summary>
     public bool CanDeclareCall(Player player)
     {
@@ -63,12 +70,46 @@ public sealed partial class MahjongEngine
             return false;
         }
 
-        if (player.TotalTiles() != 13 + player.KongCount())
+        int total = player.TotalTiles();
+        if (total == 13 + player.KongCount())
+        {
+            return IsTenpai(player);
+        }
+
+        if (total != 14 + player.KongCount())
         {
             return false;
         }
 
-        return IsTenpai(player);
+        return HasTenpaiDiscard(player);
+    }
+
+    /// <summary>14 张形：是否存在一张手牌，打出后 13 张是听牌形（按牌形口径）。</summary>
+    private bool HasTenpaiDiscard(Player player)
+    {
+        var seen = new HashSet<Tile>();
+        foreach (var tile in player.Hand)
+        {
+            if (!seen.Add(tile))
+            {
+                continue;
+            }
+
+            var after = new List<Tile>(player.Hand);
+            after.Remove(tile);
+            if (after.Count + player.MeldTiles() != 13 + player.KongCount())
+            {
+                continue;
+            }
+
+            if (WaitShapeMaskFor(
+                    after, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn) != 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>报听宣言（手牌已是 13 张形）。成功即锁定听牌张集合。</summary>
@@ -90,8 +131,60 @@ public sealed partial class MahjongEngine
             return false;
         }
 
-        ulong mask = WaitMaskFor(hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+        // 13 张形的可用性口径不变：必须是「真听牌」（赋达起和线的待牌）。
+        ulong winMask = WaitMaskFor(
+            hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+        if (winMask == 0)
+        {
+            return false;
+        }
+
+        // 锁手用牌形口径（与 14 张报听一致）：形在的待牌都锁，避免「听牌形不变」被赋数门槛截断。
+        ulong mask = WaitShapeMaskFor(
+            hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
         if (mask == 0)
+        {
+            mask = winMask;
+        }
+
+        player.IsCalled = true;
+        player.CalledWaitMask = mask;
+        return true;
+    }
+
+    /// <summary>
+    /// 14 张形（自家摸牌后）报听：打出 <paramref name="tile"/> 并锁手。
+    /// 成功 = 这张牌已进牌河、<see cref="Player.IsCalled"/> = true、听牌张集合 = 打出后 13 张形的牌形听牌张。
+    /// 失败时不弃牌、不改状态（调用方可以直接提示重选）。
+    /// </summary>
+    public bool DeclareCallAfterDiscard(Player player, Tile tile)
+    {
+        if (GameOver || player.IsCalled)
+        {
+            return false;
+        }
+
+        if (player.TotalTiles() != 14 + player.KongCount())
+        {
+            return false;
+        }
+
+        var after = new List<Tile>(player.Hand);
+        int index = after.IndexOf(tile);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        after.RemoveAt(index);
+        ulong mask = WaitShapeMaskFor(
+            after, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+        if (mask == 0)
+        {
+            return false;
+        }
+
+        if (Discard(player, tile) is null)
         {
             return false;
         }
@@ -130,7 +223,8 @@ public sealed partial class MahjongEngine
             return false;
         }
 
-        ulong mask = WaitMaskFor(hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+        ulong mask = WaitShapeMaskFor(
+            hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
         if (mask != player.CalledWaitMask)
         {
             reason = "报听后听牌张不能变";
@@ -205,7 +299,8 @@ public sealed partial class MahjongEngine
         }
 
         var melds = new List<Meld>(player.Melds) { new(MeldType.Ankan, new[] { tile, tile, tile, tile }) };
-        ulong mask = WaitMaskFor(hand, melds, player.AnkanCount + 1, player.MinkanCount, player.SeatWind, player.FirstTurn);
+        ulong mask = WaitShapeMaskFor(
+            hand, melds, player.AnkanCount + 1, player.MinkanCount, player.SeatWind, player.FirstTurn);
         if (mask != player.CalledWaitMask)
         {
             reason = "这组暗杠会改变听牌形";
@@ -359,6 +454,41 @@ public sealed partial class MahjongEngine
     /// <summary>该家当前的听牌张位掩码（13 张形才有意义）。</summary>
     public ulong WaitMaskOf(Player player) =>
         WaitMaskFor(player.Hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+
+    /// <summary>
+    /// 某手牌形（含副露）的「牌形听牌张」位掩码：bit = <see cref="Tile.Index"/>。
+    /// 与 <see cref="WaitMaskFor"/> 的唯一区别是**不要求赋达起和线**：只要加进这张能成形
+    /// （4 面子 + 将 / 七对子 / 国士）就算听牌张。
+    /// <para>
+    /// 报听（尤其 14 张「打一张即听」）用这个口径：报听是宣言听牌形，不是宣言已经能和；
+    /// 赋不足起和线的手报听后点「和牌」会走错和判罚（见 <see cref="ApplyCallMisfire"/>）。
+    /// </para>
+    /// </summary>
+    public ulong WaitShapeMaskFor(
+        IReadOnlyList<Tile> hand,
+        IReadOnlyList<Meld> melds,
+        int ankanCount,
+        int minkanCount,
+        SeatWind seatWind,
+        bool firstTurn)
+    {
+        ulong mask = 0;
+        foreach (var entry in ListTenpaiForHand(hand, melds, ankanCount, minkanCount, seatWind, firstTurn))
+        {
+            // TotalFu > 0 = 这张加进来真的成形；Success=false 只表示赋 < 起和线（no_yaku）。
+            if (entry.TotalFu > 0)
+            {
+                mask |= 1UL << entry.Tile.Index;
+            }
+        }
+
+        return mask;
+    }
+
+    /// <summary>该家当前的「牌形听牌张」位掩码（13 张形才有意义）。</summary>
+    public ulong WaitShapeMaskOf(Player player) =>
+        WaitShapeMaskFor(
+            player.Hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
 
     /// <summary>
     /// 待牌提示用的 13 张形手牌：14 张形（刚摸牌）时去掉本次摸到的牌（摸切口径）。

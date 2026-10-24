@@ -156,12 +156,20 @@ public static class SnapshotBuilder
 
         bool selfCalled = false;
         bool selfBanned = false;
+        bool selfMisfire = false;
         if (selfIndex >= 0)
         {
             var self = engine.Players[selfIndex];
             selfCalled = self.IsCalled;
             selfBanned = engine.IsWinBanned(self);
             tenpai.AddRange(TenpaiTileIds(engine, self));
+
+            // 【错和可能】：能报听（或已报听），但所有待牌的最高赋都不到起和线。
+            if (engine.CanDeclareCall(self) || self.IsCalled)
+            {
+                int maxFu = MaxWaitFu(engine, self);
+                selfMisfire = maxFu > 0 && maxFu < engine.BaseFu;
+            }
         }
 
         return new TableViewModel
@@ -187,14 +195,43 @@ public static class SnapshotBuilder
             Seats = seats,
             TenpaiTiles = tenpai,
             IsCalled = selfCalled,
+            CallWouldMisfire = selfMisfire,
             WinBanned = selfBanned,
             AiLevels = aiLevels ?? Array.Empty<string>(),
         };
     }
 
+    /// <summary>听牌张里最高的赋数（牌形形成才算；用于判断报听后报和是否必然错和）。</summary>
+    private static int MaxWaitFu(MahjongEngine engine, Player player)
+    {
+        int max = 0;
+        try
+        {
+            var hand = engine.TenpaiHandOf(player);
+            foreach (var entry in engine.ListTenpaiForHand(
+                         hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn))
+            {
+                if (entry.Formed)
+                {
+                    max = Math.Max(max, entry.TotalFu);
+                }
+            }
+        }
+        catch
+        {
+            // 判定失败不影响主流程
+        }
+
+        return max;
+    }
+
     /// <summary>
     /// 待牌提示：对「13 张形」手牌列可和牌（14 张形时按摸切口径去掉本次摸到的牌）。
     /// 供快照与报听提示共用。
+    /// <para>
+    /// 未报听时只显示「真能和的待牌」（赋达起和线）；报听后显示**牌形听牌张**
+    /// （与锁手 / 报听可用性同一口径，含赋不足起和线的待牌），否则低赋手报听后提示会是空的。
+    /// </para>
     /// </summary>
     public static IReadOnlyList<string> TenpaiTileIds(MahjongEngine engine, Player player)
     {
@@ -204,9 +241,10 @@ public static class SnapshotBuilder
             var hand = engine.TenpaiHandOf(player);
             var entries = engine.ListTenpaiForHand(
                 hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+            bool shape = player.IsCalled;
             foreach (var entry in entries)
             {
-                if (entry.Success)
+                if (shape ? entry.TotalFu > 0 : entry.Success)
                 {
                     list.Add(TileNotation.AtlasId(entry.Tile));
                 }

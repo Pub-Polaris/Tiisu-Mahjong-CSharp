@@ -52,6 +52,12 @@ internal sealed record RoundOutcome(string Kind, IReadOnlyList<int> Winners, str
 internal sealed record PendingRon(Tile Tile, WinResult? Result, int Discarder, int MisfireFu = 0)
 {
     public bool IsMisfire => Result is null;
+
+    /// <summary>
+    /// 待在手里的那张荣和牌是否已经临时加进手牌（真荣和 true；报听错和窗口 false）。
+    /// 过牌时只能移除「确实在手里」的那张，否则会把玩家手牌删成小相公。
+    /// </summary>
+    public bool TrialInHand { get; init; }
 }
 
 internal sealed record PendingMeld(Tile Tile, int Discarder);
@@ -804,7 +810,7 @@ public sealed class MatchRuntime
             var result = TryRon(human, discarded);
             if (result is not null)
             {
-                _pendingRon = new PendingRon(discarded, result, discPlayer);
+                _pendingRon = new PendingRon(discarded, result, discPlayer) { TrialInHand = true };
                 _pendingChiList.Clear();
                 _phase = MatchPhase.HumanRon;
                 _message = "荣和机会：别人打出 " + Display(discarded) + " · " + (result.TotalFu ?? 0) + "赋可和";
@@ -998,38 +1004,24 @@ public sealed class MatchRuntime
         }
 
         var tile = player.Hand[index];
-        var after = WithoutTile(player.Hand, tile);
-        var mask = _engine.WaitMaskFor(
-            after, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
-        if (mask == 0)
+
+        // 14 张（自家摸牌后）报听：这一步同时弃牌 + 锁手（牌形口径，不要求赋达起和线）。
+        // 失败时不弃牌：按钮可用性与这里用同一套判定（MahjongEngine.CanDeclareCall）。
+        if (!_engine.DeclareCallAfterDiscard(player, tile))
         {
             Notify("打出这张后不听牌，不能报听", false);
-            return;
-        }
-
-        var discarded = _engine.Discard(player, tile);
-        if (discarded is null)
-        {
-            Notify("这张牌不在手里", false);
+            EmitState();
             return;
         }
 
         _phase = MatchPhase.Idle;
-        RecordEvent(GameEventTypes.Discard, human, discarded.Value, null);
-        RecordStep(human, "discard", discarded.Value);
-
-        if (!_engine.DeclareCallWithHand(player, player.Hand))
-        {
-            EmitState();
-            AfterDiscard(discarded.Value, human);
-            RunLoop();
-            return;
-        }
+        RecordEvent(GameEventTypes.Discard, human, tile, null);
+        RecordStep(human, "discard", tile);
 
         RecordCall(human, "discard");
         _message = "已报听 · 听 " + string.Join(" ", SnapshotBuilder.TenpaiTileIds(_engine, player));
         EmitState();
-        AfterDiscard(discarded.Value, human);
+        AfterDiscard(tile, human);
 
         // 出牌阶段的报听已经完成弃牌，必须自己把主循环续上：
         // AfterDiscard 只把回合交给下一家（或开副露 / 荣和窗口），不会替 AI 行动；
@@ -1344,12 +1336,16 @@ public sealed class MatchRuntime
         _phase = MatchPhase.Idle;
         _message = null;
 
-        // 移除荣和试探牌（JS passRon：findIndex(t.id === tile.id) → splice）
+        // 只有「真荣和」窗口才把待荣和的牌临时放进过手牌；报听错和窗口没有放，
+        // 这时不能移除任何牌，否则玩家的手牌会少一张（小相公）。
         var player = _engine.Players[human];
-        int pos = player.Hand.FindIndex(t => t == pending.Tile);
-        if (pos >= 0)
+        if (pending.TrialInHand)
         {
-            player.Hand.RemoveAt(pos);
+            int pos = player.Hand.FindIndex(t => t == pending.Tile);
+            if (pos >= 0)
+            {
+                player.Hand.RemoveAt(pos);
+            }
         }
 
         var candidates = CheckRonForAi(pending.Tile, pending.Discarder);
@@ -2133,7 +2129,8 @@ public sealed class MatchRuntime
                     actions |= HumanAction.Flow;
                 }
 
-                if (!player.IsCalled && HasTenpaiDiscard(player))
+                // 报听可用性统一由引擎判定：13 张=真听牌；14 张=存在「打出后成听牌形」的弃牌。
+                if (!player.IsCalled && _engine.CanDeclareCall(player))
                 {
                     actions |= HumanAction.DeclareCall;
                 }
@@ -2189,44 +2186,6 @@ public sealed class MatchRuntime
         }
 
         return actions;
-    }
-
-    /// <summary>报听按钮是否可用（出牌阶段）：打掉某一张后手牌真的听牌。</summary>
-    private bool HasTenpaiDiscard(Player player)
-    {
-        int total = player.TotalTiles();
-        if (total == 13 + player.KongCount())
-        {
-            return _engine.WaitMaskOf(player) != 0;
-        }
-
-        if (total != 14 + player.KongCount())
-        {
-            return false;
-        }
-
-        var seen = new HashSet<Tile>();
-        foreach (var tile in player.Hand)
-        {
-            if (!seen.Add(tile))
-            {
-                continue;
-            }
-
-            var after = WithoutTile(player.Hand, tile);
-            if (after.Count == player.Hand.Count)
-            {
-                continue;
-            }
-
-            if (_engine.WaitMaskFor(
-                    after, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn) != 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /// <summary>荣和窗口里「去掉待牌」后是否已是听牌形（报听按钮用）。</summary>

@@ -9,7 +9,18 @@ namespace Tiisu.Engine.Tests;
 /// C 期：修罗档 MCTS（实验性、默认关闭）。
 /// 覆盖：默认关闭等价困难档、合法下标、确定性、预算回退、退化手牌、安全牌偏好、
 /// rollout 步数上限、以及「不影响 Simple/Normal/Hard」。
+/// <para>
+/// 这些用例带时间预算，与其他测试并行跑会因为 CPU 抢占导致模拟次数不同而抖动，
+/// 所以单独串行执行。
+/// </para>
 /// </summary>
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class MctsSerialCollection
+{
+    public const string Name = "MctsSerial";
+}
+
+[Collection(MctsSerialCollection.Name)]
 public sealed class MctsAiTests
 {
     // ─────────────────────────────────────────────────────────────
