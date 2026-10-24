@@ -88,6 +88,13 @@ internal static class Program
             return;
         }
 
+        // 四家手牌明示出图：--render-hands <png> [seed] [mode]
+        if (args.Length >= 2 && args[0] == "--render-hands")
+        {
+            RenderHandsToPng(args);
+            return;
+        }
+
         // 无窗口验证：--render <png> [time] [table|menu]
         if (args.Length >= 2 && args[0] == "--render")
         {
@@ -900,6 +907,123 @@ internal static class Program
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(path, data.ToArray());
         Console.WriteLine($"rendered {screenName} -> {path}  (atlas loaded: {atlas.IsLoaded})");
+    }
+
+    /// <summary>
+    /// <c>--render-hands &lt;png&gt; [seed] [mode]</c>：打到中盘后出图，四家手牌全部明示；
+    /// 左上角用系统字体（Microsoft YaHei UI）标注系统时间、当前局目与余牌，方便复盘 AI 打牌。
+    /// </summary>
+    private static void RenderHandsToPng(string[] args)
+    {
+        TryUseUtf8Console();
+        string path = args[1];
+        uint seed = 1;
+        if (args.Length >= 3 && !uint.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out seed))
+        {
+            seed = 1;
+        }
+
+        int mode = 4;
+        if (args.Length >= 4 && !int.TryParse(args[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out mode))
+        {
+            mode = 4;
+        }
+
+        var runtime = new MatchRuntime(new Settings(), new Mulberry32Random(seed), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: seed);
+        runtime.StartMatch(mode);
+
+        int humanDiscards = 0;
+        var clock = Stopwatch.StartNew();
+        while (clock.Elapsed < TimeSpan.FromSeconds(20))
+        {
+            var phase = runtime.Phase;
+            if (phase is MatchPhase.MatchOver or MatchPhase.RoundEnded)
+            {
+                break;
+            }
+
+            if (phase == MatchPhase.HumanDiscard)
+            {
+                if (humanDiscards >= 24)
+                {
+                    break;
+                }
+
+                int pick = BestShantenDiscardIndex(runtime.Engine.Players[runtime.HumanIndex]);
+                if (pick < 0)
+                {
+                    break;
+                }
+
+                runtime.Execute(GameCommand.Discard(pick));
+                humanDiscards++;
+                continue;
+            }
+
+            if (phase is MatchPhase.HumanRon or MatchPhase.HumanMeld)
+            {
+                runtime.Execute(GameCommand.Pass());
+                continue;
+            }
+
+            Thread.Sleep(1);
+        }
+
+        var vm = runtime.Snapshot;
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(() => runtime.Snapshot, null, null, atlas);
+        using var surface = SKSurface.Create(new SKImageInfo((int)screen.CanvasWidth, (int)screen.CanvasHeight));
+        var canvas = surface.Canvas;
+        canvas.Clear(SKColors.Black);
+
+        using (var ctx = new SkiaCanvas(canvas, atlas))
+        {
+            screen.Update(0.6);
+            screen.Draw(ctx, 0.6);
+        }
+
+        // 左上角信息：系统字体（不走游戏内字体），显示系统时间 / 局目 / 余牌 + 四家手牌。
+        SKTypeface typeface = SKTypeface.FromFamilyName("Microsoft YaHei UI") ?? SKTypeface.Default;
+        using var titleFont = new SKFont(typeface, 22);
+        using var bodyFont = new SKFont(typeface, 17);
+        using var paint = new SKPaint { IsAntialias = true, Color = new SKColor(255, 240, 200) };
+        using var muted = new SKPaint { IsAntialias = true, Color = new SKColor(200, 214, 202) };
+        using var panel = new SKPaint { IsAntialias = true, Color = new SKColor(0, 0, 0, 170) };
+
+        var hands = new List<string>();
+        for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+        {
+            var player = runtime.Engine.Players[i];
+            var seat = vm.Seats.FirstOrDefault(s => s.Index == i);
+            string wind = seat?.Wind ?? player.Name;
+            string tiles = string.Join(" ", player.Hand
+                .OrderBy(t => (int)t.Suit)
+                .ThenBy(t => t.Num)
+                .Select(t => t.Id));
+            hands.Add($"{wind}家（{player.Hand.Count}）：{tiles}");
+        }
+
+        float boxH = 60f + (hands.Count * 30f) + 10f;
+        canvas.DrawRoundRect(new SKRect(16, 16, 1184, 16 + boxH), 10, 10, panel);
+        canvas.DrawText($"系统时间 {DateTime.Now:yyyy-MM-dd HH:mm:ss}", 30, 46, SKTextAlign.Left, titleFont, paint);
+        canvas.DrawText($"第 {vm.RoundLabel} · 余 {vm.WallCount} 张 · seed={seed} mode={mode}",
+            30, 74, SKTextAlign.Left, bodyFont, muted);
+        float y = 104;
+        foreach (string line in hands)
+        {
+            canvas.DrawText(line, 30, y, SKTextAlign.Left, bodyFont, paint);
+            y += 30f;
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+        Console.WriteLine($"rendered hands -> {path}  {vm.RoundLabel} 余{vm.WallCount} 人类弃牌={humanDiscards} 阶段={runtime.Phase}");
+        foreach (string line in hands)
+        {
+            Console.WriteLine("  " + line);
+        }
     }
 
     /// <summary>
