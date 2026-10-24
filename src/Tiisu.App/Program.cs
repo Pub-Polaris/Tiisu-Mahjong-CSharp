@@ -978,8 +978,15 @@ internal static class Program
 
         if (flow)
         {
-            RenderFlowSettlement(path);
-            Console.WriteLine($"rendered roundend(flow demo) -> {path}");
+            int flowPage = 1;
+            int flowPageAt = Array.IndexOf(args, "--page");
+            if (flowPageAt >= 0 && flowPageAt + 1 < args.Length)
+            {
+                int.TryParse(args[flowPageAt + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out flowPage);
+            }
+
+            RenderFlowSettlement(path, Math.Max(1, flowPage));
+            Console.WriteLine($"rendered roundend(flow demo) -> {path}  page={Math.Max(1, flowPage)}");
             return 0;
         }
 
@@ -1238,7 +1245,7 @@ internal static class Program
     }
 
     /// <summary><c>--render-roundend &lt;png&gt; --flow</c>：荒牌流局演示（不列役，只给四家分数变化）。</summary>
-    private static void RenderFlowSettlement(string path)
+    private static void RenderFlowSettlement(string path, int page = 1)
     {
         TryUseUtf8Console();
         var result = new RoundResult(
@@ -1252,11 +1259,17 @@ internal static class Program
             false,
             Array.Empty<SettlementDetail>(),
             "exhaustive",
-            new[] { 48300, 31900, 42100, 27700 });
+            new[] { 48300, 31900, 42100, 27700 },
+            new[] { "南家 未听返杠 −2100", "北家 鸣牌后无役听牌 −1400" });
 
         using var atlas = new TileAtlas(AssetsDir);
         var screen = new TableScreen(TableDemoModel.CreateWithFlow, null, null, atlas);
         screen.ShowSettlement(result);
+        if (page >= 2)
+        {
+            screen.OnKey(Keys.Right);
+        }
+
         RenderScreen(path, screen, atlas);
     }
 

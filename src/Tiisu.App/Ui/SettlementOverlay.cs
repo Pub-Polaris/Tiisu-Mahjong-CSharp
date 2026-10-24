@@ -71,6 +71,22 @@ public sealed class SettlementOverlay
     /// <summary>和牌者人数（0 = 流局；&gt;1 = 多家和牌）。</summary>
     public static int WinnerCount(RoundResult result) => result.Details?.Count ?? 0;
 
+    /// <summary>惩罚条目数（流局罚项 / 报听错和罚）。</summary>
+    public static int PenaltyCount(RoundResult result) => result.Penalties?.Count ?? 0;
+
+    /// <summary>
+    /// 总页数：每位和牌者一页（流局算 1 页概况），有惩罚时最后再加一页「惩罚结算」。
+    /// </summary>
+    public static int PageCount(RoundResult result) =>
+        Math.Max(1, WinnerCount(result)) + (PenaltyCount(result) > 0 ? 1 : 0);
+
+    /// <summary>当前是否停在「惩罚结算」页。</summary>
+    public bool IsPenaltyPage(RoundResult result)
+    {
+        Sync(result);
+        return PenaltyCount(result) > 0 && _index >= Math.Max(1, WinnerCount(result));
+    }
+
     /// <summary>当前显示第几位（0 基）；结果对象变化时归零。</summary>
     public int CurrentIndex(RoundResult result)
     {
@@ -78,11 +94,11 @@ public sealed class SettlementOverlay
         return _index;
     }
 
-    /// <summary>左右翻页：<paramref name="delta"/> = ±1；只有一家时返回 false（不消费按键）。</summary>
+    /// <summary>翻页：<paramref name="delta"/> = ±1；只有一页时返回 false（不消费按键）。</summary>
     public bool Step(RoundResult result, int delta)
     {
         Sync(result);
-        int count = WinnerCount(result);
+        int count = PageCount(result);
         if (count <= 1)
         {
             return false;
@@ -92,9 +108,9 @@ public sealed class SettlementOverlay
         return true;
     }
 
-    /// <summary>点击「下一家」按钮 → 切到下一位和牌者。</summary>
+    /// <summary>点击「下一个」按钮 → 切到下一页。</summary>
     public bool HitNextButton(float x, float y, RoundResult result) =>
-        WinnerCount(result) > 1 && _nextButton.W > 0f && _nextButton.Contains(x, y);
+        PageCount(result) > 1 && _nextButton.W > 0f && _nextButton.Contains(x, y);
 
     /// <summary>上一帧画出的「下一家」按钮矩形（自检 / 命中测试用）。</summary>
     public RectF NextButtonBounds => _nextButton;
@@ -115,12 +131,8 @@ public sealed class SettlementOverlay
             _nextHover = false;
         }
 
-        int count = WinnerCount(result);
-        if (count == 0)
-        {
-            _index = 0;
-        }
-        else if (_index >= count)
+        int count = PageCount(result);
+        if (_index >= count)
         {
             _index = count - 1;
         }
@@ -134,11 +146,16 @@ public sealed class SettlementOverlay
         bool matchOver = vm.Phase == "match_over" || result.MatchOver;
         var details = result.Details ?? Array.Empty<SettlementDetail>();
         bool flow = details.Count == 0;
-        SettlementDetail? detail = flow ? null : details[Math.Min(_index, details.Count - 1)];
+        bool penaltyPage = PenaltyCount(result) > 0 && _index >= Math.Max(1, details.Count);
+        SettlementDetail? detail = flow || penaltyPage ? null : details[Math.Min(_index, details.Count - 1)];
 
         // 内容高度 → 面板高度，再在画布里垂直居中。两栏各自按内容定高，板块不被拉长留空。
-        float handContent = flow ? MeasureFlowHands(vm) : MeasureWinnerHand(vm, detail!);
-        float infoContent = flow ? MeasureFlowInfo(matchOver, result.Penalties?.Count ?? 0) : MeasureWinnerInfo(detail!, matchOver);
+        float handContent = flow || penaltyPage ? MeasureFlowHands(vm) : MeasureWinnerHand(vm, detail!);
+        float infoContent = penaltyPage
+            ? MeasurePenaltyInfo(PenaltyCount(result), matchOver)
+            : flow
+                ? MeasureFlowInfo(matchOver)
+                : MeasureWinnerInfo(detail!, matchOver);
         float contentH = Math.Max(handContent, infoContent);
 
         bool custom = layout is not null && layout.SettlementRect != TableLayoutSpec.DefaultSettlementRect;
@@ -175,7 +192,12 @@ public sealed class SettlementOverlay
         DrawZone(c, handZone);
         DrawZone(c, infoZone);
 
-        if (flow)
+        if (penaltyPage)
+        {
+            DrawFlowHands(c, vm, handZone);
+            DrawPenaltyInfo(c, result, vm, infoZone, matchOver);
+        }
+        else if (flow)
         {
             DrawFlowHands(c, vm, handZone);
             DrawFlowInfo(c, result, vm, infoZone, matchOver);
@@ -214,13 +236,14 @@ public sealed class SettlementOverlay
             new TextStyle(16, Center: false));
 
         _nextButton = default;
-        if (details.Count > 1)
+        int pages = PageCount(result);
+        if (pages > 1)
         {
             var button = new RectF(right - 132f, panel.Y + 18f, 132f, 42f);
             _nextButton = button;
 
             string page = "第 " + (_index + 1).ToString(CultureInfo.InvariantCulture) + "/" +
-                          details.Count.ToString(CultureInfo.InvariantCulture) + " 位";
+                          pages.ToString(CultureInfo.InvariantCulture) + " 页";
             c.DrawText(page, new RectF(button.X - 176f, panel.Y + 26f, 166f, 26f), Muted,
                 new TextStyle(15, Center: false, Right: true));
 
@@ -228,7 +251,7 @@ public sealed class SettlementOverlay
             c.StrokeRoundRect(button, 10, Gold, 1.4f);
 
             // 「▶」在 Microsoft YaHei 里缺字（渲染成方框），三角改成矢量画。
-            c.DrawText("下一家", new RectF(button.X + 6f, button.Y, button.W - 30f, button.H), GoldBright,
+            c.DrawText("下一个", new RectF(button.X + 6f, button.Y, button.W - 30f, button.H), GoldBright,
                 new TextStyle(15, Bold: true, Center: true));
             float tx = button.Right - 30f;
             float ty = button.CenterY;
@@ -609,33 +632,42 @@ public sealed class SettlementOverlay
         }
 
         DrawScoreChanges(c, result, vm, x, width, y);
-
-        // 惩罚结算：流局实际执行的未听返杠 / 鸣牌后无役听牌罚（全部列出，不只一家）。
-        var penalties = result.Penalties ?? Array.Empty<string>();
-        if (penalties.Count > 0)
-        {
-            y += (4 * 30f) + 26f;
-            c.FillRect(new RectF(x, y, width, 1f), Hairline);
-            y += 16f;
-            c.DrawText("惩罚结算", new RectF(x, y, width, 24), Muted, new TextStyle(14, Center: false));
-            y += 28f;
-            foreach (string line in penalties)
-            {
-                c.DrawText(line, new RectF(x, y, width, 24), Negative, new TextStyle(16, Center: false));
-                y += 26f;
-            }
-        }
     }
 
-    private static float MeasureFlowInfo(bool matchOver, int penaltyCount)
+    /// <summary>第二页：场上实际执行的惩罚结算（未听返杠 / 无役听牌罚 / 报听错和罚）。</summary>
+    private void DrawPenaltyInfo(ICanvas c, RoundResult result, TableViewModel vm, RectF zone, bool matchOver)
+    {
+        float x = zone.X + 20f;
+        float width = zone.W - 40f;
+        float y = zone.Y + 12f;
+
+        c.DrawText("惩罚结算", new RectF(x, y, width, 44), GoldBright,
+            new TextStyle(28, Bold: true, Center: false));
+        y += 48f;
+
+        var penalties = result.Penalties ?? Array.Empty<string>();
+        foreach (string line in penalties)
+        {
+            c.DrawText(line, new RectF(x, y, width, 26), Negative, new TextStyle(16, Center: false));
+            y += 28f;
+        }
+
+        c.FillRect(new RectF(x, y, width, 1f), Hairline);
+        y += 18f;
+        DrawScoreChanges(c, result, vm, x, width, y);
+    }
+
+    private static float MeasurePenaltyInfo(int penaltyCount, bool matchOver)
+    {
+        float h = 48f + (penaltyCount * 28f) + 18f;
+        h += matchOver ? 26f + 4 * 34f : 26f + 4 * 30f;
+        return h;
+    }
+
+    private static float MeasureFlowInfo(bool matchOver)
     {
         float h = 48f + 34f + 18f;
         h += matchOver ? 26f + 4 * 34f : 26f + 4 * 30f;
-        if (!matchOver && penaltyCount > 0)
-        {
-            h += (4 * 30f) + 26f + 16f + 28f + (penaltyCount * 26f);
-        }
-
         return h;
     }
 
