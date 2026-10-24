@@ -468,7 +468,8 @@ public sealed class SettlementOverlay
         RectF zone, bool matchOver)
     {
         var seat = vm.Seats.FirstOrDefault(s => s.Index == detail.WinnerIndex);
-        string who = seat?.Name ?? "玩家" + detail.WinnerIndex.ToString(CultureInfo.InvariantCulture);
+        // 199 号规则：门风随庄轮转（庄家=东），所以显示按门风，而不是固定座次名。
+        string who = SeatName(vm, detail.WinnerIndex);
         if (seat is { IsDealer: true })
         {
             who += "（庄）";
@@ -633,7 +634,7 @@ public sealed class SettlementOverlay
                 ? scoresBefore[i]
                 : after;
 
-            c.DrawText(seat.Name, new RectF(x, y, 100, 26), TextColor, new TextStyle(16, Center: false));
+            c.DrawText(SeatName(vm, seat.Index), new RectF(x, y, 100, 26), TextColor, new TextStyle(16, Center: false));
             c.DrawText(before.ToString(CultureInfo.InvariantCulture) + " → " +
                        after.ToString(CultureInfo.InvariantCulture),
                 new RectF(x + 104, y, 200, 26), TextColor, new TextStyle(16, Center: false));
@@ -679,10 +680,17 @@ public sealed class SettlementOverlay
         _ => string.Empty,
     };
 
+    /// <summary>显示名用门风（庄家=东），不用固定座次名。</summary>
     private static string SeatName(TableViewModel vm, int index)
     {
         var seat = vm.Seats.FirstOrDefault(s => s.Index == index);
-        return seat?.Name ?? "玩家" + index.ToString(CultureInfo.InvariantCulture);
+        if (seat is null)
+        {
+            return "玩家" + index.ToString(CultureInfo.InvariantCulture);
+        }
+
+        string wind = string.IsNullOrEmpty(seat.Wind) ? seat.Name : seat.Wind;
+        return seat.IsHuman ? wind + "·你" : wind + "家";
     }
 
     private static string OutcomeLabel(RoundResult result) => result.Kind switch
