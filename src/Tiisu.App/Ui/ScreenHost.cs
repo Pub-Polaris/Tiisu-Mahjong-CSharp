@@ -250,11 +250,10 @@ internal sealed class ScreenHostCore : IDisposable
     /// <summary>返回 true 表示已消费（与原来的 e.Handled 等价）。</summary>
     public bool KeyDown(Keys key, bool shift = false)
     {
-        if (key == Keys.M
-            && !shift
-            && (ReferenceEquals(_current, _menu) || ReferenceEquals(_current, _table)))
+        // M 只在局内生效（对局 → 菜单）；主菜单屏不再用快捷键跳转。
+        if (key == Keys.M && !shift && ReferenceEquals(_current, _table))
         {
-            SwitchTo(ReferenceEquals(_current, _menu) ? _table : _menu);
+            SwitchTo(_menu);
             return true;
         }
 

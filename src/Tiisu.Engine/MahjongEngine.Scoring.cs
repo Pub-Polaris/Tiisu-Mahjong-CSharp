@@ -337,6 +337,8 @@ public sealed partial class MahjongEngine
     /// 荒牌流局（engine.js <c>flow</c>）。规则书 4.2 / 4.3 / 4.4：
     /// 听牌流局本场 +1；未听返杠 700/杠；鸣牌后无役听牌罚 1400/2100；七日终战强制过庄。
     /// </summary>
+    /// <summary>最近一次荒牌流局实际执行的罚项（人读文案，供结算屏展示；无罚则空）。</summary>
+    public IReadOnlyList<string> LastFlowPenalties { get; private set; } = Array.Empty<string>();
     public void Flow()
     {
         State = EngineState.Ended;
@@ -352,6 +354,7 @@ public sealed partial class MahjongEngine
         var penaltyLog = new List<string>();
         ApplyNotenKanPenalty(tenpai, penaltyLog);
         ApplyNoYakuTenpaiPenalty(tenpai, penaltyLog);
+        LastFlowPenalties = penaltyLog.ToArray();
 
         // 连庄判定：庄家听牌 → 连庄（本场 +1）；否则过庄（本场归零）
         if (tenpai[DealerIndex])

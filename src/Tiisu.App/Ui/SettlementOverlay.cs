@@ -138,7 +138,7 @@ public sealed class SettlementOverlay
 
         // 内容高度 → 面板高度，再在画布里垂直居中。两栏各自按内容定高，板块不被拉长留空。
         float handContent = flow ? MeasureFlowHands(vm) : MeasureWinnerHand(vm, detail!);
-        float infoContent = flow ? MeasureFlowInfo(matchOver) : MeasureWinnerInfo(detail!, matchOver);
+        float infoContent = flow ? MeasureFlowInfo(matchOver, result.Penalties?.Count ?? 0) : MeasureWinnerInfo(detail!, matchOver);
         float contentH = Math.Max(handContent, infoContent);
 
         bool custom = layout is not null && layout.SettlementRect != TableLayoutSpec.DefaultSettlementRect;
@@ -609,12 +609,33 @@ public sealed class SettlementOverlay
         }
 
         DrawScoreChanges(c, result, vm, x, width, y);
+
+        // 惩罚结算：流局实际执行的未听返杠 / 鸣牌后无役听牌罚（全部列出，不只一家）。
+        var penalties = result.Penalties ?? Array.Empty<string>();
+        if (penalties.Count > 0)
+        {
+            y += (4 * 30f) + 26f;
+            c.FillRect(new RectF(x, y, width, 1f), Hairline);
+            y += 16f;
+            c.DrawText("惩罚结算", new RectF(x, y, width, 24), Muted, new TextStyle(14, Center: false));
+            y += 28f;
+            foreach (string line in penalties)
+            {
+                c.DrawText(line, new RectF(x, y, width, 24), Negative, new TextStyle(16, Center: false));
+                y += 26f;
+            }
+        }
     }
 
-    private static float MeasureFlowInfo(bool matchOver)
+    private static float MeasureFlowInfo(bool matchOver, int penaltyCount)
     {
         float h = 48f + 34f + 18f;
         h += matchOver ? 26f + 4 * 34f : 26f + 4 * 30f;
+        if (!matchOver && penaltyCount > 0)
+        {
+            h += (4 * 30f) + 26f + 16f + 28f + (penaltyCount * 26f);
+        }
+
         return h;
     }
 

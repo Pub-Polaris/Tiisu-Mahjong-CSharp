@@ -204,14 +204,18 @@ public static class TieredAi
 
             double score = level switch
             {
-                AiLevel.Simple => -keepScores[i] + Noise(rng, tuning.SimpleNoise),
-                AiLevel.Normal => ukeire * tuning.NormalUkeireWeight
-                    - keepScores[i] * tuning.NormalHeuristicTiebreak
+                AiLevel.Simple => -shanten.Shanten * 10_000.0
+                    + keepScores[i] * tuning.SimpleIsolationWeight
+                    + Noise(rng, tuning.SimpleNoise),
+                AiLevel.Normal => -shanten.Shanten * 10_000.0
+                    + ukeire * tuning.NormalUkeireWeight
+                    + keepScores[i] * tuning.NormalIsolationWeight
                     - danger * tuning.NormalDangerWeight,
-                _ => ukeire * tuning.HardUkeireWeight
+                _ => -shanten.Shanten * 10_000.0
+                    + ukeire * tuning.HardUkeireWeight
                     + expectedValue * tuning.HardValueWeight
                     + (genbutsu ? tuning.HardGenbutsuWeight : 0.0)
-                    - keepScores[i] * tuning.HardHeuristicTiebreak
+                    + keepScores[i] * tuning.HardIsolationWeight
                     - danger * tuning.HardDangerWeight,
             };
 
@@ -408,87 +412,59 @@ public static class TieredAi
         (rng.NextDouble() * 2.0 - 1.0) * amplitude;
 
     /// <summary>
-    /// 旧 <see cref="AiPlayer.ChooseDiscardIndex"/> 的「留牌分」：分越高越该留，最低分被切。
-    /// 这里逐项复刻原公式，旧路径本身不改。
+    /// 弃牌优先级分（0..100，越高越该先打），cleanroom 规则：
+    /// 孤张字牌(100) → 孤张幺九(85) → 孤张中张(60) → 嵌张(40) → 两面/边张(25) → 两面+嵌张(15) → 面子/对子(0)。
+    /// 所有档位共用同一套优先级，保证 AI 先处理孤张，不会为了避危险拆已成形的面子。
     /// </summary>
     private static double[] ComputeKeepScores(IReadOnlyList<Tile> hand)
     {
-        int total = hand.Count;
-        var suitStrength = new double[4];
+        var counts = new Dictionary<Tile, int>();
         foreach (var tile in hand)
         {
-            suitStrength[(int)tile.Suit] += 1;
-        }
-
-        for (int s = 0; s < suitStrength.Length; s++)
-        {
-            suitStrength[s] = suitStrength[s] / total * 100.0;
-        }
-
-        var tileCount = new Dictionary<Tile, int>();
-        foreach (var tile in hand)
-        {
-            tileCount.TryGetValue(tile, out int c);
-            tileCount[tile] = c + 1;
+            counts.TryGetValue(tile, out int c);
+            counts[tile] = c + 1;
         }
 
         var scores = new double[hand.Count];
         for (int i = 0; i < hand.Count; i++)
         {
             var tile = hand[i];
-            double score = 0;
-            int count = tileCount[tile];
-
-            if (count >= 2)
+            if (counts[tile] >= 2)
             {
-                score += 28;
-            }
-
-            if (count >= 3)
-            {
-                score += 38;
-            }
-
-            if (count >= 4)
-            {
-                score += 48;
-            }
-
-            score += suitStrength[(int)tile.Suit] * 0.05;
-
-            if (HasNeighbor(tile, hand))
-            {
-                score += 20;
-                score += NeighborCount(tile, hand) * 3;
+                scores[i] = 0;   // 对子 / 刻子：最后才拆
+                continue;
             }
 
             if (tile.Suit == Suit.Honor)
             {
-                score += count >= 2 ? 14 : -14;
+                scores[i] = 100; // 孤张字牌：最先打
+                continue;
             }
-            else
+
+            bool hasAdjacent = false;
+            bool hasGap = false;
+            foreach (var other in hand)
             {
-                int sameSuitCount = 0;
-                foreach (var h in hand)
+                if (other.Suit != tile.Suit)
                 {
-                    if (h.Suit == tile.Suit)
-                    {
-                        sameSuitCount++;
-                    }
+                    continue;
                 }
 
-                if (sameSuitCount == 1 && count == 1)
+                int diff = Math.Abs(other.Num - tile.Num);
+                if (diff == 1)
                 {
-                    score += CenterBonus(tile.Num) - 14;
+                    hasAdjacent = true;
                 }
-
-                if (count == 1 && !HasNeighbor(tile, hand) && sameSuitCount > 1)
+                else if (diff == 2)
                 {
-                    score += CenterBonus(tile.Num);
+                    hasGap = true;
                 }
             }
 
-            scores[i] = score;
+            scores[i] = hasAdjacent && hasGap ? 15
+                : hasAdjacent ? 25
+                : hasGap ? 40
+                : tile.Num is 1 or 9 ? 85 : 60;
         }
 
         return scores;

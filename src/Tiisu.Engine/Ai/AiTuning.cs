@@ -11,11 +11,14 @@ public sealed class AiTuning
     /// <summary>Simple 档叠加的均匀噪声幅度（分数单位；旧启发式分值大致在 -40..80）。</summary>
     public double SimpleNoise { get; init; } = 2.0;
 
-    /// <summary>Normal 档进张权重；同进张时用旧启发式做平手。</summary>
+    /// <summary>Normal 档进张权重；同进张时用孤张分做平手。</summary>
     public double NormalUkeireWeight { get; init; } = 1000.0;
 
-    /// <summary>Normal 档旧启发式平手权重（只影响进张相同的候选）。</summary>
-    public double NormalHeuristicTiebreak { get; init; } = 1.0;
+    /// <summary>Simple 档孤张权重（隔离分 0..100，越高越该先切；字牌 &gt; 幺九 &gt; 中张孤张）。</summary>
+    public double SimpleIsolationWeight { get; init; } = 6.0;
+
+    /// <summary>Normal 档孤张权重（平手时优先切孤张）。</summary>
+    public double NormalIsolationWeight { get; init; } = 3.0;
 
     /// <summary>Hard 档进张权重。</summary>
     public double HardUkeireWeight { get; init; } = 10.0;
@@ -27,16 +30,16 @@ public sealed class AiTuning
     public double HardGenbutsuWeight { get; init; } = 12.0;
 
     /// <summary>
-    /// Hard 档放铳危险度权重（B 期）。危险度是 0..1，进张权重是每张 10 分，
-    /// 因此 0.33 左右的危险差 ≈ 1 张进张；默认 30 表示「为安全可以少约 3 张进张」。
+    /// Hard 档放铳危险度权重（B 期）。危险度是 0..1，进张权重是每张 10 分。
+    /// 261025 从 30 降到 10：原来的权重让 AI 为了避危险拆掉手牌形状，观感「过分保命」。
     /// </summary>
-    public double HardDangerWeight { get; init; } = 30.0;
+    public double HardDangerWeight { get; init; } = 10.0;
 
-    /// <summary>Hard 档旧启发式平手权重。</summary>
-    public double HardHeuristicTiebreak { get; init; } = 0.01;
+    /// <summary>Hard 档孤张权重。</summary>
+    public double HardIsolationWeight { get; init; } = 2.0;
 
-    /// <summary>Normal 档残局防守权重（只在残局且自家向听 ≥ 2 时生效）。</summary>
-    public double NormalDangerWeight { get; init; } = 5.0;
+    /// <summary>Normal 档残局防守权重（只在残局且自家向听 ≥ 2 时生效；261025 从 5 降到 3，避免过度保命）。</summary>
+    public double NormalDangerWeight { get; init; } = 3.0;
 
     /// <summary>Normal 档开始考虑防守的牌山剩余张数阈值（含）。</summary>
     public int NormalDangerWallThreshold { get; init; } = 30;

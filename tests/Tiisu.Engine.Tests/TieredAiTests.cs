@@ -142,11 +142,12 @@ public sealed class TieredAiTests
         Assert.NotEqual(new Tile(Suit.Honor, 7), normalChoice.Tile);
 
         var best = hard.Ranking[0];
-        double expected = best.Ukeire * 10.0
+        double expected = -best.Shanten.Shanten * 10_000.0
+            + best.Ukeire * 10.0
             + best.ExpectedValue
-            + (best.Genbutsu ? 12.0 : 0.0)
-            - best.KeepScore * 0.01
-            - best.Danger * 30.0;
+            + (best.Genbutsu ? AiTuning.Default.HardGenbutsuWeight : 0.0)
+            + best.KeepScore * 2.0
+            - best.Danger * 10.0;
         Assert.Equal(expected, best.Score, 9);
     }
 
@@ -230,8 +231,8 @@ public sealed class TieredAiTests
         Assert.Equal(0.0, earlyFour.Danger, 9);
         Assert.True(lateFour.Danger > 0.2);
 
-        // 开局：只有进张 + 旧启发式平手；残局：再减去 5 × 危险度。
-        double lateExpected = earlyFour.Score - lateFour.Danger * 5.0;
+        // 开局：进张 + 孤张平手；残局：再减去 3 × 危险度（261025 调参）。
+        double lateExpected = earlyFour.Score - lateFour.Danger * 3.0;
         Assert.Equal(lateExpected, lateFour.Score, 9);
     }
 
@@ -273,10 +274,13 @@ public sealed class TieredAiTests
     [Fact]
     public void Tuning_DefenseWeights_MatchDesign()
     {
-        Assert.Equal(30.0, AiTuning.Default.HardDangerWeight, 9);
-        Assert.Equal(5.0, AiTuning.Default.NormalDangerWeight, 9);
+        Assert.Equal(10.0, AiTuning.Default.HardDangerWeight, 9);
+        Assert.Equal(3.0, AiTuning.Default.NormalDangerWeight, 9);
         Assert.Equal(30, AiTuning.Default.NormalDangerWallThreshold);
         Assert.Equal(2, AiTuning.Default.NormalDangerShantenThreshold);
+        Assert.Equal(6.0, AiTuning.Default.SimpleIsolationWeight, 9);
+        Assert.Equal(3.0, AiTuning.Default.NormalIsolationWeight, 9);
+        Assert.Equal(2.0, AiTuning.Default.HardIsolationWeight, 9);
     }
 
     [Fact]
@@ -487,6 +491,20 @@ public sealed class TieredAiTests
         return result;
     }
 
+    /// <summary>261025 cleanroom：手里有孤张字牌时，先切孤张，不能拆已成形的面子（三档都要）。</summary>
+    [Fact]
+    public void Discard_PrefersIsolatedHonor_OverBreakingSets()
+    {
+        var hand = Tiles("123m456m789m11p5z7z9z");
+        var ctx = Context(hand);
+
+        foreach (var level in new[] { AiLevel.Simple, AiLevel.Normal, AiLevel.Hard })
+        {
+            var decision = TieredAi.Decide(ctx, level, new FixedRandom(0.99));
+            var tile = decision.Ranking.Single(c => c.Index == decision.Index).Tile;
+            Assert.Equal(Suit.Honor, tile.Suit);
+        }
+    }
     /// <summary>B 期防守用例的固定牌局：现物 2z + 危险的 5s（对手两组吃都含 5s）。</summary>
     private static AiDecisionContext DefenseContext(int wall) =>
         new(
