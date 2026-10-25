@@ -221,12 +221,9 @@ public sealed class SettingsScreen : Screen
         _rows.Add(new Row("记录牌型日志", () => OnOff(_settings.RecordTiles), () => _settings.RecordTiles, _ => Toggle(
             () => _settings.RecordTiles,
             value => _settings.RecordTiles = value)));
-        _rows.Add(new Row("牌山查看器入口", () => OnOff(_settings.ShowWallViewer), () => _settings.ShowWallViewer, _ => Toggle(
+        _rows.Add(new Row("牌山查看器（右下角按钮）", () => OnOff(_settings.ShowWallViewer), () => _settings.ShowWallViewer, _ => Toggle(
             () => _settings.ShowWallViewer,
             value => _settings.ShowWallViewer = value)));
-        _rows.Add(new Row("调试信息", () => OnOff(_settings.ShowDebug), () => _settings.ShowDebug, _ => Toggle(
-            () => _settings.ShowDebug,
-            value => _settings.ShowDebug = value)));
 
         _rows.Add(new Row(
             "AI 难度权重",

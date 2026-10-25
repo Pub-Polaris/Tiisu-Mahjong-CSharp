@@ -197,6 +197,10 @@ public static class SnapshotBuilder
             IsCalled = selfCalled,
             CallWouldMisfire = selfMisfire,
             WinBanned = selfBanned,
+            DrawnTileId = selfIndex >= 0 ? engine.Players[selfIndex].LastDraw?.Id : null,
+            WallTiles = engine.Wall.Where(t => t is not null).Select(t => t!.Value.Id).ToArray(),
+            WangDuiTiles = engine.WangDui.Where(t => t is not null).Select(t => t!.Value.Id).ToArray(),
+            RinshanTiles = engine.Rinshan.Where(t => t is not null).Select(t => t!.Value.Id).ToArray(),
             AiLevels = aiLevels ?? Array.Empty<string>(),
         };
     }

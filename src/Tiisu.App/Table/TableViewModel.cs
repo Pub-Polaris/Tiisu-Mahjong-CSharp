@@ -161,6 +161,18 @@ public sealed class TableViewModel
     /// <summary>自己本局 / 本巡禁和（错和罚）。</summary>
     public bool WinBanned { get; init; }
 
+    /// <summary>本巡刚摸进来的那张牌（摸切 / 长考超时自动切走用）；没有则为 null。</summary>
+    public string? DrawnTileId { get; init; }
+
+    /// <summary>牌山查看器：剩余牌山（自摸顺序，含王堆）。只在调试查看器打开时显示。</summary>
+    public IReadOnlyList<string> WallTiles { get; init; } = Array.Empty<string>();
+
+    /// <summary>牌山查看器：王堆。</summary>
+    public IReadOnlyList<string> WangDuiTiles { get; init; } = Array.Empty<string>();
+
+    /// <summary>牌山查看器：岭上 4 张。</summary>
+    public IReadOnlyList<string> RinshanTiles { get; init; } = Array.Empty<string>();
+
     /// <summary>最近一条提示（和牌 / 流局 / 窗口提示）。</summary>
     public string Message { get; init; } = string.Empty;
 

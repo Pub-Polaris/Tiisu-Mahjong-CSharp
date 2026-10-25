@@ -57,7 +57,7 @@ internal sealed class ScreenHostCore : IDisposable
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _menu = new MenuScreen(menuLayout, OnMenuAction, OpenUrl);
         _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () => SwitchTo(_menu));
-        _table = new TableScreen(_session, atlas, () => SwitchTo(_menu), _settings.TableRender);
+        _table = new TableScreen(_session, atlas, () => SwitchTo(_menu), _settings.TableRender, _settings);
 
         _current = _menu;
 

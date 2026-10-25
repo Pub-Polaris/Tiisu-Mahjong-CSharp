@@ -79,6 +79,12 @@ internal static class Program
             case "--play-real":
                 Environment.ExitCode = PlayReal(args);
                 return;
+            case "--smoke-think":
+                Environment.ExitCode = SmokeThink();
+                return;
+            case "--smoke-wall":
+                Environment.ExitCode = SmokeWall();
+                return;
         }
 
         // 编辑态出图：--render-layout-edit <png>
@@ -2350,6 +2356,132 @@ internal static class Program
 
         Console.WriteLine(failures == 0 ? "play-real: all games passed" : $"play-real: {failures} game(s) failed");
         return failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--smoke-wall</c>：按住右下角「牌山」按钮时，牌桌中心区域必须出现查看器面板（像素级判定）。
+    /// </summary>
+    private static int SmokeWall()
+    {
+        TryUseUtf8Console();
+        var settings = new Settings { ShowWallViewer = true };
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(() => TableDemoModel.Create(1), null, null, atlas,
+            TableRenderStyle.Mixed, settings);
+
+        SKBitmap Render(bool held)
+        {
+            if (held)
+            {
+                screen.OnPointerDown(screen.CanvasWidth - 98, screen.CanvasHeight - 84);
+            }
+
+            using var surface = SKSurface.Create(new SKImageInfo((int)screen.CanvasWidth, (int)screen.CanvasHeight));
+            var canvas = surface.Canvas;
+            canvas.Clear(SKColors.Black);
+            using (var ctx = new SkiaCanvas(canvas, atlas))
+            {
+                screen.Update(0.6);
+                screen.Draw(ctx, 0.6);
+            }
+
+            if (held)
+            {
+                screen.OnPointerUp(screen.CanvasWidth - 98, screen.CanvasHeight - 84);
+            }
+
+            using var image = surface.Snapshot();
+            var bitmap = new SKBitmap(image.Width, image.Height);
+            image.ReadPixels(bitmap.Info, bitmap.GetPixels(), bitmap.RowBytes, 0, 0);
+            return bitmap;
+        }
+
+        using var normal = Render(false);
+        using var held = Render(true);
+
+        int changed = 0;
+        int total = 0;
+        for (int y = 120; y < held.Height - 160; y += 4)
+        {
+            for (int x = 140; x < held.Width - 140; x += 4)
+            {
+                total++;
+                var a = normal.GetPixel(x, y);
+                var b = held.GetPixel(x, y);
+                if (Math.Abs(a.Red - b.Red) + Math.Abs(a.Green - b.Green) + Math.Abs(a.Blue - b.Blue) > 12)
+                {
+                    changed++;
+                }
+            }
+        }
+
+        double ratio = total == 0 ? 0 : (double)changed / total;
+        bool passed = ratio > 0.25;
+        Console.WriteLine($"smoke-wall: 面板区域像素变化={ratio:P1} {(passed ? "PASS" : "FAIL")}");
+        return passed ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--smoke-think</c>：长考 2 秒后应自动摸切并离开人类出牌阶段。
+    /// </summary>
+    private static int SmokeThink()
+    {
+        TryUseUtf8Console();
+        var settings = new Settings { ThinkSeconds = 2 };
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(5), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: 5);
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(() => runtime.Snapshot, runtime.Execute, null, atlas,
+            TableRenderStyle.Mixed, settings);
+        runtime.StartMatch(4);
+
+        var clock = Stopwatch.StartNew();
+        bool sawHuman = false;
+        int before = 0;
+        bool lastActed = false;
+        while (clock.Elapsed < TimeSpan.FromSeconds(20))
+        {
+            var phase = runtime.Phase;
+            if (phase is MatchPhase.MatchOver or MatchPhase.RoundEnded)
+            {
+                break;
+            }
+
+            if (phase == MatchPhase.HumanDiscard)
+            {
+                sawHuman = true;
+                before = runtime.Snapshot.Seats[0].Hand.Count;
+                int wallBefore = runtime.Engine.Wall.Count;
+                bool acted = false;
+                var wait = Stopwatch.StartNew();
+                while (wait.Elapsed < TimeSpan.FromSeconds(8))
+                {
+                    screen.Update(0.016);
+                    Thread.Sleep(30);
+                    if (runtime.Engine.Wall.Count != wallBefore || runtime.Snapshot.Seats[0].Hand.Count != before)
+                    {
+                        acted = true;
+                        break;
+                    }
+                }
+
+                lastActed = acted;
+                break;
+            }
+
+            if (phase is MatchPhase.HumanMeld or MatchPhase.HumanRon)
+            {
+                runtime.Execute(GameCommand.Pass());
+                continue;
+            }
+
+            Thread.Sleep(5);
+        }
+
+        bool passed = sawHuman && lastActed;
+        Console.WriteLine($"smoke-think: 人类出牌={sawHuman} 手牌={before} 自动动作={lastActed} 结束阶段={runtime.Phase} "
+            + (passed ? "PASS" : "FAIL"));
+        return passed ? 0 : 1;
     }
 
     /// <summary>

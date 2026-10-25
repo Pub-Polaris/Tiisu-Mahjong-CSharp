@@ -40,6 +40,18 @@ public sealed class TableScreen : Screen
     /// <summary>报听待弃状态：点「报听」后，下一张手牌 = 打出并完成报听。</summary>
     private bool _callArmed;
 
+    /// <summary>长考秒数（0 = 关闭）；到点自动摸切 / 自动过吃碰杠。</summary>
+    private readonly int _thinkSeconds;
+    private DateTime _humanPhaseSince;
+    private bool _humanPhaseTracked;
+    private double _thinkLeft = -1;
+
+    /// <summary>牌山查看器：按住右下角按钮时显示，松开恢复牌桌。</summary>
+    private bool _wallHeld;
+    private readonly bool _showWallButton;
+
+    private RectF WallButtonRect => new(CanvasWidth - 176, CanvasHeight - 108, 156, 48);
+
     /// <summary>演示快照（<c>--render-table</c> / <c>--render-screen table</c> 用）。</summary>
     public TableScreen(TileAtlas? atlas)
         : this(() => TableDemoModel.Create(1), null, null, atlas)
@@ -54,20 +66,22 @@ public sealed class TableScreen : Screen
 
     /// <summary>正式牌桌：只读会话快照 + 投递命令。</summary>
     public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu = null,
-        TableRenderStyle renderStyle = TableRenderStyle.Mixed)
-        : this(() => session.LatestSnapshot, session.Post, backToMenu, atlas, renderStyle)
+        TableRenderStyle renderStyle = TableRenderStyle.Mixed, Settings? settings = null)
+        : this(() => session.LatestSnapshot, session.Post, backToMenu, atlas, renderStyle, settings)
     {
         session.UiEvent += OnSessionEvent;
     }
 
     /// <summary>自检 / 预览用：直接给快照与命令通道（不订阅会话事件）。</summary>
     public TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands, Action? backToMenu = null,
-        TileAtlas? atlas = null, TableRenderStyle renderStyle = TableRenderStyle.Mixed)
+        TileAtlas? atlas = null, TableRenderStyle renderStyle = TableRenderStyle.Mixed, Settings? settings = null)
         : base("table")
     {
         _snapshot = snapshot;
         _commands = commands;
         _backToMenu = backToMenu;
+        _thinkSeconds = Math.Max(0, settings?.ThinkSeconds ?? 0);
+        _showWallButton = settings?.ShowWallViewer ?? false;
         _scene.Style = renderStyle;
 
         // Mixed 的透视桌面缩进画布：内容整体内收，四边留安全边距（手牌不再贴/出窗口底边）。
@@ -82,6 +96,142 @@ public sealed class TableScreen : Screen
         // 启动时应用自定义布局（文件不存在 / 损坏 → 保持默认，不崩）。
         CustomLayoutStore.Load(_layout);
         _editor = new LayoutEditor(_layout);
+    }
+
+    /// <summary>长考：人类回合倒计时，到点自动摸切（打刚摸到的牌）/ 自动过吃碰杠。</summary>
+    public override void Update(double dt)
+    {
+        base.Update(dt);
+        var vm = _snapshot();
+        bool human = vm.Phase is "human_discard" or "human_meld" or "human_ron";
+        if (!human)
+        {
+            _humanPhaseTracked = false;
+            _thinkLeft = -1;
+            return;
+        }
+
+        if (!_humanPhaseTracked)
+        {
+            _humanPhaseTracked = true;
+            _humanPhaseSince = DateTime.UtcNow;
+        }
+
+        if (_thinkSeconds <= 0)
+        {
+            _thinkLeft = -1;
+            return;
+        }
+
+        double left = _thinkSeconds - (DateTime.UtcNow - _humanPhaseSince).TotalSeconds;
+        _thinkLeft = Math.Max(0, left);
+        if (left <= 0)
+        {
+            _humanPhaseTracked = false;
+            _thinkLeft = -1;
+            AutoAct(vm);
+        }
+    }
+
+    private void AutoAct(TableViewModel vm)
+    {
+        if (vm.Phase is "human_meld" or "human_ron")
+        {
+            _commands?.Invoke(GameCommand.Pass());
+            return;
+        }
+
+        if (vm.Phase != "human_discard" || vm.Seats.Count == 0)
+        {
+            return;
+        }
+
+        var hand = vm.Seats[0].Hand;
+        int idx = -1;
+        if (!string.IsNullOrEmpty(vm.DrawnTileId))
+        {
+            for (int i = hand.Count - 1; i >= 0; i--)
+            {
+                if (hand[i].Id == vm.DrawnTileId)
+                {
+                    idx = i;
+                    break;
+                }
+            }
+        }
+
+        if (idx < 0)
+        {
+            idx = hand.Count - 1;
+        }
+
+        if (idx >= 0)
+        {
+            _commands?.Invoke(GameCommand.Discard(idx));
+        }
+    }
+
+    /// <summary>右下角「牌山」按钮：按住显示剩余牌山 / 岭上 / 王堆，松开立刻回牌桌。</summary>
+    private void DrawWallViewer(ICanvas c, TableViewModel vm)
+    {
+        if (!_showWallButton)
+        {
+            return;
+        }
+
+        var btn = WallButtonRect;
+        c.FillRoundRect(btn, 10, Color.Rgb(28, 40, 36).WithAlpha((byte)(_wallHeld ? 245 : 200)));
+        c.StrokeRoundRect(btn, 10, _wallHeld ? Color.Rgb(242, 201, 76) : Color.Rgb(90, 110, 98), 1.2f);
+        c.DrawText("牌山", new RectF(btn.X, btn.Y + 4, btn.W, 22), Color.Rgb(226, 236, 228),
+            new TextStyle(15, Bold: true, Center: true));
+        c.DrawText("按住查看", new RectF(btn.X, btn.Y + 26, btn.W, 18), Color.Rgb(150, 168, 158),
+            new TextStyle(11, Center: true));
+
+        if (!_wallHeld)
+        {
+            return;
+        }
+
+        var panel = new RectF(110, 84, CanvasWidth - 220, CanvasHeight - 210);
+        c.FillRoundRect(panel, 14, Color.Black.WithAlpha((byte)236));
+        c.StrokeRoundRect(panel, 14, Color.Rgb(242, 201, 76), 1.4f);
+
+        float x = panel.X + 24;
+        float width = panel.W - 48;
+        float y = panel.Y + 18;
+        c.DrawText($"牌山 余 {vm.WallTiles.Count} · 岭上 {vm.RinshanTiles.Count} · 王堆 {vm.WangDuiTiles.Count}",
+            new RectF(x, y, width, 26), Color.Rgb(242, 201, 76), new TextStyle(18, Bold: true, Center: false));
+        y += 32;
+        c.DrawText("牌山（自摸顺序）", new RectF(x, y, width, 20), Color.Rgb(160, 178, 168),
+            new TextStyle(12, Center: false));
+        y += 22;
+
+        DrawTileIdRows(c, vm.WallTiles, x, width, ref y);
+        y += 10;
+        c.DrawText("岭上", new RectF(x, y, width, 20), Color.Rgb(160, 178, 168), new TextStyle(12, Center: false));
+        y += 22;
+        DrawTileIdRows(c, vm.RinshanTiles, x, width, ref y);
+        y += 10;
+        c.DrawText("王堆", new RectF(x, y, width, 20), Color.Rgb(160, 178, 168), new TextStyle(12, Center: false));
+        y += 22;
+        DrawTileIdRows(c, vm.WangDuiTiles, x, width, ref y);
+    }
+
+    private static void DrawTileIdRows(ICanvas c, IReadOnlyList<string> tiles, float x, float width, ref float y)
+    {
+        const int perRow = 16;
+        for (int i = 0; i < tiles.Count; i += perRow)
+        {
+            var row = string.Join(" ", tiles.Skip(i).Take(perRow));
+            c.DrawText(row, new RectF(x, y, width, 22), Color.Rgb(220, 232, 222), new TextStyle(14, Center: false));
+            y += 24;
+        }
+
+        if (tiles.Count == 0)
+        {
+            c.DrawText("（空）", new RectF(x, y, width, 22), Color.Rgb(140, 156, 148), new TextStyle(13, Center: false));
+            y += 24;
+        }
     }
 
     /// <summary>布局编辑器（F2）。自检 / 出图直接驱动它。</summary>
@@ -150,6 +300,17 @@ public sealed class TableScreen : Screen
 
         PlayCues(vm);
         DrawHud(c, vm);
+
+        // 长考倒计时（设置里配了秒数才显示）。
+        if (_thinkLeft >= 0 && _thinkSeconds > 0)
+        {
+            var bar = _layout.ActionBarRect;
+            c.DrawText("长考 " + ((int)Math.Ceiling(_thinkLeft)).ToString(CultureInfo.InvariantCulture) + "s",
+                new RectF(bar.Right - 170, bar.Y - 30, 170, 24), Color.Rgb(200, 214, 202),
+                new TextStyle(15, Center: false, Right: true));
+        }
+
+        DrawWallViewer(c, vm);
         _editor.Draw(c);
     }
 
@@ -279,10 +440,30 @@ public sealed class TableScreen : Screen
         return _hover >= 0;
     }
 
-    public override bool OnPointerDown(float x, float y) => _editor.Active && _editor.PointerDown(x, y);
+    public override bool OnPointerDown(float x, float y)
+    {
+        if (_editor.Active)
+        {
+            return _editor.PointerDown(x, y);
+        }
+
+        if (WallButtonRect.Contains(x, y) && _showWallButton)
+        {
+            _wallHeld = true;
+            return true;
+        }
+
+        return false;
+    }
 
     public override bool OnPointerUp(float x, float y)
     {
+        if (_wallHeld)
+        {
+            _wallHeld = false;
+            return true;
+        }
+
         if (!_editor.Active)
         {
             return false;
