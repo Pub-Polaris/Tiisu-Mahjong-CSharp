@@ -221,7 +221,7 @@ public sealed class SettingsScreen : Screen
         _rows.Add(new Row("记录牌型日志", () => OnOff(_settings.RecordTiles), () => _settings.RecordTiles, _ => Toggle(
             () => _settings.RecordTiles,
             value => _settings.RecordTiles = value)));
-        _rows.Add(new Row("牌山查看器（右下角按钮）", () => OnOff(_settings.ShowWallViewer), () => _settings.ShowWallViewer, _ => Toggle(
+        _rows.Add(new Row("骰子查看器（右下角按钮）", () => OnOff(_settings.ShowWallViewer), () => _settings.ShowWallViewer, _ => Toggle(
             () => _settings.ShowWallViewer,
             value => _settings.ShowWallViewer = value)));
 

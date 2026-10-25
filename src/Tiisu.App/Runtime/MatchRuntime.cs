@@ -2313,6 +2313,7 @@ public sealed class MatchRuntime
 
         var layout = RoundDealFactory.Cut(dealer, _random);
         DiceCut = layout.Dice;
+        _engine.SetDiceInfo(DiceDealer, DiceCut, layout.SkipTiles);
         _engine.StartNewRound(layout.Deal);
         EmitState();
     }

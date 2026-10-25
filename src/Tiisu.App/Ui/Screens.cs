@@ -171,8 +171,8 @@ public sealed class TableScreen : Screen
         }
     }
 
-    /// <summary>右下角「牌山」按钮：按住显示剩余牌山 / 岭上 / 王堆，松开立刻回牌桌。</summary>
-    private void DrawWallViewer(ICanvas c, TableViewModel vm)
+    /// <summary>右下角「骰子」按钮：按住显示本局的定庄骰 / 切牌骰与开局位，松开立刻回牌桌（不显示牌山，避免作弊）。</summary>
+    private void DrawDiceViewer(ICanvas c, TableViewModel vm)
     {
         if (!_showWallButton)
         {
@@ -182,7 +182,7 @@ public sealed class TableScreen : Screen
         var btn = WallButtonRect;
         c.FillRoundRect(btn, 10, Color.Rgb(28, 40, 36).WithAlpha((byte)(_wallHeld ? 245 : 200)));
         c.StrokeRoundRect(btn, 10, _wallHeld ? Color.Rgb(242, 201, 76) : Color.Rgb(90, 110, 98), 1.2f);
-        c.DrawText("牌山", new RectF(btn.X, btn.Y + 4, btn.W, 22), Color.Rgb(226, 236, 228),
+        c.DrawText("骰子", new RectF(btn.X, btn.Y + 4, btn.W, 22), Color.Rgb(226, 236, 228),
             new TextStyle(15, Bold: true, Center: true));
         c.DrawText("按住查看", new RectF(btn.X, btn.Y + 26, btn.W, 18), Color.Rgb(150, 168, 158),
             new TextStyle(11, Center: true));
@@ -192,48 +192,25 @@ public sealed class TableScreen : Screen
             return;
         }
 
-        var panel = new RectF(110, 84, CanvasWidth - 220, CanvasHeight - 210);
+        var panel = new RectF(220, CanvasHeight / 2f - 110, CanvasWidth - 440, 220);
         c.FillRoundRect(panel, 14, Color.Black.WithAlpha((byte)236));
         c.StrokeRoundRect(panel, 14, Color.Rgb(242, 201, 76), 1.4f);
 
-        float x = panel.X + 24;
-        float width = panel.W - 48;
-        float y = panel.Y + 18;
-        c.DrawText($"牌山 余 {vm.WallTiles.Count} · 岭上 {vm.RinshanTiles.Count} · 王堆 {vm.WangDuiTiles.Count}",
-            new RectF(x, y, width, 26), Color.Rgb(242, 201, 76), new TextStyle(18, Bold: true, Center: false));
-        y += 32;
-        c.DrawText("牌山（自摸顺序）", new RectF(x, y, width, 20), Color.Rgb(160, 178, 168),
+        float x = panel.X + 26;
+        float width = panel.W - 52;
+        float y = panel.Y + 22;
+        c.DrawText("本局开局", new RectF(x, y, width, 26), Color.Rgb(242, 201, 76),
+            new TextStyle(18, Bold: true, Center: false));
+        y += 40;
+        c.DrawText(vm.DiceDealerText ?? "定庄骰：（首局之后沿用上局庄家，不再掷）",
+            new RectF(x, y, width, 24), Color.Rgb(226, 236, 228), new TextStyle(16, Center: false));
+        y += 34;
+        c.DrawText(vm.DiceCutText ?? "切牌骰：—",
+            new RectF(x, y, width, 24), Color.Rgb(226, 236, 228), new TextStyle(16, Center: false));
+        y += 34;
+        c.DrawText("松开恢复牌桌", new RectF(x, y, width, 22), Color.Rgb(150, 168, 158),
             new TextStyle(12, Center: false));
-        y += 22;
-
-        DrawTileIdRows(c, vm.WallTiles, x, width, ref y);
-        y += 10;
-        c.DrawText("岭上", new RectF(x, y, width, 20), Color.Rgb(160, 178, 168), new TextStyle(12, Center: false));
-        y += 22;
-        DrawTileIdRows(c, vm.RinshanTiles, x, width, ref y);
-        y += 10;
-        c.DrawText("王堆", new RectF(x, y, width, 20), Color.Rgb(160, 178, 168), new TextStyle(12, Center: false));
-        y += 22;
-        DrawTileIdRows(c, vm.WangDuiTiles, x, width, ref y);
     }
-
-    private static void DrawTileIdRows(ICanvas c, IReadOnlyList<string> tiles, float x, float width, ref float y)
-    {
-        const int perRow = 16;
-        for (int i = 0; i < tiles.Count; i += perRow)
-        {
-            var row = string.Join(" ", tiles.Skip(i).Take(perRow));
-            c.DrawText(row, new RectF(x, y, width, 22), Color.Rgb(220, 232, 222), new TextStyle(14, Center: false));
-            y += 24;
-        }
-
-        if (tiles.Count == 0)
-        {
-            c.DrawText("（空）", new RectF(x, y, width, 22), Color.Rgb(140, 156, 148), new TextStyle(13, Center: false));
-            y += 24;
-        }
-    }
-
     /// <summary>布局编辑器（F2）。自检 / 出图直接驱动它。</summary>
     public LayoutEditor Editor => _editor;
 
@@ -310,7 +287,7 @@ public sealed class TableScreen : Screen
                 new TextStyle(15, Center: false, Right: true));
         }
 
-        DrawWallViewer(c, vm);
+        DrawDiceViewer(c, vm);
         _editor.Draw(c);
     }
 

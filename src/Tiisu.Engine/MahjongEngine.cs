@@ -91,6 +91,22 @@ public sealed partial class MahjongEngine
     /// <summary>王堆（skip−4 张）。回放模式元素为 null 占位；自走模式为真实牌。</summary>
     public IReadOnlyList<Tile?> WangDui => _wangDui;
 
+    /// <summary>首次定庄掷的两颗骰子（null = 还没掷定庄骰）。</summary>
+    public IReadOnlyList<int>? DiceDealer { get; private set; }
+
+    /// <summary>本局切牌掷的两颗骰子。</summary>
+    public IReadOnlyList<int>? DiceCut { get; private set; }
+
+    /// <summary>本局跳墩张数（= 2 × 切牌骰和）。</summary>
+    public int CutSkipTiles { get; private set; }
+
+    /// <summary>记录本局骰子信息（供牌桌查看器显示，不参与规则判定）。</summary>
+    public void SetDiceInfo(IReadOnlyList<int>? dealerDice, IReadOnlyList<int> cutDice, int skipTiles)
+    {
+        DiceDealer = dealerDice;
+        DiceCut = cutDice;
+        CutSkipTiles = skipTiles;
+    }
     public IReadOnlyList<int> Scores => _scores;
 
     public IReadOnlyList<double> RankPoints => _rankPoints;

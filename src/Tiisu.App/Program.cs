@@ -82,8 +82,8 @@ internal static class Program
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
                 return;
-            case "--smoke-wall":
-                Environment.ExitCode = SmokeWall();
+            case "--smoke-dice":
+                Environment.ExitCode = SmokeDice();
                 return;
         }
 
@@ -2359,15 +2359,19 @@ internal static class Program
     }
 
     /// <summary>
-    /// <c>--smoke-wall</c>：按住右下角「牌山」按钮时，牌桌中心区域必须出现查看器面板（像素级判定）。
+    /// <c>--smoke-dice</c>：按住右下角「骰子」按钮时，牌桌中心弹出开局骰面板（像素级判定）；
+    /// 同时打印本局定庄骰 / 切牌骰 / 跳墩，确认按 Web 口径生成。
     /// </summary>
-    private static int SmokeWall()
+    private static int SmokeDice()
     {
         TryUseUtf8Console();
-        var settings = new Settings { ShowWallViewer = true };
+        var settings = new Settings { ShowWallViewer = true, ThinkSeconds = 0 };
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(9), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: 9);
         using var atlas = new TileAtlas(AssetsDir);
-        var screen = new TableScreen(() => TableDemoModel.Create(1), null, null, atlas,
+        var screen = new TableScreen(() => runtime.Snapshot, runtime.Execute, null, atlas,
             TableRenderStyle.Mixed, settings);
+        runtime.StartMatch(4);
 
         SKBitmap Render(bool held)
         {
@@ -2401,9 +2405,11 @@ internal static class Program
 
         int changed = 0;
         int total = 0;
-        for (int y = 120; y < held.Height - 160; y += 4)
+        int y0 = held.Height / 2 - 110;
+        int y1 = held.Height / 2 + 110;
+        for (int y = y0; y < y1; y += 4)
         {
-            for (int x = 140; x < held.Width - 140; x += 4)
+            for (int x = 220; x < held.Width - 220; x += 4)
             {
                 total++;
                 var a = normal.GetPixel(x, y);
@@ -2415,9 +2421,14 @@ internal static class Program
             }
         }
 
+        var cut = runtime.Engine.DiceCut;
+        var dealerDice = runtime.Engine.DiceDealer;
+        string cutText = cut is { Count: 2 } ? $"{cut[0]}+{cut[1]}={cut[0] + cut[1]}" : "-";
+        string dealerText = dealerDice is { Count: 2 } ? $"{dealerDice[0]}+{dealerDice[1]}={dealerDice[0] + dealerDice[1]}" : "-";
         double ratio = total == 0 ? 0 : (double)changed / total;
-        bool passed = ratio > 0.25;
-        Console.WriteLine($"smoke-wall: 面板区域像素变化={ratio:P1} {(passed ? "PASS" : "FAIL")}");
+        bool passed = ratio > 0.5 && cut is { Count: 2 } && runtime.Engine.CutSkipTiles == (cut[0] + cut[1]) * 2;
+        Console.WriteLine($"smoke-dice: 面板像素变化={ratio:P1} 定庄骰={dealerText} 切牌骰={cutText} "
+            + $"跳墩={runtime.Engine.CutSkipTiles} {(passed ? "PASS" : "FAIL")}");
         return passed ? 0 : 1;
     }
 

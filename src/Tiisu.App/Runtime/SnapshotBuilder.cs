@@ -172,6 +172,26 @@ public static class SnapshotBuilder
             }
         }
 
+        // 骰子说明（定庄 / 切牌），供对局中「骰子」查看器显示。
+        string? diceDealerText = null;
+        string? diceCutText = null;
+        if (engine.DiceCut is { Count: 2 } cutDice)
+        {
+            string dealerWind = seats.FirstOrDefault(s => s.Index == engine.DealerIndex)?.Wind ?? "?";
+            if (engine.DiceDealer is { Count: 2 } dealerDice)
+            {
+                int dsum = dealerDice[0] + dealerDice[1];
+                string ddir = dsum == 7 ? "自数" : dsum < 7 ? "顺时针" : "逆时针";
+                diceDealerText = $"定庄骰 {dealerDice[0]}+{dealerDice[1]}={dsum}（{ddir}）→ {dealerWind}家坐庄";
+            }
+
+            int sum = cutDice[0] + cutDice[1];
+            string dir = sum == 7 ? "庄家侧" : sum < 7 ? "顺时针" : "逆时针";
+            int wang = Math.Max(0, engine.CutSkipTiles - 4);
+            diceCutText = $"切牌骰 {cutDice[0]}+{cutDice[1]}={sum}（{dir}）→ 跳 {engine.CutSkipTiles} 张"
+                          + $"（岭上 4 / 王堆 {wang}）· 起手：{dealerWind}家";
+        }
+
         return new TableViewModel
         {
             RoundLabel = engine.RoundLabel() + " / " + engine.ModeTarget + "局",
@@ -198,9 +218,8 @@ public static class SnapshotBuilder
             CallWouldMisfire = selfMisfire,
             WinBanned = selfBanned,
             DrawnTileId = selfIndex >= 0 ? engine.Players[selfIndex].LastDraw?.Id : null,
-            WallTiles = engine.Wall.Where(t => t is not null).Select(t => t!.Value.Id).ToArray(),
-            WangDuiTiles = engine.WangDui.Where(t => t is not null).Select(t => t!.Value.Id).ToArray(),
-            RinshanTiles = engine.Rinshan.Where(t => t is not null).Select(t => t!.Value.Id).ToArray(),
+            DiceDealerText = diceDealerText,
+            DiceCutText = diceCutText,
             AiLevels = aiLevels ?? Array.Empty<string>(),
         };
     }
