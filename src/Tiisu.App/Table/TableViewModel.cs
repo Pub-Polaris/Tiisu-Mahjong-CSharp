@@ -63,6 +63,9 @@ public sealed class SeatView
     public bool Noten { get; init; }
 
     public int HandCount { get; init; }
+
+    /// <summary>本巡刚摸到的牌（仅自己可见）；结算/他人为 null。</summary>
+    public string? DrawnTileId { get; init; }
     public IReadOnlyList<TileView> Hand { get; init; } = Array.Empty<TileView>();   // 仅自己可见
     public IReadOnlyList<MeldView> Melds { get; init; } = Array.Empty<MeldView>();
     public IReadOnlyList<TileView> Discards { get; init; } = Array.Empty<TileView>();

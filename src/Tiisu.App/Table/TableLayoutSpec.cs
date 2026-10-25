@@ -237,7 +237,7 @@ public sealed class TableSceneSkia
 
     private TableRenderMetrics Metrics => TableRenderMetrics.For(Style);
 
-    public void Draw(ICanvas c, TableViewModel vm, TableLayoutSpec l, int hoverHand = -1)
+    public void Draw(ICanvas c, TableViewModel vm, TableLayoutSpec l, int hoverHand = -1, double time = 0)
     {
         var m = Metrics;
         DrawTableSurface(c, vm, l, m);
@@ -251,6 +251,65 @@ public sealed class TableSceneSkia
 
         DrawAiLevelBadges(c, vm, l);
         DrawCallBadges(c, vm, l);
+        DrawSelectionLinks(c, vm, l, hoverHand, time);
+    }
+
+    /// <summary>0→0.5→0 的 500ms 线性呼吸透明度（选中联动高亮用）。</summary>
+    private static float PulseAlpha(double time)
+    {
+        double frac = time % 0.5 / 0.5;
+        return (float)(0.5 * (1.0 - Math.Abs(2.0 * frac - 1.0)));
+    }
+
+    /// <summary>
+    /// 手牌里指着某张时，牌河与别家副露里的同种牌加 50% 蓝色遮罩（0–50–0 呼吸）。
+    /// </summary>
+    private static void DrawSelectionLinks(ICanvas c, TableViewModel vm, TableLayoutSpec l, int hoverHand, double time)
+    {
+        if (hoverHand < 0 || vm.Seats.Count == 0 || hoverHand >= vm.Seats[0].Hand.Count)
+        {
+            return;
+        }
+
+        string id = vm.Seats[0].Hand[hoverHand].Id;
+        float alpha = PulseAlpha(time);
+        if (alpha <= 0f)
+        {
+            return;
+        }
+
+        var mark = Color.Rgb(64, 156, 255).WithAlpha((byte)(alpha * 255));
+
+        for (int seat = 0; seat < 4; seat++)
+        {
+            var view = Seat(vm, seat);
+            var g = l.River(seat);
+            int count = Math.Min(view.Discards.Count, l.RiverCols * l.RiverRows);
+            for (int i = 0; i < count; i++)
+            {
+                if (view.Discards[i].Id != id)
+                {
+                    continue;
+                }
+
+                int row = i / l.RiverCols;
+                int col = i % l.RiverCols;
+                float x = g.Origin.X + col * g.dxCol + row * g.dxRow;
+                float y = g.Origin.Y + col * g.dyCol + row * g.dyRow;
+                var slot = Math.Abs(g.angle) == 90f
+                    ? new RectF(x, y, l.RiverH, l.RiverW)
+                    : new RectF(x, y, l.RiverW, l.RiverH);
+                c.FillRoundRect(slot.Inflate(1.5f), 4, mark);
+            }
+
+            foreach (var placement in MeldTilePlacements(l, view, seat))
+            {
+                if (placement.Meld.Tiles[placement.TileIndex].Id == id)
+                {
+                    c.FillRoundRect(placement.Slot.Inflate(1.5f), 4, mark);
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -539,7 +598,8 @@ public sealed class TableSceneSkia
         float depth = l.HandH;    // 跨轴深度
 
         float handLen = n * along + (n - 1) * l.HandGap;
-        float drawnExtra = self && n > l.HandTiles ? l.DrawnGap - l.HandGap : 0f;
+        bool hasDrawn = self && !string.IsNullOrEmpty(seat.DrawnTileId);
+        float drawnExtra = hasDrawn && n > 0 ? l.DrawnGap - l.HandGap : 0f;
         float total = handLen + drawnExtra;
 
         float frameStart = horizontal ? frame.X : frame.Y;
@@ -877,11 +937,6 @@ public sealed class TableSceneSkia
 
         var r = new RectF(-w / 2f, -h / 2f, w, h);
         c.FillRoundRect(r, 4, Color.Rgb(46, 138, 198));
-        c.StrokeRoundRect(r, 4, Color.Rgb(16, 40, 62), 1f);
-        if (m.FaceBevelAlpha > 0)
-        {
-            c.StrokeRoundRect(r.Inflate(-0.5f), 3.5f, Color.Rgb(176, 220, 246).WithAlpha(m.FaceBevelAlpha), 0.8f);
-        }
 
         c.Restore();
     }

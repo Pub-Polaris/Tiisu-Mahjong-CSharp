@@ -270,7 +270,7 @@ public sealed class TableScreen : Screen
             return;
         }
 
-        _scene.Draw(c, vm, _layout, _hover);
+        _scene.Draw(c, vm, _layout, _hover, time);
         if (_callArmed && vm.Phase != "human_discard")
         {
             _callArmed = false;
@@ -278,7 +278,7 @@ public sealed class TableScreen : Screen
 
         _actionBar.Build(vm, _layout);
         _actionBar.DrawTenpai(c, vm, _layout);
-        _actionBar.Draw(c);
+        _actionBar.Draw(c, time);
 
         // 【错和可能】：牌形听牌但所有待牌赋数不足 → 报和必错和，提醒玩家。
         if (vm.CallWouldMisfire)

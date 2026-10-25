@@ -214,24 +214,50 @@ public sealed class ActionBar
         }
     }
 
-    public void Draw(ICanvas c)
+    public void Draw(ICanvas c, double time = 0)
     {
         foreach (var b in _buttons)
         {
             bool hover = b.Enabled && _hasPointer && b.Rect.Contains(_pointerX, _pointerY);
-            DrawButton(c, b.Kind, b.Label, b.Rect, b.Enabled, hover);
+            DrawButton(c, b.Kind, b.Label, b.Rect, b.Enabled, hover, time);
         }
     }
 
     /// <summary>
     /// 画一颗按钮（三态）；游戏内与 <c>--render-actions</c> 调色板共用同一条绘制路径。
+    /// 悬停（=选中）时额外画两枚绕边缘旋转的白点 + 边缘呼吸闪烁（0–50–0，500ms）。
     /// </summary>
-    public static void DrawButton(ICanvas c, Kind kind, string label, RectF rect, bool enabled, bool hover = false)
+    public static void DrawButton(ICanvas c, Kind kind, string label, RectF rect, bool enabled, bool hover = false,
+        double time = 0)
     {
         var colors = ColorsFor(kind, hover, enabled);
         c.FillRoundRect(rect, 10, colors.Fill.WithAlpha((byte)(enabled ? (hover ? 245 : 230) : 200)));
         c.StrokeRoundRect(rect, 10, colors.Border, hover ? 2.2f : 1.5f);
         c.DrawText(label, rect, colors.Text, new TextStyle(label.Length > 4 ? 15 : 18, Bold: true));
+
+        if (!enabled || !hover)
+        {
+            return;
+        }
+
+        // 0–50–0 线性呼吸（500ms 一循环）
+        double frac = time % 0.5 / 0.5;
+        float pulse = (float)(0.5 * (1.0 - Math.Abs(2.0 * frac - 1.0)));
+        var white = Color.Rgb(255, 255, 255).WithAlpha((byte)(pulse * 255));
+        c.StrokeRoundRect(rect, 10, white, 1.8f);
+
+        // 两枚光点沿按钮边缘反向旋转（约 1.2s 一圈）
+        double angle = time / 1.2 * Math.PI * 2.0;
+        float rx = rect.W / 2f;
+        float ry = rect.H / 2f;
+        for (int i = 0; i < 2; i++)
+        {
+            double a = angle + i * Math.PI;
+            float dx = rect.CenterX + (float)(Math.Cos(a) * rx);
+            float dy = rect.CenterY + (float)(Math.Sin(a) * ry);
+            c.FillCircle(dx, dy, 3.6f, white);
+            c.FillCircle(dx, dy, 8f, white.WithAlpha((byte)(pulse * 70)));
+        }
     }
 
     /// <summary>画待听牌提示（等待的牌 + 张数），在动作条上方；真听牌时常显。</summary>

@@ -97,6 +97,7 @@ public static class SnapshotBuilder
                 Noten = i < engine.FlowTenpai.Count && !engine.FlowTenpai[i],
                 HandCount = player.Hand.Count,
                 Hand = hand,
+                DrawnTileId = self && player.LastDraw is Tile drawnTile ? TileNotation.AtlasId(drawnTile) : null,
                 Melds = melds,
                 Discards = discards,
                 LastDiscard = lastDiscard,

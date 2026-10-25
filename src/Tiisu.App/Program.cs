@@ -207,8 +207,8 @@ internal static class Program
             return;
         }
 
-        // 2.5D 观感出图：--render-25d <png> --variant mixed|flat|light|medium
-        if (args.Length >= 2 && args[0] == "--render-25d")
+        // 2.5D 观感出图：--render-table-png <png> --variant mixed|flat|light|medium
+        if (args.Length >= 2 && args[0] == "--render-table-png")
         {
             Render25DToPng(args);
             return;
@@ -1548,7 +1548,7 @@ internal static class Program
     }
 
     /// <summary>
-    /// <c>--render-25d &lt;png&gt; --variant mixed|flat|light|medium</c>：按指定观感出 1200×1200 牌桌图。
+    /// <c>--render-table-png &lt;png&gt; --variant mixed|flat|light|medium</c>：按指定观感出 1200×1200 牌桌图。
     /// 与游戏内同一条 TableScreen 绘制路径（含手牌、牌河、动作条、HUD），便于对照可读性。
     /// </summary>
     private static void Render25DToPng(string[] args)
