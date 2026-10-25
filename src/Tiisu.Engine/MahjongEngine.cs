@@ -635,7 +635,7 @@ public sealed partial class MahjongEngine
                     tiles.Add(tile);
                 }
 
-                player.AddMeld(type, tiles);
+                player.AddMeld(type, tiles, 0);
                 break;
             }
 
@@ -662,7 +662,8 @@ public sealed partial class MahjongEngine
                     }
                 }
 
-                player.AddMeld(MeldType.Chi, trio.OrderBy(t => t.Num).ToList());
+                var sortedTrio = trio.OrderBy(t => t.Num).ToList();
+                player.AddMeld(MeldType.Chi, sortedTrio, sortedTrio.IndexOf(tile));
                 break;
             }
 

@@ -61,6 +61,7 @@ public static class SnapshotBuilder
                 {
                     Type = meld.Type.Wire(),
                     Tiles = tiles,
+                    ClaimedIndex = meld.ClaimedIndex,
 
                     // 暗杠：对局中只翻第 2、4 张（索引 1、3）；结算态全部翻开。
                     RevealedTiles = ankan && !afterWin ? AnkanFaceUpIndices : null,
@@ -97,6 +98,7 @@ public static class SnapshotBuilder
                 Noten = i < engine.FlowTenpai.Count && !engine.FlowTenpai[i],
                 HandCount = player.Hand.Count,
                 Hand = hand,
+                LegalHand = self && player.IsCalled ? LegalDiscards(engine, player) : Array.Empty<bool>(),
                 DrawnTileId = self && player.LastDraw is Tile drawnTile ? TileNotation.AtlasId(drawnTile) : null,
                 DrawnIndex = self ? DrawnIndexIn(player) : -1,
                 Melds = melds,
@@ -166,8 +168,9 @@ public static class SnapshotBuilder
             selfBanned = engine.IsWinBanned(self);
             tenpai.AddRange(TenpaiTileIds(engine, self));
 
-            // 【错和可能】：能报听（或已报听），但所有待牌的最高赋都不到起和线。
-            if (engine.CanDeclareCall(self) || self.IsCalled)
+            // 【错和可能】：只在「还没报听、且正轮到自己出牌」时提示。
+            // 报听后已经是既定事实，提示必须消失；荣和/副露窗口也不该提示。
+            if (!self.IsCalled && phase == "human_discard" && engine.CanDeclareCall(self))
             {
                 int maxFu = MaxWaitFu(engine, self);
                 selfMisfire = maxFu > 0 && maxFu < engine.BaseFu;
@@ -224,6 +227,18 @@ public static class SnapshotBuilder
             DiceCutText = diceCutText,
             AiLevels = aiLevels ?? Array.Empty<string>(),
         };
+    }
+
+    /// <summary>报听锁手：逐张判断能不能打（与引擎锁手同一口径）。</summary>
+    private static IReadOnlyList<bool> LegalDiscards(MahjongEngine engine, Player player)
+    {
+        var flags = new bool[player.Hand.Count];
+        for (int i = 0; i < flags.Length; i++)
+        {
+            flags[i] = engine.CallAllowsDiscard(player, player.Hand[i], out _);
+        }
+
+        return flags;
     }
 
     /// <summary>刚摸到的牌在手牌里的下标（重复牌取最后一张；无摸牌返回 -1）。</summary>

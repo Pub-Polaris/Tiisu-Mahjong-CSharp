@@ -82,6 +82,9 @@ internal static class Program
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
                 return;
+            case "--smoke-called-ron-pass":
+                Environment.ExitCode = SmokeCalledRonPass(args);
+                return;
             case "--smoke-drawn":
                 Environment.ExitCode = SmokeDrawn();
                 return;            case "--smoke-dice":
@@ -2354,6 +2357,146 @@ internal static class Program
 
         Console.WriteLine(failures == 0 ? "play-real: all games passed" : $"play-real: {failures} game(s) failed");
         return failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--smoke-called-ron-pass [seed]</c>：报听后出现荣和窗口，必须能「过」并继续。
+    /// </summary>
+    private static int SmokeCalledRonPass(string[] args)
+    {
+        TryUseUtf8Console();
+        uint seed = 3;
+        if (args.Length >= 2 && !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out seed))
+        {
+            seed = 3;
+        }
+
+        var runtime = new MatchRuntime(new Settings(), new Mulberry32Random(seed), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: seed);
+        runtime.StartMatch(4);
+
+        bool called = false;
+        bool sawCalledRon = false;
+        bool passedOk = false;
+        bool lastPassFlag = false;
+        string detail = "未出现报听荣和";
+        var clock = Stopwatch.StartNew();
+
+        while (clock.Elapsed < TimeSpan.FromSeconds(40) && runtime.Phase != MatchPhase.MatchOver)
+        {
+            var phase = runtime.Phase;
+            if (phase == MatchPhase.RoundEnded)
+            {
+                runtime.NextRound();
+                called = false;
+                continue;
+            }
+
+            var player = runtime.Engine.Players[runtime.HumanIndex];
+            if (phase == MatchPhase.HumanDiscard)
+            {
+                var vm = runtime.Snapshot;
+                if (!called && (vm.Actions & HumanAction.DeclareCall) != 0)
+                {
+                    int idx = TenpaiDiscardIndex(runtime.Engine, player);
+                    if (idx >= 0)
+                    {
+                        runtime.Execute(GameCommand.DeclareCall(idx));
+                        called = player.IsCalled;
+                        continue;
+                    }
+                }
+
+                int pick = player.IsCalled
+                    ? LegalCalledDiscardIndex(runtime.Engine, player)
+                    : BestShantenDiscardIndex(player);
+                if (pick < 0)
+                {
+                    detail = "找不到可打的牌";
+                    break;
+                }
+
+                runtime.Execute(GameCommand.Discard(pick));
+                continue;
+            }
+
+            if (phase == MatchPhase.HumanRon)
+            {
+                if (player.IsCalled)
+                {
+                    sawCalledRon = true;
+                    var ronVm = runtime.Snapshot;
+                    bool hasPassFlag = (ronVm.Actions & HumanAction.Pass) != 0;
+                    lastPassFlag = hasPassFlag;
+                    var bar = new ActionBar();
+                    var barLayout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+                    YogaTableLayout.Apply(barLayout);
+                    bar.Build(ronVm, barLayout);
+                    var passBtn = bar.Buttons.FirstOrDefault(b => b.Kind == ActionBar.Kind.Pass);
+                    bool passClickable = passBtn is not null && passBtn.Enabled;
+                    bool overlap = false;
+                    if (passBtn is not null)
+                    {
+                        foreach (var other in bar.Buttons)
+                        {
+                            if (ReferenceEquals(other, passBtn))
+                            {
+                                continue;
+                            }
+
+                            var a = passBtn.Rect;
+                            var b = other.Rect;
+                            if (a.Left < b.Right && b.Left < a.Right && a.Top < b.Bottom && b.Top < a.Bottom)
+                            {
+                                overlap = true;
+                            }
+                        }
+                    }
+
+                    Console.WriteLine($"  荣和窗口: actions={ronVm.Actions} passFlag={hasPassFlag} "
+                        + $"passBtn={(passBtn is null ? "无" : passBtn.Label)} clickable={passClickable} overlap={overlap}");
+                    int before = player.Hand.Count;
+                    runtime.Execute(GameCommand.Pass());
+                    passedOk = runtime.Phase != MatchPhase.HumanRon || player.Hand.Count == before;
+                    detail = $"报听荣和→过：阶段={runtime.Phase} 手牌 {before}->{player.Hand.Count}";
+                    break;
+                }
+
+                runtime.Execute(GameCommand.Ron());
+                continue;
+            }
+
+            if (phase == MatchPhase.HumanMeld)
+            {
+                runtime.Execute(GameCommand.Pass());
+                continue;
+            }
+
+            Thread.Sleep(5);
+        }
+
+        var legalFlags = runtime.Snapshot.Seats.Count > 0 ? runtime.Snapshot.Seats[0].LegalHand : Array.Empty<bool>();
+        bool lockOk = runtime.Engine.Players[runtime.HumanIndex].IsCalled
+            ? legalFlags.Count > 0 && legalFlags.Any(f => !f)
+            : true;
+        bool ok = sawCalledRon && passedOk && lastPassFlag && lockOk;
+        int meldSeen = 0, claimSeen = 0;
+        foreach (var s in runtime.Snapshot.Seats)
+        {
+            foreach (var m in s.Melds)
+            {
+                meldSeen++;
+                if (m.ClaimedIndex >= 0)
+                {
+                    claimSeen++;
+                }
+            }
+        }
+
+        Console.WriteLine($"  副露={meldSeen} 有取牌下标={claimSeen}");
+        Console.WriteLine($"smoke-called-ron-pass: seed={seed} 报听={called} 报听荣和={sawCalledRon} "
+            + $"{detail} 锁手灰显={lockOk} {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
     }
 
     /// <summary>

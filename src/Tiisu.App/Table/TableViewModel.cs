@@ -22,6 +22,9 @@ public sealed class MeldView
 
     public bool IsAnkan => string.Equals(Type, "ankan", StringComparison.Ordinal);
 
+    /// <summary>被吃/碰/明杠的那张牌在该组里的下标（-1 = 没有，例如暗杠）。</summary>
+    public int ClaimedIndex { get; init; } = -1;
+
     /// <summary>对局中翻开的牌位（0 基）。null 表示不设限（非暗杠，或已进入结算态）。</summary>
     public IReadOnlyList<int>? RevealedTiles { get; init; }
 
@@ -63,6 +66,9 @@ public sealed class SeatView
     public bool Noten { get; init; }
 
     public int HandCount { get; init; }
+
+    /// <summary>报听锁手：每张手牌是否允许打出（空 = 不限制）。仅自己、且已报听时非空。</summary>
+    public IReadOnlyList<bool> LegalHand { get; init; } = Array.Empty<bool>();
 
     /// <summary>本巡刚摸到的牌（仅自己可见）；结算/他人为 null。</summary>
     public string? DrawnTileId { get; init; }

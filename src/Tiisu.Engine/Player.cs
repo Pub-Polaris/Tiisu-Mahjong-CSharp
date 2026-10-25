@@ -101,9 +101,9 @@ public sealed class Player
         return count;
     }
 
-    public void AddMeld(MeldType type, IEnumerable<Tile> tiles)
+    public void AddMeld(MeldType type, IEnumerable<Tile> tiles, int claimedIndex = -1)
     {
-        Melds.Add(new Meld(type, tiles));
+        Melds.Add(new Meld(type, tiles) { ClaimedIndex = claimedIndex });
         if (type is MeldType.Minkan or MeldType.Kakan)
         {
             MinkanCount++;

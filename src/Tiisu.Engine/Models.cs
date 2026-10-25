@@ -17,6 +17,9 @@ public sealed class Meld
 
     public List<Tile> Tiles { get; }
 
+    /// <summary>被吃/碰/明杠的那张牌在 <see cref="Tiles"/> 里的下标（-1 = 暗杠或加杠，没有「取牌」）。</summary>
+    public int ClaimedIndex { get; set; } = -1;
+
     public bool IsKong => Tiles.Count == 4;
 }
 

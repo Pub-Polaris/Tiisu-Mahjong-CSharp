@@ -184,8 +184,8 @@ public sealed class ActionBar
             items.Add((Kind.Flow, "流局", 0, true));
         }
 
-        // 报听：只要自己手里有牌就占位（不可用时灰显），已报听则显示状态。
-        if (vm.Seats.Count > 0 && vm.Seats[0].Hand.Count > 0)
+        // 报听：只在自己回合（human_discard）显示；荣和 / 副露窗口里它没有意义，还会挤走「过」。
+        if (vm.Phase == "human_discard" && vm.Seats.Count > 0 && vm.Seats[0].Hand.Count > 0)
         {
             bool callable = (vm.Actions & HumanAction.DeclareCall) != 0;
             items.Add((Kind.DeclareCall, vm.IsCalled ? "已报听" : "报听", 0, callable));

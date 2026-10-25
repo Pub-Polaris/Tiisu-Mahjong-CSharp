@@ -246,7 +246,7 @@ public sealed class TableSceneSkia
 
         for (int seat = 0; seat < 4; seat++)
         {
-            DrawSeat(c, vm, Seat(vm, seat), seat, l, seat == 0 ? hoverHand : -1);
+            DrawSeat(c, vm, Seat(vm, seat), seat, l, seat == 0 ? hoverHand : -1, time);
         }
 
         DrawAiLevelBadges(c, vm, l);
@@ -777,7 +777,8 @@ public sealed class TableSceneSkia
     /// <summary>和牌后暗杠整组的 30% 黑遮罩（0.3 × 255 ≈ 77）。</summary>
     private const byte AnkanMaskAlpha = 77;
 
-    private void DrawSeat(ICanvas c, TableViewModel vm, SeatView seat, int index, TableLayoutSpec l, int hover = -1)
+    private void DrawSeat(ICanvas c, TableViewModel vm, SeatView seat, int index, TableLayoutSpec l, int hover = -1,
+        double time = 0)
     {
         var (horizontal, angle, _) = TableLayoutSpec.Axis(index);
         bool self = index == 0;
@@ -827,6 +828,18 @@ public sealed class TableSceneSkia
             }
         }
 
+        // 报听锁手灰显：锁手不允许打的牌盖 30% 黑。
+        if (seat.IsCalled && seat.LegalHand.Count == tiles.Length)
+        {
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                if (!seat.LegalHand[i])
+                {
+                    c.FillRoundRect(tiles[i].Inflate(1f), 4, Color.Black.WithAlpha(AnkanMaskAlpha));
+                }
+            }
+        }
+
         // 副露：暗杠对局中只翻第 2、4 张；结算态整组翻开并盖 30% 黑遮罩。
         bool afterWin = vm.InSettlement;
         Dictionary<MeldView, RectF>? masked = null;
@@ -853,6 +866,16 @@ public sealed class TableSceneSkia
                         Math.Max(acc.Right, slot.Right),
                         Math.Max(acc.Bottom, slot.Bottom))
                     : slot;
+            }
+
+            // 取牌脉光：被吃/碰/明杠的那张牌盖 50% 黄色遮罩，0–50–0 呼吸（500ms）。
+            if (placement.TileIndex == meld.ClaimedIndex)
+            {
+                float glow = PulseAlpha(time);
+                if (glow > 0f)
+                {
+                    c.FillRoundRect(slot.Inflate(1.5f), 4, Color.Rgb(255, 210, 96).WithAlpha((byte)(glow * 255)));
+                }
             }
         }
 
