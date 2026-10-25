@@ -214,6 +214,27 @@ public sealed class TableScreen : Screen
     /// <summary>布局编辑器（F2）。自检 / 出图直接驱动它。</summary>
     public LayoutEditor Editor => _editor;
 
+    /// <summary>从菜单按 F2 进来：退出编辑器时回菜单，不把玩家丢在空牌桌上。</summary>
+    private bool _returnToMenuAfterEditor;
+
+    /// <summary>菜单里按 F2 的入口：切到牌桌并直接进入布局编辑态。</summary>
+    public void OpenEditorForLayout()
+    {
+        _returnToMenuAfterEditor = true;
+        _editor.Enter();
+    }
+
+    private void LeaveEditorIfTemporary()
+    {
+        if (!_returnToMenuAfterEditor)
+        {
+            return;
+        }
+
+        _returnToMenuAfterEditor = false;
+        _backToMenu?.Invoke();
+    }
+
     /// <summary>结算覆盖层（自检用：翻页按钮 / 当前和牌者）。</summary>
     internal SettlementOverlay SettlementOverlay => _overlay;
 
@@ -684,13 +705,28 @@ public sealed class TableScreen : Screen
     {
         if (key == Keys.F2)
         {
-            _editor.Toggle();
+            if (_editor.Active)
+            {
+                _editor.Exit();
+                LeaveEditorIfTemporary();
+            }
+            else
+            {
+                _editor.Enter();
+            }
+
             return true;
         }
 
         if (_editor.Active)
         {
-            return _editor.OnKey(key, shift);
+            bool handled = _editor.OnKey(key, shift);
+            if (!_editor.Active)
+            {
+                LeaveEditorIfTemporary();
+            }
+
+            return handled;
         }
 
         if (key == Keys.Escape)

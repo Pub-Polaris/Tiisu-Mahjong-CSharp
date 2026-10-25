@@ -250,6 +250,23 @@ internal sealed class ScreenHostCore : IDisposable
     /// <summary>返回 true 表示已消费（与原来的 e.Handled 等价）。</summary>
     public bool KeyDown(Keys key, bool shift = false)
     {
+        // F2 在任何屏都能进布局编辑器：不在牌桌时先切到牌桌，再进入编辑态（退出时回菜单）；
+        // 已经在牌桌时交给牌桌屏自己处理，才能识别「从菜单进来、退出要回去」。
+        if (key == Keys.F2 && !shift)
+        {
+            if (ReferenceEquals(_current, _table))
+            {
+                _current.OnKey(key, shift);
+            }
+            else
+            {
+                SwitchTo(_table);
+                _table.OpenEditorForLayout();
+            }
+
+            return true;
+        }
+
         // M 只在局内生效（对局 → 菜单）；主菜单屏不再用快捷键跳转。
         if (key == Keys.M && !shift && ReferenceEquals(_current, _table))
         {

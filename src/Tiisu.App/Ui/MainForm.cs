@@ -44,6 +44,27 @@ public sealed class MainForm : Form
     /// <summary>窗口层接管按键：KeyPreview 保证这里先收到，再转给当前 Screen。</summary>
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        try
+        {
+            RouteKeyCore(e);
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                System.IO.File.AppendAllText(
+                    System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tiisu-error.log"),
+                    DateTime.Now.ToString("HH:mm:ss.fff") + " " + ex + Environment.NewLine);
+            }
+            catch
+            {
+                // 日志失败忽略
+            }
+        }
+    }
+
+    private void RouteKeyCore(KeyEventArgs e)
+    {
         base.OnKeyDown(e);
         if (e.Handled)
         {
