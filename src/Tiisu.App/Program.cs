@@ -637,7 +637,6 @@ internal static class Program
 
         // 与 TableScreen 内部同一份布局参数（1200×1200 + Mixed 安全区 + Yoga）。
         var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
-        layout.ApplyMixedSafeArea();
         YogaTableLayout.Apply(layout);
 
         session.Post(GameCommand.StartMatch(mode));
@@ -1555,7 +1554,7 @@ internal static class Program
     private static void Render25DToPng(string[] args)
     {
         string path = args[1];
-        var style = TableRenderStyle.Mixed;
+        var style = TableRenderStyle.Flat;
         for (int i = 2; i + 1 < args.Length; i++)
         {
             if (!string.Equals(args[i], "--variant", StringComparison.Ordinal))
@@ -1565,10 +1564,10 @@ internal static class Program
 
             style = args[i + 1].ToLowerInvariant() switch
             {
-                "mixed" or "c" => TableRenderStyle.Mixed,
+                "mixed" or "c" => TableRenderStyle.Flat,
                 "flat" or "2d" => TableRenderStyle.Flat,
-                "medium" or "medium25d" => TableRenderStyle.Medium25D,
-                "light" or "light25d" => TableRenderStyle.Light25D,
+                "medium" or "medium25d" => TableRenderStyle.Flat,
+                "light" or "light25d" => TableRenderStyle.Flat,
                 var other => throw new ArgumentException($"未知 --variant：{other}（mixed | flat | light | medium）"),
             };
         }
@@ -1608,7 +1607,6 @@ internal static class Program
     private static TableLayoutSpec NewLayout()
     {
         var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
-        layout.ApplyMixedSafeArea();
         YogaTableLayout.Apply(layout);
         return layout;
     }
@@ -1630,7 +1628,6 @@ internal static class Program
         using var atlas = new TileAtlas(AssetsDir);
 
         var layout = new TableLayoutSpec { CanvasW = canvas, CanvasH = canvas };
-        layout.ApplyMixedSafeArea();
         YogaTableLayout.Apply(layout);
 
         var info = new SKImageInfo((int)layout.CanvasW, (int)layout.CanvasH);
@@ -1938,7 +1935,6 @@ internal static class Program
     {
         using var atlas = new TileAtlas(AssetsDir);
         var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
-        layout.ApplyMixedSafeArea();
         YogaTableLayout.Apply(layout);
 
         RenderCallShot(basePath + "_callable.png", TableDemoModel.CreateWithCall(true), layout, atlas);
@@ -2370,7 +2366,7 @@ internal static class Program
             saveStore: null, stats: null, roundLog: null, matchSeed: 9);
         using var atlas = new TileAtlas(AssetsDir);
         var screen = new TableScreen(() => runtime.Snapshot, runtime.Execute, null, atlas,
-            TableRenderStyle.Mixed, settings);
+            TableRenderStyle.Flat, settings);
         runtime.StartMatch(4);
 
         SKBitmap Render(bool held)
@@ -2443,7 +2439,7 @@ internal static class Program
             saveStore: null, stats: null, roundLog: null, matchSeed: 5);
         using var atlas = new TileAtlas(AssetsDir);
         var screen = new TableScreen(() => runtime.Snapshot, runtime.Execute, null, atlas,
-            TableRenderStyle.Mixed, settings);
+            TableRenderStyle.Flat, settings);
         runtime.StartMatch(4);
 
         var clock = Stopwatch.StartNew();

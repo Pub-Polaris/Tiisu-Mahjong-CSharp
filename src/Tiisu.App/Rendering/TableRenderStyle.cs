@@ -12,9 +12,8 @@ public enum TableRenderStyle
 {
     Flat,
 
-    /// <summary>方案 C：牌身用 Light 档厚度/投影 + 左上高光边，桌面试真透视矩阵。</summary>
+    /// <summary>已废弃：仅为了兼容旧 settings.json 里的值，绘制一律按 <see cref="Flat"/> 处理。</summary>
     Mixed,
-
     Light25D,
     Medium25D,
 }
@@ -102,97 +101,7 @@ public sealed class TableRenderMetrics
         FaceBevelAlpha = 0,
     };
 
-    public static readonly TableRenderMetrics Light = new()
-    {
-        TileThickness = 4f,
-        ShadowOffsetX = 1.5f,
-        ShadowOffsetY = 2.5f,
-        ShadowBlur = 2f,
-        ShadowAlpha = 120,
-        TableTopInset = 10f,
-        TableBottomLip = 4f,
-        VignetteAlpha = 46,
-        EdgeHighlightAlpha = 80,
-        TableTop = Color.Rgb(38, 60, 47),
-        TableBottom = Color.Rgb(54, 84, 64),
-        TableLip = Color.Rgb(26, 40, 31),
-        SurroundTop = Color.Rgb(14, 22, 18),
-        SurroundBottom = Color.Rgb(10, 16, 13),
-        TileSideTop = Color.Rgb(188, 174, 136),
-        TileSideBottom = Color.Rgb(132, 116, 82),
-        TileBackSideTop = Color.Rgb(28, 88, 134),
-        TileBackSideBottom = Color.Rgb(16, 52, 80),
-        FaceBevelAlpha = 70,
-    };
-
-    /// <summary>
-    /// 方案 C（默认）：牌身比 Light 档更厚（7px + 加深投影），桌面走后倾 28° 的真透视矩阵，
-    /// 梯形整块缩进画布（投影后左右 ≈45、上下 ≈55）留出深色渐变背景；
-    /// 中央信息板与桌面同一套矩阵，牌仍按逻辑坐标画。
-    /// </summary>
-    public static readonly TableRenderMetrics Mixed = new()
-    {
-        TileThickness = 7f,
-        ShadowOffsetX = 3f,
-        ShadowOffsetY = 5f,
-        ShadowBlur = 4f,
-        ShadowAlpha = 155,
-        TableTopInset = 0f,
-        TableBottomLip = 8f,
-        VignetteAlpha = 44,
-        EdgeHighlightAlpha = 90,
-        TableTop = Color.Rgb(38, 60, 47),
-        TableBottom = Color.Rgb(54, 84, 64),
-        TableLip = Color.Rgb(26, 40, 31),
-        SurroundTop = Color.Rgb(26, 38, 32),
-        SurroundBottom = Color.Rgb(15, 22, 18),
-        TileSideTop = Color.Rgb(188, 174, 136),
-        TileSideBottom = Color.Rgb(132, 116, 82),
-        TileBackSideTop = Color.Rgb(28, 88, 134),
-        TileBackSideBottom = Color.Rgb(16, 52, 80),
-        FaceBevelAlpha = 70,
-        TileHighlightAlpha = 200,
-        UsePerspective = true,
-        TableQuad = new RectF(60f, -62f, 1080f, 1262f),
-        PerspectiveFov = 45f,
-        PerspectiveRotateX = 28f,
-        PerspectiveDistance = 6000f,
-        PerspectiveNear = 100f,
-        PerspectiveFar = 20000f,
-        PerspectiveZoom = 4.059f,
-        PerspectiveOffsetY = 0f,
-    };
-
-    public static readonly TableRenderMetrics Medium = new()
-    {
-        TileThickness = 8f,
-        ShadowOffsetX = 3f,
-        ShadowOffsetY = 5f,
-        ShadowBlur = 4f,
-        ShadowAlpha = 150,
-        TableTopInset = 58f,
-        TableBottomLip = 8f,
-        VignetteAlpha = 70,
-        EdgeHighlightAlpha = 120,
-        TableTop = Color.Rgb(28, 47, 37),
-        TableBottom = Color.Rgb(64, 101, 74),
-        TableLip = Color.Rgb(20, 32, 25),
-        SurroundTop = Color.Rgb(12, 19, 15),
-        SurroundBottom = Color.Rgb(9, 14, 11),
-        TileSideTop = Color.Rgb(176, 160, 120),
-        TileSideBottom = Color.Rgb(104, 88, 58),
-        TileBackSideTop = Color.Rgb(24, 78, 120),
-        TileBackSideBottom = Color.Rgb(11, 42, 66),
-        FaceBevelAlpha = 90,
-    };
-
-    public static TableRenderMetrics For(TableRenderStyle style) => style switch
-    {
-        TableRenderStyle.Mixed => Mixed,
-        TableRenderStyle.Light25D => Light,
-        TableRenderStyle.Medium25D => Medium,
-        _ => Flat,
-    };
+    public static TableRenderMetrics For(TableRenderStyle style) => Flat;
 
     public bool HasTileDepth => TileThickness > 0f;
 }

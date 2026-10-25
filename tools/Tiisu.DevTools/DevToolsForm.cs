@@ -8,10 +8,7 @@ internal sealed class DevToolsForm : Form
 {
     private static readonly (string Label, string Variant, string FileName)[] TableStyles =
     {
-        ("Flat", "flat", "style-flat.png"),
-        ("Light25D", "light", "style-light.png"),
-        ("Medium25D", "medium", "style-medium.png"),
-        ("Mixed", "mixed", "style-mixed.png"),
+        ("平面", "flat", "style-flat.png"),
     };
 
     private readonly Toolchain _tools;

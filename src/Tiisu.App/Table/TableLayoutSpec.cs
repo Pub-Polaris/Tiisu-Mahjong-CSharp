@@ -46,19 +46,6 @@ public sealed class TableLayoutSpec
     public float PlateGap = 14f;
     public float Margin = 16f;
 
-    /// <summary>
-    /// Mixed 档的安全区：透视桌面要整块缩进画布，内容（四家手牌 / 牌河 / 中央板）跟着收进来，
-    /// 四边留 40–60px，保证手牌不被窗口裁切。Flat / Light / Medium 不调用，保持原来的 16px 布局。
-    /// 只改布局参数，不改命中测试：绘制与点击仍读这些矩形。
-    /// </summary>
-    public void ApplyMixedSafeArea()
-    {
-        Margin = 96f;
-        EdgePad = 6f;
-        PlateGap = 6f;
-        CenterSize = 320f;
-    }
-
     public float CanvasW = 1200f;
     public float CanvasH = 1200f;
 
@@ -242,11 +229,11 @@ public sealed class TableLayoutSpec
 public sealed class TableSceneSkia
 {
     /// <summary>
-    /// 观感。默认 <see cref="TableRenderStyle.Mixed"/>（Light 牌身 + 真透视桌面）；
+    /// 观感。默认 <see cref="TableRenderStyle.Flat"/>（Light 牌身 + 真透视桌面）；
     /// 运行时由设置项 <c>tableRenderStyle</c> 注入，出图由 <c>--render-25d --variant</c> 指定。
     /// 只影响绘制，不改布局与命中测试。
     /// </summary>
-    public TableRenderStyle Style { get; set; } = TableRenderStyle.Mixed;
+    public TableRenderStyle Style { get; set; } = TableRenderStyle.Flat;
 
     private TableRenderMetrics Metrics => TableRenderMetrics.For(Style);
 
@@ -822,7 +809,7 @@ public sealed class TableSceneSkia
     /// </summary>
     /// <param name="depth">false = 只画平面牌面（密集小牌用，免得厚度边糊成一片）。</param>
     public static void DrawTileFace(ICanvas c, string tileId, RectF rect,
-        TableRenderStyle style = TableRenderStyle.Mixed, bool depth = true)
+        TableRenderStyle style = TableRenderStyle.Flat, bool depth = true)
     {
         var m = TableRenderMetrics.For(style);
         float cx = rect.CenterX;

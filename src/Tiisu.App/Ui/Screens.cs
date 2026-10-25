@@ -66,7 +66,7 @@ public sealed class TableScreen : Screen
 
     /// <summary>正式牌桌：只读会话快照 + 投递命令。</summary>
     public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu = null,
-        TableRenderStyle renderStyle = TableRenderStyle.Mixed, Settings? settings = null)
+        TableRenderStyle renderStyle = TableRenderStyle.Flat, Settings? settings = null)
         : this(() => session.LatestSnapshot, session.Post, backToMenu, atlas, renderStyle, settings)
     {
         session.UiEvent += OnSessionEvent;
@@ -74,7 +74,7 @@ public sealed class TableScreen : Screen
 
     /// <summary>自检 / 预览用：直接给快照与命令通道（不订阅会话事件）。</summary>
     public TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands, Action? backToMenu = null,
-        TileAtlas? atlas = null, TableRenderStyle renderStyle = TableRenderStyle.Mixed, Settings? settings = null)
+        TileAtlas? atlas = null, TableRenderStyle renderStyle = TableRenderStyle.Flat, Settings? settings = null)
         : base("table")
     {
         _snapshot = snapshot;
@@ -83,13 +83,6 @@ public sealed class TableScreen : Screen
         _thinkSeconds = Math.Max(0, settings?.ThinkSeconds ?? 0);
         _showWallButton = settings?.ShowWallViewer ?? false;
         _scene.Style = renderStyle;
-
-        // Mixed 的透视桌面缩进画布：内容整体内收，四边留安全边距（手牌不再贴/出窗口底边）。
-        // Flat / Light / Medium 不调用，保持原来的 16px 布局。
-        if (renderStyle == TableRenderStyle.Mixed)
-        {
-            _layout.ApplyMixedSafeArea();
-        }
 
         YogaTableLayout.Apply(_layout);
 

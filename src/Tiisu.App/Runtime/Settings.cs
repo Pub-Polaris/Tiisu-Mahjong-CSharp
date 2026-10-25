@@ -68,7 +68,7 @@ public sealed class Settings
     /// 想回平面写 <c>"tableRenderStyle": "Flat"</c> 即可（重启生效）。
     /// </summary>
     [JsonPropertyName("tableRenderStyle")]
-    public TableRenderStyle TableRender { get; set; } = TableRenderStyle.Mixed;
+    public TableRenderStyle TableRender { get; set; } = TableRenderStyle.Flat;
 
     /// <summary>读 <c>settings.json</c>；文件不存在/损坏时返回默认值（与 Web 侧 <c>/api/settings</c> 同口径）。</summary>
     public static Settings Load(string? directory = null)
