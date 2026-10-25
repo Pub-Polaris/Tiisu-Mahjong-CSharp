@@ -98,6 +98,7 @@ public static class SnapshotBuilder
                 HandCount = player.Hand.Count,
                 Hand = hand,
                 DrawnTileId = self && player.LastDraw is Tile drawnTile ? TileNotation.AtlasId(drawnTile) : null,
+                DrawnIndex = self ? DrawnIndexIn(player) : -1,
                 Melds = melds,
                 Discards = discards,
                 LastDiscard = lastDiscard,
@@ -223,6 +224,25 @@ public static class SnapshotBuilder
             DiceCutText = diceCutText,
             AiLevels = aiLevels ?? Array.Empty<string>(),
         };
+    }
+
+    /// <summary>刚摸到的牌在手牌里的下标（重复牌取最后一张；无摸牌返回 -1）。</summary>
+    private static int DrawnIndexIn(Player player)
+    {
+        if (player.LastDraw is not Tile drawn)
+        {
+            return -1;
+        }
+
+        for (int i = player.Hand.Count - 1; i >= 0; i--)
+        {
+            if (player.Hand[i] == drawn)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>听牌张里最高的赋数（牌形形成才算；用于判断报听后报和是否必然错和）。</summary>

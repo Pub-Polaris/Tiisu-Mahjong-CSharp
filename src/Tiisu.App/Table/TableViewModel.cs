@@ -66,6 +66,10 @@ public sealed class SeatView
 
     /// <summary>本巡刚摸到的牌（仅自己可见）；结算/他人为 null。</summary>
     public string? DrawnTileId { get; init; }
+
+    /// <summary>刚摸到的那张牌在手牌里的下标（-1 = 没有摸牌位）。绘制时它单独排在最右。</summary>
+    public int DrawnIndex { get; init; } = -1;
+
     public IReadOnlyList<TileView> Hand { get; init; } = Array.Empty<TileView>();   // 仅自己可见
     public IReadOnlyList<MeldView> Melds { get; init; } = Array.Empty<MeldView>();
     public IReadOnlyList<TileView> Discards { get; init; } = Array.Empty<TileView>();

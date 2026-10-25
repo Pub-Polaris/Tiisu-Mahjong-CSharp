@@ -597,10 +597,14 @@ public sealed class TableSceneSkia
         float along = l.HandW;    // 沿主轴步进
         float depth = l.HandH;    // 跨轴深度
 
-        float handLen = n * along + (n - 1) * l.HandGap;
-        bool hasDrawn = self && !string.IsNullOrEmpty(seat.DrawnTileId);
-        float drawnExtra = hasDrawn && n > 0 ? l.DrawnGap - l.HandGap : 0f;
-        float total = handLen + drawnExtra;
+        // 摸到的牌单独排在右侧：其余牌按原下标顺序前移，摸牌格用更大的 DrawnGap 隔开。
+        // 返回数组仍按「手牌下标」索引，所以绘制与命中测试不用重映射。
+        int drawn = self && seat.DrawnIndex >= 0 && seat.DrawnIndex < n ? seat.DrawnIndex : -1;
+        int packed = drawn >= 0 ? n - 1 : n;
+        float drawnGap = drawn >= 0 ? l.DrawnGap : l.HandGap;
+        float total = Math.Max(0, packed) * along
+                      + Math.Max(0, packed - 1) * l.HandGap
+                      + (drawn >= 0 ? drawnGap + along : 0f);
 
         float frameStart = horizontal ? frame.X : frame.Y;
         float frameLen = horizontal ? frame.W : frame.H;
@@ -611,10 +615,25 @@ public sealed class TableSceneSkia
         float cross = frameCrossStart + (frameCrossLen - depth) / 2f;
 
         var rects = new RectF[n];
+        int slot = 0;
         for (int i = 0; i < n; i++)
         {
-            float a = start + i * (along + l.HandGap) + (drawnExtra > 0 && i == n - 1 ? drawnExtra : 0f);
+            if (i == drawn)
+            {
+                continue;
+            }
+
+            float a = start + slot * (along + l.HandGap);
             rects[i] = horizontal
+                ? new RectF(a, cross, along, depth)
+                : new RectF(cross, a, depth, along);
+            slot++;
+        }
+
+        if (drawn >= 0)
+        {
+            float a = start + packed * (along + l.HandGap) + (drawnGap - l.HandGap);
+            rects[drawn] = horizontal
                 ? new RectF(a, cross, along, depth)
                 : new RectF(cross, a, depth, along);
         }

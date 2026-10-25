@@ -82,7 +82,9 @@ internal static class Program
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
                 return;
-            case "--smoke-dice":
+            case "--smoke-drawn":
+                Environment.ExitCode = SmokeDrawn();
+                return;            case "--smoke-dice":
                 Environment.ExitCode = SmokeDice();
                 return;
         }
@@ -2352,6 +2354,68 @@ internal static class Program
 
         Console.WriteLine(failures == 0 ? "play-real: all games passed" : $"play-real: {failures} game(s) failed");
         return failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--smoke-drawn</c>：摸到的牌必须单独排在右手边（与前一格间距明显大于普通 HandGap）。
+    /// </summary>
+    private static int SmokeDrawn()
+    {
+        TryUseUtf8Console();
+        var runtime = new MatchRuntime(new Settings(), new Mulberry32Random(3), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: 3);
+        runtime.StartMatch(4);
+
+        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        YogaTableLayout.Apply(layout);
+
+        var clock = Stopwatch.StartNew();
+        while (clock.Elapsed < TimeSpan.FromSeconds(15) && runtime.Phase != MatchPhase.HumanDiscard)
+        {
+            if (runtime.Phase == MatchPhase.RoundEnded)
+            {
+                runtime.NextRound();
+                continue;
+            }
+
+            if (runtime.Phase is MatchPhase.HumanMeld or MatchPhase.HumanRon)
+            {
+                runtime.Execute(GameCommand.Pass());
+                continue;
+            }
+
+            Thread.Sleep(5);
+        }
+
+        var vm = runtime.Snapshot;
+        var seat = vm.Seats[0];
+        var rects = TableSceneSkia.HandTileRects(layout, seat, 0);
+        int drawn = seat.DrawnIndex;
+        string detail = $"phase={runtime.Phase} hand={seat.Hand.Count} drawn={drawn} gap=";
+        bool ok = drawn >= 0 && drawn < rects.Length && seat.Hand.Count > 1;
+        float gap = 0f;
+        if (ok)
+        {
+            float nearestRight = float.MinValue;
+            for (int i = 0; i < rects.Length; i++)
+            {
+                if (i != drawn)
+                {
+                    nearestRight = Math.Max(nearestRight, rects[i].Right);
+                }
+            }
+
+            gap = rects[drawn].Left - nearestRight;
+            detail += $"{gap:F1} (handGap={layout.HandGap:F1})";
+            ok = gap >= layout.HandGap * 1.5f;
+        }
+        else
+        {
+            detail += "n/a";
+        }
+
+        Console.WriteLine($"smoke-drawn: {detail} {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
     }
 
     /// <summary>
