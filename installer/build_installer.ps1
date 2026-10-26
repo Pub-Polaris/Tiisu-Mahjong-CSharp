@@ -16,7 +16,8 @@ param(
     [string]$Project = 'src\Tiisu.App',
     [string]$Configuration = 'Release',
     [string]$Runtime = 'win-x64',
-    [string]$AppExe = 'Tiisu.Mahjong.exe'
+    [string]$AppExe = 'Tiisu.Mahjong.exe',
+    [switch]$CopyToDesktop
 )
 
 $ErrorActionPreference = 'Stop'
@@ -77,14 +78,28 @@ $sizeMb = [math]::Round((Get-ChildItem $pub -Recurse -File | Measure-Object Leng
 $files = @(Get-ChildItem $pub -Recurse -File).Count
 Write-Host "   publish: $pub ($sizeMb MB, $files files)"
 
+# 版本标签：yymmdd-<shortcommit>（与 GitHub Release 标签同口径）
+$shortHash = (git -C $netRoot rev-parse --short HEAD 2>$null)
+if (-not $shortHash) { $shortHash = "local" }
+$versionTag = (Get-Date).ToString("yyMMdd") + "-" + $shortHash
+Write-Host "   version: $versionTag"
+
 Write-Host "== 4/4 makensis =="
-& $nsis "/DSRC=$pub" "/DOUTFILE=$setup" "/DAPPEXE=$AppExe" (Join-Path $PSScriptRoot 'installer.nsi')
+& $nsis "/DSRC=$pub" "/DOUTFILE=$setup" "/DAPPEXE=$AppExe" "/DVERSION=$versionTag" (Join-Path $PSScriptRoot 'installer.nsi')
 if ($LASTEXITCODE -ne 0) { throw "makensis failed ($LASTEXITCODE)" }
 
 if (-not (Test-Path $setup)) { throw "installer not produced: $setup" }
 $setupMb = [math]::Round((Get-Item $setup).Length / 1MB, 2)
 Write-Host ""
 Write-Host "OK  installer: $setup ($setupMb MB)"
-Write-Host "    installs to %LOCALAPPDATA%\Programs\TiisuMahjong, no registry writes"
+Write-Host "    installs to %LOCALAPPDATA%\Programs\TiisuMahjong (HKCU uninstall entry, Start Menu + Desktop shortcuts)"
 Write-Host "    replace-update: Tiisu.Updater.exe --apply <new build dir or zip> --restart"
 Write-Host "    requires .NET 10 Desktop Runtime (installer checks and prompts)"
+if ($CopyToDesktop) {
+    $desktop = Join-Path $env:USERPROFILE "Desktop"
+    if (-not (Test-Path $desktop)) {
+        $desktop = Join-Path $env:USERPROFILE "OneDrive\Desktop"
+    }
+    Copy-Item $setup (Join-Path $desktop "TiisuMahjong-Setup.exe") -Force
+    Write-Host "    copied to $desktop\TiisuMahjong-Setup.exe"
+}

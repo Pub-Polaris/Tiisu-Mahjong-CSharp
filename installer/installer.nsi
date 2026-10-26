@@ -1,16 +1,14 @@
 ﻿; ══════════════════════════════════════════════════════════════
 ; 七子麻将 · Tiisu Mahjong 安装包（NSIS 3.13）
 ;
-; 约束（北极星 2026-10-20）：
+; 口径（北极星 2026-10-26）：
 ;   - 框架依赖发布（用户机器需 .NET 10 Desktop Runtime）
-;   - **不写注册表**：只复制文件 + .lnk 快捷方式 + 附带 uninstall.cmd
-;   - 默认装到 %LOCALAPPDATA%\Programs\TiisuMahjong（免管理员）
-;
-; 注意：uninstall.cmd 必须是 **纯 ASCII**（NSIS 写出的含中文 .cmd 在 GBK 控制台会解析失败），
-;       所以快捷方式文件名用 ASCII `TiisuMahjong.lnk`，路径用 %USERPROFILE% / %APPDATA% 展开。
+;   - **按现代 Windows 安装**：装到 %LOCALAPPDATA%\Programs\TiisuMahjong，
+;     写 HKCU 卸载项（设置 → 应用 可卸载）、开始菜单 + 桌面快捷方式、自带 uninstall.exe
+;   - 免管理员（RequestExecutionLevel user）
 ;
 ; 用法：
-;   makensis /DSRC="<publish 目录>" /DOUTFILE="<输出 exe>" installer.nsi
+;   makensis /DSRC="<publish 目录>" /DOUTFILE="<输出 exe>" /DVERSION="261026-xxxx" installer.nsi
 ; ══════════════════════════════════════════════════════════════
 
 Unicode true
@@ -26,28 +24,41 @@ Unicode true
 !ifndef APPEXE
   !define APPEXE "Tiisu.Mahjong.exe"
 !endif
+!ifndef VERSION
+  !define VERSION "dev"
+!endif
 
-Name "七子麻将 Tiisu Mahjong"
+!define APPNAME "七子麻将 Tiisu Mahjong"
+!define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\TiisuMahjong"
+
+Name "${APPNAME}"
 OutFile "${OUTFILE}"
 InstallDir "$LOCALAPPDATA\Programs\TiisuMahjong"
+InstallDirRegKey HKCU "Software\TiisuMahjong" "InstallDir"
 RequestExecutionLevel user
 ShowInstDetails show
+ShowUninstDetails show
 
-VIProductVersion "0.1.0.0"
+VIProductVersion "0.0.0.0"
 VIAddVersionKey "ProductName" "Tiisu Mahjong"
 VIAddVersionKey "FileDescription" "Tiisu Mahjong installer"
-VIAddVersionKey "FileVersion" "0.1.0"
+VIAddVersionKey "FileVersion" "${VERSION}"
+VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "LegalCopyright" "Pub-Polaris"
 
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TITLE "安装 七子麻将"
-!define MUI_WELCOMEPAGE_TEXT "本安装包只复制文件与创建快捷方式，$\r$\n不写入注册表，删目录即可卸载。$\r$\n$\r$\n需要 .NET 10 Desktop Runtime（安装程序会检测）。"
+!define MUI_WELCOMEPAGE_TITLE "安装 ${APPNAME}"
+!define MUI_WELCOMEPAGE_TEXT "安装到当前用户目录，无需管理员权限。$\r$\n$\r$\n会写入卸载信息（设置 → 应用 可卸载），并创建开始菜单与桌面快捷方式。$\r$\n$\r$\n需要 .NET 10 Desktop Runtime（安装程序会检测）。"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APPEXE}"
 !define MUI_FINISHPAGE_RUN_TEXT "立即启动 七子麻将"
 !insertmacro MUI_PAGE_FINISH
+
+!insertmacro MUI_UNPAGE_CONFIRM
+!insertmacro MUI_UNPAGE_INSTFILES
+
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
 ; ── 运行时检测：dotnet --list-runtimes 里找 WindowsDesktop.App 10.x ──
@@ -79,21 +90,56 @@ Section "主程序" SecMain
   Delete "$INSTDIR\Web\src\tenpai.js"
   Delete "$INSTDIR\Web\src\handAnalyzer.js"
 
+  ; 旧版便携目录里的卸载脚本
+  Delete "$INSTDIR\uninstall.cmd"
+
   File /r "${SRC}\*.*"
 
-  ; 卸载脚本：纯 ASCII，路径用环境变量展开（避免中文 .cmd 在 GBK 控制台解析失败）
-  FileOpen $9 "$INSTDIR\uninstall.cmd" w
-  FileWrite $9 "@echo off$\r$\n"
-  FileWrite $9 "echo Uninstalling Tiisu Mahjong ...$\r$\n"
-  FileWrite $9 "del /q $\"%USERPROFILE%\Desktop\TiisuMahjong.lnk$\" 2>nul$\r$\n"
-  FileWrite $9 "del /q $\"%APPDATA%\Microsoft\Windows\Start Menu\Programs\TiisuMahjong.lnk$\" 2>nul$\r$\n"
-  FileWrite $9 "cd /d $\"%TEMP%$\"$\r$\n"
-  FileWrite $9 "rmdir /s /q $\"$INSTDIR$\" 2>nul$\r$\n"
-  FileWrite $9 "echo Done.$\r$\n"
-  FileWrite $9 "pause$\r$\n"
-  FileClose $9
+  ; 真正的卸载器（写进安装目录，注册表指向它）
+  WriteUninstaller "$INSTDIR\uninstall.exe"
 
-  ; 快捷方式：文件名 ASCII
-  CreateShortCut "$DESKTOP\TiisuMahjong.lnk" "$INSTDIR\${APPEXE}" "" "$INSTDIR\${APPEXE}" 0
-  CreateShortCut "$SMPROGRAMS\TiisuMahjong.lnk" "$INSTDIR\${APPEXE}" "" "$INSTDIR\${APPEXE}" 0
+  ; 快捷方式：中文显示名
+  CreateShortCut "$DESKTOP\七子麻将.lnk" "$INSTDIR\${APPEXE}" "" "$INSTDIR\${APPEXE}" 0
+  CreateShortCut "$SMPROGRAMS\七子麻将.lnk" "$INSTDIR\${APPEXE}" "" "$INSTDIR\${APPEXE}" 0
+
+  ; 旧版 ASCII 快捷方式（若是便携版留下的）也清掉，避免两个图标
+  Delete "$DESKTOP\TiisuMahjong.lnk"
+  Delete "$SMPROGRAMS\TiisuMahjong.lnk"
+
+  ; 安装位置（供 InstallDirRegKey 记住上次目录）
+  WriteRegStr HKCU "Software\TiisuMahjong" "InstallDir" "$INSTDIR"
+  WriteRegStr HKCU "Software\TiisuMahjong" "Version" "${VERSION}"
+
+  ; 卸载信息：设置 → 应用 里能看到并卸载
+  WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${APPNAME}"
+  WriteRegStr HKCU "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
+  WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "Pub-Polaris"
+  WriteRegStr HKCU "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${APPEXE}"
+  WriteRegStr HKCU "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKCU "${UNINST_KEY}" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegStr HKCU "${UNINST_KEY}" "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S'
+  WriteRegDWORD HKCU "${UNINST_KEY}" "NoModify" 1
+  WriteRegDWORD HKCU "${UNINST_KEY}" "NoRepair" 1
+SectionEnd
+
+Section "Uninstall"
+  Delete "$DESKTOP\七子麻将.lnk"
+  Delete "$SMPROGRAMS\七子麻将.lnk"
+  Delete "$DESKTOP\TiisuMahjong.lnk"
+  Delete "$SMPROGRAMS\TiisuMahjong.lnk"
+
+  ; 程序若在运行，先结束（否则 exe 被占用会留下残余）
+  nsExec::Exec 'taskkill /IM Tiisu.Mahjong.exe /F'
+  Sleep 300
+
+  ; 卸载器自己在 $INSTDIR 里运行时，先把工作目录挪走，否则目录删不掉
+  SetOutPath "$TEMP"
+  Delete "$INSTDIR\uninstall.exe"
+  RMDir /r "$INSTDIR"
+  IfFileExists "$INSTDIR\*.*" 0 +3
+    Delete /REBOOTOK "$INSTDIR\*.*"
+    RMDir /REBOOTOK "$INSTDIR"
+
+  DeleteRegKey HKCU "${UNINST_KEY}"
+  DeleteRegKey HKCU "Software\TiisuMahjong"
 SectionEnd
