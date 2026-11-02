@@ -144,8 +144,9 @@ public sealed class MatchRuntime
         }
 
         _session = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
-        _checker = new WinChecker(SharedYaku, _settings.OptionalYaku);
-        _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random);
+        var ruleset = _settings.Ruleset;
+        _checker = new WinChecker(SharedYaku, _settings.OptionalYaku, ruleset);
+        _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random, ruleset);
         _engine.SetMode(_modeTarget);
         _engine.Players[0].IsHuman = !AllSeatsAi;
         _engine.Players[0].IsDealer = true;

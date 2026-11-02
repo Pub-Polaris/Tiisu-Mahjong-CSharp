@@ -65,6 +65,12 @@ public sealed partial class MahjongEngine
     /// </summary>
     public bool CanDeclareCall(Player player)
     {
+        // 推倒胡没有报听。
+        if (Ruleset == Ruleset.TuidaoHu)
+        {
+            return false;
+        }
+
         if (GameOver || player.IsCalled)
         {
             return false;

@@ -51,11 +51,13 @@ public sealed partial class MahjongEngine
         PointsConfig? points = null,
         WinChecker? checker = null,
         YakuData? yakuData = null,
-        IRandomSource? randomSource = null)
+        IRandomSource? randomSource = null,
+        Ruleset ruleset = Ruleset.Qizi)
     {
+        Ruleset = ruleset;
         _points = points ?? PointsConfig.LoadDefault();
         _yakuData = yakuData ?? YakuData.LoadDefault();
-        _checker = checker ?? new WinChecker(_yakuData);
+        _checker = checker ?? new WinChecker(_yakuData, null, ruleset);
         RandomSource = randomSource;
         for (int i = 0; i < PlayerCount; i++)
         {
@@ -79,6 +81,9 @@ public sealed partial class MahjongEngine
 
     /// <summary>判役器（自走时 AiPlayer 需要同一实例，避免重复加载 ike.json / 役表）。</summary>
     public WinChecker Checker => _checker;
+
+    /// <summary>规则集：七子（默认）或推倒胡（1102工程：只判形态、纯胜负）。</summary>
+    public Ruleset Ruleset { get; }
 
     /// <summary>
     /// 牌山（含王堆，pop 顺序）。回放模式元素为 null 占位；传入真实 <c>WallOrder</c> 的自走模式为真实牌。

@@ -25,7 +25,7 @@ public sealed partial class MahjongEngine
         }
 
         int maFu = result.ResolvedMaFu;
-        if (maFu == 0)
+        if (Ruleset != Ruleset.TuidaoHu && maFu == 0)
         {
             maFu = ResolveMa(winner, result);
             if (maFu > 0)
@@ -35,8 +35,11 @@ public sealed partial class MahjongEngine
         }
 
         int fu = result.TotalFu + maFu;
-        int subPoints = CalcFinalPoints(result, fu);
-        int finalPoints = (winner.IsDealer ? DealerBonus(subPoints) : subPoints) + HonbaBonus();
+        // 推倒胡：只看胜负，不结算点数（无赋、无庄家 ×1.5、无连庄加分）。
+        int subPoints = Ruleset == Ruleset.TuidaoHu ? 0 : CalcFinalPoints(result, fu);
+        int finalPoints = Ruleset == Ruleset.TuidaoHu
+            ? 0
+            : (winner.IsDealer ? DealerBonus(subPoints) : subPoints) + HonbaBonus();
 
         if (selfDraw)
         {
@@ -143,7 +146,7 @@ public sealed partial class MahjongEngine
         {
             var player = _players[winner.PlayerIndex];
             int maFu = winner.Result.ResolvedMaFu;
-            if (maFu == 0)
+            if (Ruleset != Ruleset.TuidaoHu && maFu == 0)
             {
                 maFu = ResolveMa(player, winner.Result);
                 if (maFu > 0)
@@ -153,8 +156,10 @@ public sealed partial class MahjongEngine
             }
 
             winner.TotalFu = winner.Result.TotalFu + maFu;
-            int sub = CalcFinalPoints(winner.Result, winner.TotalFu);
-            int finalPoints = (player.IsDealer ? DealerBonus(sub) : sub) + HonbaBonus();
+            int sub = Ruleset == Ruleset.TuidaoHu ? 0 : CalcFinalPoints(winner.Result, winner.TotalFu);
+            int finalPoints = Ruleset == Ruleset.TuidaoHu
+                ? 0
+                : (player.IsDealer ? DealerBonus(sub) : sub) + HonbaBonus();
             winner.FinalPoints = finalPoints;
             _scores[winner.PlayerIndex] += finalPoints;
             _scores[payer] -= finalPoints;
@@ -350,10 +355,13 @@ public sealed partial class MahjongEngine
 
         int tenpaiCount = tenpai.Count(x => x);
 
-        // 未听返杠（4.4）+ 鸣牌后无役听牌（4.4）
+        // 未听返杠（4.4）+ 鸣牌后无役听牌（4.4）；推倒胡不罚。
         var penaltyLog = new List<string>();
-        ApplyNotenKanPenalty(tenpai, penaltyLog);
-        ApplyNoYakuTenpaiPenalty(tenpai, penaltyLog);
+        if (Ruleset != Ruleset.TuidaoHu)
+        {
+            ApplyNotenKanPenalty(tenpai, penaltyLog);
+            ApplyNoYakuTenpaiPenalty(tenpai, penaltyLog);
+        }
         LastFlowPenalties = penaltyLog.ToArray();
 
         // 连庄判定：庄家听牌 → 连庄（本场 +1）；否则过庄（本场归零）

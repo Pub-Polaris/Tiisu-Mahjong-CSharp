@@ -73,6 +73,19 @@ public static class TuidaoHuChecker
         return ClassifyStandard(hand, melds, kongCount);
     }
 
+    /// <summary>形态的可读名称（结算屏 / 日志用）。</summary>
+    public static string Name(TuidaoHuShape shape) => shape switch
+    {
+        TuidaoHuShape.FourSequencesPair => "四顺一对",
+        TuidaoHuShape.OneTripletThreeSequencesPair => "一刻三顺一对",
+        TuidaoHuShape.TwoTripletsTwoSequencesPair => "二刻二顺一对",
+        TuidaoHuShape.OneSequenceThreeTripletsPair => "一顺三刻一对",
+        TuidaoHuShape.FourTripletsPair => "四刻一对",
+        TuidaoHuShape.SevenPairs => "七对",
+        TuidaoHuShape.ThirteenOrphans => "十三幺",
+        _ => "不成和",
+    };
+
     /// <summary>是否推倒胡和牌。</summary>
     public static bool IsWin(IReadOnlyList<Tile> hand, IReadOnlyList<Meld>? melds = null) =>
         Classify(hand, melds) != TuidaoHuShape.None;

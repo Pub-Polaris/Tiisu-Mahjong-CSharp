@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Tiisu.App.Rendering;
+using Tiisu.Core;
 
 namespace Tiisu.App.Runtime;
 
@@ -34,6 +35,10 @@ public sealed class Settings
 
     public static string SettingsPath(string? directory = null) =>
         Path.Combine(directory ?? DefaultDirectory, "settings.json");
+
+    /// <summary>规则集：Qizi（默认，七子）或 TuidaoHu（推倒胡，1102工程）。</summary>
+    [JsonPropertyName("ruleset")]
+    public Ruleset Ruleset { get; set; } = Ruleset.Qizi;
 
     /// <summary>人类长考秒数（按钮窗口倒计时，UI 用）。</summary>
     public int ThinkSeconds { get; set; } = 30;
@@ -111,6 +116,7 @@ public sealed class Settings
         ThinkSeconds = other.ThinkSeconds;
         OptionalYaku = new List<string>(other.OptionalYaku ?? new List<string>());
         ShowMa = other.ShowMa;
+        Ruleset = other.Ruleset;
         ShowDebug = other.ShowDebug;
         ShowWallViewer = other.ShowWallViewer;
         RecordTiles = other.RecordTiles;

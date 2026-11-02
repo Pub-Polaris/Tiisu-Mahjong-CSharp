@@ -60,9 +60,10 @@ public sealed partial class WinChecker
     /// <param name="optionalEnabled">
     /// 启用的可选役 id。传 null（默认）表示启用全部 optional 役 —— 与 golden 验证台口径一致。
     /// </param>
-    public WinChecker(YakuData yakuData, IEnumerable<string>? optionalEnabled = null)
+    public WinChecker(YakuData yakuData, IEnumerable<string>? optionalEnabled = null, Ruleset ruleset = Ruleset.Qizi)
     {
         _yakuData = yakuData ?? throw new ArgumentNullException(nameof(yakuData));
+        Ruleset = ruleset;
         if (optionalEnabled is null)
         {
             foreach (var yaku in yakuData.Yaku)
@@ -90,6 +91,9 @@ public sealed partial class WinChecker
         }
     }
 
+    /// <summary>规则集：七子（默认）或推倒胡。</summary>
+    public Ruleset Ruleset { get; }
+
     /// <summary>高目优先（枚举全部拆法）。默认开启；关闭后与 JS 的旧行为一致（第一个拆法）。</summary>
     public bool MaxSplit { get; set; } = true;
 
@@ -113,6 +117,27 @@ public sealed partial class WinChecker
         ArgumentNullException.ThrowIfNull(hand);
         _ = firstTurn;
         melds ??= Array.Empty<Meld>();
+
+        // 推倒胡（1102工程）：只判形态，不看役、不算赋、不设起和线。
+        if (Ruleset == Ruleset.TuidaoHu)
+        {
+            var shape = TuidaoHuChecker.Classify(hand, melds);
+            if (shape == TuidaoHuShape.None)
+            {
+                return new WinResult { Success = false, Reason = "not_formed" };
+            }
+
+            return new WinResult
+            {
+                Success = true,
+                TotalFu = 0,
+                HandType = shape == TuidaoHuShape.SevenPairs ? HandKind.SevenPairs : HandKind.StandardHand,
+                ActiveYaku = new[]
+                {
+                    new YakuResult { Name = TuidaoHuChecker.Name(shape), Fu = 0 },
+                },
+            };
+        }
 
         if (!MaxSplit)
         {
