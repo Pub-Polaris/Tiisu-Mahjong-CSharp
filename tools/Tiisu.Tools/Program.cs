@@ -23,6 +23,8 @@ if (args.Length > 0)
             return ProbeLastTile.Run();
         case "--export-dataset":
             return ExportDataset.Run(args);
+        case "--analyze-discards":
+            return AnalyzeDiscards.Run(args);
     }
 }
 
