@@ -21,6 +21,8 @@ if (args.Length > 0)
             return RegenEngineFixtures.Run();
         case "--probe-last-tile":
             return ProbeLastTile.Run();
+        case "--export-dataset":
+            return ExportDataset.Run(args);
     }
 }
 
