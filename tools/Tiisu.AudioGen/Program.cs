@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 
 namespace Tiisu.AudioGen;
 
@@ -25,6 +26,7 @@ internal static class Program
         double gainDb = -5.0;
         bool sfx = false;
         bool voices = false;
+        bool force = false;
         bool list = false;
 
         for (int i = 0; i < args.Length; i++)
@@ -51,6 +53,9 @@ internal static class Program
                     break;
                 case "--voices":
                     voices = true;
+                    break;
+                case "--force":
+                    force = true;
                     break;
                 case "--list":
                     list = true;
@@ -97,8 +102,14 @@ internal static class Program
             Console.WriteLine("音效：");
             foreach (var (name, build) in SfxSynth.All)
             {
-                byte[] wav = build();
                 string path = Path.Combine(dir, name + ".wav");
+                if (!force && File.Exists(path))
+                {
+                    Console.WriteLine($"  {name,-9} skip（已存在）");
+                    continue;
+                }
+
+                byte[] wav = build();
                 File.WriteAllBytes(path, wav);
                 Console.WriteLine($"  {name,-9} {wav.Length,7} B  {path}");
             }
@@ -108,6 +119,13 @@ internal static class Program
         {
             Console.WriteLine("语音：");
             string voiceDir = Path.Combine(outDir, "voices");
+            if (!force && Directory.Exists(voiceDir)
+                && Directory.EnumerateFiles(voiceDir, "*.wav").Any())
+            {
+                Console.WriteLine("  skip（voices 已存在，--force 可重生成）");
+                goto AfterVoices;
+            }
+
             bool useSapi = engine is "sapi" or "auto" && SapiVoiceSynth.IsAvailable;
 
             if (useSapi)
@@ -137,13 +155,22 @@ internal static class Program
             }
         }
 
+    AfterVoices:
         if (!string.IsNullOrWhiteSpace(bgm))
         {
             Console.WriteLine("BGM：");
-            int bgmCode = BgmSynth.Convert(bgm!, Path.Combine(outDir, "bgm", "lobby.wav"), gainDb);
-            if (bgmCode != 0)
+            string bgmPath = Path.Combine(outDir, "bgm", "lobby.wav");
+            if (!force && File.Exists(bgmPath))
             {
-                return bgmCode;
+                Console.WriteLine($"  skip（{bgmPath} 已存在）");
+            }
+            else
+            {
+                int bgmCode = BgmSynth.Convert(bgm!, bgmPath, gainDb);
+                if (bgmCode != 0)
+                {
+                    return bgmCode;
+                }
             }
         }
 
