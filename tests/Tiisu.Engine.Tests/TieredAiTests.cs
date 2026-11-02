@@ -126,6 +126,16 @@ public sealed class TieredAiTests
     }
 
     [Fact]
+    public void 四对子以上_优先打孤张保七对()
+    {
+        // 5 对子 + 3 孤张：应打孤张，而不是拆对子。
+        var ctx = Context(Tiles("1122334455m6p7p9p"));
+        var decision = TieredAi.Decide(ctx, AiLevel.Hard, new FixedRandom(0.5));
+        var tile = decision.Ranking.Single(c => c.Index == decision.Index).Tile;
+        Assert.Equal(1, ctx.Hand.Count(x => x == tile));
+    }
+
+    [Fact]
     public void Hard_PrefersGenbutsu_WhenUkeireIsEqual()
     {
         // 七对子形状里每张字牌都是「切掉后单钓同一张」，进张 / 赋完全相同；7z 是现物。

@@ -168,6 +168,9 @@ public static class TieredAi
             && Shanten.Calculate(ctx.Hand, ctx.Melds).Shanten >= tuning.NormalDangerShantenThreshold;
         bool useDanger = level is AiLevel.Hard or AiLevel.Shura || lateDefense;
 
+        // 4 对子以上：国标/日麻的常态是保对子冲七对（北极星 2026-11-02）。
+        int pairCount = ctx.Hand.GroupBy(t => t).Count(g => g.Count() >= 2);
+
         for (int i = 0; i < ctx.Hand.Count; i++)
         {
             var remaining = new List<Tile>(ctx.Hand.Count - 1);
@@ -218,6 +221,14 @@ public static class TieredAi
                     + keepScores[i] * tuning.HardIsolationWeight
                     - danger * tuning.HardDangerWeight,
             };
+
+            // 四对子以上优先七对：打对子里的牌扣分，打孤张加分。
+            // 现物优先：安全牌不参与七对偏好，避免为了凑对子打危险牌。
+            bool hasIsolated = ctx.Hand.Count > pairCount * 2;
+            if (pairCount >= 4 && hasIsolated && !genbutsu)
+            {
+                score += ctx.Hand.Count(t => t == ctx.Hand[i]) >= 2 ? -1200.0 : 600.0;
+            }
 
             candidates.Add(new AiCandidate(
                 i,

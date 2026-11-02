@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 
 TILE_SUITS = "mpsz"
-FEATURES = 34 + 7  # 手牌 34 + (wall, turn, honba, dealer, seat×3)
+FEATURES = 34 + 8  # 手牌 34 + (wall, turn, honba, dealer, seat×3, 对子数)
 
 
 def hand_counts(hand):
