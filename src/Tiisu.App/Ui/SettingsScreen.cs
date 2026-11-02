@@ -289,13 +289,14 @@ public sealed class SettingsScreen : Screen
         return weights is { Length: 4 } ? string.Join("/", weights) : "30/45/20/5";
     }
 
-    /// <summary>锁档名：-1 = 随机，0..3 = 简单 / 普通 / 困难 / 修罗。</summary>
+    /// <summary>锁档名：-1 = 随机，0..3 = 简单 / 普通 / 困难 / 修罗，4 = 7Neuu。</summary>
     private static string LockName(int value) => value switch
     {
         0 => "简单",
         1 => "普通",
         2 => "困难",
         3 => "修罗",
+        4 => "7Neuu",
         _ => "随机",
     };
 

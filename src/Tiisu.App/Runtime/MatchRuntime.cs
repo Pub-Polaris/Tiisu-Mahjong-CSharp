@@ -772,7 +772,7 @@ public sealed class MatchRuntime
                 }
             }
 
-            if (NeuralSeats.Contains(seatIndex))
+            if (NeuralSeats.Contains(seatIndex) || _aiLevels[player.Index] == AiLevel.Neural)
             {
                 int idx = NeuralPolicyAi.ChooseDiscard(ctx);
                 if (idx >= 0)

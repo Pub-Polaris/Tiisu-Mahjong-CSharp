@@ -69,7 +69,7 @@ public sealed class AiLineup
                 continue;
             }
 
-            if (locks[seat] is >= 0 and <= 3)
+            if (locks[seat] is >= 0 and <= 4)
             {
                 levels[seat] = (AiLevel)locks[seat];
                 continue;
@@ -153,7 +153,7 @@ public sealed class AiLineup
 
         for (int i = 0; i < 4 && i < lockSeat.Length; i++)
         {
-            locks[i] = lockSeat[i] is >= 0 and <= 3 ? lockSeat[i] : -1;
+            locks[i] = lockSeat[i] is >= 0 and <= 4 ? lockSeat[i] : -1;
         }
 
         return locks;

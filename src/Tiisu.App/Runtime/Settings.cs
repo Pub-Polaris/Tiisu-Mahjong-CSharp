@@ -179,7 +179,7 @@ public sealed class Settings
 
         for (int i = 0; i < 4; i++)
         {
-            copy[i] = locks[i] is >= 0 and <= 3 ? locks[i] : -1;
+            copy[i] = locks[i] is >= 0 and <= 4 ? locks[i] : -1;
         }
 
         return copy;

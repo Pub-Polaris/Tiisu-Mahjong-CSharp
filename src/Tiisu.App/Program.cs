@@ -84,6 +84,9 @@ internal static class Program
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
                 return;
+            case "--smoke-7neuu":
+                Environment.ExitCode = Smoke7Neuu();
+                return;
             case "--selfplay":
                 Environment.ExitCode = SelfPlay(args);
                 return;
@@ -2566,6 +2569,34 @@ internal static class Program
         Console.WriteLine($"  副露={meldSeen} 有取牌下标={claimSeen}");
         Console.WriteLine($"smoke-called-ron-pass: seed={seed} 报听={called} 报听荣和={sawCalledRon} "
             + $"{detail} 锁手灰显={lockOk} {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
+    }
+
+    /// <summary><c>--smoke-7neuu</c>：设置里把某座锁到 7Neuu，引擎必须真的走小策略网。</summary>
+    private static int Smoke7Neuu()
+    {
+        TryUseUtf8Console();
+        var settings = new Settings();
+        settings.AiSeatLocks = new[] { 4, -1, -1, -1 };
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(7), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: 7);
+        runtime.AllSeatsAi = true;
+        runtime.StartMatch(4);
+        int guard = 0;
+        while (runtime.Phase != MatchPhase.MatchOver && guard++ < 500)
+        {
+            if (runtime.Phase == MatchPhase.RoundEnded)
+            {
+                runtime.NextRound();
+            }
+            else
+            {
+                Thread.Sleep(2);
+            }
+        }
+
+        bool ok = runtime.NeuralDecisions > 0;
+        Console.WriteLine($"smoke-7neuu: 神经决策 {runtime.NeuralDecisions} 次（与困难不同 {runtime.NeuralDifferent}）{(ok ? " PASS" : " FAIL")}");
         return ok ? 0 : 1;
     }
 

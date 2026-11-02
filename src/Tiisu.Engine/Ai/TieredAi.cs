@@ -3,13 +3,16 @@ using CoreMeld = Tiisu.Core.Meld;
 
 namespace Tiisu.Engine.Ai;
 
-/// <summary>四档 AI 难度。</summary>
+/// <summary>AI 难度档。</summary>
 public enum AiLevel
 {
     Simple = 0,
     Normal = 1,
     Hard = 2,
     Shura = 3,
+
+    /// <summary>7Neuu：小策略网（数据学习），实验档。</summary>
+    Neural = 4,
 }
 
 /// <summary>
