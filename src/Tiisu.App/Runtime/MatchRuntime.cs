@@ -353,7 +353,10 @@ public sealed class MatchRuntime
         _lastOutcome = null;
         _firstDeal = true;
         _message = "已重置";
-        _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random);
+        // 规则集可能在设置里切过：重置时按当前设置重建判役器与引擎，否则会退回默认七子。
+        var ruleset = _settings.Ruleset == Ruleset.TuidaoHu ? Ruleset.TuidaoHu : Ruleset.Qizi;
+        _checker = new WinChecker(SharedYaku, _settings.OptionalYaku, ruleset);
+        _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random, ruleset);
         _engine.SetMode(_modeTarget);
         _engine.Players[0].IsHuman = !AllSeatsAi;
         _engine.Players[0].IsDealer = true;

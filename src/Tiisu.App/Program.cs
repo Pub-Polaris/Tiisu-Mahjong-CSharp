@@ -83,6 +83,9 @@ internal static class Program
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
                 return;
+            case "--smoke-ruleset-switch":
+                Environment.ExitCode = SmokeRulesetSwitch();
+                return;
             case "--smoke-neural":
                 Environment.ExitCode = SmokeNeural();
                 return;
@@ -2556,6 +2559,27 @@ internal static class Program
         Console.WriteLine($"  副露={meldSeen} 有取牌下标={claimSeen}");
         Console.WriteLine($"smoke-called-ron-pass: seed={seed} 报听={called} 报听荣和={sawCalledRon} "
             + $"{detail} 锁手灰显={lockOk} {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
+    }
+
+    /// <summary><c>--smoke-ruleset-switch</c>：设置切到推倒胡并重置后，引擎必须真的换成推倒胡。</summary>
+    private static int SmokeRulesetSwitch()
+    {
+        TryUseUtf8Console();
+        var settings = new Settings();
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(1), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: 1);
+        runtime.StartMatch(4);
+        bool before = runtime.Engine.Ruleset == Ruleset.Qizi;
+
+        var changed = new Settings { Ruleset = Ruleset.TuidaoHu };
+        runtime.ApplySettings(changed);
+        runtime.ResetAll();
+        bool after = runtime.Engine.Ruleset == Ruleset.TuidaoHu
+            && runtime.Engine.Checker.Ruleset == Ruleset.TuidaoHu;
+
+        bool ok = before && after;
+        Console.WriteLine($"smoke-ruleset-switch: 初始七子={before} 切换后推倒胡={after} {(ok ? "PASS" : "FAIL")}");
         return ok ? 0 : 1;
     }
 
