@@ -169,7 +169,8 @@ internal sealed class ScreenHostCore : IDisposable
 
         _previous = _current;
         _current = next;
-        _transition = 0;
+        // 直接切屏：旧实现只画「旧屏 + 黑幕」，静态画面不再重绘 → 切到主菜单整屏黑。
+        _transition = 1;
 
         if (Environment.GetEnvironmentVariable("TIISU_LOG_KEYS") == "1")
         {

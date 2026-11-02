@@ -5,6 +5,7 @@ using System.IO;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
+using Tiisu.Core;
 using Tiisu.App.Table;
 using Color = Tiisu.App.Rendering.Color;
 
@@ -49,6 +50,7 @@ public sealed class TableScreen : Screen
     /// <summary>牌山查看器：按住右下角按钮时显示，松开恢复牌桌。</summary>
     private bool _wallHeld;
     private readonly bool _showWallButton;
+    private readonly Ruleset _ruleset;
 
     private RectF WallButtonRect => new(CanvasWidth - 176, CanvasHeight - 108, 156, 48);
 
@@ -82,6 +84,7 @@ public sealed class TableScreen : Screen
         _backToMenu = backToMenu;
         _thinkSeconds = Math.Max(0, settings?.ThinkSeconds ?? 0);
         _showWallButton = settings?.ShowWallViewer ?? false;
+        _ruleset = settings?.Ruleset ?? Ruleset.Qizi;
         _scene.Style = renderStyle;
 
         YogaTableLayout.Apply(_layout);
@@ -167,6 +170,14 @@ public sealed class TableScreen : Screen
     /// <summary>右下角「骰子」按钮：按住显示本局的定庄骰 / 切牌骰与开局位，松开立刻回牌桌（不显示牌山，避免作弊）。</summary>
     private void DrawDiceViewer(ICanvas c, TableViewModel vm)
     {
+        // 推倒胡：右下角常驻规则提示（无役 / 无点数 / 只记胜负）。
+        if (_ruleset == Ruleset.TuidaoHu)
+        {
+            c.DrawText("推倒胡：无役 · 无点数 · 只记胜负",
+                new RectF(CanvasWidth - 470, CanvasHeight - 140, 450, 22),
+                Color.Rgb(196, 168, 96), new TextStyle(13, Center: false, Right: true));
+        }
+
         if (!_showWallButton)
         {
             return;
