@@ -132,7 +132,9 @@ public sealed partial class MahjongEngine
                 int childSlot = 1 - dealerSlot;
                 var dealerWinner = winners[dealerSlot];
                 var childWinner = winners[childSlot];
-                if (childWinner.Result.TotalFu >= dealerWinner.Result.TotalFu)
+                // 推倒胡：不结算 3500 点。
+                if (Ruleset != Ruleset.TuidaoHu
+                    && childWinner.Result.TotalFu >= dealerWinner.Result.TotalFu)
                 {
                     _scores[DealerIndex] -= 3500;
                     _scores[childWinner.PlayerIndex] += 3500;
@@ -562,7 +564,8 @@ public sealed partial class MahjongEngine
                 }
             }
 
-            if (lowIndex != DealerIndex)
+            // 推倒胡：纯胜负，不结算七日终战的 2100 点。
+            if (Ruleset != Ruleset.TuidaoHu && lowIndex != DealerIndex)
             {
                 _scores[DealerIndex] -= 2100;
                 _scores[lowIndex] += 2100;

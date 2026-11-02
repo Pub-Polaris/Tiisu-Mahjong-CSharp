@@ -41,7 +41,8 @@ public sealed record RoundResult(
     IReadOnlyList<SettlementDetail>? Details = null,
     string? DrawReason = null,
     IReadOnlyList<int>? ScoresBefore = null,
-    IReadOnlyList<string>? Penalties = null);
+    IReadOnlyList<string>? Penalties = null,
+    bool Simplified = false);
 
 /// <summary>局末判定的内部记录（决定写哪种日志 / 统计）。</summary>
 internal sealed record RoundOutcome(string Kind, IReadOnlyList<int> Winners, string? Reason);
@@ -1990,7 +1991,8 @@ public sealed class MatchRuntime
             details,
             drawReason,
             _scoresAtRoundStart.ToArray(),
-            outcome.Kind is "flow" or "special_flow" ? _engine.LastFlowPenalties : null);
+            outcome.Kind is "flow" or "special_flow" ? _engine.LastFlowPenalties : null,
+            _settings.Ruleset == Ruleset.TuidaoHu);
 
         _stats?.RecordRound(result, names);
         RecordEvent(

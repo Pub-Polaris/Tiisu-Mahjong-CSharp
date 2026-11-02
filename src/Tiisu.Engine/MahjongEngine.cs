@@ -491,15 +491,20 @@ public sealed partial class MahjongEngine
         if (WestDiscardCount >= 4)
         {
             int payer = LastWestDiscarder;
-            for (int k = 0; k < PlayerCount; k++)
-            {
-                if (k == payer)
-                {
-                    continue;
-                }
 
-                _scores[payer] -= 700;
-                _scores[k] += 700;
+            // 推倒胡：纯胜负，拔厄只清计数不结算点数。
+            if (Ruleset != Ruleset.TuidaoHu)
+            {
+                for (int k = 0; k < PlayerCount; k++)
+                {
+                    if (k == payer)
+                    {
+                        continue;
+                    }
+
+                    _scores[payer] -= 700;
+                    _scores[k] += 700;
+                }
             }
 
             bool allEqual = _scores.All(s => s == _scores[0]);

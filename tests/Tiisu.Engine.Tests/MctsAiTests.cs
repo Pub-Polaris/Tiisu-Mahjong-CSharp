@@ -94,14 +94,16 @@ public sealed class MctsAiTests
     public void MctsEnabled_SameSeed_Reproduces()
     {
         var ctx = Context(Tiles("123m456m789m11p23s5z")).WithMcts();
-        var options = new MctsOptions(32, 8, TimeSpan.FromSeconds(30));
+        // 时间预算给足：并行/负载抖动时不会提前截断模拟次数（否则同 seed 结果会抖）。
+        var options = new MctsOptions(32, 8, TimeSpan.FromMinutes(10));
 
         var first = MctsAi.ChooseDiscard(ctx, new Mulberry32Random(9981), options);
         var second = MctsAi.ChooseDiscard(ctx, new Mulberry32Random(9981), options);
         Assert.Equal(first, second);
 
-        var decisionA = TieredAi.Decide(ctx, AiLevel.Shura, new Mulberry32Random(9981), mctsEnabled: true);
-        var decisionB = TieredAi.Decide(ctx, AiLevel.Shura, new Mulberry32Random(9981), mctsEnabled: true);
+        var tuning = new AiTuning { MctsTimeBudgetMs = 600_000 };
+        var decisionA = TieredAi.Decide(ctx, AiLevel.Shura, new Mulberry32Random(9981), tuning, mctsEnabled: true);
+        var decisionB = TieredAi.Decide(ctx, AiLevel.Shura, new Mulberry32Random(9981), tuning, mctsEnabled: true);
         Assert.Equal(decisionA.Index, decisionB.Index);
         Assert.Equal(decisionA.NeedDeepThink, decisionB.NeedDeepThink);
         AssertSameRanking(decisionA, decisionB);

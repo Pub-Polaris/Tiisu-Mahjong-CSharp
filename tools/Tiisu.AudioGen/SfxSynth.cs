@@ -96,7 +96,7 @@ internal static class SfxSynth
     public static byte[] Shuffle()
     {
         const int rate = 24000;
-        int total = (int)(rate * 1.35);
+        int total = (int)(rate * 1.5);
         var samples = new double[total];
         var rnd = new Random(777);
         double prev = 0;

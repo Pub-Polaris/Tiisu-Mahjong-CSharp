@@ -146,16 +146,19 @@ public sealed class SettlementOverlay
         bool matchOver = vm.Phase == "match_over" || result.MatchOver;
         var details = result.Details ?? Array.Empty<SettlementDetail>();
         bool flow = details.Count == 0;
-        bool penaltyPage = PenaltyCount(result) > 0 && _index >= Math.Max(1, details.Count);
+        bool simplified = result.Simplified;
+        bool penaltyPage = !simplified && PenaltyCount(result) > 0 && _index >= Math.Max(1, details.Count);
         SettlementDetail? detail = flow || penaltyPage ? null : details[Math.Min(_index, details.Count - 1)];
 
         // 内容高度 → 面板高度，再在画布里垂直居中。两栏各自按内容定高，板块不被拉长留空。
         float handContent = flow || penaltyPage ? MeasureFlowHands(vm) : MeasureWinnerHand(vm, detail!);
-        float infoContent = penaltyPage
-            ? MeasurePenaltyInfo(PenaltyCount(result), matchOver)
-            : flow
-                ? MeasureFlowInfo(matchOver)
-                : MeasureWinnerInfo(detail!, matchOver);
+        float infoContent = simplified
+            ? MeasureSimplifiedInfo(flow, matchOver)
+            : penaltyPage
+                ? MeasurePenaltyInfo(PenaltyCount(result), matchOver)
+                : flow
+                    ? MeasureFlowInfo(matchOver)
+                    : MeasureWinnerInfo(detail!, matchOver);
         float contentH = Math.Max(handContent, infoContent);
 
         bool custom = layout is not null && layout.SettlementRect != TableLayoutSpec.DefaultSettlementRect;
@@ -192,7 +195,20 @@ public sealed class SettlementOverlay
         DrawZone(c, handZone);
         DrawZone(c, infoZone);
 
-        if (penaltyPage)
+        if (simplified)
+        {
+            if (flow)
+            {
+                DrawFlowHands(c, vm, handZone);
+            }
+            else
+            {
+                DrawWinnerHand(c, vm, detail!, handZone);
+            }
+
+            DrawSimplifiedInfo(c, result, vm, infoZone, matchOver);
+        }
+        else if (penaltyPage)
         {
             DrawFlowHands(c, vm, handZone);
             DrawPenaltyInfo(c, result, vm, infoZone, matchOver);
@@ -231,7 +247,8 @@ public sealed class SettlementOverlay
         string outcome = details.Count == 0 ? "荒牌流局"
             : details.Count > 1 ? "多家和牌"
             : OutcomeLabel(result);
-        string meta = "第 " + result.Round.ToString(CultureInfo.InvariantCulture) + " 局 · " + outcome;
+        string meta = "第 " + result.Round.ToString(CultureInfo.InvariantCulture) + " 局 · "
+                      + (result.Simplified ? "推倒胡 · " + outcome : outcome);
         c.DrawText(meta, new RectF(left, panel.Y + 66f, 560, 28), Muted,
             new TextStyle(16, Center: false));
 
@@ -632,6 +649,49 @@ public sealed class SettlementOverlay
         }
 
         DrawScoreChanges(c, result, vm, x, width, y);
+    }
+
+    /// <summary>推倒胡结算：只显示和牌 / 流局与形态名，不显示役、赋、点数。</summary>
+    private void DrawSimplifiedInfo(ICanvas c, RoundResult result, TableViewModel vm, RectF zone, bool matchOver)
+    {
+        float x = zone.X + 20f;
+        float width = zone.W - 40f;
+        float y = zone.Y + 12f;
+
+        var details = result.Details ?? Array.Empty<SettlementDetail>();
+        bool flow = details.Count == 0;
+        string shape = "和牌";
+        if (!flow && details[0].Yaku.Count > 0)
+        {
+            shape = details[0].Yaku[0].Name;
+        }
+
+        c.DrawText(flow ? "流局" : "和牌", new RectF(x, y, width, 44), GoldBright,
+            new TextStyle(28, Bold: true, Center: false));
+        y += 52f;
+
+        c.DrawText("推倒胡 · " + (flow ? "无人和牌" : shape), new RectF(x, y, width, 26), TextColor,
+            new TextStyle(17, Center: false));
+        y += 34f;
+
+        c.DrawText("只记胜负，不计点数", new RectF(x, y, width, 24), Muted,
+            new TextStyle(14, Center: false));
+        y += 30f;
+
+        c.FillRect(new RectF(x, y, width, 1f), Hairline);
+        y += 18f;
+
+        if (matchOver)
+        {
+            DrawRanking(c, vm, x, width, y);
+        }
+    }
+
+    private static float MeasureSimplifiedInfo(bool flow, bool matchOver)
+    {
+        float h = 52f + 34f + 30f + 18f + 10f;
+        h += matchOver ? 26f + 4 * 34f : 0f;
+        return h;
     }
 
     /// <summary>第二页：场上实际执行的惩罚结算（未听返杠 / 无役听牌罚 / 报听错和罚）。</summary>

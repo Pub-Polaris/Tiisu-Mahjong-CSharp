@@ -225,6 +225,17 @@ public sealed class SettingsScreen : Screen
             () => _settings.ShowWallViewer,
             value => _settings.ShowWallViewer = value)));
 
+        // 1102工程：规则集切换（只在新一局生效；ScreenHost 会重置牌桌并回菜单）。
+        _rows.Add(new Row(
+            "规则集（推倒胡=无役/无点数）",
+            () => _settings.Ruleset == Ruleset.TuidaoHu ? "推倒胡" : "七子",
+            () => _settings.Ruleset == Ruleset.TuidaoHu,
+            _ =>
+            {
+                _settings.Ruleset = _settings.Ruleset == Ruleset.TuidaoHu ? Ruleset.Qizi : Ruleset.TuidaoHu;
+                Save();
+            }));
+
         _rows.Add(new Row(
             "AI 难度权重",
             WeightText,

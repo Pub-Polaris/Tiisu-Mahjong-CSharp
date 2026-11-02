@@ -12,6 +12,7 @@ using Tiisu.App.Ui;
 using Tiisu.App.Table;
 using Tiisu.App.Svg;
 using Tiisu.Engine;
+using Tiisu.Core;
 using Tiisu.Engine.Ai;
 using Tiisu.Engine.Random;
 using GameTile = Tiisu.Core.Tile;
@@ -82,6 +83,9 @@ internal static class Program
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
                 return;
+            case "--smoke-tuidaohu":
+                Environment.ExitCode = SmokeTuidaoHu(args);
+                return;
             case "--smoke-called-ron-pass":
                 Environment.ExitCode = SmokeCalledRonPass(args);
                 return;
@@ -90,6 +94,13 @@ internal static class Program
                 return;            case "--smoke-dice":
                 Environment.ExitCode = SmokeDice();
                 return;
+        }
+
+        // 推倒胡结算出图：--render-simplified <png>
+        if (args.Length >= 2 && args[0] == "--render-simplified")
+        {
+            RenderSimplifiedSettlement(args[1]);
+            return;
         }
 
         // 编辑态出图：--render-layout-edit <png>
@@ -1378,6 +1389,49 @@ internal static class Program
         screen.Draw(ctx, 0.2);
     }
 
+    /// <summary><c>--render-simplified &lt;png&gt;</c>：推倒胡结算演示（只显示和牌形态，不显示役/赋/点数）。</summary>
+    private static void RenderSimplifiedSettlement(string path)
+    {
+        TryUseUtf8Console();
+        var detail = new SettlementDetail
+        {
+            WinnerIndex = 0,
+            SelfDraw = false,
+            PayerIndex = 3,
+            Yaku = new (string Name, int Fu, SettlementYakuFlag Flag)[]
+            {
+                ("四顺一对", 0, SettlementYakuFlag.Normal),
+            },
+            TotalFu = 0,
+            TableSafeFu = 0,
+            BasePoints = 0,
+            SubPoints = 0,
+            FinalPoints = 0,
+            PaymentText = "推倒胡 · 只记胜负",
+        };
+
+        var result = new RoundResult(
+            2,
+            "ron",
+            new[] { 0 },
+            null,
+            new[] { 49000, 49000, 49000, 49000 },
+            0,
+            0,
+            false,
+            new[] { detail },
+            null,
+            new[] { 49000, 49000, 49000, 49000 },
+            null,
+            Simplified: true);
+
+        using var atlas = new TileAtlas(AssetsDir);
+        var screen = new TableScreen(TableDemoModel.CreateWithFlow, null, null, atlas);
+        screen.ShowSettlement(result);
+        RenderScreen(path, screen, atlas);
+        Console.WriteLine($"rendered simplified -> {path}");
+    }
+
     /// <summary><c>--render-roundend &lt;png&gt; --flow</c>：荒牌流局演示（不列役，只给四家分数变化）。</summary>
     private static void RenderFlowSettlement(string path, int page = 1)
     {
@@ -2496,6 +2550,84 @@ internal static class Program
         Console.WriteLine($"  副露={meldSeen} 有取牌下标={claimSeen}");
         Console.WriteLine($"smoke-called-ron-pass: seed={seed} 报听={called} 报听荣和={sawCalledRon} "
             + $"{detail} 锁手灰显={lockOk} {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--smoke-tuidaohu [seed]</c>：推倒胡整场自走，断言「零点数 / 无报听 / 结算是简化版」。
+    /// </summary>
+    private static int SmokeTuidaoHu(string[] args)
+    {
+        TryUseUtf8Console();
+        uint seed = 11;
+        if (args.Length >= 2 && !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out seed))
+        {
+            seed = 11;
+        }
+
+        RoundResult? last = null;
+        var settings = new Settings { Ruleset = Ruleset.TuidaoHu };
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), uiEvent =>
+        {
+            if (uiEvent is RoundEndEvent end)
+            {
+                last = end.Result;
+            }
+        }, saveStore: null, stats: null, roundLog: null, matchSeed: seed);
+
+        runtime.StartMatch(4);
+        bool called = false;
+        var clock = Stopwatch.StartNew();
+        int start = 0;
+
+        while (clock.Elapsed < TimeSpan.FromSeconds(40) && runtime.Phase != MatchPhase.MatchOver)
+        {
+            var phase = runtime.Phase;
+            if (phase == MatchPhase.RoundEnded)
+            {
+                runtime.NextRound();
+                continue;
+            }
+
+            var player = runtime.Engine.Players[runtime.HumanIndex];
+            if (player.IsCalled)
+            {
+                called = true;
+            }
+
+            if (phase == MatchPhase.HumanDiscard)
+            {
+                int pick = player.IsCalled
+                    ? LegalCalledDiscardIndex(runtime.Engine, player)
+                    : BestShantenDiscardIndex(player);
+                if (pick < 0)
+                {
+                    break;
+                }
+
+                if (start == 0)
+                {
+                    start = runtime.Engine.Scores[0];
+                }
+
+                runtime.Execute(GameCommand.Discard(pick));
+                continue;
+            }
+
+            if (phase is MatchPhase.HumanMeld or MatchPhase.HumanRon)
+            {
+                runtime.Execute(GameCommand.Pass());
+                continue;
+            }
+
+            Thread.Sleep(5);
+        }
+
+        bool zeroScores = runtime.Engine.Scores.All(s => s == start);
+        bool simplified = last is { Simplified: true };
+        bool ok = simplified && zeroScores && !called;
+        Console.WriteLine($"smoke-tuidaohu: seed={seed} 阶段={runtime.Phase} 简化结算={simplified} "
+            + $"零分数={zeroScores} 报听={called} {(ok ? "PASS" : "FAIL")}");
         return ok ? 0 : 1;
     }
 
