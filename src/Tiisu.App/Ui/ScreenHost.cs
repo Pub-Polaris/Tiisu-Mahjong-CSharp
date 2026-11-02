@@ -36,6 +36,7 @@ internal sealed class ScreenHostCore : IDisposable
     private Screen _current;
     private Screen? _previous;
     private double _transition;      // 0 → 1
+    private double _lastUpdate = -1;
     private const double TransitionSeconds = 0.15;
 
     private float _scale = 1f;
@@ -199,6 +200,16 @@ internal sealed class ScreenHostCore : IDisposable
         _offsetY = (info.Height - _canvasH * _scale) / 2f;
 
         double t = _clock.Elapsed.TotalSeconds;
+
+        // 每帧推进当前屏（长考倒计时、按钮动画等依赖 Update 的 dt）。
+        double dt = _lastUpdate < 0 ? 0 : t - _lastUpdate;
+        _lastUpdate = t;
+        if (dt > 0.5)
+        {
+            dt = 0.5;
+        }
+
+        _current.Update(dt);
         if (_transition < 1)
         {
             _transition = Math.Min(1, _transition + 0.016 / TransitionSeconds);
