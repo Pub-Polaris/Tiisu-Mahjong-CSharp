@@ -54,11 +54,22 @@ def label_index(tid):
     return base + num - 1
 
 
+WIND_NAMES = ["east", "south", "west", "north"]
+
+
 def convert_game(obj, out, stats):
     hands = None
     discards = [[], [], [], []]
     turn = [0, 0, 0, 0]
     wall = 0
+    dealer = None
+    round_wind = 0
+    initdata = obj.get("initdata") or {}
+    if isinstance(initdata, dict):
+        try:
+            round_wind = int(initdata.get("quan", 0))
+        except (TypeError, ValueError):
+            round_wind = 0
 
     for entry in obj.get("logs") or []:
         display = ((entry.get("output") or {}).get("display")) or {}
@@ -80,6 +91,8 @@ def convert_game(obj, out, stats):
         if action == "DRAW":
             if player is None or tile is None:
                 continue
+            if dealer is None:
+                dealer = player  # Botzone 牌谱没有明写庄家：首个摸牌者就是起手
             hands[player].append(tile)
             wall = max(0, wall - 1)
             continue
@@ -94,11 +107,11 @@ def convert_game(obj, out, stats):
                 "v": 1,
                 "src": "guobiao",
                 "p": player,
-                "seat": "",
-                "dealer": 0,
+                "seat": WIND_NAMES[(player - (dealer or 0)) % 4],
+                "dealer": 1 if player == (dealer or 0) else 0,
                 "wall": wall,
                 "h": 0,
-                "rw": 0,
+                "rw": round_wind % 4,
                 "dc": 0,
                 "turn": turn[player],
                 "hand": hand_string(hand),
