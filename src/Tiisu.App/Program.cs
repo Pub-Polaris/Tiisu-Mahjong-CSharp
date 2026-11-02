@@ -83,6 +83,9 @@ internal static class Program
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
                 return;
+            case "--smoke-neural":
+                Environment.ExitCode = SmokeNeural();
+                return;
             case "--smoke-optional":
                 Environment.ExitCode = SmokeOptional();
                 return;
@@ -2553,6 +2556,37 @@ internal static class Program
         Console.WriteLine($"  副露={meldSeen} 有取牌下标={claimSeen}");
         Console.WriteLine($"smoke-called-ron-pass: seed={seed} 报听={called} 报听荣和={sawCalledRon} "
             + $"{detail} 锁手灰显={lockOk} {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
+    }
+
+    /// <summary><c>--smoke-neural</c>：小策略网能否加载权重并给出合法弃牌。</summary>
+    private static int SmokeNeural()
+    {
+        TryUseUtf8Console();
+        var hand = new[] { "m1", "m2", "m3", "m5", "m5", "m7", "p2", "p3", "p4", "s1", "z3", "p6", "s8" }
+            .Select(Tile.Parse).ToArray();
+        var ctx = new AiDecisionContext(
+            hand,
+            Array.Empty<Tiisu.Engine.Meld>(),
+            Array.Empty<Tile>(),
+            new IReadOnlyList<Tile>[]
+            {
+                Array.Empty<Tile>(), Array.Empty<Tile>(), Array.Empty<Tile>(), Array.Empty<Tile>(),
+            },
+            Array.Empty<Tiisu.Engine.Meld>(),
+            0,
+            70,
+            new[] { 49000, 49000, 49000, 49000 },
+            SeatWind.East,
+            SeatWind.East,
+            0,
+            0);
+
+        int idx = NeuralPolicyAi.ChooseDiscard(ctx);
+        bool ok = NeuralPolicyAi.Available && idx >= 0 && idx < hand.Length;
+        Console.WriteLine($"smoke-neural: available={NeuralPolicyAi.Available} weights={NeuralPolicyAi.LoadedFrom}");
+        Console.WriteLine($"  手牌={string.Join(" ", hand.Select(x => x.Id))}");
+        Console.WriteLine($"  选择={(idx >= 0 ? hand[idx].Id : "无")} {(ok ? "PASS" : "FAIL")}");
         return ok ? 0 : 1;
     }
 

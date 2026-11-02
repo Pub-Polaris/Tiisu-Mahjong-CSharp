@@ -36,6 +36,10 @@
     <None Update="Assets\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- P2-1 小策略网权重：仓库 ml/ 一份，构建时带到 Assets/ml -->
+    <None Include="..\..\ml\policy_weights.json" Link="Assets\ml\policy_weights.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <!-- Generated/BuildInfo.g.cs 由下面的 Target 每次编译前重建，别再让默认 glob 收一遍（会重复 Include）。 -->
