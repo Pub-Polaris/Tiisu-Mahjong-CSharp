@@ -84,6 +84,9 @@ internal static class Program
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
                 return;
+            case "--list-locks":
+                Environment.ExitCode = ListLocks();
+                return;
             case "--smoke-7neuu":
                 Environment.ExitCode = Smoke7Neuu();
                 return;
@@ -2572,6 +2575,28 @@ internal static class Program
         return ok ? 0 : 1;
     }
 
+    /// <summary><c>--list-locks</c>：打印四座锁档循环结果，确认菜单能选到 7Neuu。</summary>
+    private static int ListLocks()
+    {
+        TryUseUtf8Console();
+        var settings = new Settings();
+        settings.AiSeatLocks = new[] { -1, -1, -1, -1 };
+        for (int seat = 0; seat < 4; seat++)
+        {
+            var seq = new List<string>();
+            for (int i = 0; i < 7; i++)
+            {
+                int next = settings.AiSeatLocks[seat] + 1;
+                settings.AiSeatLocks[seat] = next > 4 ? -1 : next;
+                seq.Add(settings.AiSeatLocks[seat] < 0 ? "随机" : new[] { "简单", "普通", "困难", "修罗", "7Neuu" }[settings.AiSeatLocks[seat]]);
+            }
+
+            settings.AiSeatLocks[seat] = -1;
+            Console.WriteLine($"  座 {seat}: {string.Join(" → ", seq)}");
+        }
+
+        return 0;
+    }
     /// <summary><c>--smoke-7neuu</c>：设置里把某座锁到 7Neuu，引擎必须真的走小策略网。</summary>
     private static int Smoke7Neuu()
     {

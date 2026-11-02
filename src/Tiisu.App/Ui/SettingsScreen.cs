@@ -306,7 +306,7 @@ public sealed class SettingsScreen : Screen
         return locks is { Length: 4 } ? locks[seat] : -1;
     }
 
-    /// <summary>←→ 循环：随机 → 简单 → 普通 → 困难 → 修罗 → 随机。</summary>
+    /// <summary>←→ 循环：随机 → 简单 → 普通 → 困难 → 修罗 → 7Neuu → 随机。</summary>
     private void CycleSeatLock(int seat, int direction)
     {
         if (_settings.AiSeatLocks is not { Length: 4 })
@@ -314,24 +314,25 @@ public sealed class SettingsScreen : Screen
             _settings.AiSeatLocks = new[] { -1, -1, -1, -1 };
         }
 
-        int current = _settings.AiSeatLocks[seat];
-        if (current is < -1 or > 3)
+        _settings.AiSeatLocks[seat] = NextLockValue(_settings.AiSeatLocks[seat], direction);
+        Save();
+    }
+
+    /// <summary>锁档的循环取值：随机 → 简单 → 普通 → 困难 → 修罗 → 7Neuu → 随机。</summary>
+    internal static int NextLockValue(int current, int direction)
+    {
+        if (current is < -1 or > 4)
         {
             current = -1;
         }
 
         int next = current + (direction >= 0 ? 1 : -1);
-        if (next > 3)
+        if (next > 4)
         {
-            next = -1;
-        }
-        else if (next < -1)
-        {
-            next = 3;
+            return -1;
         }
 
-        _settings.AiSeatLocks[seat] = next;
-        Save();
+        return next < -1 ? 4 : next;
     }
 
     private void CycleWeights(int direction)
