@@ -204,17 +204,16 @@ public sealed class SettingsScreen : Screen
                 _ => ToggleOptional(id)));
         }
 
-        _rows.Add(new Row("音效", () => OnOff(_settings.SoundEnabled), () => _settings.SoundEnabled, _ =>
-        {
-            _settings.SoundEnabled = !_settings.SoundEnabled;
-            SoundEffects.Enabled = _settings.SoundEnabled;
-            if (_settings.SoundEnabled)
-            {
-                SoundEffects.Play(SoundEffects.Cue.Call);
-            }
-
-            Save();
-        }));
+        _rows.Add(new Row(
+            "音乐音量",
+            () => _settings.BgmVolume + "%",
+            () => _settings.BgmVolume > 0,
+            direction => SetVolume(bgm: true, direction)));
+        _rows.Add(new Row(
+            "音效音量",
+            () => _settings.SfxVolume + "%",
+            () => _settings.SfxVolume > 0,
+            direction => SetVolume(bgm: false, direction)));
         _rows.Add(new Row("显示岭上指示牌", () => OnOff(_settings.ShowMa), () => _settings.ShowMa, _ => Toggle(
             () => _settings.ShowMa,
             value => _settings.ShowMa = value)));
@@ -407,6 +406,28 @@ public sealed class SettingsScreen : Screen
     private void Toggle(Func<bool> read, Action<bool> write)
     {
         write(!read());
+        Save();
+    }
+
+    /// <summary>音量滑条：左右/点击按 10 一档，0 = 静音。</summary>
+    private void SetVolume(bool bgm, int direction)
+    {
+        int step = direction >= 0 ? 10 : -10;
+        if (bgm)
+        {
+            _settings.BgmVolume = Math.Clamp(_settings.BgmVolume + step, 0, 100);
+            SoundEffects.BgmVolume = _settings.BgmVolume;
+        }
+        else
+        {
+            _settings.SfxVolume = Math.Clamp(_settings.SfxVolume + step, 0, 100);
+            SoundEffects.SfxVolume = _settings.SfxVolume;
+            if (_settings.SfxVolume > 0)
+            {
+                SoundEffects.Play(SoundEffects.Cue.Call);
+            }
+        }
+
         Save();
     }
 

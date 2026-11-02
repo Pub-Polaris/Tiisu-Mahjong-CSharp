@@ -43,6 +43,14 @@ public sealed class Settings
     /// <summary>人类长考秒数（按钮窗口倒计时，UI 用）。</summary>
     public int ThinkSeconds { get; set; } = 30;
 
+    /// <summary>背景音乐音量 0..100（0 = 静音）。</summary>
+    [JsonPropertyName("bgmVolume")]
+    public int BgmVolume { get; set; } = 60;
+
+    /// <summary>音效音量 0..100（0 = 静音）。</summary>
+    [JsonPropertyName("sfxVolume")]
+    public int SfxVolume { get; set; } = 80;
+
     /// <summary>启用的可选役 id（空 = 全部关闭，与 Web 侧默认一致）。</summary>
     public List<string> OptionalYaku { get; set; } = new();
 
@@ -117,6 +125,8 @@ public sealed class Settings
         OptionalYaku = new List<string>(other.OptionalYaku ?? new List<string>());
         ShowMa = other.ShowMa;
         Ruleset = other.Ruleset;
+        BgmVolume = other.BgmVolume;
+        SfxVolume = other.SfxVolume;
         ShowDebug = other.ShowDebug;
         ShowWallViewer = other.ShowWallViewer;
         RecordTiles = other.RecordTiles;

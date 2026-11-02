@@ -37,16 +37,47 @@ public static class SoundEffects
     /// <summary>音效总开关（由设置页控制）。</summary>
     public static bool Enabled { get; set; } = true;
 
+    private static int _sfxVolume = 80;
+    private static int _bgmVolume = 60;
+
+    /// <summary>音效音量 0..100（0 = 静音）。</summary>
+    public static int SfxVolume
+    {
+        get => _sfxVolume;
+        set => _sfxVolume = Math.Clamp(value, 0, 100);
+    }
+
+    /// <summary>音乐音量 0..100（0 = 静音）；播放中改音量会重启 BGM。</summary>
+    public static int BgmVolume
+    {
+        get => _bgmVolume;
+        set
+        {
+            int clamped = Math.Clamp(value, 0, 100);
+            if (clamped == _bgmVolume)
+            {
+                return;
+            }
+
+            _bgmVolume = clamped;
+            if (_bgmPlaying)
+            {
+                StopBgm();
+                PlayBgm();
+            }
+        }
+    }
+
     public static void Play(Cue cue)
     {
-        if (!Enabled)
+        if (!Enabled || SfxVolume <= 0)
         {
             return;
         }
 
         try
         {
-            byte[] wav = TryLoadCueFile(cue) ?? Get(cue);
+            byte[] wav = Scaled(TryLoadCueFile(cue) ?? Get(cue), SfxVolume);
             PlaySound(wav, IntPtr.Zero, SndMemory | SndAsync | SndNoDefault);
         }
         catch
@@ -268,6 +299,72 @@ public static class SoundEffects
             // 静默降级
         }
     }
+
+    /// <summary>按音量缩放 16-bit PCM（缓存按数据+音量）。</summary>
+    private static readonly Dictionary<(int Hash, int Volume), byte[]> ScaledCache = new();
+
+    private static byte[] Scaled(byte[] wav, int volume)
+    {
+        int clamped = Math.Clamp(volume, 0, 100);
+        if (clamped >= 100)
+        {
+            return wav;
+        }
+
+        var key = (HashCode(wav), clamped);
+        if (ScaledCache.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        byte[] copy = (byte[])wav.Clone();
+        double gain = clamped / 100.0;
+
+        // 找 fmt（确认 16-bit）与 data 块；非 16-bit 原样返回。
+        int pos = 12;
+        bool is16 = false;
+        int dataStart = -1;
+        int dataLen = 0;
+        while (pos + 8 <= copy.Length)
+        {
+            string id = System.Text.Encoding.ASCII.GetString(copy, pos, 4);
+            int size = BitConverter.ToInt32(copy, pos + 4);
+            if (id == "fmt " && size >= 16)
+            {
+                int bits = BitConverter.ToInt16(copy, pos + 8 + 14);
+                is16 = bits == 16;
+            }
+            else if (id == "data")
+            {
+                dataStart = pos + 8;
+                dataLen = Math.Min(size, copy.Length - dataStart);
+                break;
+            }
+
+            pos += 8 + size + (size % 2);
+        }
+
+        if (!is16 || dataStart < 0)
+        {
+            ScaledCache[key] = wav;
+            return wav;
+        }
+
+        for (int i = 0; i + 1 < dataLen; i += 2)
+        {
+            short sample = BitConverter.ToInt16(copy, dataStart + i);
+            int scaled = (int)Math.Round(sample * gain);
+            scaled = Math.Clamp(scaled, short.MinValue, short.MaxValue);
+            copy[dataStart + i] = (byte)(scaled & 0xFF);
+            copy[dataStart + i + 1] = (byte)((scaled >> 8) & 0xFF);
+        }
+
+        ScaledCache[key] = copy;
+        return copy;
+    }
+
+    private static int HashCode(byte[] data) =>
+        data.Length ^ (data.Length > 0 ? (data[0] << 8) | data[^1] : 0);
 
     public static void StopBgm()
     {
