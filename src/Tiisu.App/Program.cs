@@ -83,6 +83,9 @@ internal static class Program
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
                 return;
+            case "--smoke-optional":
+                Environment.ExitCode = SmokeOptional();
+                return;
             case "--smoke-tuidaohu":
                 Environment.ExitCode = SmokeTuidaoHu(args);
                 return;
@@ -2550,6 +2553,30 @@ internal static class Program
         Console.WriteLine($"  副露={meldSeen} 有取牌下标={claimSeen}");
         Console.WriteLine($"smoke-called-ron-pass: seed={seed} 报听={called} 报听荣和={sawCalledRon} "
             + $"{detail} 锁手灰显={lockOk} {(ok ? "PASS" : "FAIL")}");
+        return ok ? 0 : 1;
+    }
+
+    /// <summary>
+    /// <c>--smoke-optional</c>：可选役开关要真的进到引擎判役器里（不是只改设置文件）。
+    /// </summary>
+    private static int SmokeOptional()
+    {
+        TryUseUtf8Console();
+        var settings = new Settings();
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(1), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: 1);
+        runtime.StartMatch(4);
+
+        bool offByDefault = runtime.Engine.Checker.OptionalEnabled.Count == 0;
+
+        var changed = new Settings();
+        changed.OptionalYaku.Add("all_number");
+        runtime.ApplySettings(changed);
+
+        bool onAfterApply = runtime.Engine.Checker.OptionalEnabled.Contains("all_number");
+
+        bool ok = offByDefault && onAfterApply;
+        Console.WriteLine($"smoke-optional: 默认关闭={offByDefault} 应用后全数={onAfterApply} {(ok ? "PASS" : "FAIL")}");
         return ok ? 0 : 1;
     }
 
