@@ -168,8 +168,10 @@ def guobiao_stats(path):
                             hands[p].remove(tid)
                     melds[p] += 1
                 elif act == "GANG" and p is not None:
+                    # 手里有 4 张 = 暗杠（扣 4）；否则是明杠/加杠（扣 3，第 4 张来自牌河）
                     tid = botzone_to_id(disp.get("tile"))
-                    for _ in range(3):
+                    take = 4 if hands[p].count(tid) >= 4 else 3
+                    for _ in range(take):
                         if tid in hands[p]:
                             hands[p].remove(tid)
                     melds[p] += 1
@@ -177,7 +179,11 @@ def guobiao_stats(path):
                     hand = list(hands[p])
                     if (len(hand) + melds[p] * 3) % 3 == 1 and last_discard:
                         hand.append(last_discard)
-                    stats[classify(hand, melds[p])] += 1
+                    shape = classify(hand, melds[p])
+                    if shape == "未知":
+                        stats["__dropped__"] += 1
+                    else:
+                        stats[shape] += 1
                     break
     return stats
 
@@ -199,6 +205,7 @@ def main():
         os.path.expanduser("~"), "AppData", "Roaming", "TiisuMahjong", "logs", "roundlog_*.jsonl"))
     qizi = qizi_stats(logs)
     guo = guobiao_stats(sys.argv[1])
+    dropped = guo.pop("__dropped__", 0)
 
     lines = [
         "# 牌型统计：标准型 vs 特殊形",
@@ -207,7 +214,7 @@ def main():
         "|---|---:|---|",
         f"| 七子·人类 | {sum(qizi['human'].values())} | {pct(qizi['human'])} |",
         f"| 七子·AI | {sum(qizi['ai'].values())} | {pct(qizi['ai'])} |",
-        f"| 国标 | {sum(guo.values())} | {pct(guo)} |",
+        f"| 国标 | {sum(guo.values())} | {pct(guo)}（另丢弃未知 {dropped}） |",
         "",
         "规则：副露算一个面子；特殊形 = 七对 / 十三幺 / 四子七对；其余按标准型。",
         "",
