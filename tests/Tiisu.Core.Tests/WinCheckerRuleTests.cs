@@ -52,13 +52,14 @@ public sealed class WinCheckerRuleTests
         int minkan = 0,
         bool selfDraw = false,
         bool? hasCalled = null,
-        WinContext? ctx = null)
+        WinContext? ctx = null,
+        Tile? winTile = null)
     {
         var meldList = melds?.Select(M).ToList() ?? new List<Meld>();
         int ankanCount = ankan > 0 ? ankan : meldList.Count(m => m.Type == "ankan");
         int minkanCount = minkan > 0 ? minkan : meldList.Count(m => m.Type is "minkan" or "kakan");
         bool called = hasCalled ?? (meldList.Count > 0 || minkanCount > 0);
-        return Checker.CheckWin(H(hand), selfDraw, called, ankanCount, minkanCount, meldList, false, null, ctx);
+        return Checker.CheckWin(H(hand), selfDraw, called, ankanCount, minkanCount, meldList, false, winTile, ctx);
     }
 
     private static bool Has(WinResult result, string name) =>
@@ -573,5 +574,40 @@ public sealed class WinCheckerRuleTests
         // 6p 不在「13579p / 1579s / 红中」集合内 → 不成立。
         var r = Check("123m 456m 789m 111p 66p");
         Assert.False(Has(r, "全带赤"));
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 六、暗刻口径（2026-11-02）：不许借用别的面子 / 荣和刻子不算暗刻
+    // ═══════════════════════════════════════════════════════════
+
+    [Fact]
+    public void 暗刻_12333_不能把顺子里的3借去当刻子()
+    {
+        // 1m2m3m + 3m3m（雀头）+ 456p + 789p + 111s
+        // 3m 总共 3 张，但拆牌是「123 顺子 + 33 雀头」，没有 333 刻子。
+        var r = Check("123m 33m 456p 789p 111s");
+        Assert.False(Has(r, "两暗刻"));
+        Assert.False(Has(r, "三暗刻"));
+    }
+
+    [Fact]
+    public void 暗刻_荣和点炮凑成的刻子不算暗刻()
+    {
+        // 222m 是荣和 2m 凑出来的 → 不算暗刻；只剩 111s 一个暗刻。
+        var ron = Check("222m 456p 789p 111s 55z", selfDraw: false, winTile: new Tile(Suit.Man, 2));
+        Assert.False(Has(ron, "两暗刻"));
+
+        // 同一手牌自摸 → 222m 是暗刻，两暗刻成立。
+        var tsumo = Check("222m 456p 789p 111s 55z", selfDraw: true, winTile: new Tile(Suit.Man, 2));
+        Assert.True(Has(tsumo, "两暗刻"));
+        Assert.Equal(3, Fu(tsumo, "两暗刻"));
+    }
+
+    [Fact]
+    public void 暗刻_荣和但点炮牌不在刻子里时暗刻照算()
+    {
+        // 荣和的是 9s（顺子 789s 的一部分），111m / 222p 两个暗刻不受影响。
+        var r = Check("111m 222p 345p 789s 55z", selfDraw: false, winTile: new Tile(Suit.Sou, 9));
+        Assert.True(Has(r, "两暗刻"));
     }
 }

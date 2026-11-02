@@ -53,6 +53,9 @@ public sealed partial class WinChecker
     private WinContext? _winCtx;
     private IReadOnlyList<Group>? _forcedGroups;
 
+    /// <summary>暗手拆出来的面子（不含副露）；暗刻判定只认这里，避免和别的面子重叠或把副露算成暗刻。</summary>
+    private IReadOnlyList<Group>? _concealedGroups;
+
     /// <param name="yakuData">役种数据（通常为 <see cref="YakuData.LoadDefault"/>）。</param>
     /// <param name="optionalEnabled">
     /// 启用的可选役 id。传 null（默认）表示启用全部 optional 役 —— 与 golden 验证台口径一致。
@@ -179,6 +182,7 @@ public sealed partial class WinChecker
     {
         _winTile = winTile;
         _winCtx = context;
+        _concealedGroups = null;
         _concealedHand = hand.ToList();
         _ankanCount = ankanCount;
         _minkanCount = minkanCount;
@@ -273,6 +277,7 @@ public sealed partial class WinChecker
             }
 
             groups.AddRange(formed);
+            _concealedGroups = formed;
             baseFu = 0;
         }
 

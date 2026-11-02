@@ -871,10 +871,52 @@ public sealed partial class WinChecker
 
     // ── 暗刻 / 特例 ─────────────────────────────────────────────
 
+    /// <summary>
+    /// 暗刻数（两暗刻 / 三暗刻 / 四暗刻）。
+    /// 口径（北极星 2026-11-02）：
+    /// 1) 只认暗手拆出来的刻子，不能靠「张数 ≥3」把一部分借给别的面子（如 12333 不算 333 暗刻）；
+    /// 2) 荣和时，用来点炮的那张牌凑成的刻子不算暗刻（只能自摸才算）；
+    /// 3) 暗杠照旧计入。
+    /// </summary>
     private int ConcealedAnkouCount()
     {
-        var counts = TileCounts.Create(_concealedHand);
-        int total = counts.Count(c => c >= 3);
+        int total = 0;
+        if (_concealedGroups is { Count: > 0 })
+        {
+            foreach (var group in _concealedGroups)
+            {
+                if (group.Kind != GroupKind.Pung)
+                {
+                    continue;
+                }
+
+                if (!_selfDraw && _winTile is Tile win && group.Tiles[0] == win)
+                {
+                    continue;
+                }
+
+                total++;
+            }
+        }
+        else
+        {
+            // 无拆牌信息（七对等）：按张数兜底，但同样排除荣和的那张。
+            foreach (var group in _concealedHand.GroupBy(t => t))
+            {
+                if (group.Count() < 3)
+                {
+                    continue;
+                }
+
+                if (!_selfDraw && _winTile is Tile win && group.Key == win)
+                {
+                    continue;
+                }
+
+                total++;
+            }
+        }
+
         return total + _ankanCount;
     }
 

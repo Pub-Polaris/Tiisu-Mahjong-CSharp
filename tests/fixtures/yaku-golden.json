@@ -958,7 +958,7 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 26,
+   "totalFu": 21,
    "handType": "standard_hand",
    "yaku": [
     {
@@ -983,12 +983,6 @@
      "name": "纯全带幺",
      "fu": 7,
      "id": "pure_fully_terminal",
-     "isBonus": false
-    },
-    {
-     "name": "三暗刻",
-     "fu": 5,
-     "id": "three_ankou",
      "isBonus": false
     },
     {
@@ -1056,7 +1050,7 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 15,
+   "totalFu": 13,
    "handType": "standard_hand",
    "yaku": [
     {
@@ -1066,15 +1060,15 @@
      "isBonus": false
     },
     {
-     "name": "缺门",
+     "name": "两暗刻",
      "fu": 3,
-     "id": "missing_suit",
+     "id": "two_ankou",
      "isBonus": false
     },
     {
-     "name": "三暗刻",
-     "fu": 5,
-     "id": "three_ankou",
+     "name": "缺门",
+     "fu": 3,
+     "id": "missing_suit",
      "isBonus": false
     },
     {
@@ -3887,13 +3881,43 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 30,
-   "handType": "highyaku",
+   "totalFu": 23,
+   "handType": "standard_hand",
    "yaku": [
     {
-     "name": "四暗刻",
-     "fu": 28,
-     "id": "four_ankou",
+     "name": "对对和",
+     "fu": 3,
+     "id": "all_pungs",
+     "isBonus": false
+    },
+    {
+     "name": "混一色",
+     "fu": 5,
+     "id": "half_flush",
+     "isBonus": false
+    },
+    {
+     "name": "一色三节高",
+     "fu": 3,
+     "id": "one_color_triple",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
      "isBonus": false
     },
     {
@@ -3903,7 +3927,7 @@
      "isBonus": true
     }
    ],
-   "specialPoints": 35000,
+   "specialPoints": null,
    "sevenHonors": false
   }
  },
@@ -4397,13 +4421,43 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 30,
-   "handType": "highyaku",
+   "totalFu": 25,
+   "handType": "standard_hand",
    "yaku": [
     {
-     "name": "四暗刻",
-     "fu": 28,
-     "id": "four_ankou",
+     "name": "对对和",
+     "fu": 3,
+     "id": "all_pungs",
+     "isBonus": false
+    },
+    {
+     "name": "混老头",
+     "fu": 5,
+     "id": "mixed_terminals",
+     "isBonus": false
+    },
+    {
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
+     "isBonus": false
+    },
+    {
+     "name": "混全带幺",
+     "fu": 5,
+     "id": "mixed_fully_terminal",
+     "isBonus": false
+    },
+    {
+     "name": "三暗刻",
+     "fu": 5,
+     "id": "three_ankou",
+     "isBonus": false
+    },
+    {
+     "name": "缺七",
+     "fu": 1,
+     "id": "missing_seven",
      "isBonus": false
     },
     {
@@ -4413,7 +4467,7 @@
      "isBonus": true
     }
    ],
-   "specialPoints": 35000,
+   "specialPoints": null,
    "sevenHonors": false
   }
  },
@@ -4457,9 +4511,9 @@
    "handType": "highyaku",
    "yaku": [
     {
-     "name": "四暗刻",
+     "name": "字一色",
      "fu": 28,
-     "id": "four_ankou",
+     "id": "all_honors",
      "isBonus": false
     },
     {
@@ -4571,7 +4625,7 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 13,
+   "totalFu": 11,
    "handType": "standard_hand",
    "yaku": [
     {
@@ -4581,9 +4635,9 @@
      "isBonus": false
     },
     {
-     "name": "三暗刻",
-     "fu": 5,
-     "id": "three_ankou",
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
      "isBonus": false
     },
     {
@@ -4695,7 +4749,7 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 20,
+   "totalFu": 18,
    "handType": "standard_hand",
    "yaku": [
     {
@@ -4711,15 +4765,15 @@
      "isBonus": false
     },
     {
-     "name": "缺门",
-     "fu": 4,
-     "id": "missing_suit",
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
      "isBonus": false
     },
     {
-     "name": "三暗刻",
-     "fu": 5,
-     "id": "three_ankou",
+     "name": "缺门",
+     "fu": 4,
+     "id": "missing_suit",
      "isBonus": false
     },
     {
@@ -4775,16 +4829,9 @@
   "result": {
    "success": false,
    "reason": "no_yaku",
-   "totalFu": 3,
+   "totalFu": 0,
    "handType": null,
-   "yaku": [
-    {
-     "name": "两暗刻",
-     "fu": 3,
-     "id": "two_ankou",
-     "isBonus": false
-    }
-   ],
+   "yaku": [],
    "specialPoints": null,
    "sevenHonors": false
   }
@@ -4946,28 +4993,16 @@
    "roundWind": "east"
   },
   "result": {
-   "success": true,
-   "reason": null,
-   "totalFu": 9,
-   "handType": "standard_hand",
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 4,
+   "handType": null,
    "yaku": [
-    {
-     "name": "两暗刻",
-     "fu": 3,
-     "id": "two_ankou",
-     "isBonus": false
-    },
     {
      "name": "二色同刻",
      "fu": 4,
      "id": "two_color_ko",
      "isBonus": false
-    },
-    {
-     "name": "双碰",
-     "fu": 2,
-     "id": null,
-     "isBonus": true
     }
    ],
    "specialPoints": null,
@@ -5146,19 +5181,19 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 13,
+   "totalFu": 11,
    "handType": "standard_hand",
    "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
     {
      "name": "三色同刻",
      "fu": 5,
      "id": "three_color_ko",
-     "isBonus": false
-    },
-    {
-     "name": "三暗刻",
-     "fu": 5,
-     "id": "three_ankou",
      "isBonus": false
     },
     {
@@ -5288,13 +5323,13 @@
   "result": {
    "success": false,
    "reason": "no_yaku",
-   "totalFu": 6,
+   "totalFu": 4,
    "handType": null,
    "yaku": [
     {
-     "name": "三暗刻",
-     "fu": 5,
-     "id": "three_ankou",
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
      "isBonus": false
     },
     {
@@ -5344,19 +5379,19 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 16,
+   "totalFu": 14,
    "handType": "standard_hand",
    "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
     {
      "name": "纯全带幺",
      "fu": 7,
      "id": "pure_fully_terminal",
-     "isBonus": false
-    },
-    {
-     "name": "三暗刻",
-     "fu": 5,
-     "id": "three_ankou",
      "isBonus": false
     },
     {
@@ -5492,19 +5527,19 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 13,
+   "totalFu": 11,
    "handType": "standard_hand",
    "yaku": [
+    {
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
+     "isBonus": false
+    },
     {
      "name": "混全带幺",
      "fu": 5,
      "id": "mixed_fully_terminal",
-     "isBonus": false
-    },
-    {
-     "name": "三暗刻",
-     "fu": 5,
-     "id": "three_ankou",
      "isBonus": false
     },
     {
@@ -6381,7 +6416,7 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 19,
+   "totalFu": 17,
    "handType": "standard_hand",
    "yaku": [
     {
@@ -6397,15 +6432,15 @@
      "isBonus": false
     },
     {
-     "name": "混全带幺",
-     "fu": 4,
-     "id": "mixed_fully_terminal",
+     "name": "两暗刻",
+     "fu": 3,
+     "id": "two_ankou",
      "isBonus": false
     },
     {
-     "name": "三暗刻",
-     "fu": 5,
-     "id": "three_ankou",
+     "name": "混全带幺",
+     "fu": 4,
+     "id": "mixed_fully_terminal",
      "isBonus": false
     },
     {
@@ -7688,19 +7723,13 @@
   "result": {
    "success": false,
    "reason": "no_yaku",
-   "totalFu": 5,
+   "totalFu": 2,
    "handType": null,
    "yaku": [
     {
      "name": "四归一",
      "fu": 2,
      "id": "four_same",
-     "isBonus": false
-    },
-    {
-     "name": "两暗刻",
-     "fu": 3,
-     "id": "two_ankou",
      "isBonus": false
     }
    ],
