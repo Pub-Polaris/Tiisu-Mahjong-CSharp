@@ -3229,39 +3229,9 @@
   "result": {
    "success": true,
    "reason": null,
-   "totalFu": 28,
+   "totalFu": 7,
    "handType": "seven_pairs",
    "yaku": [
-    {
-     "name": "清一色",
-     "fu": 14,
-     "id": "fully_flush",
-     "isBonus": false
-    },
-    {
-     "name": "四归一",
-     "fu": 2,
-     "id": "four_same",
-     "isBonus": false
-    },
-    {
-     "name": "缺门",
-     "fu": 3,
-     "id": "missing_suit",
-     "isBonus": false
-    },
-    {
-     "name": "缺七",
-     "fu": 1,
-     "id": "missing_seven",
-     "isBonus": false
-    },
-    {
-     "name": "全数",
-     "fu": 1,
-     "id": "all_number",
-     "isBonus": false
-    },
     {
      "name": "四子七对",
      "fu": 7,

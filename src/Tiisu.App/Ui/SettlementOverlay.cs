@@ -789,7 +789,7 @@ public sealed class SettlementOverlay
     {
         SettlementYakuFlag.Optional => "（可选）",
         SettlementYakuFlag.Tableless => "（表外）",
-        SettlementYakuFlag.FixedPoints => "（固定点数）",
+        SettlementYakuFlag.FixedPoints => "",
         _ => string.Empty,
     };
 

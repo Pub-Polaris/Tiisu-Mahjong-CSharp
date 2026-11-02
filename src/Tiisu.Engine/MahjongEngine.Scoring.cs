@@ -24,8 +24,10 @@ public sealed partial class MahjongEngine
             return;
         }
 
+        // 四子七对是独立形态：不另算赐马。
+        bool fourPairsSeven = result.ActiveYaku.Any(y => y.Name == "四子七对");
         int maFu = result.ResolvedMaFu;
-        if (Ruleset != Ruleset.TuidaoHu && maFu == 0)
+        if (!fourPairsSeven && Ruleset != Ruleset.TuidaoHu && maFu == 0)
         {
             maFu = ResolveMa(winner, result);
             if (maFu > 0)

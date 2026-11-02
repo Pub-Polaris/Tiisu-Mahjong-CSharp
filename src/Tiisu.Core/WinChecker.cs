@@ -352,6 +352,7 @@ public sealed partial class WinChecker
         // 注意：这里只约束普通七对子役；美人七对 / 纯正水中月 / 镜中花 等役满牌型本身就有
         // 多个四张，必须仍能按七对结构识别，所以不改 IsSevenPairs 的结构判定。
         int sevenPairsFourKindCount = handKind == HandKind.SevenPairs ? CountFourOfAKind(fullHand) : 0;
+        bool fourPairsSeven = handKind == HandKind.SevenPairs && sevenPairsFourKindCount == 1;
 
         int totalFuSum = 0;
         var activeYaku = new List<YakuResult>();
@@ -431,7 +432,34 @@ public sealed partial class WinChecker
                 return NotFormed();
             }
 
-            bool fourPairsSeven = handKind == HandKind.SevenPairs && sevenPairsFourKindCount == 1;
+            // 四子七对是独立形态：永远不与其他役叠加，固定 7000 点（北极星 2026-11-02）。
+            if (fourPairsSeven)
+            {
+                var fourPairs = FindYaku("four_pairs_seven");
+                int fourPairsFu = fourPairs?.Fu ?? baseFu;
+                var only = new List<YakuResult>
+                {
+                    fourPairs is null
+                        ? new YakuResult
+                        {
+                            Name = "四子七对",
+                            Fu = fourPairsFu,
+                            Id = "four_pairs_seven",
+                            FixedPoints = 7000,
+                        }
+                        : YakuResult.Normal(fourPairs),
+                };
+
+                return new WinResult
+                {
+                    Success = true,
+                    TotalFu = fourPairsFu,
+                    ActiveYaku = only,
+                    HandType = HandKind.SevenPairs,
+                    SpecialPoints = fourPairs?.FixedPoints ?? 7000,
+                };
+            }
+
             foreach (var yaku in _yakuData.Yaku)
             {
                 if (yaku.Id is "seven_pairs" or "four_pairs_seven")

@@ -513,16 +513,16 @@ public sealed class WinCheckerRuleTests
     }
 
     [Fact]
-    public void 四子七对_可叠断幺九等普通役()
+    public void 四子七对_独立形态不叠其他役_旧例()
     {
         var r = Check("2222m 33m 44m 55p 66p 88s");
         Assert.True(r.Success);
         Assert.True(Has(r, "四子七对"));
         Assert.False(Has(r, "七对子"));
-        Assert.True(Has(r, "断幺九"));
+        // 2026-11-02：独立形态，永远不叠加其他役。
+        Assert.Single(r.ActiveYaku);
+        Assert.Equal(7, r.TotalFu);
         Assert.Equal(7000, r.SpecialPoints);
-        // 四子七对 7 + 断幺九 2 + 四归一 2 + 缺七 1 + 全数 1
-        Assert.Equal(13, r.TotalFu);
     }
 
     [Fact]
