@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using SkiaSharp;
 using Tiisu.App.Assets;
@@ -82,6 +83,9 @@ internal static class Program
                 return;
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
+                return;
+            case "--selfplay":
+                Environment.ExitCode = SelfPlay(args);
                 return;
             case "--smoke-ab":
                 Environment.ExitCode = SmokeAb(args);
@@ -2565,6 +2569,120 @@ internal static class Program
         return ok ? 0 : 1;
     }
 
+    /// <summary>
+    /// <c>--selfplay N [--out file] [--start-seed K] [--seats 0,1] [--baseline]</c>
+    /// 无人值守批量自对弈：每局一行 JSONL，追加写入，可中断后从 --start-seed 续跑。
+    /// </summary>
+    private static int SelfPlay(string[] args)
+    {
+        TryUseUtf8Console();
+        int games = 100;
+        string outPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "TiisuMahjong", "logs", "selfplay_" + DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".jsonl");
+        uint startSeed = 1;
+        var seats = new List<int> { 0 };
+        bool baseline = false;
+
+        for (int i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--out":
+                    if (i + 1 < args.Length) { outPath = args[++i]; }
+                    break;
+                case "--start-seed":
+                    if (i + 1 < args.Length && uint.TryParse(args[++i], out uint s)) { startSeed = s; }
+                    break;
+                case "--baseline":
+                    baseline = true;
+                    break;
+                case "--seats":
+                    if (i + 1 < args.Length)
+                    {
+                        seats = args[++i].Split(',')
+                            .Select(x => int.TryParse(x, out int v) ? v : -1)
+                            .Where(v => v is >= 0 and <= 3)
+                            .ToList();
+                    }
+                    break;
+                default:
+                    if (int.TryParse(args[i], out int n)) { games = Math.Max(1, n); }
+                    break;
+            }
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath))!);
+        var lines = new List<string>();
+        double rankSum = 0;
+        int wins = 0;
+        var sw = Stopwatch.StartNew();
+
+        for (int i = 0; i < games; i++)
+        {
+            uint seed = startSeed + (uint)i;
+            int seat = seats.Count == 0 ? 0 : seats[i % seats.Count];
+            var settings = new Settings();
+            var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), _ => { },
+                saveStore: null, stats: null, roundLog: null, matchSeed: seed);
+            runtime.AllSeatsAi = true;
+            if (!baseline)
+            {
+                runtime.NeuralSeats.Add(seat);
+            }
+
+            runtime.StartMatch(4);
+            int guard = 0;
+            while (runtime.Phase != MatchPhase.MatchOver && guard++ < 5000)
+            {
+                if (runtime.Phase == MatchPhase.RoundEnded)
+                {
+                    runtime.NextRound();
+                }
+                else
+                {
+                    Thread.Sleep(1);
+                }
+            }
+
+            var scores = runtime.Engine.Scores;
+            int rank = 1 + scores.Count(s => s > scores[seat]);
+            rankSum += rank;
+            if (rank == 1)
+            {
+                wins++;
+            }
+
+            var record = new
+            {
+                ts = DateTime.Now.ToString("o", CultureInfo.InvariantCulture),
+                seed,
+                seat,
+                neural = !baseline,
+                rank,
+                scores,
+                rounds = runtime.Engine.HandsPlayed,
+                decisions = runtime.NeuralDecisions,
+                different = runtime.NeuralDifferent,
+                ms = sw.ElapsedMilliseconds,
+            };
+            string json = JsonSerializer.Serialize(record, new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            });
+            lines.Add(json);
+            File.AppendAllText(outPath, json + "\n", new System.Text.UTF8Encoding(false));
+
+            if ((i + 1) % 10 == 0 || i + 1 == games)
+            {
+                Console.WriteLine($"  {i + 1}/{games}  平均顺位 {rankSum / (i + 1):F2}  一位率 {wins / (double)(i + 1):P0}");
+            }
+        }
+
+        Console.WriteLine($"selfplay: {games} 局 → {outPath}");
+        Console.WriteLine($"  平均顺位 {rankSum / games:F2}，一位率 {wins / (double)games:P0}，耗时 {sw.Elapsed.TotalSeconds:F0}s");
+        return 0;
+    }
     /// <summary><c>--smoke-ab [games]</c>：指定座位走小策略网，其余 TieredAi，统计该座位顺位。</summary>
     private static int SmokeAb(string[] args)
     {
