@@ -218,6 +218,16 @@ public sealed class MatchRuntime
     /// <summary>smoke 用：取消人类座位，四家全部走 AI（须在对局开始前设置）。</summary>
     public bool AllSeatsAi { get; set; }
 
+    /// <summary>A/B 评测：这些座位用 <see cref="NeuralPolicyAi"/> 决策（空 = 全走 TieredAi）。</summary>
+    public HashSet<int> NeuralSeats { get; } = new();
+
+    /// <summary>A/B 统计：神经座实际决策次数 / 与 TieredAi 不同的次数。</summary>
+    public int NeuralDecisions { get; private set; }
+
+    public int NeuralDifferent { get; private set; }
+
+    private int _neuralDebugLeft = 3;
+
     // ── 命令入口 ─────────────────────────────────────────────────
 
     public void Execute(GameCommand command)
@@ -748,6 +758,36 @@ public sealed class MatchRuntime
         long started = Stopwatch.GetTimestamp();
         try
         {
+            // A/B 评测用：指定座位改走小策略网，其余仍走 TieredAi。
+            int seatIndex = player.Index;
+            if (seatIndex < 0)
+            {
+                for (int i = 0; i < _engine.Players.Count; i++)
+                {
+                    if (ReferenceEquals(_engine.Players[i], player))
+                    {
+                        seatIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (NeuralSeats.Contains(seatIndex))
+            {
+                int idx = NeuralPolicyAi.ChooseDiscard(ctx);
+                if (idx >= 0)
+                {
+                    var fallback = TieredAi.Decide(ctx, _aiLevels[player.Index], _random);
+                    NeuralDecisions++;
+                    if (fallback.Index != idx)
+                    {
+                        NeuralDifferent++;
+                    }
+
+                    return fallback with { Index = idx };
+                }
+            }
+
             return TieredAi.Decide(ctx, _aiLevels[player.Index], _random);
         }
         finally

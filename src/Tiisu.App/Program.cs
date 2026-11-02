@@ -83,6 +83,9 @@ internal static class Program
             case "--smoke-think":
                 Environment.ExitCode = SmokeThink();
                 return;
+            case "--smoke-ab":
+                Environment.ExitCode = SmokeAb(args);
+                return;
             case "--smoke-ruleset-switch":
                 Environment.ExitCode = SmokeRulesetSwitch();
                 return;
@@ -2562,6 +2565,67 @@ internal static class Program
         return ok ? 0 : 1;
     }
 
+    /// <summary><c>--smoke-ab [games]</c>：指定座位走小策略网，其余 TieredAi，统计该座位顺位。</summary>
+    private static int SmokeAb(string[] args)
+    {
+        TryUseUtf8Console();
+        int games = args.Length >= 2 && int.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? n : 8;
+        var neuralRanks = new List<int>();
+        var baseRanks = new List<int>();
+        int decisions = 0;
+        int different = 0;
+        int aiCalls = 0;
+
+        for (int seed = 1; seed <= games; seed++)
+        {
+            foreach (bool useNeural in new[] { true, false })
+            {
+                var settings = new Settings();
+                var runtime = new MatchRuntime(settings, new Mulberry32Random((uint)seed), _ => { },
+                    saveStore: null, stats: null, roundLog: null, matchSeed: (uint)seed);
+                runtime.AllSeatsAi = true;
+                int seat = (seed - 1) % 4;
+                if (useNeural)
+                {
+                    runtime.NeuralSeats.Add(seat);
+                }
+
+                runtime.StartMatch(4);
+                int guard = 0;
+                while (runtime.Phase != MatchPhase.MatchOver && guard++ < 3000)
+                {
+                    if (runtime.Phase == MatchPhase.RoundEnded)
+                    {
+                        runtime.NextRound();
+                    }
+                    else
+                    {
+                        Thread.Sleep(5);
+                    }
+                }
+
+                var scores = runtime.Engine.Scores;
+                int rank = 1 + scores.Count(s => s > scores[seat]);
+                (useNeural ? neuralRanks : baseRanks).Add(rank);
+                if (useNeural)
+                {
+                    decisions += runtime.NeuralDecisions;
+                    different += runtime.NeuralDifferent;
+                }
+
+                aiCalls = Math.Max(aiCalls, runtime.AiDiscardDecisions);
+            }
+        }
+
+        double Avg(List<int> list) => list.Count == 0 ? 0 : list.Average();
+        double WinRate(List<int> list) => list.Count == 0 ? 0 : list.Count(r => r == 1) / (double)list.Count;
+        Console.WriteLine($"smoke-ab: games={games}");
+        Console.WriteLine($"  神经座平均顺位 {Avg(neuralRanks):F2}（一位率 {WinRate(neuralRanks):P0}）");
+        Console.WriteLine($"  基线座平均顺位 {Avg(baseRanks):F2}（一位率 {WinRate(baseRanks):P0}）");
+        Console.WriteLine($"  神经决策 {decisions} 次，与 TieredAi 不同 {different} 次（AI 总决策 {aiCalls}）");
+        Console.WriteLine($"  神经顺位: {string.Join(",", neuralRanks)} / 基线: {string.Join(",", baseRanks)}");
+        return 0;
+    }
     /// <summary><c>--smoke-ruleset-switch</c>：设置切到推倒胡并重置后，引擎必须真的换成推倒胡。</summary>
     private static int SmokeRulesetSwitch()
     {
