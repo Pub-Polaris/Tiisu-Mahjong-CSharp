@@ -131,9 +131,48 @@ internal static class ExportDataset
                 var discards = obj["discards"] as JsonArray;
                 var melds = obj["melds"] as JsonArray;
 
+                // 新日志带四家牌河 / 副露数；老日志没有，写空数组保持 schema 一致。
+                var riversOut = new JsonArray();
+                if (obj["rivers"] is JsonArray riversIn)
+                {
+                    for (int seat = 0; seat < 4; seat++)
+                    {
+                        var counts = new int[34];
+                        if (seat < riversIn.Count && riversIn[seat] is JsonArray river)
+                        {
+                            foreach (var t in river)
+                            {
+                                int riverIdx = TileIndex((string?)t ?? string.Empty);
+                                if (riverIdx >= 0)
+                                {
+                                    counts[riverIdx]++;
+                                }
+                            }
+                        }
+
+                        riversOut.Add(new JsonArray(counts.Select(c => (JsonNode)c).ToArray()));
+                    }
+                }
+
+                var meldCounts = new JsonArray();
+                if (obj["meldCounts"] is JsonArray mc)
+                {
+                    foreach (var v in mc)
+                    {
+                        meldCounts.Add((int?)v ?? 0);
+                    }
+                }
+                else
+                {
+                    for (int seat = 0; seat < 4; seat++)
+                    {
+                        meldCounts.Add(0);
+                    }
+                }
+
                 var sample = new JsonObject
                 {
-                    ["v"] = 1,
+                    ["v"] = 2,
                     ["src"] = isHuman ? "human" : "ai",
                     ["p"] = player,
                     ["seat"] = (string?)obj["w"] ?? string.Empty,
@@ -146,6 +185,8 @@ internal static class ExportDataset
                     ["hand"] = hand,
                     ["melds"] = melds?.DeepClone() ?? new JsonArray(),
                     ["discards"] = discards?.DeepClone() ?? new JsonArray(),
+                    ["rivers"] = riversOut,
+                    ["meldCounts"] = meldCounts,
                     ["label"] = tile,
                     ["labelIdx"] = TileIndex(tile),
                 };

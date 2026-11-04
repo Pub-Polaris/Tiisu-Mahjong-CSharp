@@ -13,7 +13,7 @@ namespace Tiisu.Engine.Ai;
 /// </summary>
 public static class NeuralPolicyAi
 {
-    private const int FeatureCount = 42;
+    private const int FeatureCount = 181;
 
     private static Weights? _weights;
     private static bool _loadTried;
@@ -69,6 +69,8 @@ public static class NeuralPolicyAi
     private static float[] BuildFeatures(AiDecisionContext ctx)
     {
         var x = new float[FeatureCount];
+
+        // 0..33 手牌
         foreach (var tile in ctx.Hand)
         {
             int idx = TileIndex(tile);
@@ -78,26 +80,56 @@ public static class NeuralPolicyAi
             }
         }
 
-        x[34] = Math.Min(ctx.WallCount, 83) / 83f;
-        x[35] = Math.Min(ctx.Discards.Count, 18) / 18f;
-        x[36] = Math.Min(ctx.Honba, 8) / 8f;
-        x[37] = ctx.SeatWind == SeatWind.East ? 1f : 0f;
-        int seat = (int)ctx.SeatWind;
-        if (seat is 1 or 2 or 3)
+        // 34..169 四家牌河（每人每张出现次数 / 4）
+        for (int seat = 0; seat < 4; seat++)
         {
-            x[37 + seat] = 1f;
-        }
-
-        int pairs = 0;
-        for (int i = 0; i < 34; i++)
-        {
-            if (x[i] >= 2)
+            IReadOnlyList<Tile>? river = seat < ctx.AllDiscards.Count ? ctx.AllDiscards[seat] : null;
+            if (river is null)
             {
-                pairs++;
+                continue;
+            }
+
+            foreach (var tile in river)
+            {
+                int idx = TileIndex(tile);
+                if (idx >= 0)
+                {
+                    x[34 + seat * 34 + idx] += 0.25f;
+                }
             }
         }
 
-        x[41] = Math.Min(pairs, 7) / 7f;
+        // 170..173 四家副露数
+        for (int seat = 0; seat < 4; seat++)
+        {
+            int count;
+            if (ctx.AllMelds is { } all && seat < all.Count)
+            {
+                count = all[seat].Count;
+            }
+            else if (seat == (int)ctx.SeatWind)
+            {
+                count = ctx.Melds.Count;
+            }
+            else
+            {
+                count = ctx.OpponentMelds.Count;
+            }
+
+            x[170 + seat] = Math.Min(count, 4) / 4f;
+        }
+
+        // 174..180 场况
+        x[174] = Math.Min(ctx.WallCount, 83) / 83f;
+        x[175] = Math.Min(ctx.Discards.Count, 18) / 18f;
+        x[176] = Math.Min(ctx.Honba, 8) / 8f;
+        x[177] = ctx.SeatWind == SeatWind.East ? 1f : 0f;
+        int s = (int)ctx.SeatWind;
+        if (s is 1 or 2 or 3)
+        {
+            x[178 + (s - 1)] = 1f;
+        }
+
         return x;
     }
 
@@ -178,6 +210,7 @@ public static class NeuralPolicyAi
         }
 
         string baseDir = AppContext.BaseDirectory;
+        yield return Path.Combine(baseDir, "Assets", "ml", "policy_weights_v2.json");
         yield return Path.Combine(baseDir, "Assets", "ml", "policy_weights.json");
         yield return Path.Combine(baseDir, "policy_weights.json");
 
@@ -185,6 +218,7 @@ public static class NeuralPolicyAi
         var dir = new DirectoryInfo(baseDir);
         for (int i = 0; i < 6 && dir is not null; i++)
         {
+            yield return Path.Combine(dir.FullName, "ml", "policy_weights_v2.json");
             yield return Path.Combine(dir.FullName, "ml", "policy_weights.json");
             dir = dir.Parent;
         }

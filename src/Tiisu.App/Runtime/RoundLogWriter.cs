@@ -85,6 +85,18 @@ public sealed class RoundLogWriter
             ev["hand"] = TileNotation.HandToStr(player.Hand);
             ev["melds"] = MeldsJson(player.Melds);
             ev["discards"] = DiscardsJson(player.Discards);
+
+            // 2026-11-04：7Neuu 需要桌面状态——四家牌河 + 四家副露数一起记。
+            var rivers = new JsonArray();
+            var meldCounts = new JsonArray();
+            foreach (var seat in engine.Players)
+            {
+                rivers.Add(DiscardsJson(seat.Discards));
+                meldCounts.Add(seat.Melds.Count);
+            }
+
+            ev["rivers"] = rivers;
+            ev["meldCounts"] = meldCounts;
             ev["wall"] = engine.Wall.Count;
             ev["rinshan"] = engine.Rinshan.Count;
             ev["h"] = engine.Honba;
