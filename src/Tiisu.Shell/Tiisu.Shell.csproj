@@ -10,6 +10,8 @@
     <!-- 安装脚本（NET/installer/*.nsi + build_installer.ps1）默认找 Tiisu.Mahjong.exe，别改它。 -->
     <AssemblyName>Tiisu.Mahjong</AssemblyName>
     <Platforms>AnyCPU;x64;x86</Platforms>
+    <!-- 程序图标：与 Tiisu.App 共用仓库根目录的那一份 -->
+    <ApplicationIcon>..\..\Tiisu.Mahjong.ico</ApplicationIcon>
     <!-- 控制台子系统：自检模式的 stdout 才能被 dotnet run 捕获；正常开窗时 Program 里 FreeConsole 脱离黑框。 -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>

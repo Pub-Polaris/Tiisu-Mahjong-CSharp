@@ -15,3 +15,7 @@ Generated/
 **/Properties/launchSettings.json
 
 # BGM 为 CC BY 4.0 素材，随仓库分发（署名见 THIRD-PARTY-NOTICES.md），不再忽略
+
+# 本地跑脚本留下的产物
+artifacts/
+__pycache__/

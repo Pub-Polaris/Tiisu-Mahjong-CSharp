@@ -18,6 +18,17 @@ public sealed class MainForm : Form
 
         Text = "七子麻将 · Tiisu Mahjong";
 
+        // 窗口图标与 exe 图标一致：直接取可执行文件里嵌的那一份（csproj 的 ApplicationIcon），
+        // 不在程序集里再存一份。取不到（如无图标的调试产物）就保留 WinForms 默认图标。
+        try
+        {
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        }
+        catch (ArgumentException)
+        {
+            // 可执行文件没有图标资源，保持默认
+        }
+
         // 牌桌是 1:1 方形画布，窗口默认也做成方的，否则上下/左右会留大片黑边。
         // 菜单屏仍是 1280×720，切过去时会在方形窗口里上下留边（可接受）。
         // 注意：Screen 在本命名空间里是界面基类，取显示器要用全名

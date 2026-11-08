@@ -99,6 +99,16 @@ internal sealed class MainForm : Form
         _apiRouter = new ApiRouter(_dataDirectory);
 
         Text = "Tiisu Mahjong · C# Shell";
+
+        // 窗口图标取可执行文件里嵌的那一份（csproj 的 ApplicationIcon），与 Tiisu.App 同源。
+        try
+        {
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        }
+        catch (ArgumentException)
+        {
+            // 可执行文件没有图标资源，保持默认
+        }
         StartPosition = FormStartPosition.CenterScreen;
         WindowState = FormWindowState.Normal;
         ClientSize = new Size(PageWidth, PageHeight);

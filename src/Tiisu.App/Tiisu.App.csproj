@@ -11,6 +11,8 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>Tiisu.Mahjong</AssemblyName>
     <RootNamespace>Tiisu.App</RootNamespace>
+    <!-- 程序图标：资源管理器 / 任务栏 / 快捷方式都用它（仓库根目录唯一一份） -->
+    <ApplicationIcon>..\..\Tiisu.Mahjong.ico</ApplicationIcon>
     <!-- Release 发布：单文件 + 原生库自解压 + 不产 PDB（体积约 270MB -> 155MB） -->
     <PublishSingleFile Condition="'$(Configuration)' == 'Release'">true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract Condition="'$(Configuration)' == 'Release'">true</IncludeNativeLibrariesForSelfExtract>
