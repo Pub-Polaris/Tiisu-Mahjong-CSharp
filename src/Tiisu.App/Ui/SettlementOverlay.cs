@@ -74,6 +74,12 @@ public sealed class SettlementOverlay
     /// <summary>惩罚条目数（流局罚项 / 报听错和罚）。</summary>
     public static int PenaltyCount(RoundResult result) => result.Penalties?.Count ?? 0;
 
+    /// <summary>惩罚页总行数（罚项 + 拆账明细 + 审计差异）。</summary>
+    public static int PenaltyLineCount(RoundResult result) =>
+        (result.Penalties?.Count ?? 0)
+        + (result.Transfers?.Count ?? 0)
+        + (result.PenaltyAudit?.Count ?? 0);
+
     /// <summary>
     /// 总页数：每位和牌者一页（流局算 1 页概况），有惩罚时最后再加一页「惩罚结算」。
     /// </summary>
@@ -155,7 +161,7 @@ public sealed class SettlementOverlay
         float infoContent = simplified
             ? MeasureSimplifiedInfo(flow, matchOver)
             : penaltyPage
-                ? MeasurePenaltyInfo(PenaltyCount(result), matchOver)
+                ? MeasurePenaltyInfo(PenaltyLineCount(result), matchOver)
                 : flow
                     ? MeasureFlowInfo(matchOver)
                     : MeasureWinnerInfo(detail!, matchOver);
@@ -710,6 +716,27 @@ public sealed class SettlementOverlay
         {
             c.DrawText(line, new RectF(x, y, width, 26), Negative, new TextStyle(16, Center: false));
             y += 28f;
+        }
+
+        if (result.Transfers is { Count: > 0 } transfers)
+        {
+            foreach (var transfer in transfers)
+            {
+                c.DrawText(
+                    SeatName(vm, transfer.From) + " → " + SeatName(vm, transfer.To) + "  " + transfer.Amount
+                    + "（" + transfer.Reason + "）",
+                    new RectF(x, y, width, 24), Muted, new TextStyle(14, Center: false));
+                y += 26f;
+            }
+        }
+
+        if (result.PenaltyAudit is { Count: > 0 } audit)
+        {
+            foreach (string line in audit)
+            {
+                c.DrawText("账本不一致：" + line, new RectF(x, y, width, 24), Negative, new TextStyle(13, Center: false));
+                y += 26f;
+            }
         }
 
         c.FillRect(new RectF(x, y, width, 1f), Hairline);

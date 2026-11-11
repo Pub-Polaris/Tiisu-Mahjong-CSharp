@@ -23,6 +23,9 @@ public sealed class Meld
     public bool IsKong => Tiles.Count == 4;
 }
 
+/// <summary>一笔分数转移（供结算审计 / 展示）：从 From 家付给 To 家 Amount 点。</summary>
+public readonly record struct ScoreTransfer(int From, int To, int Amount, string Reason);
+
 /// <summary>本局弃牌记录（JS 的 <c>roundDiscards</c>：四风连打判定要看"最近 4 张是谁打的"）。</summary>
 public sealed record RoundDiscard(int PlayerIndex, Tile Tile);
 

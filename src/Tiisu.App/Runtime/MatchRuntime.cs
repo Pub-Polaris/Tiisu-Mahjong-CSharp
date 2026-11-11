@@ -41,7 +41,14 @@ public sealed record RoundResult(
     string? DrawReason = null,
     IReadOnlyList<int>? ScoresBefore = null,
     IReadOnlyList<string>? Penalties = null,
-    bool Simplified = false);
+    bool Simplified = false)
+{
+    /// <summary>流局罚项的结构化转账明细（谁付给谁多少）；用于结算页拆账与审计。</summary>
+    public IReadOnlyList<Tiisu.Engine.ScoreTransfer>? Transfers { get; init; }
+
+    /// <summary>罚项账本与实际分数变化不一致时的差异；正常为 null。</summary>
+    public IReadOnlyList<string>? PenaltyAudit { get; init; }
+}
 
 /// <summary>
 /// 待决荣和。<see cref="Result"/> 为 null 表示「报听错和候选」：手牌成和形但赋不足起和线，
@@ -2062,8 +2069,27 @@ public sealed class MatchRuntime
             DrawReason = drawReason,
             ScoresBefore = _scoresAtRoundStart.ToArray(),
             Penalties = outcome.Kind is "flow" or "special_flow" ? _engine.LastFlowPenalties : null,
+            Transfers = outcome.Kind is "flow" or "special_flow" ? _engine.LastFlowTransfers : null,
+            PenaltyAudit = outcome.Kind is "flow" or "special_flow" && _engine.LastFlowPenaltyAudit.Count > 0
+                ? _engine.LastFlowPenaltyAudit
+                : null,
             Simplified = _settings.Ruleset == Ruleset.TuidaoHu,
         };
+
+        if (result.PenaltyAudit is { Count: > 0 })
+        {
+            try
+            {
+                System.IO.File.AppendAllText(
+                    System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tiisu-error.log"),
+                    DateTime.Now.ToString("HH:mm:ss.fff") + " 流局罚项账本与分数不一致：" +
+                    string.Join(" | ", result.PenaltyAudit) + Environment.NewLine);
+            }
+            catch
+            {
+                // 日志失败忽略
+            }
+        }
 
         _stats?.RecordRound(result, names);
         RecordEvent(

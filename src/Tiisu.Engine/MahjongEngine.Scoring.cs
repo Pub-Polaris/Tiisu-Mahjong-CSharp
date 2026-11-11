@@ -348,11 +348,20 @@ public sealed partial class MahjongEngine
     /// </summary>
     /// <summary>最近一次荒牌流局实际执行的罚项（人读文案，供结算屏展示；无罚则空）。</summary>
     public IReadOnlyList<string> LastFlowPenalties { get; private set; } = Array.Empty<string>();
+
+    /// <summary>最近一次荒牌流局的结构化分数转移（结算拆账 / 审计用；无罚则空）。</summary>
+    public IReadOnlyList<ScoreTransfer> LastFlowTransfers { get; private set; } = Array.Empty<ScoreTransfer>();
+
+    /// <summary>罚项账本与实际分数变化不一致时的差异描述；正常为空。</summary>
+    public IReadOnlyList<string> LastFlowPenaltyAudit { get; private set; } = Array.Empty<string>();
+
     public void Flow()
     {
         State = EngineState.Ended;
         GameOver = true;
         RevealHands = true;
+
+        var scoresBefore = _scores.ToArray();
 
         // 报听：已报听者自动算听牌（不用再申报）；其余按实际听牌判定。
         var tenpai = CaptureFlowTenpai();
@@ -361,12 +370,12 @@ public sealed partial class MahjongEngine
 
         // 未听返杠（4.4）+ 鸣牌后无役听牌（4.4）；推倒胡不罚。
         var penaltyLog = new List<string>();
+        var transfers = new List<ScoreTransfer>();
         if (Ruleset != Ruleset.TuidaoHu)
         {
-            ApplyNotenKanPenalty(tenpai, penaltyLog);
-            ApplyNoYakuTenpaiPenalty(tenpai, penaltyLog);
+            ApplyNotenKanPenalty(tenpai, penaltyLog, transfers);
+            ApplyNoYakuTenpaiPenalty(tenpai, penaltyLog, transfers);
         }
-        LastFlowPenalties = penaltyLog.ToArray();
 
         // 连庄判定：庄家听牌 → 连庄（本场 +1）；否则过庄（本场归零）
         if (tenpai[DealerIndex])
@@ -384,12 +393,47 @@ public sealed partial class MahjongEngine
             Honba++;
         }
 
-        ApplySevenHandRule();
+        string sevenLog = ApplySevenHandRule(transfers);
+        if (!string.IsNullOrEmpty(sevenLog))
+        {
+            penaltyLog.Add(sevenLog);
+        }
+
+        LastFlowPenalties = penaltyLog.ToArray();
+        LastFlowTransfers = transfers.ToArray();
+        LastFlowPenaltyAudit = AuditFlowTransfers(scoresBefore, transfers);
+
         ScheduleNextRound(2000);
     }
 
+    /// <summary>把「账本」和实际分数变化逐家对账；差异写进审计列表（正常为空）。</summary>
+    private IReadOnlyList<string> AuditFlowTransfers(int[] scoresBefore, List<ScoreTransfer> transfers)
+    {
+        var expected = new int[PlayerCount];
+        foreach (var transfer in transfers)
+        {
+            expected[transfer.From] -= transfer.Amount;
+            expected[transfer.To] += transfer.Amount;
+        }
+
+        var problems = new List<string>();
+        for (int i = 0; i < PlayerCount; i++)
+        {
+            int actual = _scores[i] - scoresBefore[i];
+            if (actual != expected[i])
+            {
+                problems.Add(
+                    _players[i].Name + ": 实际Δ" + actual.ToString("+#;-#;0", System.Globalization.CultureInfo.InvariantCulture)
+                    + "，账本Δ" + expected[i].ToString("+#;-#;0", System.Globalization.CultureInfo.InvariantCulture)
+                    + "，差" + (actual - expected[i]).ToString("+#;-#;0", System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
+
+        return problems;
+    }
+
     /// <summary>未听返杠（4.4）：杠牌最多且流局未听者，按 700 点/杠向各家返还；子家额外向庄家付 700。</summary>
-    private void ApplyNotenKanPenalty(bool[] tenpai, List<string> log)
+    private void ApplyNotenKanPenalty(bool[] tenpai, List<string> log, List<ScoreTransfer> transfers)
     {
         static int KanCount(Player player) => player.AnkanCount + player.MinkanCount;
 
@@ -422,12 +466,14 @@ public sealed partial class MahjongEngine
 
                 _scores[pi] -= per;
                 _scores[k] += per;
+                transfers.Add(new ScoreTransfer(pi, k, per, "未听返杠"));
             }
 
             if (pi != DealerIndex)
             {
                 _scores[pi] -= 700;
                 _scores[DealerIndex] += 700;
+                transfers.Add(new ScoreTransfer(pi, DealerIndex, 700, "未听返杠·庄家加成"));
             }
 
             log.Add(player.Name + " 未听返杠 −" + per);
@@ -446,7 +492,7 @@ public sealed partial class MahjongEngine
     /// </para>
     /// <para>只在「有副露 + 有听牌形 + 全部和牌张都无役」时才罚；门清不罚。</para>
     /// </summary>
-    private void ApplyNoYakuTenpaiPenalty(bool[] tenpai, List<string> log)
+    private void ApplyNoYakuTenpaiPenalty(bool[] tenpai, List<string> log, List<ScoreTransfer> transfers)
     {
         for (int pi = 0; pi < PlayerCount; pi++)
         {
@@ -495,6 +541,7 @@ public sealed partial class MahjongEngine
 
                     _scores[pi] -= 700;
                     _scores[k] += 700;
+                    transfers.Add(new ScoreTransfer(pi, k, 700, "鸣牌后无役听牌（庄）"));
                 }
 
                 log.Add(player.Name + "（庄）鸣牌后无役听牌 −2100");
@@ -503,6 +550,7 @@ public sealed partial class MahjongEngine
             {
                 _scores[pi] -= 1400;
                 _scores[DealerIndex] += 700;
+                transfers.Add(new ScoreTransfer(pi, DealerIndex, 700, "鸣牌后无役听牌"));
                 for (int k = 0; k < PlayerCount; k++)
                 {
                     if (k == pi || k == DealerIndex)
@@ -511,6 +559,7 @@ public sealed partial class MahjongEngine
                     }
 
                     _scores[k] += 350;
+                    transfers.Add(new ScoreTransfer(pi, k, 350, "鸣牌后无役听牌"));
                 }
 
                 log.Add(player.Name + " 鸣牌后无役听牌 −1400");
@@ -533,7 +582,7 @@ public sealed partial class MahjongEngine
     }
 
     /// <summary>七日终战（4.3）：半庄 / 东风场本场数为 7 流局 → 强制过庄进入 ALL LAST。</summary>
-    private string ApplySevenHandRule()
+    private string ApplySevenHandRule(List<ScoreTransfer> transfers)
     {
         if (WeekEndHandled)
         {
@@ -571,6 +620,8 @@ public sealed partial class MahjongEngine
             {
                 _scores[DealerIndex] -= 2100;
                 _scores[lowIndex] += 2100;
+                transfers.Add(new ScoreTransfer(DealerIndex, lowIndex, 2100, "七日终战"));
+                return "七日终战：庄家为 1 位 → 向最低点 " + _players[lowIndex].Name + " 付 2100（强制过庄进入 ALL LAST）";
             }
         }
 
