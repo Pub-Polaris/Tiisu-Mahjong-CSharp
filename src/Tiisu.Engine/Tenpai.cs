@@ -10,6 +10,9 @@ public sealed record TenpaiEntry(Tile Tile, bool Success, int TotalFu, int NoYak
     /// 赋数不够起和线只是不能和，牌形本身是听着的。报听可用性 / 锁手只看这个标志。
     /// </summary>
     public bool Formed { get; init; }
+
+    /// <summary>起和门槛口径的赋（不含可选役）；错和提示与判罚用这个值比 BaseFu。</summary>
+    public int ThresholdFu { get; init; }
 }
 
 /// <summary>listTenpai 的入参（engine.js 里给 <c>listTenpai</c> 的第二层 opts）。</summary>
@@ -80,10 +83,11 @@ public static class TenpaiCalculator
                 continue;
             }
 
-            int noYakuGap = win.Reason == "no_yaku" ? options.BaseFu - (win.TotalFu ?? 0) : 0;
+            int noYakuGap = win.Reason == "no_yaku" ? options.BaseFu - win.ThresholdFu : 0;
             result.Add(new TenpaiEntry(candidate, win.Success, win.TotalFu ?? 0, noYakuGap)
             {
                 Formed = win.Reason != "not_formed",
+                ThresholdFu = win.ThresholdFu,
             });
         }
 

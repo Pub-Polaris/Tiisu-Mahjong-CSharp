@@ -79,6 +79,12 @@ public sealed class WinResult
 
     public int? TotalFu { get; init; }
 
+    /// <summary>
+    /// 起和门槛口径的赋：与 <see cref="TotalFu"/> 的区别是**不含可选役**（可选役只加分、不参与门槛，
+    /// 2026-11-12 裁定）。错和罚等「够不够门槛」的判断一律用这个字段，别各自拿 TotalFu 比 BaseFu。
+    /// </summary>
+    public int ThresholdFu { get; init; }
+
     public HandKind? HandType { get; init; }
 
     public IReadOnlyList<YakuResult> ActiveYaku { get; init; } = Array.Empty<YakuResult>();

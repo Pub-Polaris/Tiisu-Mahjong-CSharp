@@ -65,6 +65,7 @@ public sealed class OptionalYakuThresholdTests
         // 赋里仍然算了可选役（只是不参与门槛判断）
         Assert.Contains(withOptional.ActiveYaku, y => y.Name == "三双逢");
         Assert.True(withOptional.TotalFu >= 7);
+        Assert.True(withOptional.ThresholdFu < 7);
 
         var withoutOptional = NoOptional.CheckWin(
             hand,
@@ -76,5 +77,21 @@ public sealed class OptionalYakuThresholdTests
         Assert.False(withoutOptional.Success);
         Assert.DoesNotContain(withoutOptional.ActiveYaku, y => y.Name == "三双逢");
         Assert.True(withoutOptional.TotalFu < withOptional.TotalFu);
+        Assert.Equal(withoutOptional.TotalFu, withoutOptional.ThresholdFu);
+    }
+
+    [Fact]
+    public void 门槛已够时可选役只改总赋()
+    {
+        // 三暗刻 5 + 门前自摸 4 = 9（已过 7 赋），三双逢 4 只影响 TotalFu。
+        var hand = H("2m 2m 2m 4p 4p 4p 6s 6s 6s 7m 8m 9m 1z 1z");
+
+        var withOptional = AllOptional.CheckWin(hand, selfDraw: true);
+        var withoutOptional = NoOptional.CheckWin(hand, selfDraw: true);
+
+        Assert.True(withOptional.Success);
+        Assert.True(withoutOptional.Success);
+        Assert.Equal(withoutOptional.ThresholdFu, withOptional.ThresholdFu);
+        Assert.Equal(withoutOptional.TotalFu + 4, withOptional.TotalFu);
     }
 }

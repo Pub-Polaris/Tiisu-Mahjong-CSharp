@@ -44,6 +44,9 @@ public sealed partial class WinChecker
     private readonly YakuData _yakuData;
     private readonly HashSet<string> _optionalEnabled = new(StringComparer.Ordinal);
 
+    /// <summary>数据里标了 optional 的役 id（与启用开关无关）：门槛口径只认这个集合。</summary>
+    private readonly HashSet<string> _optionalYakuIds = new(StringComparer.Ordinal);
+
     private IReadOnlyList<Tile> _concealedHand = Array.Empty<Tile>();
     private IReadOnlyList<Meld> _melds = Array.Empty<Meld>();
     private int _ankanCount;
@@ -67,6 +70,23 @@ public sealed partial class WinChecker
     {
         _yakuData = yakuData ?? throw new ArgumentNullException(nameof(yakuData));
         Ruleset = ruleset;
+
+        foreach (var yaku in yakuData.Yaku)
+        {
+            if (yaku.Optional)
+            {
+                _optionalYakuIds.Add(yaku.Id);
+            }
+        }
+
+        foreach (var yaku in yakuData.HighYaku)
+        {
+            if (yaku.Optional)
+            {
+                _optionalYakuIds.Add(yaku.Id);
+            }
+        }
+
         if (optionalEnabled is null)
         {
             foreach (var yaku in yakuData.Yaku)
@@ -175,6 +195,7 @@ public sealed partial class WinChecker
             {
                 Success = true,
                 TotalFu = 0,
+                ThresholdFu = 0,
                 HandType = shape == TuidaoHuShape.SevenPairs ? HandKind.SevenPairs : HandKind.StandardHand,
                 ActiveYaku = new[]
                 {
@@ -742,20 +763,22 @@ public sealed partial class WinChecker
         int optionalFu = 0;
         foreach (var yaku in activeYaku)
         {
-            if (yaku.Id is not null && _optionalEnabled.Contains(yaku.Id))
+            if (yaku.Id is not null && _optionalYakuIds.Contains(yaku.Id))
             {
                 optionalFu += yaku.Fu;
             }
         }
 
         // 大七星无视 7 赋起和门槛：它不计分，由 engine 直接结束本局。
-        if (!sevenHonors && totalFuSum - optionalFu < _yakuData.BaseFu)
+        int thresholdFu = totalFuSum - optionalFu;
+        if (!sevenHonors && thresholdFu < _yakuData.BaseFu)
         {
             return new WinResult
             {
                 Success = false,
                 Reason = "no_yaku",
                 TotalFu = totalFuSum,
+                ThresholdFu = thresholdFu,
                 ActiveYaku = activeYaku,
                 SevenHonors = sevenHonors,
             };
@@ -815,6 +838,7 @@ public sealed partial class WinChecker
         {
             Success = true,
             TotalFu = totalFuSum,
+            ThresholdFu = thresholdFu,
             ActiveYaku = activeYaku.Concat(extraYaku).ToList(),
             HandType = highFound is not null ? HandKind.HighYaku : handKind,
             SevenHonors = sevenHonors,

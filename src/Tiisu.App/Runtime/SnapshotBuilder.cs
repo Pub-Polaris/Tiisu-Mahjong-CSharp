@@ -272,7 +272,7 @@ public static class SnapshotBuilder
             {
                 if (entry.Formed)
                 {
-                    max = Math.Max(max, entry.TotalFu);
+                    max = Math.Max(max, entry.ThresholdFu);
                 }
             }
         }

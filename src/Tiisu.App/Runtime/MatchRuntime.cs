@@ -1228,7 +1228,8 @@ public sealed class MatchRuntime
             // 报听错和：手牌成和形但赋不足起和线，玩家仍主动宣布和牌 → 判罚。
             if (IsMisfireResult(player, result) && !_engine.IsWinBanned(player))
             {
-                ApplyMisfire(human, result.TotalFu ?? 0, selfDraw: true);
+                // 门槛口径的赋（不含可选役），与判和保持同一口径。
+                ApplyMisfire(human, result.ThresholdFu, selfDraw: true);
                 if (_engine.MatchOver)
                 {
                     _lastOutcome = MakeOutcome("special_flow", Array.Empty<int>(), "call_foul");
@@ -1261,7 +1262,7 @@ public sealed class MatchRuntime
             return false;
         }
 
-        int fu = result.TotalFu ?? 0;
+        int fu = result.ThresholdFu;
         return fu > 0 && fu < _engine.BaseFu;
     }
 
@@ -1910,7 +1911,7 @@ public sealed class MatchRuntime
             return 0;
         }
 
-        int fu = result.TotalFu ?? 0;
+        int fu = result.ThresholdFu;
         return fu > 0 && fu < _engine.BaseFu ? fu : 0;
     }
 
