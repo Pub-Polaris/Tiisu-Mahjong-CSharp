@@ -13,7 +13,7 @@ namespace Tiisu.App.Runtime;
 
 /// <summary>
 /// 牌型日志（<c>recordTiles</c> 开启时）：<c>&lt;数据目录&gt;\logs\roundlog_YYYYMMDD.jsonl</c>。
-/// 一行一个 JSON 事件，字段与 <c>src/Tiisu.Api/LOG-FORMAT.md</c> 一致；动作码沿用
+/// 一行一个 JSON 事件，动作码沿用
 /// draw / discard / pon / chi / kan_minkan / kan_ankan / kan_kakan / rinshan_draw /
 /// win_tsumo / win_ron / observe / special_flow / flow / tiisuin_win / witness，
 /// 报听新增 call（宣言）/ call_foul（错和）。
