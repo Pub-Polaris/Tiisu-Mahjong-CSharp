@@ -41,6 +41,10 @@ public sealed class TableLayoutSpec
     public int RiverCols = 6;
     public int RiverRows = 3;
 
+    /// <summary>手牌矩形是纯函数结果：按输入缓存，避免每帧重新分配（审计 P2-6）。</summary>
+    internal readonly Dictionary<(int Index, int N, int Drawn, float Fx, float Fy, float Fw, float Fh,
+        float HandW, float HandH, float HandGap, float DrawnGap), RectF[]> _handRectCache = new();
+
     public float CenterSize = 400f;
     public float EdgePad = 24f;
     public float PlateGap = 14f;
@@ -600,6 +604,14 @@ public sealed class TableSceneSkia
         // 摸到的牌单独排在右侧：其余牌按原下标顺序前移，摸牌格用更大的 DrawnGap 隔开。
         // 返回数组仍按「手牌下标」索引，所以绘制与命中测试不用重映射。
         int drawn = self && seat.DrawnIndex >= 0 && seat.DrawnIndex < n ? seat.DrawnIndex : -1;
+
+        var cacheKey = (index, n, drawn, frame.X, frame.Y, frame.W, frame.H,
+            along, depth, l.HandGap, l.DrawnGap);
+        if (l._handRectCache.TryGetValue(cacheKey, out RectF[]? cachedRects))
+        {
+            return cachedRects;
+        }
+
         int packed = drawn >= 0 ? n - 1 : n;
         float drawnGap = drawn >= 0 ? l.DrawnGap : l.HandGap;
         float total = Math.Max(0, packed) * along
@@ -638,6 +650,7 @@ public sealed class TableSceneSkia
                 : new RectF(cross, a, depth, along);
         }
 
+        l._handRectCache[cacheKey] = rects;
         return rects;
     }
 

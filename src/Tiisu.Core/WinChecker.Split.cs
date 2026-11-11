@@ -26,7 +26,8 @@ public sealed partial class WinChecker
             }
         }
 
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        // 拆法去重用 7-bit 结构签名，不再为每个候选拼字符串（审计 P3-11）。
+        var seen = new HashSet<long>();
         var path = new List<Group>(need);
         var output = result;
 
@@ -49,7 +50,7 @@ public sealed partial class WinChecker
                 {
                     var pairTile = Tile.FromIndex(leftId);
                     var groups = new List<Group>(path) { new(GroupKind.Pair, new[] { pairTile, pairTile }) };
-                    string key = SplitKey(groups);
+                    long key = SplitSignature(groups);
                     if (seen.Add(key))
                     {
                         output.Add(groups);
@@ -111,18 +112,31 @@ public sealed partial class WinChecker
         return result;
     }
 
-    private static string SplitKey(IReadOnlyList<Group> groups)
+    /// <summary>拆法的结构签名：每个面子编码成 (kind&lt;&lt;6 | 首张 index)，排序后打包进 long。</summary>
+    private static long SplitSignature(IReadOnlyList<Group> groups)
     {
-        var parts = new List<string>(groups.Count);
-        foreach (var group in groups)
+        Span<int> codes = stackalloc int[5];
+        int count = 0;
+        for (int i = 0; i < groups.Count && count < codes.Length; i++)
         {
-            var ids = group.Tiles.Select(t => t.Id).ToList();
-            ids.Sort(StringComparer.Ordinal);
-            parts.Add(string.Concat(ids));
+            var group = groups[i];
+            int kind = group.Kind switch
+            {
+                GroupKind.Pair => 0,
+                GroupKind.Pung => 1,
+                _ => 2,
+            };
+            codes[count++] = (kind << 6) | (group.First.Index & 0x3F);
         }
 
-        parts.Sort(StringComparer.Ordinal);
-        return string.Join("|", parts);
+        codes[..count].Sort();
+        long signature = 0;
+        for (int i = 0; i < count; i++)
+        {
+            signature |= (long)(codes[i] & 0x7F) << (i * 7);
+        }
+
+        return signature;
     }
 
     /// <summary>JS splitStandard：牌按 id 排序后找雀头，再用 splitGroups 递归拆面子（第一个成功解）。</summary>

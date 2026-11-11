@@ -67,7 +67,7 @@ public sealed partial class WinChecker
                     return false;
                 }
 
-                var sequences = groups.Where(g => g.Kind == GroupKind.Sequence).ToList();
+                var sequences = Sequences(groups);
                 if (sequences.Count < 2)
                 {
                     return false;
@@ -95,7 +95,7 @@ public sealed partial class WinChecker
                     return false;
                 }
 
-                var sequences = groups.Where(g => g.Kind == GroupKind.Sequence).ToList();
+                var sequences = Sequences(groups);
                 if (sequences.Count < 4)
                 {
                     return false;
@@ -122,7 +122,7 @@ public sealed partial class WinChecker
                     return false;
                 }
 
-                var sequences = groups.Where(g => g.Kind == GroupKind.Sequence).ToList();
+                var sequences = Sequences(groups);
                 if (sequences.Count < 2)
                 {
                     return false;
@@ -210,7 +210,7 @@ public sealed partial class WinChecker
                     return false;
                 }
 
-                var pungs = groups.Where(g => g.Kind == GroupKind.Pung).ToList();
+                var pungs = Pungs(groups);
                 if (pungs.Count < 2)
                 {
                     return false;
@@ -277,7 +277,7 @@ public sealed partial class WinChecker
                     return false;
                 }
 
-                var sequences = groups.Where(g => g.Kind == GroupKind.Sequence).ToList();
+                var sequences = Sequences(groups);
                 if (sequences.Count < 3)
                 {
                     return false;
@@ -311,7 +311,7 @@ public sealed partial class WinChecker
                     return false;
                 }
 
-                var sequences = groups.Where(g => g.Kind == GroupKind.Sequence).ToList();
+                var sequences = Sequences(groups);
                 if (sequences.Count < 3)
                 {
                     return false;
@@ -350,8 +350,14 @@ public sealed partial class WinChecker
                 }
 
                 var bySuit = new Dictionary<Suit, HashSet<int>>();
-                foreach (var sequence in groups.Where(g => g.Kind == GroupKind.Sequence))
+                for (int gi = 0; gi < groups.Count; gi++)
                 {
+                    var sequence = groups[gi];
+                    if (sequence.Kind != GroupKind.Sequence)
+                    {
+                        continue;
+                    }
+
                     if (!bySuit.TryGetValue(sequence.First.Suit, out var nums))
                     {
                         nums = new HashSet<int>();
@@ -510,11 +516,18 @@ public sealed partial class WinChecker
                 }
 
                 var bySuit = new Dictionary<Suit, (bool Has123, bool Has789)>();
-                foreach (var sequence in groups.Where(g => g.Kind == GroupKind.Sequence))
+                for (int gi = 0; gi < groups.Count; gi++)
                 {
-                    var nums = sequence.Tiles.Select(t => t.Num).OrderBy(n => n).ToArray();
-                    bool is123 = nums.Length == 3 && nums[0] == 1 && nums[1] == 2 && nums[2] == 3;
-                    bool is789 = nums.Length == 3 && nums[0] == 7 && nums[1] == 8 && nums[2] == 9;
+                    var sequence = groups[gi];
+                    if (sequence.Kind != GroupKind.Sequence)
+                    {
+                        continue;
+                    }
+
+                    // 顺子里的牌一定是升序三张（Split 生成时保证），不用再 Select/OrderBy 分配（审计 P2-4）。
+                    var tiles = sequence.Tiles;
+                    bool is123 = tiles.Count == 3 && tiles[0].Num == 1 && tiles[2].Num == 3;
+                    bool is789 = tiles.Count == 3 && tiles[0].Num == 7 && tiles[2].Num == 9;
                     var current = bySuit.GetValueOrDefault(sequence.First.Suit);
                     bySuit[sequence.First.Suit] = (current.Has123 || is123, current.Has789 || is789);
                 }
@@ -530,11 +543,17 @@ public sealed partial class WinChecker
                 }
 
                 var bySuit = new Dictionary<Suit, (int Count123, int Count789)>();
-                foreach (var sequence in groups.Where(g => g.Kind == GroupKind.Sequence))
+                for (int gi = 0; gi < groups.Count; gi++)
                 {
-                    var nums = sequence.Tiles.Select(t => t.Num).OrderBy(n => n).ToArray();
-                    bool is123 = nums.Length == 3 && nums[0] == 1 && nums[1] == 2 && nums[2] == 3;
-                    bool is789 = nums.Length == 3 && nums[0] == 7 && nums[1] == 8 && nums[2] == 9;
+                    var sequence = groups[gi];
+                    if (sequence.Kind != GroupKind.Sequence)
+                    {
+                        continue;
+                    }
+
+                    var tiles = sequence.Tiles;
+                    bool is123 = tiles.Count == 3 && tiles[0].Num == 1 && tiles[2].Num == 3;
+                    bool is789 = tiles.Count == 3 && tiles[0].Num == 7 && tiles[2].Num == 9;
                     var current = bySuit.GetValueOrDefault(sequence.First.Suit);
                     bySuit[sequence.First.Suit] = (
                         current.Count123 + (is123 ? 1 : 0),
@@ -553,15 +572,21 @@ public sealed partial class WinChecker
 
                 var suits123 = new HashSet<Suit>();
                 var suits789 = new HashSet<Suit>();
-                foreach (var sequence in groups.Where(g => g.Kind == GroupKind.Sequence))
+                for (int gi = 0; gi < groups.Count; gi++)
                 {
-                    var nums = sequence.Tiles.Select(t => t.Num).OrderBy(n => n).ToArray();
-                    if (nums.Length == 3 && nums[0] == 1 && nums[1] == 2 && nums[2] == 3)
+                    var sequence = groups[gi];
+                    if (sequence.Kind != GroupKind.Sequence)
+                    {
+                        continue;
+                    }
+
+                    var tiles = sequence.Tiles;
+                    if (tiles.Count == 3 && tiles[0].Num == 1 && tiles[2].Num == 3)
                     {
                         suits123.Add(sequence.First.Suit);
                     }
 
-                    if (nums.Length == 3 && nums[0] == 7 && nums[1] == 8 && nums[2] == 9)
+                    if (tiles.Count == 3 && tiles[0].Num == 7 && tiles[2].Num == 9)
                     {
                         suits789.Add(sequence.First.Suit);
                     }
@@ -589,7 +614,7 @@ public sealed partial class WinChecker
                     return false;
                 }
 
-                var pungs = groups.Where(g => g.Kind == GroupKind.Pung).ToList();
+                var pungs = Pungs(groups);
                 if (pungs.Count != 3)
                 {
                     return false;
@@ -1242,7 +1267,7 @@ public sealed partial class WinChecker
             return false;
         }
 
-        var sequences = groups.Where(g => g.Kind == GroupKind.Sequence).ToList();
+        var sequences = Sequences(groups);
         if (sequences.Count == 0)
         {
             return false;
@@ -1402,6 +1427,35 @@ public sealed partial class WinChecker
     }
 
     // ── 双逢 ─────────────────────────────────────────────────────
+
+    /// <summary>避免热路径 LINQ：判役只需要两个过滤列表（审计 P2-4）。</summary>
+    private static List<Group> Sequences(IReadOnlyList<Group> groups)
+    {
+        var list = new List<Group>(groups.Count);
+        for (int i = 0; i < groups.Count; i++)
+        {
+            if (groups[i].Kind == GroupKind.Sequence)
+            {
+                list.Add(groups[i]);
+            }
+        }
+
+        return list;
+    }
+
+    private static List<Group> Pungs(IReadOnlyList<Group> groups)
+    {
+        var list = new List<Group>(groups.Count);
+        for (int i = 0; i < groups.Count; i++)
+        {
+            if (groups[i].Kind == GroupKind.Pung)
+            {
+                list.Add(groups[i]);
+            }
+        }
+
+        return list;
+    }
 
     private static bool HasConsecutiveEvenPungs(IReadOnlyList<Group>? groups, int k)
     {
