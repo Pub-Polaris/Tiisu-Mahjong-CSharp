@@ -2,7 +2,7 @@
 #
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File NET\installer\build_installer.ps1
-#   powershell -ExecutionPolicy Bypass -File NET\installer\build_installer.ps1 -Project src\Tiisu.Shell
+#   powershell -ExecutionPolicy Bypass -File NET\installer\build_installer.ps1 -Project src\Tiisu.App
 #
 # Steps:
 #   1. dotnet publish app (framework-dependent, win-x64) -> NET\dist\publish

@@ -37,6 +37,14 @@ internal static class Program
 
         TryUseUtf8Console();
 
+        // 出货版默认不放开发命令；Debug 构建（自检/CI）不受影响（审计 P3-5）。
+        if (args.Length > 0 && IsDevCommand(args[0]) && !DevCommandAllowed())
+        {
+            Console.WriteLine($"开发命令已关闭：{args[0]}");
+            Console.WriteLine($"把 {DevToolsConfig.ConfigPath()} 里的 \"enabled\" 改成 true 后重试。");
+            return;
+        }
+
         // 无窗口自检（不建窗口、不初始化 WinForms）
         switch (args.Length >= 1 ? args[0] : string.Empty)
         {
@@ -286,6 +294,22 @@ internal static class Program
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool AllocConsole();
+
+    /// <summary>开发/自检命令：出货版默认关闭，需 devtools.json 显式打开（审计 P3-5）。</summary>
+    private static bool IsDevCommand(string arg) =>
+        arg.StartsWith("--smoke", StringComparison.Ordinal)
+        || arg.StartsWith("--render", StringComparison.Ordinal)
+        || arg is "--play-real" or "--check-voices" or "--list-locks";
+
+    private static bool DevCommandAllowed()
+    {
+#if DEBUG
+        return true;
+#else
+        DevToolsConfig.EnsureTemplate();
+        return DevToolsConfig.Enabled();
+#endif
+    }
 
     /// <summary>
     /// WinExe 从命令行启动时不继承控制台（P1-5）：优先挂到父进程控制台，
