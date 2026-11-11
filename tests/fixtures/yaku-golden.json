@@ -882,10 +882,10 @@
    "roundWind": "east"
   },
   "result": {
-   "success": true,
-   "reason": null,
-   "totalFu": 8,
-   "handType": "standard_hand",
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 7,
+   "handType": null,
    "yaku": [
     {
      "name": "断幺九",
@@ -910,12 +910,6 @@
      "fu": 1,
      "id": "all_number_jin",
      "isBonus": false
-    },
-    {
-     "name": "嵌张",
-     "fu": 1,
-     "id": null,
-     "isBonus": true
     }
    ],
    "specialPoints": null,
@@ -2368,10 +2362,10 @@
    "roundWind": "east"
   },
   "result": {
-   "success": true,
-   "reason": null,
-   "totalFu": 8,
-   "handType": "standard_hand",
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 7,
+   "handType": null,
    "yaku": [
     {
      "name": "对对和",
@@ -2396,12 +2390,6 @@
      "fu": 2,
      "id": "all_pon",
      "isBonus": false
-    },
-    {
-     "name": "单钓",
-     "fu": 1,
-     "id": null,
-     "isBonus": true
     }
    ],
    "specialPoints": null,
@@ -7336,10 +7324,10 @@
    "roundWind": "east"
   },
   "result": {
-   "success": true,
-   "reason": null,
-   "totalFu": 8,
-   "handType": "standard_hand",
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 7,
+   "handType": null,
    "yaku": [
     {
      "name": "缺七",
@@ -7358,12 +7346,6 @@
      "fu": 2,
      "id": null,
      "isBonus": false
-    },
-    {
-     "name": "筋和",
-     "fu": 1,
-     "id": null,
-     "isBonus": true
     }
    ],
    "specialPoints": null,
@@ -7623,10 +7605,10 @@
    "roundWind": "east"
   },
   "result": {
-   "success": true,
-   "reason": null,
-   "totalFu": 8,
-   "handType": "standard_hand",
+   "success": false,
+   "reason": "no_yaku",
+   "totalFu": 7,
+   "handType": null,
    "yaku": [
     {
      "name": "缺七",
@@ -7645,12 +7627,6 @@
      "fu": 2,
      "id": null,
      "isBonus": false
-    },
-    {
-     "name": "筋和",
-     "fu": 1,
-     "id": null,
-     "isBonus": true
     }
    ],
    "specialPoints": null,

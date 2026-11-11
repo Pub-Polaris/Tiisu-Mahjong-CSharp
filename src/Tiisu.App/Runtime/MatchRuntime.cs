@@ -861,6 +861,7 @@ public sealed class MatchRuntime
             AllMelds = allMelds,
             MctsEnabled = _settings.AiMctsEnabled,
             FirstTurn = player.FirstTurn,
+            Checker = _checker,
         };
     }
 

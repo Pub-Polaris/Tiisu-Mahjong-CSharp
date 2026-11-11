@@ -97,6 +97,12 @@ public sealed partial class WinChecker
     /// <summary>规则集：七子（默认）或推倒胡。</summary>
     public Ruleset Ruleset { get; }
 
+    /// <summary>
+    /// 起和门槛（七子 = ike.json 的 baseFu；推倒胡不设门槛 = 0）。
+    /// 供 AI 的听牌估值与门槛判定复用，避免各处硬编码 7（复核第十节接线）。
+    /// </summary>
+    public int BaseFu => Ruleset == Ruleset.TuidaoHu ? 0 : _yakuData.BaseFu;
+
     /// <summary>高目优先（枚举全部拆法）。默认开启；关闭后与 JS 的旧行为一致（第一个拆法）。</summary>
     public bool MaxSplit { get; set; } = true;
 
@@ -731,8 +737,19 @@ public sealed partial class WinChecker
             totalFuSum = ApplyYakuExclusions(activeYaku, totalFuSum);
         }
 
+        // 可选役只加分、不参与起和线（2026-11-12 裁定）：门槛基数要扣掉可选役的赋。
+        // 可选役仍留在 TotalFu / ActiveYaku 里，只是不能把一手不够门槛的牌「抬过线」。
+        int optionalFu = 0;
+        foreach (var yaku in activeYaku)
+        {
+            if (yaku.Id is not null && _optionalEnabled.Contains(yaku.Id))
+            {
+                optionalFu += yaku.Fu;
+            }
+        }
+
         // 大七星无视 7 赋起和门槛：它不计分，由 engine 直接结束本局。
-        if (!sevenHonors && totalFuSum < _yakuData.BaseFu)
+        if (!sevenHonors && totalFuSum - optionalFu < _yakuData.BaseFu)
         {
             return new WinResult
             {

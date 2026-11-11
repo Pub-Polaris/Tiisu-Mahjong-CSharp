@@ -58,6 +58,12 @@ public sealed record AiDecisionContext(
     /// 由设置 <c>AiMctsEnabled</c> 传入（也可用 <see cref="TieredAi.Decide"/> 的参数覆盖）。
     /// </summary>
     public bool MctsEnabled { get; init; }
+
+    /// <summary>
+    /// 本局规则的判役器（七子 / 推倒胡）。为空时回退到默认 YakuData 单例——
+    /// 只适用于测试与不区分规则的工具；生产由 MatchRuntime 传入当前 checker（复核第十节）。
+    /// </summary>
+    public WinChecker? Checker { get; init; }
 }
 
 /// <summary>一个候选打牌及其评分明细（供测试与上层诊断）。</summary>
@@ -297,6 +303,7 @@ public static class TieredAi
         AiDecisionContext ctx,
         IReadOnlyList<IReadOnlyList<Tile>> rivers)
     {
+        var checker = ctx.Checker ?? WinCheckerLazy.Value;
         var options = new TenpaiOptions
         {
             SelfDraw = false,
@@ -306,13 +313,14 @@ public static class TieredAi
             FirstTurn = false,
             SeatWind = ctx.SeatWind,
             RoundWind = ctx.RoundWind,
+            BaseFu = checker.BaseFu,
         };
 
         List<TenpaiEntry> entries;
         try
         {
             entries = TenpaiCalculator.ListTenpai(
-                WinCheckerLazy.Value,
+                checker,
                 hand,
                 ToCoreMelds(ctx.Melds),
                 options);

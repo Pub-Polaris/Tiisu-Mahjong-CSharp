@@ -515,6 +515,30 @@ public sealed class TieredAiTests
             Assert.Equal(Suit.Honor, tile.Suit);
         }
     }
+
+    /// <summary>复核第十节：ctx.Checker 决定 AI 用哪套规则估听牌（七子 vs 推倒胡）。</summary>
+    [Fact]
+    public void Ruleset_Checker_DrivesTenpaiValue()
+    {
+        // 切 6p 后：111m 222m 333m 444p 5p，等 5p 成对。
+        // 七子口径下有对对和等役（TotalFu > 0）；推倒胡只判形态（TotalFu = 0）。
+        var hand = Tiles("111m222m333m444p5p6p");
+        var standard = new WinChecker(YakuData.LoadDefault());
+        var tuidaohu = new WinChecker(YakuData.LoadDefault(), null, Ruleset.TuidaoHu);
+
+        var std = TieredAi.Decide(
+            Context(hand) with { Checker = standard }, AiLevel.Hard, new FixedRandom(0.99));
+        var tui = TieredAi.Decide(
+            Context(hand) with { Checker = tuidaohu }, AiLevel.Hard, new FixedRandom(0.99));
+
+        var sixPin = new Tile(Suit.Pin, 6);
+        var stdCandidate = std.Ranking.Single(c => c.Tile == sixPin);
+        var tuiCandidate = tui.Ranking.Single(c => c.Tile == sixPin);
+
+        Assert.True(stdCandidate.ExpectedValue > 0);
+        Assert.Equal(0, tuiCandidate.ExpectedValue);
+    }
+
     /// <summary>B 期防守用例的固定牌局：现物 2z + 危险的 5s（对手两组吃都含 5s）。</summary>
     private static AiDecisionContext DefenseContext(int wall) =>
         new(

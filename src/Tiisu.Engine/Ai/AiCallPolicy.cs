@@ -136,6 +136,7 @@ public static class AiCallPolicy
         AiLevel level,
         AiTuning tuning)
     {
+        var checker = ctx.Checker ?? CheckerLazy.Value;
         var options = new TenpaiOptions
         {
             // 与引擎报听判定同口径（引擎 IsTenpai 用自摸口径）；期望赋另按荣和口径估计，
@@ -147,13 +148,13 @@ public static class AiCallPolicy
             FirstTurn = ctx.FirstTurn,
             SeatWind = ctx.SeatWind,
             RoundWind = ctx.RoundWind,
-            BaseFu = YakuLazy.Value.BaseFu,
+            BaseFu = checker.BaseFu,
         };
 
         List<TenpaiEntry> entries;
         try
         {
-            entries = TenpaiCalculator.ListTenpai(CheckerLazy.Value, hand, ToCoreMelds(ctx.Melds), options);
+            entries = TenpaiCalculator.ListTenpai(checker, hand, ToCoreMelds(ctx.Melds), options);
         }
         catch
         {
