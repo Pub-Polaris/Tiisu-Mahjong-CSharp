@@ -928,7 +928,7 @@ public sealed class TableScreen : Screen
         }
 
         var rects = TableSceneSkia.HandTileRects(_layout, self, 0);
-        int count = Math.Min(rects.Length, self.Hand.Count);
+        int count = Math.Min(rects.Count, self.Hand.Count);
         for (int i = 0; i < count; i++)
         {
             if (rects[i].Contains(x, y))

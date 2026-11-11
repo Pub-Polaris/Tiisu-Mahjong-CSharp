@@ -35,8 +35,8 @@ public sealed class TableLayoutCacheTests
         var drawn = TableSceneSkia.HandTileRects(layout, Seat(14, 13), 0);
 
         Assert.NotSame(noDraw, drawn);
-        Assert.Equal(13, noDraw.Length);
-        Assert.Equal(14, drawn.Length);
+        Assert.Equal(13, noDraw.Count);
+        Assert.Equal(14, drawn.Count);
     }
 
     [Fact]

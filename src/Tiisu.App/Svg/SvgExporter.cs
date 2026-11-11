@@ -177,7 +177,7 @@ public sealed class SvgExporter
             var rects = TableSceneSkia.HandTileRects(_l, view, seat);
 
             sb.AppendLine($"  <g id=\"{names[seat]}\" data-name=\"{notes[seat]}\">");
-            for (int i = 0; i < rects.Length; i++)
+            for (int i = 0; i < rects.Count; i++)
             {
                 var r = rects[i];
                 if (seat == 0 && i < view.Hand.Count)

@@ -465,7 +465,7 @@ internal static class DevCommands
                         // 取手牌最后一张的矩形中心 —— 与鼠标点击走同一个 HitTest。
                         var rects = TableSceneSkia.HandTileRects(layout, vm.Seats[0], 0);
                         int index = Math.Max(0, handBefore - 1);
-                        if (index < rects.Length && screen.OnClick(rects[index].CenterX, rects[index].CenterY))
+                        if (index < rects.Count && screen.OnClick(rects[index].CenterX, rects[index].CenterY))
                         {
                             discards++;
                         }
@@ -2727,12 +2727,12 @@ internal static class DevCommands
         var rects = TableSceneSkia.HandTileRects(layout, seat, 0);
         int drawn = seat.DrawnIndex;
         string detail = $"phase={runtime.Phase} hand={seat.Hand.Count} drawn={drawn} gap=";
-        bool ok = drawn >= 0 && drawn < rects.Length && seat.Hand.Count > 1;
+        bool ok = drawn >= 0 && drawn < rects.Count && seat.Hand.Count > 1;
         float gap = 0f;
         if (ok)
         {
             float nearestRight = float.MinValue;
-            for (int i = 0; i < rects.Length; i++)
+            for (int i = 0; i < rects.Count; i++)
             {
                 if (i != drawn)
                 {

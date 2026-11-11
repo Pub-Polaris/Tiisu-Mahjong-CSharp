@@ -589,7 +589,7 @@ public sealed class TableSceneSkia
     /// 侧家的牌旋转 90° 后 footprint 变成 68×50，「短边朝向中心」由旋转实现，
     /// 不改变沿主轴的步进。这样 14 张在四家都恰好是 739 = 手牌框长度。
     /// </summary>
-    public static RectF[] HandTileRects(TableLayoutSpec l, SeatView seat, int index)
+    public static IReadOnlyList<RectF> HandTileRects(TableLayoutSpec l, SeatView seat, int index)
     {
         var frame = l.HandRects[index];
         var (horizontal, _, _) = TableLayoutSpec.Axis(index);
@@ -816,7 +816,7 @@ public sealed class TableSceneSkia
 
         var tiles = HandTileRects(l, seat, index);
 
-        for (int i = 0; i < tiles.Length; i++)
+        for (int i = 0; i < tiles.Count; i++)
         {
             var r = tiles[i];
             float lift = i == hover ? 10f : 0f;
@@ -844,16 +844,16 @@ public sealed class TableSceneSkia
         // 流局灰显：未听牌家手牌盖 30% 黑遮罩。
         if (seat.Noten)
         {
-            for (int i = 0; i < tiles.Length; i++)
+            for (int i = 0; i < tiles.Count; i++)
             {
                 c.FillRoundRect(tiles[i].Inflate(1f), 4, Color.Black.WithAlpha(AnkanMaskAlpha));
             }
         }
 
         // 报听锁手灰显：锁手不允许打的牌盖 30% 黑。
-        if (seat.IsCalled && seat.LegalHand.Count == tiles.Length)
+        if (seat.IsCalled && seat.LegalHand.Count == tiles.Count)
         {
-            for (int i = 0; i < tiles.Length; i++)
+            for (int i = 0; i < tiles.Count; i++)
             {
                 if (!seat.LegalHand[i])
                 {
