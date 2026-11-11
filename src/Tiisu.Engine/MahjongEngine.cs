@@ -566,6 +566,11 @@ public sealed partial class MahjongEngine
         State = EngineState.Ended;
         GameOver = true;
         RevealHands = true;
+
+        // 特殊流局不执行荒牌流局罚项；清掉上一局留下的账本，避免结算页/审计串账。
+        LastFlowPenalties = Array.Empty<string>();
+        LastFlowTransfers = Array.Empty<ScoreTransfer>();
+        LastFlowPenaltyAudit = Array.Empty<string>();
         ScheduleNextRound(2000);
     }
 
