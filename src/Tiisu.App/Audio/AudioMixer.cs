@@ -33,7 +33,7 @@ internal sealed class AudioMixer : IDisposable
 
         try
         {
-            _mixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2))
+            _mixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(MixerSampleRate, 2))
             {
                 ReadFully = true,
             };
@@ -77,6 +77,29 @@ internal sealed class AudioMixer : IDisposable
         }
     }
 
+
+    /// <summary>
+    /// 统一到混音器格式（44100 Hz 立体声）：合成音是 22050/24000 单声道，
+    /// 不转换会被按输出采样率直接读——表现为「变快 + 升调」。
+    /// </summary>
+    internal static ISampleProvider ToMixerFormat(ISampleProvider input)
+    {
+        ISampleProvider provider = input;
+        if (provider.WaveFormat.SampleRate != MixerSampleRate)
+        {
+            provider = new WdlResamplingSampleProvider(provider, MixerSampleRate);
+        }
+
+        if (provider.WaveFormat.Channels == 1)
+        {
+            provider = new MonoToStereoSampleProvider(provider);
+        }
+
+        return provider;
+    }
+
+    private const int MixerSampleRate = 44100;
+
     /// <summary>播一个短音效（WAV 字节，已是目标音量）。</summary>
     public void PlayOneShot(byte[] wav)
     {
@@ -91,7 +114,7 @@ internal sealed class AudioMixer : IDisposable
                 }
 
                 var reader = new WaveFileReader(new MemoryStream(wav, writable: false));
-                var provider = new DisposingSampleProvider(reader, reader.ToSampleProvider());
+                var provider = new DisposingSampleProvider(reader, ToMixerFormat(reader.ToSampleProvider()));
                 _mixer.AddMixerInput(provider);
             }
             catch
@@ -117,7 +140,7 @@ internal sealed class AudioMixer : IDisposable
                 StopBgmLocked();
 
                 var reader = new WaveFileReader(new MemoryStream(wav, writable: false));
-                var loop = new LoopSampleProvider(reader.ToSampleProvider(), reader);
+                var loop = new LoopSampleProvider(ToMixerFormat(reader.ToSampleProvider()), reader);
                 var volumeProvider = new VolumeSampleProvider(loop) { Volume = volume };
                 _mixer.AddMixerInput(volumeProvider);
                 _bgm = loop;
