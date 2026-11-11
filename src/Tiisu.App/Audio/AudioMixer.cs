@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -17,7 +18,7 @@ namespace Tiisu.App.Audio;
 internal sealed class AudioMixer : IDisposable
 {
     private readonly object _gate = new();
-    private WaveOutEvent? _output;
+    private IWavePlayer? _output;
     private MixingSampleProvider? _mixer;
     private LoopSampleProvider? _bgm;
     private bool _broken;
@@ -36,13 +37,27 @@ internal sealed class AudioMixer : IDisposable
             {
                 ReadFully = true,
             };
-            _output = new WaveOutEvent
+
+            // 优先 WASAPI 共享模式（Win10/11 的现代栈）；设备不支持时回退 WaveOut。
+            // 两条路径都由 NAudio 自己持缓冲，不再有 winmm SND_MEMORY 裸指针问题。
+            try
             {
-                DesiredLatency = 120,
-                NumberOfBuffers = 3,
-            };
-            _output.Init(_mixer);
-            _output.Play();
+                var wasapi = new WasapiOut(AudioClientShareMode.Shared, 100);
+                wasapi.Init(_mixer);
+                wasapi.Play();
+                _output = wasapi;
+            }
+            catch
+            {
+                var waveOut = new WaveOutEvent
+                {
+                    DesiredLatency = 120,
+                    NumberOfBuffers = 3,
+                };
+                waveOut.Init(_mixer);
+                waveOut.Play();
+                _output = waveOut;
+            }
         }
         catch
         {
