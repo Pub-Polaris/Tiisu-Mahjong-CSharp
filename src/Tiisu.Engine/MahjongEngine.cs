@@ -249,6 +249,7 @@ public sealed partial class MahjongEngine
         }
 
         RevealHands = false;
+        _roundTransfers.Clear();
         foreach (var player in _players)
         {
             player.Reset();
@@ -542,6 +543,7 @@ public sealed partial class MahjongEngine
 
                     _scores[payer] -= 700;
                     _scores[k] += 700;
+                    _roundTransfers.Add(new ScoreTransfer(payer, k, 700, "拔厄"));
                 }
             }
 

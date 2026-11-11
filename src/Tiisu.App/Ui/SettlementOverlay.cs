@@ -74,23 +74,27 @@ public sealed class SettlementOverlay
     /// <summary>惩罚条目数（流局罚项 / 报听错和罚）。</summary>
     public static int PenaltyCount(RoundResult result) => result.Penalties?.Count ?? 0;
 
-    /// <summary>惩罚页总行数（罚项 + 拆账明细 + 审计差异）。</summary>
+    /// <summary>局内调整行数（拔厄 / 错和 / 跳庄）。</summary>
+    public static int AdjustmentLineCount(RoundResult result) => result.Adjustments?.Count ?? 0;
+
+    /// <summary>惩罚页总行数（罚项 + 拆账明细 + 局内调整 + 审计差异）。</summary>
     public static int PenaltyLineCount(RoundResult result) =>
         (result.Penalties?.Count ?? 0)
         + (result.Transfers?.Count ?? 0)
+        + (result.Adjustments?.Count ?? 0)
         + (result.PenaltyAudit?.Count ?? 0);
 
     /// <summary>
     /// 总页数：每位和牌者一页（流局算 1 页概况），有惩罚时最后再加一页「惩罚结算」。
     /// </summary>
     public static int PageCount(RoundResult result) =>
-        Math.Max(1, WinnerCount(result)) + (PenaltyCount(result) > 0 ? 1 : 0);
+        Math.Max(1, WinnerCount(result)) + (PenaltyLineCount(result) > 0 ? 1 : 0);
 
     /// <summary>当前是否停在「惩罚结算」页。</summary>
     public bool IsPenaltyPage(RoundResult result)
     {
         Sync(result);
-        return PenaltyCount(result) > 0 && _index >= Math.Max(1, WinnerCount(result));
+        return PenaltyLineCount(result) > 0 && _index >= Math.Max(1, WinnerCount(result));
     }
 
     /// <summary>当前显示第几位（0 基）；结果对象变化时归零。</summary>
@@ -153,18 +157,18 @@ public sealed class SettlementOverlay
         var details = result.Details ?? Array.Empty<SettlementDetail>();
         bool flow = details.Count == 0;
         bool simplified = result.Simplified;
-        bool penaltyPage = !simplified && PenaltyCount(result) > 0 && _index >= Math.Max(1, details.Count);
+        bool penaltyPage = !simplified && PenaltyLineCount(result) > 0 && _index >= Math.Max(1, details.Count);
         SettlementDetail? detail = flow || penaltyPage ? null : details[Math.Min(_index, details.Count - 1)];
 
         // 内容高度 → 面板高度，再在画布里垂直居中。两栏各自按内容定高，板块不被拉长留空。
         float handContent = flow || penaltyPage ? MeasureFlowHands(vm) : MeasureWinnerHand(vm, detail!);
         float infoContent = simplified
-            ? MeasureSimplifiedInfo(flow, matchOver)
+            ? MeasureSimplifiedInfo(flow, matchOver, AdjustmentLineCount(result))
             : penaltyPage
                 ? MeasurePenaltyInfo(PenaltyLineCount(result), matchOver)
                 : flow
-                    ? MeasureFlowInfo(matchOver)
-                    : MeasureWinnerInfo(detail!, matchOver);
+                    ? MeasureFlowInfo(matchOver, AdjustmentLineCount(result))
+                    : MeasureWinnerInfo(detail!, matchOver, AdjustmentLineCount(result));
         float contentH = Math.Max(handContent, infoContent);
 
         bool custom = layout is not null && layout.SettlementRect != TableLayoutSpec.DefaultSettlementRect;
@@ -630,7 +634,7 @@ public sealed class SettlementOverlay
         }
     }
 
-    private static float MeasureWinnerInfo(SettlementDetail detail, bool matchOver)
+    private static float MeasureWinnerInfo(SettlementDetail detail, bool matchOver, int adjustmentLines)
     {
         var yakuCount = detail.Yaku.Count(y => y.Flag != SettlementYakuFlag.Ma);
         float h = 38f + 30f + 24f;                      // 和牌者 / 方式 / 表头
@@ -646,7 +650,18 @@ public sealed class SettlementOverlay
         }
 
         h += 10f + 14f + 22f + 60f;                     // 分隔线 / 最终点数
+        if (detail.PotPoints > 0)
+        {
+            h += 24f;
+        }
+
+        if (detail.HonbaCount > 0)
+        {
+            h += 24f;
+        }
+
         h += 8f + (matchOver ? 26f + 4 * 34f : 26f + 4 * 30f);
+        h += adjustmentLines * 24f;
         return h;
     }
 
@@ -714,10 +729,11 @@ public sealed class SettlementOverlay
         }
     }
 
-    private static float MeasureSimplifiedInfo(bool flow, bool matchOver)
+    private static float MeasureSimplifiedInfo(bool flow, bool matchOver, int adjustmentLines)
     {
         float h = 52f + 34f + 30f + 18f + 10f;
         h += matchOver ? 26f + 4 * 34f : 0f;
+        h += adjustmentLines * 24f;
         return h;
     }
 
@@ -751,6 +767,18 @@ public sealed class SettlementOverlay
             }
         }
 
+        if (result.Adjustments is { Count: > 0 } adjustments)
+        {
+            foreach (var transfer in adjustments)
+            {
+                c.DrawText(
+                    "局内调整 " + SeatName(vm, transfer.From) + " → " + SeatName(vm, transfer.To)
+                    + "  " + transfer.Amount + "（" + transfer.Reason + "）",
+                    new RectF(x, y, width, 24), Muted, new TextStyle(14, Center: false));
+                y += 26f;
+            }
+        }
+
         if (result.PenaltyAudit is { Count: > 0 } audit)
         {
             foreach (string line in audit)
@@ -772,10 +800,11 @@ public sealed class SettlementOverlay
         return h;
     }
 
-    private static float MeasureFlowInfo(bool matchOver)
+    private static float MeasureFlowInfo(bool matchOver, int adjustmentLines)
     {
         float h = 48f + 34f + 18f;
         h += matchOver ? 26f + 4 * 34f : 26f + 4 * 30f;
+        h += adjustmentLines * 24f;
         return h;
     }
 

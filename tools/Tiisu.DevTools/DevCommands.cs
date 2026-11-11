@@ -49,15 +49,24 @@ internal static class DevCommands
             : 1;
         bool record = args.Contains("--record", StringComparer.Ordinal);
 
+        int jobs = 1;
+        int jobsIndex = Array.FindIndex(args, a => a == "--jobs");
+        if (jobsIndex >= 0 && jobsIndex + 1 < args.Length
+            && int.TryParse(args[jobsIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedJobs))
+        {
+            jobs = Math.Clamp(parsedJobs, 1, Environment.ProcessorCount);
+        }
+
         int failed = 0;
         int issueTotal = 0;
         int totalRounds = 0;
         int wins = 0;
         int flows = 0;
-        var samples = new List<string>();
+        int completed = 0;
+        var samples = new System.Collections.Concurrent.ConcurrentBag<string>();
         var clock = System.Diagnostics.Stopwatch.StartNew();
 
-        for (int i = 0; i < count; i++)
+        void RunOne(int i)
         {
             uint seed = startSeed + (uint)i;
             var settings = new Settings
@@ -89,27 +98,47 @@ internal static class DevCommands
 
             if (runtime.Phase != MatchPhase.MatchOver)
             {
-                failed++;
-                continue;
+                Interlocked.Increment(ref failed);
+                return;
             }
 
-            totalRounds += runtime.Rounds;
-            wins += runtime.TsumoWins + runtime.RonWins;
-            flows += runtime.DrawRounds;
-            issueTotal += runtime.AuditIssueCount;
-            if (samples.Count < 20)
+            Interlocked.Add(ref totalRounds, runtime.Rounds);
+            Interlocked.Add(ref wins, runtime.TsumoWins + runtime.RonWins);
+            Interlocked.Add(ref flows, runtime.DrawRounds);
+            Interlocked.Add(ref issueTotal, runtime.AuditIssueCount);
+            foreach (string issue in runtime.AuditIssues)
             {
-                samples.AddRange(runtime.AuditIssues);
+                samples.Add(issue);
             }
 
-            if ((i + 1) % 100 == 0)
+            int done = Interlocked.Increment(ref completed);
+            if (jobs > 1 && done % 1000 == 0)
             {
-                Console.WriteLine($"  ... {i + 1}/{count} 局，问题 {issueTotal}，耗时 {clock.Elapsed.TotalSeconds:F0}s");
+                Console.WriteLine($"  ... {done}/{count} 局，问题 {Volatile.Read(ref issueTotal)}，耗时 {clock.Elapsed.TotalSeconds:F0}s");
+            }
+            else if (jobs == 1 && done % 100 == 0)
+            {
+                Console.WriteLine($"  ... {done}/{count} 局，问题 {issueTotal}，耗时 {clock.Elapsed.TotalSeconds:F0}s");
             }
         }
 
+        if (jobs <= 1)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                RunOne(i);
+            }
+        }
+        else
+        {
+            Console.WriteLine($"  并行 {jobs} 路（CPU {Environment.ProcessorCount} 线程）");
+            System.Threading.Tasks.Parallel.For(0, count,
+                new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = jobs },
+                RunOne);
+        }
+
         clock.Stop();
-        Console.WriteLine($"audit-games: count={count} mode={mode} start={startSeed}");
+        Console.WriteLine($"audit-games: count={count} mode={mode} start={startSeed} jobs={jobs}");
         Console.WriteLine($"  完成 {count - failed}/{count}（异常 {failed}）· 总小局 {totalRounds}（和牌 {wins} / 流局 {flows}）");
         Console.WriteLine($"  结算自检问题: {issueTotal}");
         foreach (string sample in samples.Take(10))

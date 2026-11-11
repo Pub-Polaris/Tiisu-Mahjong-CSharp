@@ -48,6 +48,9 @@ public sealed record RoundResult(
 
     /// <summary>罚项账本与实际分数变化不一致时的差异；正常为 null。</summary>
     public IReadOnlyList<string>? PenaltyAudit { get; init; }
+
+    /// <summary>本局行牌中的分数变动（拔厄 / 报听错和 / 双和跳庄）。</summary>
+    public IReadOnlyList<Tiisu.Engine.ScoreTransfer>? Adjustments { get; init; }
 }
 
 /// <summary>
@@ -2062,7 +2065,8 @@ public sealed class MatchRuntime
         // 场供池不在分数里：本局发出的场供会让总分增加，新产生的余数会让总分减少。
         int potAwarded = result.Details?.Sum(d => d.PotPoints) ?? 0;
         int potCreated = result.Details?.Where(d => d.SelfDraw).Sum(d => d.PayRemainder) ?? 0;
-        int expectedSum = sumBefore + potAwarded;
+        int adjustmentsNet = result.Adjustments?.Sum(t => (t.To >= 0 ? t.Amount : 0) - (t.From >= 0 ? t.Amount : 0)) ?? 0;
+        int expectedSum = sumBefore + potAwarded + adjustmentsNet;
         if (expectedSum != sumAfter)
         {
             issues.Add("总分不守恒: before=" + sumBefore + " after=" + sumAfter
@@ -2070,6 +2074,33 @@ public sealed class MatchRuntime
         }
 
         bool win = result.Kind is "tsumo" or "ron";
+        if (!win && result.ScoresBefore is { Count: 4 } flowBefore)
+        {
+            var flowExpected = new int[4];
+            foreach (var transfer in result.Transfers ?? Array.Empty<Tiisu.Engine.ScoreTransfer>())
+            {
+                flowExpected[transfer.From] -= transfer.Amount;
+                flowExpected[transfer.To] += transfer.Amount;
+            }
+
+            foreach (var transfer in result.Adjustments ?? Array.Empty<Tiisu.Engine.ScoreTransfer>())
+            {
+                flowExpected[transfer.From] -= transfer.Amount;
+                flowExpected[transfer.To] += transfer.Amount;
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                int actual = result.Scores[i] - flowBefore[i];
+                if (actual != flowExpected[i])
+                {
+                    issues.Add(
+                        _engine.Players[i].Name + ": 实际Δ" + actual.ToString("+#;-#;0", CultureInfo.InvariantCulture)
+                        + "，账本Δ" + flowExpected[i].ToString("+#;-#;0", CultureInfo.InvariantCulture));
+                }
+            }
+        }
+
         if (win && result.Details is { Count: 1 } && baseline is { Count: 4 } before)
         {
             var expected = new int[4];
@@ -2098,6 +2129,16 @@ public sealed class MatchRuntime
             }
 
             expected[detail.WinnerIndex] += detail.PotPoints;
+
+            // 结算阶段发生的转账（双和子跳庄 3500）不在 pre-win 快照里，要补进明细账。
+            foreach (var transfer in result.Adjustments ?? Array.Empty<Tiisu.Engine.ScoreTransfer>())
+            {
+                if (transfer.Reason == "双和子跳庄")
+                {
+                    expected[transfer.From] -= transfer.Amount;
+                    expected[transfer.To] += transfer.Amount;
+                }
+            }
 
             for (int i = 0; i < 4; i++)
             {
@@ -2196,6 +2237,7 @@ public sealed class MatchRuntime
             PenaltyAudit = outcome.Kind is "flow" or "special_flow" && _engine.LastFlowPenaltyAudit.Count > 0
                 ? _engine.LastFlowPenaltyAudit
                 : null,
+            Adjustments = _engine.RoundTransfers.Count > 0 ? _engine.RoundTransfers.ToArray() : null,
             Simplified = _settings.Ruleset == Ruleset.TuidaoHu,
         };
 

@@ -152,6 +152,7 @@ public sealed partial class MahjongEngine
                 {
                     _scores[DealerIndex] -= 3500;
                     _scores[childWinner.PlayerIndex] += 3500;
+                    _roundTransfers.Add(new ScoreTransfer(DealerIndex, childWinner.PlayerIndex, 3500, "双和子跳庄"));
                     effective = new List<RonWinner> { childWinner };
                 }
             }
@@ -368,6 +369,11 @@ public sealed partial class MahjongEngine
     /// 听牌流局本场 +1；未听返杠 700/杠；鸣牌后无役听牌罚 1400/2100；七日终战强制过庄。
     /// </summary>
     /// <summary>最近一次荒牌流局实际执行的罚项（人读文案，供结算屏展示；无罚则空）。</summary>
+    /// <summary>本局行牌中发生的结构化分数变动（拔厄 / 报听错和 / 双和跳庄）；开局清空。</summary>
+    public IReadOnlyList<ScoreTransfer> RoundTransfers => _roundTransfers;
+
+    private readonly List<ScoreTransfer> _roundTransfers = new();
+
     /// <summary>场供池（底池）：自摸均摊除不尽的 350 点尾数进池，下一手和牌者拿走。</summary>
     public int PotPoints { get; private set; }
 

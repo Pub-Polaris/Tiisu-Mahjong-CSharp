@@ -395,6 +395,7 @@ public sealed partial class MahjongEngine
 
             _scores[playerIndex] -= paid[i];
             _scores[i] += paid[i];
+            _roundTransfers.Add(new ScoreTransfer(playerIndex, i, paid[i], "报听错和"));
         }
 
         player.IsCalled = false;
