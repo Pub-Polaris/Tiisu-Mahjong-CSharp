@@ -74,7 +74,7 @@ public static class SoundEffects
 
         try
         {
-            byte[] wav = Scaled(TryLoadCueFile(cue) ?? Get(cue), SfxVolume);
+            byte[] wav = Scaled(TryLoadCueFile(cue) ?? Get(cue), SfxVolume, cue.ToString());
             PlaySound(wav, IntPtr.Zero, SndMemory | SndAsync | SndNoDefault);
         }
         catch
@@ -308,10 +308,11 @@ public static class SoundEffects
         }
     }
 
-    /// <summary>按音量缩放 16-bit PCM（缓存按数据+音量）。</summary>
-    private static readonly Dictionary<(int Hash, int Volume), byte[]> ScaledCache = new();
+    /// <summary>按音量缩放 16-bit PCM（缓存按 cue 名 + 音量）。</summary>
+    // 键用 cue 名而不是字节哈希：避免等长 WAV 互相命中（审计 P3-1）。
+    private static readonly Dictionary<(string Key, int Volume), byte[]> ScaledCache = new();
 
-    private static byte[] Scaled(byte[] wav, int volume)
+    private static byte[] Scaled(byte[] wav, int volume, string keyName)
     {
         int clamped = Math.Clamp(volume, 0, 100);
         if (clamped >= 100)
@@ -319,7 +320,7 @@ public static class SoundEffects
             return wav;
         }
 
-        var key = (HashCode(wav), clamped);
+        var key = (keyName, clamped);
         if (ScaledCache.TryGetValue(key, out var cached))
         {
             return cached;

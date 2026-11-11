@@ -11,6 +11,7 @@
     <Project Path="tests/Tiisu.Core.Tests/Tiisu.Core.Tests.csproj" />
     <Project Path="tests/Tiisu.Engine.Tests/Tiisu.Engine.Tests.csproj" />
     <Project Path="tests/Tiisu.Api.Tests/Tiisu.Api.Tests.csproj" />
+    <Project Path="tests/Tiisu.App.Tests/Tiisu.App.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Tiisu.AudioGen/Tiisu.AudioGen.csproj" />
