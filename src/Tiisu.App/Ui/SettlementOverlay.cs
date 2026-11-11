@@ -253,8 +253,12 @@ public sealed class SettlementOverlay
         string outcome = details.Count == 0 ? "荒牌流局"
             : details.Count > 1 ? "多家和牌"
             : OutcomeLabel(result);
+        int honbaShown = result.Kind is "ron" or "tsumo" && details.Count > 0
+            ? details[0].HonbaCount
+            : result.Honba;
         string meta = "第 " + result.Round.ToString(CultureInfo.InvariantCulture) + " 局 · "
-                      + (result.Simplified ? "推倒胡 · " + outcome : outcome);
+                      + (result.Simplified ? "推倒胡 · " + outcome : outcome)
+                      + (honbaShown > 0 ? " · " + honbaShown.ToString(CultureInfo.InvariantCulture) + " 本场" : string.Empty);
         c.DrawText(meta, new RectF(left, panel.Y + 66f, 560, 28), Muted,
             new TextStyle(16, Center: false));
 
@@ -597,6 +601,15 @@ public sealed class SettlementOverlay
         c.DrawText(detail.FinalPoints.ToString(CultureInfo.InvariantCulture),
             new RectF(x, y, width, 60), GoldBright, new TextStyle(44, Bold: true, Center: false));
         y += 60f;
+
+        if (detail.HonbaCount > 0)
+        {
+            c.DrawText(
+                "本场 " + detail.HonbaCount.ToString(CultureInfo.InvariantCulture)
+                + " · 连庄奖励 +" + detail.HonbaBonus.ToString(CultureInfo.InvariantCulture),
+                new RectF(x, y, width, 22), Muted, new TextStyle(14, Center: false));
+            y += 24f;
+        }
 
         y += 8f;
         if (matchOver)
