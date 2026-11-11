@@ -43,5 +43,11 @@ public sealed class MatchResumeTests
         Assert.Equal(1, runtime.Engine.RoundWindIdx);
         Assert.Equal(3, runtime.Engine.DealerCount);
         Assert.Equal(new[] { 51000, 49000, 47000, 45000 }, runtime.Engine.Scores);
+
+        // RestoreCallState 生效后，StartNewRound 会把「下局禁和」轮转成本局禁和、清掉下局标记。
+        // 反过来说：这三条断言能证明存档里的禁和标记确实进了引擎，不是被丢掉的。
+        Assert.Equal(new[] { false, false, false, true }, runtime.Engine.CallWinBanned);
+        Assert.All(runtime.Engine.CallWinBannedNextHand, banned => Assert.False(banned));
+        Assert.All(runtime.Engine.Players, player => Assert.False(player.IsCalled));
     }
 }

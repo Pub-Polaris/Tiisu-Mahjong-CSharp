@@ -217,6 +217,22 @@ public sealed class GameSession : IDisposable
                 // 已释放
             }
         }
+        else
+        {
+            // 超时：泄漏换不崩。至少留一条日志，别让线上表现为「内存缓慢上涨 + 无线索」。
+            try
+            {
+                System.IO.File.AppendAllText(
+                    System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tiisu-error.log"),
+                    DateTime.Now.ToString("HH:mm:ss.fff")
+                    + " GameSession.Dispose: 引擎线程 5s 未退出，放弃释放命令队列（P0-2 临时方案）"
+                    + Environment.NewLine);
+            }
+            catch
+            {
+                // 日志失败忽略
+            }
+        }
     }
 
     private sealed class SystemRandomSource : IRandomSource

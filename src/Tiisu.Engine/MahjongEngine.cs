@@ -137,6 +137,10 @@ public sealed partial class MahjongEngine
     /// <summary>
     /// 读档恢复场况（供宿主使用；不再让宿主反射写私有字段，审计 P3-13）。
     /// 只恢复进度与点数，不重建牌山/手牌——手牌由宿主随后按存档摆。
+    /// <para>
+    /// 注意：本方法会把 <see cref="HandNumber"/> 原样写回；宿主侧的续局流程
+    /// 需要在这之后自行 <c>HandNumber++</c>（与旧 EngineRestore 行为一致），否则会重算同一局。
+    /// </para>
     /// </summary>
     public void RestoreProgress(
         int handsPlayed,
