@@ -26,7 +26,6 @@
 | [SkiaSharp](https://github.com/mono/SkiaSharp)（含 NativeAssets.Win32 / Views.WindowsForms / HarfBuzz） | 4.153.1 | MIT | 2D 绘制与牌面渲染 |
 | [YogaSharp.Layout](https://github.com/RaZeR-RaY/YogaSharp) | 1.0.6 | MIT | 牌桌 Flex 布局 |
 | [.NET](https://github.com/dotnet/runtime)（含 Windows Desktop Runtime） | 10 | MIT | 运行时与 WinForms |
-| [Microsoft.Web.WebView2](https://learn.microsoft.com/microsoft-edge/webview2/) | 1.0.4258.31 | Microsoft 专有许可 | `Tiisu.Shell` 使用 |
 | [xUnit](https://xunit.net/) / xunit.runner.visualstudio | 2.9.3 / 3.1.4 | Apache-2.0 | 测试（仅开发） |
 | [Microsoft.NET.Test.Sdk](https://github.com/microsoft/vstest) / coverlet.collector | 17.14.1 / 6.0.4 | MIT | 测试（仅开发） |
 | [System.Speech](https://github.com/dotnet/runtime) | 9.0.0 | MIT | `Tiisu.AudioGen` 语音合成 |

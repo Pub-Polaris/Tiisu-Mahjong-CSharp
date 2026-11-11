@@ -63,7 +63,6 @@ NET\
   src\Tiisu.Engine\    # 状态机 + AI（Ai/）
   src\Tiisu.App\       # WinForms 宿主 + Skia 绘制（Table/ Ui/ Runtime/）
   src\Tiisu.Updater\   # 替换式更新器
-  src\Tiisu.Shell\     # 控制台自走壳（对拍用）
   tools\Tiisu.Tools\        # golden 重算 / 探针
   tools\Tiisu.AudioGen\     # 音效与语音生成（espeak-ng / SAPI）
   tests\               # xUnit（Api / Core / Engine）
