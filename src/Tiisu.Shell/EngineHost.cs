@@ -189,21 +189,17 @@ public sealed partial class EngineHost
             int roundWindIdx = (int)(LongOrNull(state, "roundWindIdx") ?? 0);
             int dealerCount = (int)(LongOrNull(state, "dealerCount") ?? 0);
 
-            SetAutoProperty(_engine, "HandsPlayed", handsPlayed);
-            _engine.HandNumber = handNumber;
-            SetAutoProperty(_engine, "DealerIndex", dealerIndex);
-            SetAutoProperty(_engine, "Honba", honba);
-            SetAutoProperty(_engine, "RoundWindIdx", roundWindIdx);
-            SetAutoProperty(_engine, "DealerCount", dealerCount);
-
-            if (state["scores"] is JsonArray scores && scores.Count == MahjongEngine.PlayerCount)
+            int[]? scores = null;
+            if (state["scores"] is JsonArray scoreArray && scoreArray.Count == MahjongEngine.PlayerCount)
             {
-                var target = (int[])GetPrivateField(_engine, "_scores")!;
-                for (int i = 0; i < target.Length; i++)
+                scores = new int[MahjongEngine.PlayerCount];
+                for (int i = 0; i < scores.Length; i++)
                 {
-                    target[i] = (int)DataStore.ToInt(scores[i]);
+                    scores[i] = (int)DataStore.ToInt(scoreArray[i]);
                 }
             }
+
+            _engine.RestoreProgress(handsPlayed, handNumber, dealerIndex, honba, roundWindIdx, dealerCount, scores);
 
             _engine.UpdateSeatWinds();
             _firstDeal = false;
@@ -1445,22 +1441,6 @@ public sealed partial class EngineHost
             }
         }
     }
-
-    private static void SetAutoProperty(object target, string property, object value)
-    {
-        var field = target.GetType().GetField(
-            $"<{property}>k__BackingField",
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        if (field is null)
-        {
-            throw new InvalidOperationException($"找不到属性 {property} 的 backing field");
-        }
-
-        field.SetValue(target, value);
-    }
-
-    private static object? GetPrivateField(object target, string fieldName) =>
-        target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(target);
 
     private static void Log(string message) => Console.WriteLine("[engine] " + message);
 

@@ -95,6 +95,9 @@ public sealed class MatchRuntime
     /// <summary>四家 AI 档位（人类座位不参与，由 <see cref="AssignAiLineup"/> 每场重算）。</summary>
     private AiLevel[] _aiLevels = { AiLevel.Normal, AiLevel.Normal, AiLevel.Normal, AiLevel.Normal };
 
+    /// <summary>AI 节奏等待用；玩家命令入队时 Set，让等待提前结束（审计 P3-12）。</summary>
+    private readonly ManualResetEventSlim _stepSignal = new(false);
+
     private readonly int[] _aiDiscardDecisionsBySeat = new int[MahjongEngine.PlayerCount];
     private int _aiDiscardDecisions;
     private double _aiDecisionTotalMilliseconds;
@@ -243,6 +246,9 @@ public sealed class MatchRuntime
         {
             return;
         }
+
+        // 玩家命令到达时唤醒 AI 节奏等待，避免 120ms 的停顿叠加在人感上（审计 P3-12）。
+        _stepSignal.Set();
 
         try
         {
@@ -536,7 +542,9 @@ public sealed class MatchRuntime
             AiTurn();
             if (AiStepDelayMilliseconds > 0 && _phase == MatchPhase.Idle && !_engine.GameOver)
             {
-                Thread.Sleep(AiStepDelayMilliseconds);
+                // 可被玩家命令提前唤醒，Sleep 不再无条件堵住命令队列（审计 P3-12）。
+                _stepSignal.Wait(AiStepDelayMilliseconds);
+                _stepSignal.Reset();
             }
         }
     }

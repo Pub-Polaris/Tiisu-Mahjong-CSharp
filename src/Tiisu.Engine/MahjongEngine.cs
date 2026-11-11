@@ -134,6 +134,35 @@ public sealed partial class MahjongEngine
 
     public int DealerCount { get; private set; }
 
+    /// <summary>
+    /// 读档恢复场况（供宿主使用；不再让宿主反射写私有字段，审计 P3-13）。
+    /// 只恢复进度与点数，不重建牌山/手牌——手牌由宿主随后按存档摆。
+    /// </summary>
+    public void RestoreProgress(
+        int handsPlayed,
+        int handNumber,
+        int dealerIndex,
+        int honba,
+        int roundWindIdx,
+        int dealerCount,
+        IReadOnlyList<int>? scores = null)
+    {
+        HandsPlayed = Math.Max(0, handsPlayed);
+        HandNumber = Math.Max(0, handNumber);
+        DealerIndex = Math.Clamp(dealerIndex, 0, PlayerCount - 1);
+        Honba = Math.Max(0, honba);
+        RoundWindIdx = Math.Max(0, roundWindIdx);
+        DealerCount = Math.Max(0, dealerCount);
+
+        if (scores is not null && scores.Count == PlayerCount)
+        {
+            for (int i = 0; i < PlayerCount; i++)
+            {
+                _scores[i] = scores[i];
+            }
+        }
+    }
+
     public int ModeTarget { get; private set; }
 
     /// <summary>场次初始点数（东风 / 半庄 49000；全庄 77000）。</summary>
