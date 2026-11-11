@@ -14,7 +14,10 @@ internal static class Program
             return;
         }
 
-        ApplicationConfiguration.Initialize();
+        // 显式初始化，避免与 App 程序集里同名的 ApplicationConfiguration 生成类型冲突（CS0436）。
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Application.Run(new DevToolsForm(Toolchain.Discover()));
     }
 }

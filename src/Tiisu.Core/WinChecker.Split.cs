@@ -112,7 +112,10 @@ public sealed partial class WinChecker
         return result;
     }
 
-    /// <summary>拆法的结构签名：每个面子编码成 (kind&lt;&lt;6 | 首张 index)，排序后打包进 long。</summary>
+    /// <summary>
+    /// 拆法的结构签名：每个面子编码成 (kind&lt;&lt;6 | 首张 index)，排序后每槽 8 位打包进 long。
+    /// 槽宽必须是 8 位——kind=2 时值域到 0x80，7 位会把 Sequence 和 Pair 抹成同一个签名（复核 P3-11）。
+    /// </summary>
     private static long SplitSignature(IReadOnlyList<Group> groups)
     {
         Span<int> codes = stackalloc int[5];
@@ -124,7 +127,8 @@ public sealed partial class WinChecker
             {
                 GroupKind.Pair => 0,
                 GroupKind.Pung => 1,
-                _ => 2,
+                GroupKind.Sequence => 2,
+                _ => 3,
             };
             codes[count++] = (kind << 6) | (group.First.Index & 0x3F);
         }
@@ -133,7 +137,7 @@ public sealed partial class WinChecker
         long signature = 0;
         for (int i = 0; i < count; i++)
         {
-            signature |= (long)(codes[i] & 0x7F) << (i * 7);
+            signature |= (long)(codes[i] & 0xFF) << (i * 8);
         }
 
         return signature;

@@ -424,7 +424,7 @@ public sealed class DataStore
         IEnumerable<string> sessionDirectories;
         if (!string.IsNullOrWhiteSpace(session))
         {
-            var one = Path.Combine(LogsDirectory, Sanitize(session));
+            var one = SafeUnderRoot(LogsDirectory, Sanitize(session));
             sessionDirectories = System.IO.Directory.Exists(one)
                 ? new[] { one }
                 : Array.Empty<string>();

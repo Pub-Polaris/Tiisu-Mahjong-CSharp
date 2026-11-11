@@ -104,6 +104,23 @@ public sealed partial class WinChecker
     public IReadOnlyCollection<string> OptionalEnabled => _optionalEnabled;
 
     /// <summary>
+    /// 替换可选役集合（宿主设置变更时用）。与 <see cref="CheckWin"/> 共用同一把锁，
+    /// 并行自走时不会出现「判役遍历 HashSet 的同时被清空」（复核遗留 #3）。
+    /// </summary>
+    public void SetOptionalEnabled(IEnumerable<string> ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        lock (_gate)
+        {
+            _optionalEnabled.Clear();
+            foreach (string id in ids)
+            {
+                _optionalEnabled.Add(id);
+            }
+        }
+    }
+
+    /// <summary>
     /// 和牌判定。参数顺序按语义分组；<paramref name="firstTurn"/> 与 JS 一样保留但当前判据未使用。
     /// 内部会写实例字段，因此整个判定串行执行（审计 P2-2 的临时保护；后续可改成不可变 Evaluation）。
     /// </summary>

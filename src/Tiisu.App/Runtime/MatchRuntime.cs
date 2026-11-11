@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using Tiisu.App.Table;
 using Tiisu.Core;
@@ -240,8 +239,6 @@ public sealed class MatchRuntime
 
     public int NeuralDifferent { get; private set; }
 
-    private int _neuralDebugLeft = 3;
-
     // ── 命令入口 ─────────────────────────────────────────────────
 
     public void Execute(GameCommand command)
@@ -351,7 +348,18 @@ public sealed class MatchRuntime
 
         _modeTarget = Math.Max(1, save.ModeTarget);
         _engine.SetMode(_modeTarget);
-        EngineRestore.Apply(_engine, save);
+
+        // 强类型恢复，不再反射写引擎私有字段（复核 P3-13）。
+        _engine.RestoreProgress(
+            save.HandsPlayed,
+            save.HandNumber,
+            save.DealerIndex,
+            save.Honba,
+            save.RoundWindIdx,
+            save.DealerCount,
+            save.Scores);
+        _engine.RestoreCallState(save.IsCalled, save.CallWinBanned, save.CallWinBannedNextHand);
+
         _firstDeal = false;
         ResetCounters();
         _roundLog?.Clear();
@@ -2408,15 +2416,8 @@ public sealed class MatchRuntime
 
     private void ApplyOptionalYaku()
     {
-        var field = typeof(WinChecker).GetField("_optionalEnabled", BindingFlags.Instance | BindingFlags.NonPublic);
-        if (field?.GetValue(_checker) is HashSet<string> set)
-        {
-            set.Clear();
-            foreach (var id in _settings.OptionalYaku)
-            {
-                set.Add(id);
-            }
-        }
+        // 走公开入口（内部加锁），不再反射写私有 HashSet（复核遗留 #3）。
+        _checker.SetOptionalEnabled(_settings.OptionalYaku);
     }
 
     private WinContext BuildWinContext(int playerIndex, IReadOnlyList<Tile> effectiveHand, bool selfDraw, Tile? winTile)

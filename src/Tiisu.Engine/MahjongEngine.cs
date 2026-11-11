@@ -161,6 +161,8 @@ public sealed partial class MahjongEngine
                 _scores[i] = scores[i];
             }
         }
+
+        UpdateSeatWinds();
     }
 
     public int ModeTarget { get; private set; }

@@ -41,7 +41,10 @@ public sealed class TableLayoutSpec
     public int RiverCols = 6;
     public int RiverRows = 3;
 
-    /// <summary>手牌矩形是纯函数结果：按输入缓存，避免每帧重新分配（审计 P2-6）。</summary>
+    /// <summary>
+    /// 手牌矩形是纯函数结果：按输入缓存，避免每帧重新分配（审计 P2-6）。
+    /// 返回的数组由缓存持有，调用方只读、不要原地修改。
+    /// </summary>
     internal readonly Dictionary<(int Index, int N, int Drawn, float Fx, float Fy, float Fw, float Fh,
         float HandW, float HandH, float HandGap, float DrawnGap), RectF[]> _handRectCache = new();
 
@@ -648,6 +651,12 @@ public sealed class TableSceneSkia
             rects[drawn] = horizontal
                 ? new RectF(a, cross, along, depth)
                 : new RectF(cross, a, depth, along);
+        }
+
+        // 窗口尺寸变化会带来新键；封顶避免缓存无限增长（复核 P2-6）。
+        if (l._handRectCache.Count >= 128)
+        {
+            l._handRectCache.Clear();
         }
 
         l._handRectCache[cacheKey] = rects;

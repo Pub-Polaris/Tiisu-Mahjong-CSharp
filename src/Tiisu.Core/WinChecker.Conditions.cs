@@ -526,8 +526,8 @@ public sealed partial class WinChecker
 
                     // 顺子里的牌一定是升序三张（Split 生成时保证），不用再 Select/OrderBy 分配（审计 P2-4）。
                     var tiles = sequence.Tiles;
-                    bool is123 = tiles.Count == 3 && tiles[0].Num == 1 && tiles[2].Num == 3;
-                    bool is789 = tiles.Count == 3 && tiles[0].Num == 7 && tiles[2].Num == 9;
+                    bool is123 = IsRun(tiles, 1);
+                    bool is789 = IsRun(tiles, 7);
                     var current = bySuit.GetValueOrDefault(sequence.First.Suit);
                     bySuit[sequence.First.Suit] = (current.Has123 || is123, current.Has789 || is789);
                 }
@@ -552,8 +552,8 @@ public sealed partial class WinChecker
                     }
 
                     var tiles = sequence.Tiles;
-                    bool is123 = tiles.Count == 3 && tiles[0].Num == 1 && tiles[2].Num == 3;
-                    bool is789 = tiles.Count == 3 && tiles[0].Num == 7 && tiles[2].Num == 9;
+                    bool is123 = IsRun(tiles, 1);
+                    bool is789 = IsRun(tiles, 7);
                     var current = bySuit.GetValueOrDefault(sequence.First.Suit);
                     bySuit[sequence.First.Suit] = (
                         current.Count123 + (is123 ? 1 : 0),
@@ -581,12 +581,12 @@ public sealed partial class WinChecker
                     }
 
                     var tiles = sequence.Tiles;
-                    if (tiles.Count == 3 && tiles[0].Num == 1 && tiles[2].Num == 3)
+                    if (IsRun(tiles, 1))
                     {
                         suits123.Add(sequence.First.Suit);
                     }
 
-                    if (tiles.Count == 3 && tiles[0].Num == 7 && tiles[2].Num == 9)
+                    if (IsRun(tiles, 7))
                     {
                         suits789.Add(sequence.First.Suit);
                     }
@@ -1427,6 +1427,25 @@ public sealed partial class WinChecker
     }
 
     // ── 双逢 ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 顺子是否为 low,low+1,low+2（不依赖存储顺序；复核遗留 #2：只比首尾会漏掉中间张）。
+    /// </summary>
+    private static bool IsRun(IReadOnlyList<Tile> tiles, int low)
+    {
+        if (tiles.Count != 3)
+        {
+            return false;
+        }
+
+        int a = tiles[0].Num;
+        int b = tiles[1].Num;
+        int c = tiles[2].Num;
+        int min = Math.Min(a, Math.Min(b, c));
+        int max = Math.Max(a, Math.Max(b, c));
+        int mid = a + b + c - min - max;
+        return min == low && mid == low + 1 && max == low + 2;
+    }
 
     /// <summary>避免热路径 LINQ：判役只需要两个过滤列表（审计 P2-4）。</summary>
     private static List<Group> Sequences(IReadOnlyList<Group> groups)
