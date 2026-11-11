@@ -23,11 +23,23 @@ function Invoke-Git {
 }
 
 $version = 'dev'
+
+# 可选代号：tools/codename.txt 存在时前缀到版本号（只给需要的版本用，删文件即恢复）。
+$codenamePath = Join-Path $ProjectDir 'tools\codename.txt'
+$codename = ''
+if (Test-Path -LiteralPath $codenamePath) {
+    $codename = ([IO.File]::ReadAllText($codenamePath, [Text.Encoding]::UTF8)).Trim()
+}
+
 $hash = Invoke-Git @('rev-parse', '--short', 'HEAD')
 if (-not [string]::IsNullOrWhiteSpace($hash)) {
     $date = Invoke-Git @('log', '-1', '--date=format:%y%m%d', '--format=%cd')
     if (-not [string]::IsNullOrWhiteSpace($date)) {
         $version = $date + '-' + $hash
+        if (-not [string]::IsNullOrWhiteSpace($codename)) {
+            $version = $codename + ' ' + $version
+        }
+
         $status = Invoke-Git @('status', '--porcelain', '--untracked-files=no')
         if (-not [string]::IsNullOrWhiteSpace($status)) {
             $version = $version + '+'
