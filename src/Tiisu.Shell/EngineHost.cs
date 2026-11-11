@@ -35,6 +35,10 @@ public sealed partial class EngineHost
     private static readonly string[] Seats = { "east", "south", "west", "north" };
     private static readonly string[] AiUuidLasts = { "1111", "2222", "3333" };
 
+    /// <summary>调试后门开关：只有 TIISU_DEVTOOLS=1 时才允许 setHand 等改状态命令（P2-7）。</summary>
+    private static bool DevToolsEnabled =>
+        Environment.GetEnvironmentVariable("TIISU_DEVTOOLS") == "1";
+
     private readonly YakuData _yaku;
     private readonly PointsConfig _points;
     private readonly IRandomSource _random = new SharedRandomSource();
@@ -1005,6 +1009,12 @@ public sealed partial class EngineHost
 
             case "setHand":
             {
+                // 调试后门：默认关闭，只有显式设置 TIISU_DEVTOOLS=1 才允许改手牌（P2-7）。
+                if (!DevToolsEnabled)
+                {
+                    return "setHand-disabled";
+                }
+
                 var parsed = ParseTileString(Str(command, "hand"));
                 int human = HumanIndex;
                 if (parsed is { Count: 14 } && human >= 0)

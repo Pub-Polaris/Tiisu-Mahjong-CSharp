@@ -317,8 +317,9 @@ public static class TieredAi
                 ToCoreMelds(ctx.Melds),
                 options);
         }
-        catch
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            // 估值失败按 0 处理，别吞掉 OOM（审计 P3-10）。
             return 0.0;
         }
 

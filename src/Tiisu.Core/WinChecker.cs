@@ -169,8 +169,9 @@ public sealed partial class WinChecker
             {
                 result = CheckOne(hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, winTile, context);
             }
-            catch
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                // 某种拆分下判役抛错：按「未成立」处理，但别吞掉 OOM（审计 P3-10）。
                 result = null;
             }
 

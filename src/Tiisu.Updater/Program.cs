@@ -69,11 +69,12 @@ internal static class Program
             return 2;
         }
 
+        string? backup = null;
         try
         {
             WaitForAppExit();
             string payload = ResolvePayload(source);
-            string backup = Backup(installDir);
+            backup = Backup(installDir);
             Log($"备份: {backup}");
             CopyTree(payload, installDir);
             WriteVersion(installDir, source, payload);
@@ -94,6 +95,22 @@ internal static class Program
         catch (Exception ex)
         {
             Log("更新失败: " + ex.Message);
+
+            // 半覆盖比失败更糟：先用备份还原（P2-9）。
+            if (backup is not null && Directory.Exists(backup))
+            {
+                try
+                {
+                    Log("开始回滚: " + backup);
+                    CopyTree(backup, installDir);
+                    Log("回滚完成");
+                }
+                catch (Exception rollbackError)
+                {
+                    Log("回滚失败，备份保留在 " + backup + "：" + rollbackError.Message);
+                }
+            }
+
             return 1;
         }
         finally
@@ -168,7 +185,40 @@ internal static class Program
         string dir = Path.Combine(installDir, "backup", "update_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
         Directory.CreateDirectory(dir);
         CopyTree(installDir, dir, skipBackup: true);
+        PruneBackups(Path.Combine(installDir, "backup"), keep: 3);
         return dir;
+    }
+
+    /// <summary>只保留最近 N 份备份，避免更新器把磁盘吃满（P2-9）。</summary>
+    private static void PruneBackups(string backupRoot, int keep)
+    {
+        try
+        {
+            if (!Directory.Exists(backupRoot))
+            {
+                return;
+            }
+
+            var dirs = Directory.GetDirectories(backupRoot, "update_*")
+                .OrderByDescending(d => d, StringComparer.OrdinalIgnoreCase)
+                .Skip(keep)
+                .ToArray();
+            foreach (string old in dirs)
+            {
+                try
+                {
+                    Directory.Delete(old, recursive: true);
+                }
+                catch
+                {
+                    // 删不掉就留着
+                }
+            }
+        }
+        catch
+        {
+            // 清理失败不影响更新
+        }
     }
 
     private static void CopyTree(string from, string to, bool skipBackup = false)
@@ -228,9 +278,8 @@ internal static class Program
                 using var doc = JsonDocument.Parse(File.ReadAllText(payloadVersion));
                 foreach (var p in doc.RootElement.EnumerateObject())
                 {
-                    fields[p.Name] = p.Value.ValueKind == JsonValueKind.String
-                        ? p.Value.GetString()!
-                        : (object)p.Value.GetRawText();
+                    // 保留原始 JSON 类型（数字仍是数字），不能 GetRawText 后当字符串塞回去（审计 P3-8）。
+                    fields[p.Name] = p.Value.Clone();
                 }
             }
             catch

@@ -105,6 +105,13 @@ public sealed class MatchRuntime
     private WinChecker _checker;
     private int _modeTarget = 1;
     private bool _firstDeal = true;
+
+    /// <summary>当前生效的规则集（推倒胡是唯一非默认值）。</summary>
+    private Ruleset CurrentRuleset =>
+        _settings.Ruleset == Ruleset.TuidaoHu ? Ruleset.TuidaoHu : Ruleset.Qizi;
+
+    /// <summary>判役器唯一构造点，避免两处写法漂移（审计 P3-4）。</summary>
+    private WinChecker CreateChecker() => new(SharedYaku, _settings.OptionalYaku, CurrentRuleset);
     private MatchPhase _phase = MatchPhase.Idle;
     private RoundOutcome? _lastOutcome;
     private PendingRon? _pendingRon;
@@ -145,8 +152,8 @@ public sealed class MatchRuntime
         }
 
         _session = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
-        var ruleset = _settings.Ruleset;
-        _checker = new WinChecker(SharedYaku, _settings.OptionalYaku, ruleset);
+        var ruleset = CurrentRuleset;
+        _checker = CreateChecker();
         _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random, ruleset);
         _engine.SetMode(_modeTarget);
         _engine.Players[0].IsHuman = !AllSeatsAi;
@@ -364,8 +371,8 @@ public sealed class MatchRuntime
         _firstDeal = true;
         _message = "已重置";
         // 规则集可能在设置里切过：重置时按当前设置重建判役器与引擎，否则会退回默认七子。
-        var ruleset = _settings.Ruleset == Ruleset.TuidaoHu ? Ruleset.TuidaoHu : Ruleset.Qizi;
-        _checker = new WinChecker(SharedYaku, _settings.OptionalYaku, ruleset);
+        var ruleset = CurrentRuleset;
+        _checker = CreateChecker();
         _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random, ruleset);
         _engine.SetMode(_modeTarget);
         _engine.Players[0].IsHuman = !AllSeatsAi;
