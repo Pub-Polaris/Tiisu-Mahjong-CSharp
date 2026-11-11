@@ -172,7 +172,15 @@ public sealed class StatsStore
         }
         catch
         {
-            // 损坏的 stats.json 按默认值重建。
+            // 损坏的 stats.json 改名留证并按默认值重建（P1-4）。
+            try
+            {
+                File.Move(StatsPath, StatsPath + ".corrupt", overwrite: true);
+            }
+            catch
+            {
+                // 改名失败也不阻断启动
+            }
         }
 
         if (stats["byPlayer"] is not JsonObject)
@@ -186,7 +194,18 @@ public sealed class StatsStore
     private void WriteCore(JsonObject stats)
     {
         Directory.CreateDirectory(DirectoryPath);
-        File.WriteAllText(StatsPath, stats.ToJsonString(WriteOptions), Utf8NoBom);
+
+        // 原子写：先 .tmp 再替换（P1-4）。
+        string temp = StatsPath + ".tmp";
+        File.WriteAllText(temp, stats.ToJsonString(WriteOptions), Utf8NoBom);
+        if (File.Exists(StatsPath))
+        {
+            File.Replace(temp, StatsPath, null, ignoreMetadataErrors: true);
+        }
+        else
+        {
+            File.Move(temp, StatsPath);
+        }
     }
 
     private static void AddPlayer(JsonObject stats, string name, long wins = 0, long tiisuin = 0, long witness = 0, long points = 0)

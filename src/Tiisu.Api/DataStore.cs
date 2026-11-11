@@ -95,6 +95,16 @@ public sealed class DataStore
         }
         catch
         {
+            // 坏文件改名留证，避免"静默回默认"后没人知道数据被丢过（P1-4）。
+            try
+            {
+                File.Move(path, path + ".corrupt", overwrite: true);
+            }
+            catch
+            {
+                // 改名失败也不阻断启动
+            }
+
             return new JsonObject();
         }
     }
@@ -121,7 +131,22 @@ public sealed class DataStore
         System.IO.Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         lock (_appendLock)
         {
-            File.WriteAllText(path, Serialize(node, indented: true), Utf8NoBom);
+            WriteAllTextAtomic(path, Serialize(node, indented: true));
+        }
+    }
+
+    /// <summary>原子写：先写 .tmp 再替换，避免断电/崩溃留下半截 JSON。</summary>
+    private static void WriteAllTextAtomic(string path, string contents)
+    {
+        string temp = path + ".tmp";
+        File.WriteAllText(temp, contents, Utf8NoBom);
+        if (File.Exists(path))
+        {
+            File.Replace(temp, path, null, ignoreMetadataErrors: true);
+        }
+        else
+        {
+            File.Move(temp, path);
         }
     }
 
@@ -340,7 +365,7 @@ public sealed class DataStore
     public void AppendChrLog(string session, string entry)
     {
         var safe = Sanitize(session);
-        AppendLine(Path.Combine(LogsDirectory, safe + "_chr_console.log"), entry);
+        AppendLine(SafeUnderRoot(LogsDirectory, safe + "_chr_console.log"), entry);
     }
 
     public void AppendRoundLog(
@@ -374,7 +399,7 @@ public sealed class DataStore
         var safeSession = Sanitize(session);
         var safeUuid = Sanitize(playerUuid);
         var folder = $"round_{round:000}_p{player}_{safeUuid}";
-        return Path.Combine(LogsDirectory, safeSession, folder, "events.jsonl");
+        return SafeUnderRoot(LogsDirectory, safeSession, folder, "events.jsonl");
     }
 
     public IReadOnlyList<string> QueryRoundLogs(string? session, int? round, int? player)
@@ -476,7 +501,7 @@ public sealed class DataStore
         }
 
         var safeSession = Sanitize(session);
-        var source = Path.Combine(LogsDirectory, safeSession);
+        var source = SafeUnderRoot(LogsDirectory, safeSession);
         if (!System.IO.Directory.Exists(source))
         {
             return null;
@@ -484,7 +509,7 @@ public sealed class DataStore
 
         System.IO.Directory.CreateDirectory(LogsDirectory);
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", System.Globalization.CultureInfo.InvariantCulture);
-        var destination = Path.Combine(LogsDirectory, $"archive_{safeSession}_{timestamp}.tar.gz");
+        var destination = SafeUnderRoot(LogsDirectory, $"archive_{safeSession}_{timestamp}.tar.gz");
 
         try
         {
@@ -517,6 +542,34 @@ public sealed class DataStore
 
     public static string Sanitize(string? value)
         => UnsafePathChars.Replace(value ?? string.Empty, "-");
+
+    /// <summary>
+    /// 把子路径解析到 root 下；解析结果逃出 root（".."、绝对路径、盘符）时抛异常。
+    /// 路径穿越防线：白名单式校验，调用方不再自己拼 Path.Combine。
+    /// </summary>
+    public static string SafeUnderRoot(string root, params string[] parts)
+    {
+        string fullRoot = Path.GetFullPath(root);
+        string combined = fullRoot;
+        foreach (string part in parts)
+        {
+            if (!string.IsNullOrEmpty(part))
+            {
+                combined = Path.Combine(combined, part);
+            }
+        }
+
+        string full = Path.GetFullPath(combined);
+        string prefix = fullRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? fullRoot
+            : fullRoot + Path.DirectorySeparatorChar;
+        if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"路径越界：{full}");
+        }
+
+        return full;
+    }
 
     private static JsonObject MergeCopy(JsonObject target, JsonObject source)
     {

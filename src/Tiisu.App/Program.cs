@@ -30,6 +30,11 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.Length > 0)
+        {
+            EnsureConsole();
+        }
+
         TryUseUtf8Console();
 
         // 无窗口自检（不建窗口、不初始化 WinForms）
@@ -275,6 +280,42 @@ internal static class Program
     }
 
     // ── 无窗口自检 ────────────────────────────────────────────────
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool AttachConsole(int processId);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool AllocConsole();
+
+    /// <summary>
+    /// WinExe 从命令行启动时不继承控制台（P1-5）：优先挂到父进程控制台，
+    /// 失败再新建一个；重定向输出时不动，避免破坏管道捕获。
+    /// </summary>
+    private static void EnsureConsole()
+    {
+        try
+        {
+            if (Console.IsOutputRedirected)
+            {
+                return;
+            }
+
+            if (!AttachConsole(-1) && !AllocConsole())
+            {
+                return;
+            }
+
+            var utf8 = new System.Text.UTF8Encoding(false);
+            var stdout = new StreamWriter(Console.OpenStandardOutput(), utf8) { AutoFlush = true };
+            var stderr = new StreamWriter(Console.OpenStandardError(), utf8) { AutoFlush = true };
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
+        }
+        catch
+        {
+            // 控制台不可用不影响 GUI 启动
+        }
+    }
 
     /// <summary>控制台按 UTF-8 输出（重定向到管道时 .NET 默认就是 UTF-8，这里显式统一）。</summary>
     private static void TryUseUtf8Console()

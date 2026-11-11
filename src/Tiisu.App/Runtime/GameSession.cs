@@ -105,15 +105,39 @@ public sealed class GameSession : IDisposable
 
     private void WorkerLoop()
     {
-        foreach (var command in _queue.GetConsumingEnumerable())
+        // 后台线程上的未处理异常 = 进程级崩溃（P0-2）：整个循环兜底，
+        // 队列在 Dispose 超时后被释放时，MoveNext 抛的 ObjectDisposedException 必须吞掉。
+        try
+        {
+            foreach (var command in _queue.GetConsumingEnumerable())
+            {
+                try
+                {
+                    _runtime.Execute(command);
+                }
+                catch (Exception ex)
+                {
+                    Dispatch(new ErrorEvent(ex.Message));
+                }
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // 会话已释放，正常退出。
+        }
+        catch (InvalidOperationException)
+        {
+            // 队列已关闭。
+        }
+        catch (Exception ex)
         {
             try
             {
-                _runtime.Execute(command);
-            }
-            catch (Exception ex)
-            {
                 Dispatch(new ErrorEvent(ex.Message));
+            }
+            catch
+            {
+                // 事件通道也失效时只能静默退出
             }
         }
     }
@@ -160,17 +184,39 @@ public sealed class GameSession : IDisposable
         }
 
         _disposed = true;
-        _queue.CompleteAdding();
         try
         {
-            _worker.Join(2000);
+            _queue.CompleteAdding();
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+
+        bool joined;
+        try
+        {
+            // 等引擎线程收尾；超时就不释放队列——宁可泄漏一点内存，也不要
+            // 让后台线程在 MoveNext 上抛未处理异常把进程带走（P0-2）。
+            joined = _worker.Join(5000);
         }
         catch (ThreadStateException)
         {
             // 线程尚未启动（构造中途失败）。
+            joined = true;
         }
 
-        _queue.Dispose();
+        if (joined)
+        {
+            try
+            {
+                _queue.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // 已释放
+            }
+        }
     }
 
     private sealed class SystemRandomSource : IRandomSource

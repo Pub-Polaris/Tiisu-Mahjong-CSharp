@@ -26,6 +26,8 @@ public sealed class Settings
     {
         WriteIndented = true,
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        // 与 Web 的 camelCase 对齐（P1-3）：否则 Web 读不到 showMa / optionalYaku 等字段。
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
     /// <summary>数据目录：<c>%APPDATA%\TiisuMahjong</c>。</summary>
@@ -107,6 +109,16 @@ public sealed class Settings
         }
         catch
         {
+            // 坏文件改名留证（P1-4）：至少让人知道数据被丢过。
+            try
+            {
+                File.Move(path, path + ".corrupt", overwrite: true);
+            }
+            catch
+            {
+                // 改名失败也不阻断启动
+            }
+
             return new Settings();
         }
     }
@@ -115,7 +127,18 @@ public sealed class Settings
     {
         string path = SettingsPath(directory);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(this, WriteOptions), new UTF8Encoding(false));
+
+        // 原子写：先 .tmp 再替换，避免崩溃留下半截设置（P1-4）。
+        string temp = path + ".tmp";
+        File.WriteAllText(temp, JsonSerializer.Serialize(this, WriteOptions), new UTF8Encoding(false));
+        if (File.Exists(path))
+        {
+            File.Replace(temp, path, null, ignoreMetadataErrors: true);
+        }
+        else
+        {
+            File.Move(temp, path);
+        }
     }
 
     /// <summary>把另一份设置的内容复制进来（保留本实例引用，供运行中热更新）。</summary>
