@@ -1,7 +1,5 @@
 using System.Diagnostics;
-using System.IO.Compression;
 using System.Text;
-using System.Text.Json;
 
 namespace Tiisu.Updater;
 
@@ -21,7 +19,7 @@ namespace Tiisu.Updater;
 /// </summary>
 internal static class Program
 {
-    private const string AppExe = "Tiisu.Mahjong.exe";
+    private const string AppExe = UpdateCore.AppExe;
     private const string ProcessName = "Tiisu.Mahjong";
 
     private static int Main(string[] args)
@@ -70,14 +68,15 @@ internal static class Program
         }
 
         string? backup = null;
+        string? payloadTemp = null;
         try
         {
             WaitForAppExit();
-            string payload = ResolvePayload(source);
-            backup = Backup(installDir);
+            string payload = UpdateCore.ResolvePayload(source, out payloadTemp);
+            backup = UpdateCore.Backup(installDir);
             Log($"备份: {backup}");
-            CopyTree(payload, installDir);
-            WriteVersion(installDir, source, payload);
+            UpdateCore.CopyTree(payload, installDir, skipUpdaterFiles: true);
+            UpdateCore.WriteVersion(installDir, source, payload);
             Log("更新完成: " + installDir);
 
             if (restart)
@@ -102,7 +101,7 @@ internal static class Program
                 try
                 {
                     Log("开始回滚: " + backup);
-                    CopyTree(backup, installDir);
+                    UpdateCore.CopyTree(backup, installDir);
                     Log("回滚完成");
                 }
                 catch (Exception rollbackError)
@@ -129,35 +128,6 @@ internal static class Program
         }
     }
 
-    private static string? payloadTemp;
-
-    private static string ResolvePayload(string source)
-    {
-        if (Directory.Exists(source))
-        {
-            return Path.GetFullPath(source);
-        }
-
-        payloadTemp = Path.Combine(Path.GetTempPath(), "tiisu-update-" + Guid.NewGuid().ToString("N"));
-        ZipFile.ExtractToDirectory(source, payloadTemp);
-
-        // zip 里如果套了一层目录，就往下找含主程序的目录
-        if (File.Exists(Path.Combine(payloadTemp, AppExe)))
-        {
-            return payloadTemp;
-        }
-
-        foreach (var dir in Directory.EnumerateDirectories(payloadTemp, "*", SearchOption.AllDirectories))
-        {
-            if (File.Exists(Path.Combine(dir, AppExe)))
-            {
-                return dir;
-            }
-        }
-
-        return payloadTemp;
-    }
-
     private static void WaitForAppExit()
     {
         var deadline = DateTime.UtcNow.AddSeconds(60);
@@ -178,123 +148,6 @@ internal static class Program
         }
 
         throw new TimeoutException("主程序仍在运行，已等待 60 秒");
-    }
-
-    private static string Backup(string installDir)
-    {
-        string dir = Path.Combine(installDir, "backup", "update_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
-        Directory.CreateDirectory(dir);
-        CopyTree(installDir, dir, skipBackup: true);
-        PruneBackups(Path.Combine(installDir, "backup"), keep: 3);
-        return dir;
-    }
-
-    /// <summary>只保留最近 N 份备份，避免更新器把磁盘吃满（P2-9）。</summary>
-    private static void PruneBackups(string backupRoot, int keep)
-    {
-        try
-        {
-            if (!Directory.Exists(backupRoot))
-            {
-                return;
-            }
-
-            var dirs = Directory.GetDirectories(backupRoot, "update_*")
-                .OrderByDescending(d => d, StringComparer.OrdinalIgnoreCase)
-                .Skip(keep)
-                .ToArray();
-            foreach (string old in dirs)
-            {
-                try
-                {
-                    Directory.Delete(old, recursive: true);
-                }
-                catch
-                {
-                    // 删不掉就留着
-                }
-            }
-        }
-        catch
-        {
-            // 清理失败不影响更新
-        }
-    }
-
-    private static void CopyTree(string from, string to, bool skipBackup = false)
-    {
-        foreach (var file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
-        {
-            string rel = Path.GetRelativePath(from, file);
-            if (skipBackup && rel.StartsWith("backup" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            string dest = Path.Combine(to, rel);
-            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-
-            // Updater 自己正在运行，覆盖会锁失败：跳过自身文件（它只随安装包更新）
-            if (Path.GetFileName(rel).StartsWith("Tiisu.Updater", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            CopyWithRetry(file, dest);
-        }
-    }
-
-    /// <summary>刚退出的进程可能还占着句柄：最多重试 30 秒。</summary>
-    private static void CopyWithRetry(string from, string to)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        while (true)
-        {
-            try
-            {
-                File.Copy(from, to, overwrite: true);
-                return;
-            }
-            catch (IOException) when (DateTime.UtcNow < deadline)
-            {
-                Thread.Sleep(300);
-            }
-            catch (UnauthorizedAccessException) when (DateTime.UtcNow < deadline)
-            {
-                Thread.Sleep(300);
-            }
-        }
-    }
-
-    private static void WriteVersion(string installDir, string source, string payloadDir)
-    {
-        // 优先保留新包自带 version.json 的版本号/构建时间，只补 updatedAt/source
-        var fields = new Dictionary<string, object>();
-        string payloadVersion = Path.Combine(payloadDir, "version.json");
-        if (File.Exists(payloadVersion))
-        {
-            try
-            {
-                using var doc = JsonDocument.Parse(File.ReadAllText(payloadVersion));
-                foreach (var p in doc.RootElement.EnumerateObject())
-                {
-                    // 保留原始 JSON 类型（数字仍是数字），不能 GetRawText 后当字符串塞回去（审计 P3-8）。
-                    fields[p.Name] = p.Value.Clone();
-                }
-            }
-            catch
-            {
-                // 坏文件就忽略，下面照常写新的
-            }
-        }
-
-        fields["updatedAt"] = DateTime.Now.ToString("s");
-        fields["source"] = source;
-        fields["app"] = AppExe;
-
-        File.WriteAllText(Path.Combine(installDir, "version.json"),
-            JsonSerializer.Serialize(fields, new JsonSerializerOptions { WriteIndented = true }),
-            new UTF8Encoding(false));
     }
 
     private static void Log(string message)
