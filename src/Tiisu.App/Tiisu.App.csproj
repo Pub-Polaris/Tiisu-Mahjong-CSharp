@@ -34,6 +34,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 开发命令入口开放给 DevTools（审计 P3-5） -->
+    <InternalsVisibleTo Include="Tiisu.DevTools" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- 牌面雪碧图（由 Web/scripts/export_tiles.py 生成）随程序输出 -->
     <None Update="Assets\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
