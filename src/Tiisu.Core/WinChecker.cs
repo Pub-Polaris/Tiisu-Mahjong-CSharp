@@ -315,6 +315,7 @@ public sealed partial class WinChecker
                 {
                     Success = true,
                     TotalFu = thirteenOrphans.Fu,
+                    ThresholdFu = thirteenOrphans.Fu,
                     ActiveYaku = yaku,
                     HandType = HandKind.HighYaku,
                     SevenHonors = false,
@@ -405,6 +406,7 @@ public sealed partial class WinChecker
             {
                 Success = true,
                 TotalFu = totalFu,
+                ThresholdFu = totalFu,
                 ActiveYaku = yaku,
                 HandType = HandKind.HighYaku,
                 SevenHonors = false,
@@ -520,6 +522,7 @@ public sealed partial class WinChecker
                 {
                     Success = true,
                     TotalFu = fourPairsFu,
+                    ThresholdFu = fourPairsFu,
                     ActiveYaku = only,
                     HandType = HandKind.SevenPairs,
                     SpecialPoints = fourPairs?.FixedPoints ?? 7000,
@@ -771,7 +774,7 @@ public sealed partial class WinChecker
 
         // 大七星无视 7 赋起和门槛：它不计分，由 engine 直接结束本局。
         int thresholdFu = totalFuSum - optionalFu;
-        if (!sevenHonors && thresholdFu < _yakuData.BaseFu)
+        if (!sevenHonors && thresholdFu < BaseFu)
         {
             return new WinResult
             {

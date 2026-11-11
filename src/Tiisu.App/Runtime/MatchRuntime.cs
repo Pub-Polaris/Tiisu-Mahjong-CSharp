@@ -1255,7 +1255,7 @@ public sealed class MatchRuntime
     }
 
     /// <summary>错和候选：报听 + 手牌成和形但赋不足起和线（<c>no_yaku</c>）。</summary>
-    private bool IsMisfireResult(Player player, WinResult result)
+    internal bool IsMisfireResult(Player player, WinResult result)
     {
         if (!player.IsCalled || result.Success || result.Reason != "no_yaku")
         {
@@ -1873,7 +1873,7 @@ public sealed class MatchRuntime
     /// 报听荣和错和候选：手牌加上这张牌后成和形、但赋数不足起和线时返回该手赋数；否则返回 0。
     /// 判定用的牌临时加进手牌再移走，不改对局状态。
     /// </summary>
-    private int RonMisfireFu(int playerIndex, Tile tile)
+    internal int RonMisfireFu(int playerIndex, Tile tile)
     {
         var player = _engine.Players[playerIndex];
         if (!player.IsCalled)

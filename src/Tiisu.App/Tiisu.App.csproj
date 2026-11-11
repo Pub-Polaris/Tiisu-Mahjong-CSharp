@@ -36,6 +36,7 @@
   <ItemGroup>
     <!-- 开发命令入口开放给 DevTools（审计 P3-5） -->
     <InternalsVisibleTo Include="Tiisu.DevTools" />
+    <InternalsVisibleTo Include="Tiisu.App.Tests" />
   </ItemGroup>
 
   <ItemGroup>
