@@ -56,6 +56,9 @@ public sealed partial class WinChecker
     /// <summary>暗手拆出来的面子（不含副露）；暗刻判定只认这里，避免和别的面子重叠或把副露算成暗刻。</summary>
     private IReadOnlyList<Group>? _concealedGroups;
 
+    /// <summary>判定过程写实例字段，必须串行；并行自走时同一实例也只允许一个线程进来（审计 P2-2）。</summary>
+    private readonly object _gate = new();
+
     /// <param name="yakuData">役种数据（通常为 <see cref="YakuData.LoadDefault"/>）。</param>
     /// <param name="optionalEnabled">
     /// 启用的可选役 id。传 null（默认）表示启用全部 optional 役 —— 与 golden 验证台口径一致。
@@ -102,6 +105,7 @@ public sealed partial class WinChecker
 
     /// <summary>
     /// 和牌判定。参数顺序按语义分组；<paramref name="firstTurn"/> 与 JS 一样保留但当前判据未使用。
+    /// 内部会写实例字段，因此整个判定串行执行（审计 P2-2 的临时保护；后续可改成不可变 Evaluation）。
     /// </summary>
     public WinResult CheckWin(
         IReadOnlyList<Tile> hand,
@@ -113,6 +117,23 @@ public sealed partial class WinChecker
         bool firstTurn = false,
         Tile? winTile = null,
         WinContext? context = null)
+    {
+        lock (_gate)
+        {
+            return CheckWinCore(hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, firstTurn, winTile, context);
+        }
+    }
+
+    private WinResult CheckWinCore(
+        IReadOnlyList<Tile> hand,
+        bool selfDraw,
+        bool hasCalled,
+        int ankanCount,
+        int minkanCount,
+        IReadOnlyList<Meld>? melds,
+        bool firstTurn,
+        Tile? winTile,
+        WinContext? context)
     {
         ArgumentNullException.ThrowIfNull(hand);
         _ = firstTurn;
