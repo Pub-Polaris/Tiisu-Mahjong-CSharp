@@ -1,9 +1,9 @@
-using System.Runtime.InteropServices;
+using Tiisu.App.Audio;
 
 namespace Tiisu.App.Ui;
 
 /// <summary>
-/// 极简音效：运行时合成 WAV（不依赖外部素材），用 winmm 的 PlaySound 异步播放。
+/// 极简音效：运行时合成 WAV（不依赖外部素材），用 NAudio 混音异步播放（BGM 与音效可同时响）。
 /// 素材来源是程序生成的正弦/噪声，体积为 0，风格保持"低调的点击感"。
 /// </summary>
 public static class SoundEffects
@@ -21,15 +21,10 @@ public static class SoundEffects
         Shuffle,    // 洗牌（连续摩擦）
     }
 
-    private const uint SndAsync = 0x0001;
-    private const uint SndMemory = 0x0004;
-    private const uint SndNoDefault = 0x0002;
-    private const uint SndLoop = 0x0008;
-
-    [DllImport("winmm.dll", SetLastError = true)]
-    private static extern bool PlaySound(byte[]? pszSound, IntPtr hmod, uint fdwSound);
-
     private static readonly Dictionary<Cue, byte[]> Cache = new();
+
+    /// <summary>NAudio 混音后端（替换 winmm.PlaySound，审计 P1-1 / P1-2）。</summary>
+    private static readonly AudioMixer Mixer = new();
 
     /// <summary>音效总开关（由设置页控制）。</summary>
     public static bool Enabled { get; set; } = true;
@@ -44,7 +39,7 @@ public static class SoundEffects
         set => _sfxVolume = Math.Clamp(value, 0, 100);
     }
 
-    /// <summary>音乐音量 0..100（0 = 静音）；播放中改音量会重启 BGM。</summary>
+    /// <summary>音乐音量 0..100（0 = 静音）；播放中改音量实时生效，不重启 BGM。</summary>
     public static int BgmVolume
     {
         get => _bgmVolume;
@@ -57,11 +52,7 @@ public static class SoundEffects
             }
 
             _bgmVolume = clamped;
-            if (_bgmPlaying)
-            {
-                StopBgm();
-                PlayBgm();
-            }
+            Mixer.SetBgmVolume(clamped / 100f);
         }
     }
 
@@ -75,7 +66,7 @@ public static class SoundEffects
         try
         {
             byte[] wav = Scaled(TryLoadCueFile(cue) ?? Get(cue), SfxVolume, cue.ToString());
-            PlaySound(wav, IntPtr.Zero, SndMemory | SndAsync | SndNoDefault);
+            Mixer.PlayOneShot(wav);
         }
         catch
         {
@@ -299,7 +290,7 @@ public static class SoundEffects
                 return;
             }
 
-            PlaySound(_bgm, IntPtr.Zero, SndMemory | SndAsync | SndLoop | SndNoDefault);
+            Mixer.PlayBgm(_bgm, _bgmVolume / 100f);
             _bgmPlaying = true;
         }
         catch
@@ -382,15 +373,7 @@ public static class SoundEffects
             return;
         }
 
-        try
-        {
-            PlaySound(null, IntPtr.Zero, 0);
-        }
-        catch
-        {
-            // 忽略
-        }
-
+        Mixer.StopBgm();
         _bgmPlaying = false;
     }
 
@@ -436,7 +419,7 @@ public static class SoundEffects
                 Voices[name] = wav;
             }
 
-            PlaySound(wav, IntPtr.Zero, SndMemory | SndAsync | SndNoDefault);
+            Mixer.PlayOneShot(wav);
         }
         catch
         {

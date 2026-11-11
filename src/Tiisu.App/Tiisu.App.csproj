@@ -20,6 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="SkiaSharp" Version="4.153.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.153.1" />
     <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="4.153.1" />
@@ -36,6 +37,7 @@
   <ItemGroup>
     <!-- 开发命令入口开放给 DevTools（审计 P3-5） -->
     <InternalsVisibleTo Include="Tiisu.DevTools" />
+    <!-- 仅供纯判定函数测试（IsMisfireResult / RonMisfireFu），别扩到状态机（复核 261112_b 建议） -->
     <InternalsVisibleTo Include="Tiisu.App.Tests" />
   </ItemGroup>
 
@@ -68,8 +70,7 @@
       <_TiisuBuildInfoFile>$(MSBuildProjectDirectory)\Generated\BuildInfo.g.cs</_TiisuBuildInfoFile>
     </PropertyGroup>
 
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\tools\get-buildinfo.ps1&quot; -ProjectDir &quot;$(MSBuildProjectDirectory)\..\..&quot; -OutFile &quot;$(_TiisuBuildInfoFile)&quot;"
-          StandardOutputImportance="low" StandardErrorImportance="low" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\tools\get-buildinfo.ps1&quot; -ProjectDir &quot;$(MSBuildProjectDirectory)\..\..&quot; -OutFile &quot;$(_TiisuBuildInfoFile)&quot;" StandardOutputImportance="low" StandardErrorImportance="low" />
 
     <!-- 首次生成时文件还不存在，默认 glob 没收到它：这里补进编译列表。 -->
     <ItemGroup>

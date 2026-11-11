@@ -23,6 +23,7 @@
 
 | 组件 | 版本 | 许可 | 用途 |
 |---|---|---|---|
+| [NAudio](https://github.com/naudio/NAudio) | 2.2.1 | MIT | 音频混音与播放（BGM + 音效） |
 | [SkiaSharp](https://github.com/mono/SkiaSharp)（含 NativeAssets.Win32 / Views.WindowsForms / HarfBuzz） | 4.153.1 | MIT | 2D 绘制与牌面渲染 |
 | [YogaSharp.Layout](https://github.com/RaZeR-RaY/YogaSharp) | 1.0.6 | MIT | 牌桌 Flex 布局 |
 | [.NET](https://github.com/dotnet/runtime)（含 Windows Desktop Runtime） | 10 | MIT | 运行时与 WinForms |

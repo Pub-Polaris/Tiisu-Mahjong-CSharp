@@ -1,5 +1,6 @@
 using Tiisu.App.Runtime;
 using Tiisu.Core;
+using Tiisu.Engine;
 using Tiisu.Engine.Random;
 using Xunit;
 
@@ -19,6 +20,15 @@ public sealed class MisfireThresholdTests
         stats: null,
         roundLog: null,
         matchSeed: 7);
+
+    private static MatchRuntime RuntimeWithOptional() => new(
+        new Settings { OptionalYaku = new List<string> { "triple_even_ko", "double_even_ko" } },
+        new Mulberry32Random(9),
+        _ => { },
+        saveStore: null,
+        stats: null,
+        roundLog: null,
+        matchSeed: 9);
 
     [Fact]
     public void 可选役抬过总赋但门槛不足_仍算错和()
@@ -72,5 +82,23 @@ public sealed class MisfireThresholdTests
         };
 
         Assert.False(runtime.IsMisfireResult(player, result));
+    }
+
+    [Fact]
+    public void 荣和错和赋按门槛口径返回()
+    {
+        // 3 副露 + 暗手 m2m2m2 z9，等 z9 成对：对对和 + 缺七 = 4（不足门槛），
+        // 三双逢(4) 只是加分役 → TotalFu=8 ≥ 7，但 ThresholdFu=4，必须判错和。
+        var runtime = RuntimeWithOptional();
+        var player = runtime.Engine.Players[0];
+        player.IsCalled = true;
+        player.Hand.AddRange(new[] { Tile.Parse("m2"), Tile.Parse("m2"), Tile.Parse("m2"), Tile.Parse("z9") });
+        player.Melds.Add(new Tiisu.Engine.Meld(MeldType.Pon, new[] { Tile.Parse("s1"), Tile.Parse("s1"), Tile.Parse("s1") }));
+        player.Melds.Add(new Tiisu.Engine.Meld(MeldType.Pon, new[] { Tile.Parse("p4"), Tile.Parse("p4"), Tile.Parse("p4") }));
+        player.Melds.Add(new Tiisu.Engine.Meld(MeldType.Pon, new[] { Tile.Parse("p6"), Tile.Parse("p6"), Tile.Parse("p6") }));
+
+        int fu = runtime.RonMisfireFu(0, Tile.Parse("z9"));
+
+        Assert.InRange(fu, 1, 6);
     }
 }
