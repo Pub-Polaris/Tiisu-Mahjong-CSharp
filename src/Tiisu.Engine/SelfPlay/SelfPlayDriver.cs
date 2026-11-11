@@ -36,12 +36,6 @@ public sealed class SelfPlayOptions
 /// </summary>
 public static class SelfPlayDriver
 {
-    /// <summary>听牌型奖赏 + 0 赋加计项：JS 里这些项带 <c>isBonus</c>，不并入赋位表。</summary>
-    private static readonly HashSet<string> BonusYakuNames = new(StringComparer.Ordinal)
-    {
-        "嵌张", "边张", "单钓", "双碰", "筋和", "特例加计", "倍满加计",
-    };
-
     /// <summary>同 seed 自走一整场。</summary>
     public static SelfPlayResult Run(uint seed, int modeTarget = 2) =>
         Run(seed, new SelfPlayOptions { ModeTarget = modeTarget });
@@ -315,7 +309,7 @@ public static class SelfPlayDriver
                     var winner = engine.Players[candidate.PlayerIndex];
                     winner.Hand.Add(discarded.Value); // JS checkRon：荣和张留在胜者暗手里
                     winner.Hand.Sort();
-                    winners.Add(new RonWinner(candidate.PlayerIndex, ToSettlement(candidate.Result)));
+                    winners.Add(new RonWinner(candidate.PlayerIndex, EngineSettlement.From(candidate.Result)));
                 }
 
                 engine.DeclareMultiRon(winners, pi);
@@ -396,7 +390,7 @@ public static class SelfPlayDriver
         int expectedScoreSum)
     {
         int winner = engine.TurnIndex;
-        var settlement = ToSettlement(result);
+        var settlement = EngineSettlement.From(result);
         engine.DeclareWin(winner, true, settlement);
 
         events.Add(new GameEvent
@@ -484,40 +478,6 @@ public static class SelfPlayDriver
         }
 
         return obs;
-    }
-
-    /// <summary>把 Core 的判役结果转成引擎结算输入（字段口径与回放驱动的 <c>BuildSettlement</c> 一致）。</summary>
-    public static WinSettlement ToSettlement(WinResult result)
-    {
-        var settlement = new WinSettlement
-        {
-            TotalFu = result.TotalFu ?? 0,
-            SpecialPoints = result.SpecialPoints,
-            SevenHonors = result.SevenHonors,
-            HandType = result.HandType,
-        };
-
-        foreach (var yaku in result.ActiveYaku)
-        {
-            bool isMa = yaku.Name == "赐马";
-            settlement.ActiveYaku.Add(new WinYaku
-            {
-                Name = yaku.Name,
-                Fu = yaku.Fu,
-                IsBonus = yaku.IsBonus || BonusYakuNames.Contains(yaku.Name),
-                IsMa = isMa,
-                Kaishoku = yaku.Kaishoku,
-                PointsBonus = yaku.PointsBonus,
-                FixedPoints = yaku.FixedPoints,
-            });
-
-            if (isMa)
-            {
-                settlement.ResolvedMaFu += yaku.Fu;
-            }
-        }
-
-        return settlement;
     }
 
     /// <summary>自走每步校验：牌总数 136、行牌内分数总和不变、墙长合法、手牌张数合法。</summary>

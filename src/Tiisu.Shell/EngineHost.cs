@@ -429,7 +429,7 @@ public sealed partial class EngineHost
             // engine.js checkRon：荣和张留在胜者暗手里（快照/展示口径）。自走驱动同样这么加。
             player.Hand.Add(discarded);
             player.Hand.Sort();
-            winners.Add(new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)));
+            winners.Add(new RonWinner(candidate.PlayerIndex, EngineSettlement.From(candidate.Result)));
         }
 
         _engine.DeclareMultiRon(winners, discPlayer);
@@ -629,7 +629,7 @@ public sealed partial class EngineHost
             }
 
             var winners = robbers
-                .Select(c => new RonWinner(c.PlayerIndex, SelfPlayDriver.ToSettlement(c.Result)))
+                .Select(c => new RonWinner(c.PlayerIndex, EngineSettlement.From(c.Result)))
                 .ToList();
             _engine.DeclareMultiRon(winners, player.Index);
             return false;
@@ -824,7 +824,7 @@ public sealed partial class EngineHost
 
         var winners = new List<RonWinner>
         {
-            new(human, SelfPlayDriver.ToSettlement(pending.Result)),
+            new(human, EngineSettlement.From(pending.Result)),
         };
 
         var aiWinners = CheckRonForAi(pending.Tile, pending.Discarder);
@@ -833,7 +833,7 @@ public sealed partial class EngineHost
             var player = _engine.Players[candidate.PlayerIndex];
             player.Hand.Add(pending.Tile);
             player.Hand.Sort();
-            winners.Add(new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)));
+            winners.Add(new RonWinner(candidate.PlayerIndex, EngineSettlement.From(candidate.Result)));
         }
 
         _engine.DeclareMultiRon(winners, pending.Discarder);
@@ -903,7 +903,7 @@ public sealed partial class EngineHost
     {
         _stateOverride = null;
         ClearAction();
-        _engine.DeclareWin(playerIndex, selfDraw: true, SelfPlayDriver.ToSettlement(result));
+        _engine.DeclareWin(playerIndex, selfDraw: true, EngineSettlement.From(result));
     }
 
     /// <summary><c>humanFlow(reason)</c>：九种九牌 / 十三不靠 推牌流局。</summary>

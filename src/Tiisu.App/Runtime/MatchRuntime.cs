@@ -44,9 +44,6 @@ public sealed record RoundResult(
     IReadOnlyList<string>? Penalties = null,
     bool Simplified = false);
 
-/// <summary>局末判定的内部记录（决定写哪种日志 / 统计）。</summary>
-internal sealed record RoundOutcome(string Kind, IReadOnlyList<int> Winners, string? Reason);
-
 /// <summary>
 /// 待决荣和。<see cref="Result"/> 为 null 表示「报听错和候选」：手牌成和形但赋不足起和线，
 /// 点荣和会走错和判罚（<see cref="MisfireFu"/> 是那手的赋数）。
@@ -116,7 +113,14 @@ public sealed class MatchRuntime
     /// <summary>判役器唯一构造点，避免两处写法漂移（审计 P3-4）。</summary>
     private WinChecker CreateChecker() => new(SharedYaku, _settings.OptionalYaku, CurrentRuleset);
     private MatchPhase _phase = MatchPhase.Idle;
-    private RoundOutcome? _lastOutcome;
+    private RoundResult? _lastOutcome;
+
+    /// <summary>
+    /// 局末判定的占位结果：前半段只需要 kind/winners/reason，结算字段在 FinishRound 用 <c>with</c> 补齐。
+    /// 原先的 RoundOutcome 与 RoundResult 字段重叠，已合并（审计 P3-3）。
+    /// </summary>
+    private static RoundResult MakeOutcome(string kind, IReadOnlyList<int> winners, string? reason) =>
+        new(0, kind, winners, reason, Array.Empty<int>(), 0, 0, false);
     private PendingRon? _pendingRon;
     private PendingMeld? _pendingMeld;
     private string? _message;
@@ -569,7 +573,7 @@ public sealed class MatchRuntime
             var drawn = _engine.DrawFromWall(player);
             if (drawn is null)
             {
-                _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+                _lastOutcome = MakeOutcome("flow", Array.Empty<int>(), "exhaustive");
                 _engine.Flow();
                 return false;
             }
@@ -602,7 +606,7 @@ public sealed class MatchRuntime
             var drawn = _engine.DrawFromWall(player);
             if (drawn is null)
             {
-                _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+                _lastOutcome = MakeOutcome("flow", Array.Empty<int>(), "exhaustive");
                 _engine.Flow();
                 return;
             }
@@ -672,7 +676,7 @@ public sealed class MatchRuntime
 
         if (discardIndex < 0 || discardIndex >= player.Hand.Count)
         {
-            _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+            _lastOutcome = MakeOutcome("flow", Array.Empty<int>(), "exhaustive");
             _engine.Flow();
             return;
         }
@@ -680,7 +684,7 @@ public sealed class MatchRuntime
         var discarded = _engine.Discard(player, player.Hand[discardIndex]);
         if (discarded is null)
         {
-            _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+            _lastOutcome = MakeOutcome("flow", Array.Empty<int>(), "exhaustive");
             _engine.Flow();
             return;
         }
@@ -861,7 +865,7 @@ public sealed class MatchRuntime
     {
         if (_engine.CheckSpecialFlow())
         {
-            _lastOutcome = new RoundOutcome("special_flow", Array.Empty<int>(), "four_wind_repeat");
+            _lastOutcome = MakeOutcome("special_flow", Array.Empty<int>(), "four_wind_repeat");
             return;
         }
 
@@ -948,7 +952,7 @@ public sealed class MatchRuntime
         _engine.NextTurn();
         if (_engine.GameOver && _lastOutcome is null)
         {
-            _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+            _lastOutcome = MakeOutcome("flow", Array.Empty<int>(), "exhaustive");
         }
     }
 
@@ -1218,7 +1222,7 @@ public sealed class MatchRuntime
                 ApplyMisfire(human, result.TotalFu ?? 0, selfDraw: true);
                 if (_engine.MatchOver)
                 {
-                    _lastOutcome = new RoundOutcome("special_flow", Array.Empty<int>(), "call_foul");
+                    _lastOutcome = MakeOutcome("special_flow", Array.Empty<int>(), "call_foul");
                 }
 
                 _phase = MatchPhase.HumanDiscard;
@@ -1346,7 +1350,7 @@ public sealed class MatchRuntime
             ApplyMisfire(human, pending.MisfireFu, selfDraw: false);
             if (_engine.MatchOver)
             {
-                _lastOutcome = new RoundOutcome("special_flow", Array.Empty<int>(), "call_foul");
+                _lastOutcome = MakeOutcome("special_flow", Array.Empty<int>(), "call_foul");
                 return true;
             }
 
@@ -1365,7 +1369,7 @@ public sealed class MatchRuntime
 
         var winners = new List<RonWinner>
         {
-            new(human, SelfPlayDriver.ToSettlement(ronResult)),
+            new(human, EngineSettlement.From(ronResult)),
         };
 
         foreach (var candidate in CheckRonForAi(pending.Tile, pending.Discarder))
@@ -1373,12 +1377,12 @@ public sealed class MatchRuntime
             var player = _engine.Players[candidate.PlayerIndex];
             player.Hand.Add(pending.Tile);
             player.Hand.Sort();
-            winners.Add(new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)));
+            winners.Add(new RonWinner(candidate.PlayerIndex, EngineSettlement.From(candidate.Result)));
         }
 
         _lastOutcome = winners.Count >= 3
-            ? new RoundOutcome("special_flow", Array.Empty<int>(), "triple_ron")
-            : new RoundOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
+            ? MakeOutcome("special_flow", Array.Empty<int>(), "triple_ron")
+            : MakeOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
         int honba = _engine.Honba;
         _engine.DeclareMultiRon(winners, pending.Discarder);
         CaptureRonDetails(pending.Discarder, honba);
@@ -1518,7 +1522,7 @@ public sealed class MatchRuntime
 
         _phase = MatchPhase.Idle;
         _message = null;
-        _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), code);
+        _lastOutcome = MakeOutcome("flow", Array.Empty<int>(), code);
         _engine.DeclarePushFlow(picked, human);
         return true;
     }
@@ -1568,8 +1572,8 @@ public sealed class MatchRuntime
         _phase = MatchPhase.Idle;
         _message = null;
         bool sevenHonors = result.SevenHonors;
-        _lastOutcome = new RoundOutcome(sevenHonors ? "tiisuin" : "tsumo", new[] { playerIndex }, null);
-        var settlement = SelfPlayDriver.ToSettlement(result);
+        _lastOutcome = MakeOutcome(sevenHonors ? "tiisuin" : "tsumo", new[] { playerIndex }, null);
+        var settlement = EngineSettlement.From(result);
         int honba = _engine.Honba;
         _engine.DeclareWin(playerIndex, selfDraw: true, settlement);
         _lastDetails = sevenHonors || settlement.SevenHonors
@@ -1586,12 +1590,12 @@ public sealed class MatchRuntime
             // engine.js checkRon：荣和张留在胜者暗手里（自走驱动同样这么加）
             player.Hand.Add(discarded);
             player.Hand.Sort();
-            winners.Add(new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)));
+            winners.Add(new RonWinner(candidate.PlayerIndex, EngineSettlement.From(candidate.Result)));
         }
 
         _lastOutcome = candidates.Count >= 3
-            ? new RoundOutcome("special_flow", Array.Empty<int>(), "triple_ron")
-            : new RoundOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
+            ? MakeOutcome("special_flow", Array.Empty<int>(), "triple_ron")
+            : MakeOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
         int honba = _engine.Honba;
         _engine.DeclareMultiRon(winners, discPlayer);
         CaptureRonDetails(discPlayer, honba);
@@ -1763,7 +1767,7 @@ public sealed class MatchRuntime
 
         if (_engine.GameOver && _lastOutcome is null)
         {
-            _lastOutcome = new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+            _lastOutcome = MakeOutcome("flow", Array.Empty<int>(), "exhaustive");
         }
 
         _phase = player.IsHuman ? MatchPhase.HumanDiscard : MatchPhase.Idle;
@@ -1778,15 +1782,15 @@ public sealed class MatchRuntime
         {
             if (robbers.Count >= 3)
             {
-                _lastOutcome = new RoundOutcome("special_flow", Array.Empty<int>(), "triple_ron_chankan");
+                _lastOutcome = MakeOutcome("special_flow", Array.Empty<int>(), "triple_ron_chankan");
                 _engine.DeclareSpecialFlow("三家和牌（抢杠）→ 自动流局");
                 return false;
             }
 
             var winners = robbers
-                .Select(candidate => new RonWinner(candidate.PlayerIndex, SelfPlayDriver.ToSettlement(candidate.Result)))
+                .Select(candidate => new RonWinner(candidate.PlayerIndex, EngineSettlement.From(candidate.Result)))
                 .ToList();
-            _lastOutcome = new RoundOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
+            _lastOutcome = MakeOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
             int honba = _engine.Honba;
             _engine.DeclareMultiRon(winners, player.Index);
             CaptureRonDetails(player.Index, honba);
@@ -1795,7 +1799,7 @@ public sealed class MatchRuntime
 
         if (!_engine.DoKan(player, tile, type, _engine.PeekRinshanTile()))
         {
-            _lastOutcome ??= new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+            _lastOutcome ??= MakeOutcome("flow", Array.Empty<int>(), "exhaustive");
             return false;
         }
 
@@ -2002,7 +2006,7 @@ public sealed class MatchRuntime
             return;
         }
 
-        var outcome = _lastOutcome ?? new RoundOutcome("flow", Array.Empty<int>(), "exhaustive");
+        var outcome = _lastOutcome ?? MakeOutcome("flow", Array.Empty<int>(), "exhaustive");
 
         switch (outcome.Kind)
         {
@@ -2037,20 +2041,19 @@ public sealed class MatchRuntime
         string? drawReason = outcome.Kind is "flow" or "special_flow"
             ? outcome.Reason ?? "exhaustive"
             : null;
-        var result = new RoundResult(
-            _engine.HandNumber,
-            outcome.Kind,
-            outcome.Winners,
-            outcome.Reason,
-            _engine.Scores.ToArray(),
-            _engine.Honba,
-            _engine.DealerIndex,
-            _engine.MatchOver,
-            details,
-            drawReason,
-            _scoresAtRoundStart.ToArray(),
-            outcome.Kind is "flow" or "special_flow" ? _engine.LastFlowPenalties : null,
-            _settings.Ruleset == Ruleset.TuidaoHu);
+        var result = outcome with
+        {
+            Round = _engine.HandNumber,
+            Scores = _engine.Scores.ToArray(),
+            Honba = _engine.Honba,
+            DealerIndex = _engine.DealerIndex,
+            MatchOver = _engine.MatchOver,
+            Details = details,
+            DrawReason = drawReason,
+            ScoresBefore = _scoresAtRoundStart.ToArray(),
+            Penalties = outcome.Kind is "flow" or "special_flow" ? _engine.LastFlowPenalties : null,
+            Simplified = _settings.Ruleset == Ruleset.TuidaoHu,
+        };
 
         _stats?.RecordRound(result, names);
         RecordEvent(
