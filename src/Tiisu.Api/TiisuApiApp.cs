@@ -30,7 +30,22 @@ public static class TiisuApiApp
 
         app.Use(async (context, next) =>
         {
-            context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+            // P1-6：只给本机来源放行，避免任意网页跨域写设置/统计/牌谱。
+            string? origin = context.Request.Headers.Origin.ToString();
+            bool hasOrigin = !string.IsNullOrEmpty(origin);
+            if (hasOrigin && !IsAllowedOrigin(origin!))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsync("forbidden origin");
+                return;
+            }
+
+            if (hasOrigin)
+            {
+                context.Response.Headers["Access-Control-Allow-Origin"] = origin!;
+                context.Response.Headers["Vary"] = "Origin";
+            }
+
             if (HttpMethods.IsOptions(context.Request.Method))
             {
                 context.Response.Headers["Access-Control-Allow-Methods"] = "POST, OPTIONS";
@@ -218,5 +233,24 @@ public static class TiisuApiApp
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// 浏览器来源白名单：只允许本机 loopback（任意端口，方便 Web 开发）。
+    /// 无 Origin 的请求（curl / 桌面端）不受影响。
+    /// </summary>
+    private static bool IsAllowedOrigin(string origin)
+    {
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out Uri? uri))
+        {
+            return false;
+        }
+
+        if (uri.Scheme is not ("http" or "https"))
+        {
+            return false;
+        }
+
+        return uri.Host is "127.0.0.1" or "localhost" or "::1" or "[::1]";
     }
 }

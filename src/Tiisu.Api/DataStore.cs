@@ -56,6 +56,9 @@ public sealed class DataStore
 
     private readonly object _appendLock = new();
 
+    // stats 是「读-改-写」：必须整段同锁，否则并发 POST 会丢计数（P2-3）。
+    private readonly object _statsGate = new();
+
     public DataStore(string directory)
     {
         DirectoryPath = Path.GetFullPath(directory);
@@ -181,6 +184,14 @@ public sealed class DataStore
         => NormalizeStats(MergeCopy(DefaultStats(), ReadObject(StatsPath)));
 
     public JsonObject PostStats(JsonNode? body)
+    {
+        lock (_statsGate)
+        {
+            return PostStatsCore(body);
+        }
+    }
+
+    private JsonObject PostStatsCore(JsonNode? body)
     {
         var stats = LoadStats();
         if (body is not JsonObject obj || !IsTruthy(body))

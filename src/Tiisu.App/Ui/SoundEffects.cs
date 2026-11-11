@@ -154,16 +154,27 @@ public static class SoundEffects
     {
         const int rate = 24000;
         const int clicks = 20;
-        double[] samples = new double[rate * 12 / 10];
+        int clickSamples = (int)(rate * 0.026);
         var rnd = new Random(20261023);
-        int cursor = 0;
 
-        for (int c = 0; c < clicks && cursor < samples.Length; c++)
+        // 先排好每一次点击的频率与间隔，再按总长开数组——旧实现缓冲只装得下 13 声（P2-1）。
+        var plan = new (double Hz, int Gap)[clicks];
+        int total = 0;
+        for (int c = 0; c < clicks; c++)
         {
-            int len = (int)(rate * 0.026);
-            double amp = 0.55 - (0.02 * c);
             double hz = 3200 + (rnd.NextDouble() * 1200);
-            for (int i = 0; i < len && cursor + i < samples.Length; i++)
+            int gap = c == clicks - 1 ? 0 : (int)(rate * (0.040 + rnd.NextDouble() * 0.050));
+            plan[c] = (hz, gap);
+            total += clickSamples + gap;
+        }
+
+        double[] samples = new double[total];
+        int cursor = 0;
+        for (int c = 0; c < clicks; c++)
+        {
+            double amp = 0.55 - (0.02 * c);
+            double hz = plan[c].Hz;
+            for (int i = 0; i < clickSamples; i++)
             {
                 double t = i / (double)rate;
                 double env = Math.Exp(-t * 160) * amp;
@@ -171,7 +182,7 @@ public static class SoundEffects
                 samples[cursor + i] += (body + (rnd.NextDouble() * 2 - 1) * 0.25) * env;
             }
 
-            cursor += len + (int)(rate * (0.040 + rnd.NextDouble() * 0.050));
+            cursor += clickSamples + plan[c].Gap;
         }
 
         return ToWav(samples, rate);

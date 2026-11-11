@@ -14,6 +14,12 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     private readonly SKPaint _fill = new() { IsAntialias = true };
     private readonly SKPaint _stroke = new() { IsAntialias = true, Style = SKPaintStyle.Stroke };
 
+    // 每帧复用：字体按 (粗体, 字号) 缓存；透视矩阵只在相机参数变化时重建（P2-5）。
+    private readonly Dictionary<(bool Bold, float Size), SKFont> _fonts = new();
+    private SKMatrix44 _perspective;
+    private PerspectiveCamera _perspectiveCamera;
+    private bool _perspectiveSet;
+
     private readonly TileAtlas? _atlas;
 
     public SkiaCanvas(SKCanvas canvas, TileAtlas? atlas = null)
@@ -41,8 +47,14 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     /// </summary>
     public void ConcatPerspective(in PerspectiveCamera camera)
     {
-        var matrix = BuildPerspective(camera);
-        _canvas.Concat(in matrix);
+        if (!_perspectiveSet || !_perspectiveCamera.Equals(camera))
+        {
+            _perspective = BuildPerspective(camera);
+            _perspectiveCamera = camera;
+            _perspectiveSet = true;
+        }
+
+        _canvas.Concat(in _perspective);
     }
 
     /// <summary>
@@ -234,7 +246,7 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
             Color = ToSk(c),
             MaskFilter = null,
         };
-        using var font = new SKFont(GetTypeface(style.Bold), BoostSize(style.Size));
+        var font = GetFont(style.Bold, BoostSize(style.Size));
         var align = style.Right ? SKTextAlign.Right : style.Center ? SKTextAlign.Center : SKTextAlign.Left;
 
         var metrics = font.Metrics;
@@ -286,6 +298,20 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
         return tf;
     }
 
+    /// <summary>字体按 (粗体, 字号) 缓存，每帧不再 new SKFont（P2-5）。</summary>
+    private SKFont GetFont(bool bold, float size)
+    {
+        var key = (bold, size);
+        if (_fonts.TryGetValue(key, out SKFont? font))
+        {
+            return font;
+        }
+
+        font = new SKFont(GetTypeface(bold), size);
+        _fonts[key] = font;
+        return font;
+    }
+
     public void DrawTile(string tileId, RectF dst, float alpha = 1f)
     {
         if (_atlas is { IsLoaded: true } atlas && atlas.Sheet is { } sheet
@@ -310,5 +336,12 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     {
         _fill.Dispose();
         _stroke.Dispose();
+        foreach (SKFont font in _fonts.Values)
+        {
+            font.Dispose();
+        }
+
+        _fonts.Clear();
+        _perspectiveSet = false;
     }
 }
