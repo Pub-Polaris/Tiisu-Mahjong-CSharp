@@ -30,6 +30,96 @@ internal static class DevCommands
     /// <c>--smoke-run &lt;seed&gt; [mode] [--record]</c>：无窗口跑一整场（人类 AutoPilot：摸什么打什么 / 能和则和），
     /// 打印局数、和牌/流局、四家分数、事件流 SHA256。
     /// </summary>
+    /// <summary>
+    /// <c>--audit-games [count] [mode] [startSeed]</c>：批量跑完整对局，收集结算自检问题。
+    /// 用 Simple AI 提速；每局都走 MatchRuntime 的完整命令链路（人类座位 AutoPilot）。
+    /// </summary>
+    private static int AuditGames(string[] args)
+    {
+        Tiisu.App.Program.TryUseUtf8Console();
+
+        int count = args.Length >= 2 && int.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedCount)
+            ? Math.Max(1, parsedCount)
+            : 100;
+        int mode = args.Length >= 3 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedMode)
+            ? parsedMode
+            : 4;
+        uint startSeed = args.Length >= 4 && uint.TryParse(args[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint parsedSeed)
+            ? parsedSeed
+            : 1;
+        bool record = args.Contains("--record", StringComparer.Ordinal);
+
+        int failed = 0;
+        int issueTotal = 0;
+        int totalRounds = 0;
+        int wins = 0;
+        int flows = 0;
+        var samples = new List<string>();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+
+        for (int i = 0; i < count; i++)
+        {
+            uint seed = startSeed + (uint)i;
+            var settings = new Settings
+            {
+                AiSeatLocks = new[] { 0, 0, 0, 0 },
+                AiMctsEnabled = false,
+                RecordTiles = record,
+            };
+            var roundLog = record ? new RoundLogWriter { Enabled = true } : null;
+            var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), _ => { },
+                saveStore: null, stats: null, roundLog: roundLog, matchSeed: seed)
+            {
+                AutoPilot = true,
+            };
+
+            runtime.StartMatch(mode);
+            int guard = 0;
+            while (runtime.Phase != MatchPhase.MatchOver && ++guard < 512)
+            {
+                if (runtime.Phase == MatchPhase.RoundEnded)
+                {
+                    runtime.NextRound();
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (runtime.Phase != MatchPhase.MatchOver)
+            {
+                failed++;
+                continue;
+            }
+
+            totalRounds += runtime.Rounds;
+            wins += runtime.TsumoWins + runtime.RonWins;
+            flows += runtime.DrawRounds;
+            issueTotal += runtime.AuditIssueCount;
+            if (samples.Count < 20)
+            {
+                samples.AddRange(runtime.AuditIssues);
+            }
+
+            if ((i + 1) % 100 == 0)
+            {
+                Console.WriteLine($"  ... {i + 1}/{count} 局，问题 {issueTotal}，耗时 {clock.Elapsed.TotalSeconds:F0}s");
+            }
+        }
+
+        clock.Stop();
+        Console.WriteLine($"audit-games: count={count} mode={mode} start={startSeed}");
+        Console.WriteLine($"  完成 {count - failed}/{count}（异常 {failed}）· 总小局 {totalRounds}（和牌 {wins} / 流局 {flows}）");
+        Console.WriteLine($"  结算自检问题: {issueTotal}");
+        foreach (string sample in samples.Take(10))
+        {
+            Console.WriteLine("   - " + sample);
+        }
+
+        return issueTotal == 0 && failed == 0 ? 0 : 1;
+    }
+
     private static int SmokeRun(string[] args)
     {
         Tiisu.App.Program.TryUseUtf8Console();
@@ -3413,6 +3503,9 @@ internal static class DevCommands
                 return 0;
             case "--smoke-run":
                 return SmokeRun(args);
+
+            case "--audit-games":
+                return AuditGames(args);
             case "--smoke-ai":
                 return SmokeAi(args);
             case "--smoke-ai-call":

@@ -70,6 +70,9 @@ public sealed record SettlementDetail
     /// <summary>本场加项（700 × N）。</summary>
     public int HonbaBonus { get; init; }
 
+    /// <summary>和牌时从场供池拿走的点数（无则 0）。</summary>
+    public int PotPoints { get; init; }
+
     /// <summary>最终点数（支付总额）。</summary>
     public int FinalPoints { get; init; }
 

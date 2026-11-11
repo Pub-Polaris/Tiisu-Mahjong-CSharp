@@ -142,6 +142,9 @@ public sealed partial class MahjongEngine
     /// 需要在这之后自行 <c>HandNumber++</c>（与旧 EngineRestore 行为一致），否则会重算同一局。
     /// </para>
     /// </summary>
+    /// <summary>存档恢复场供池。</summary>
+    public void RestorePot(int potPoints) => PotPoints = Math.Max(0, potPoints);
+
     public void RestoreProgress(
         int handsPlayed,
         int handNumber,

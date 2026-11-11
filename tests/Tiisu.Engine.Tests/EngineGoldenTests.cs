@@ -70,12 +70,13 @@ public sealed class EngineGoldenTests
         Assert.Equal(expected, engine.CalcPoints(fu));
     }
 
-    /// <summary>三家均摊取整：余数归自摸者。</summary>
+    /// <summary>三家均摊按 350 点蓝筹取整：余数进场供（261112 规则）。</summary>
     [Theory]
-    [InlineData(7700, 2566, 2)]
+    [InlineData(7700, 2450, 350)]
     [InlineData(12600, 4200, 0)]
-    [InlineData(11900, 3966, 2)]
-    public void SplitPayment_PutsRemainderOnWinner(int total, int each, int remainder)
+    [InlineData(11900, 3850, 350)]
+    [InlineData(1400, 350, 350)]
+    public void SplitPayment_Uses350Chips_PutsRemainderInPot(int total, int each, int remainder)
     {
         var engine = new MahjongEngine();
         var (actualEach, actualRemainder) = engine.SplitPayment(total);
@@ -83,3 +84,4 @@ public sealed class EngineGoldenTests
         Assert.Equal(remainder, actualRemainder);
     }
 }
+

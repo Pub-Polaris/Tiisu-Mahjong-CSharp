@@ -51,4 +51,46 @@ public sealed class PointFormulaTests
 
         Assert.Equal(12600, engine.LastRonMulti[0].FinalPoints);
     }
+
+    [Fact]
+    public void 自摸分摊按350取整_余数进场供()
+    {
+        var yaku = YakuData.LoadDefault();
+        var engine = new MahjongEngine(checker: new WinChecker(yaku), yakuData: yaku, randomSource: new Mulberry32Random(2), ruleset: Ruleset.Qizi);
+        engine.RestoreProgress(0, 1, 0, honba: 0, roundWindIdx: 0, dealerCount: 0, scores: new[] { 49000, 49000, 49000, 49000 });
+        engine.UpdateSeatWinds();
+
+        var settlement = new WinSettlement { TotalFu = 2, HandType = HandKind.StandardHand };
+        settlement.ActiveYaku.Add(new WinYaku { Name = "断幺九", Fu = 2 });
+
+        var (each, remainder) = engine.SplitPayment(1400);
+        Assert.Equal(350, each);
+        Assert.Equal(350, remainder);
+
+        int beforeTotal = engine.Scores.Sum();
+        engine.DeclareWin(1, selfDraw: true, settlement);
+
+        Assert.Equal(beforeTotal, engine.Scores.Sum());
+        Assert.Equal(350, engine.PotPoints);
+        Assert.Equal(each * 3, engine.Scores[1] - 49000);
+    }
+
+    [Fact]
+    public void 下一手和牌拿走场供()
+    {
+        var yaku = YakuData.LoadDefault();
+        var engine = new MahjongEngine(checker: new WinChecker(yaku), yakuData: yaku, randomSource: new Mulberry32Random(3), ruleset: Ruleset.Qizi);
+        engine.RestoreProgress(0, 2, 0, honba: 0, roundWindIdx: 0, dealerCount: 0, scores: new[] { 49000, 49000, 49000, 49000 });
+        engine.UpdateSeatWinds();
+        engine.RestorePot(700);
+
+        var settlement = new WinSettlement { TotalFu = 2, HandType = HandKind.StandardHand };
+        settlement.ActiveYaku.Add(new WinYaku { Name = "断幺九", Fu = 2 });
+
+        engine.DeclareWin(1, selfDraw: true, settlement);
+
+        // 拿走旧场供 700，本手又产生 350 余数进场供
+        Assert.Equal(350, engine.PotPoints);
+        Assert.Equal(700 + 350 * 3, engine.Scores[1] - 49000);
+    }
 }

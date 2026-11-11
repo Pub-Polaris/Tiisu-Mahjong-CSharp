@@ -121,6 +121,17 @@ public sealed class MatchRuntime
     private MatchPhase _phase = MatchPhase.Idle;
     private RoundResult? _lastOutcome;
 
+    /// <summary>结算自检发现的问题数（虚拟对局回归用；正常应为 0）。</summary>
+    public int AuditIssueCount { get; private set; }
+
+    /// <summary>最近若干条结算自检问题（含 seed / 局数 / 差异）。</summary>
+    public IReadOnlyList<string> AuditIssues => _auditIssues;
+
+    private readonly List<string> _auditIssues = new();
+
+    /// <summary>和牌结算前的分数快照（排除本局行牌中的拔厄等分数变动）。</summary>
+    private int[]? _scoresBeforeWin;
+
     /// <summary>
     /// 局末判定的占位结果：前半段只需要 kind/winners/reason，结算字段在 FinishRound 用 <c>with</c> 补齐。
     /// 原先的 RoundOutcome 与 RoundResult 字段重叠，已合并（审计 P3-3）。
@@ -366,6 +377,7 @@ public sealed class MatchRuntime
             save.DealerCount,
             save.Scores);
         _engine.RestoreCallState(save.IsCalled, save.CallWinBanned, save.CallWinBannedNextHand);
+        _engine.RestorePot(save.PotPoints);
 
         _firstDeal = false;
         ResetCounters();
@@ -485,6 +497,7 @@ public sealed class MatchRuntime
         IsCalled = _engine.Players.Select(p => p.IsCalled).ToArray(),
         CallWinBanned = _engine.CallWinBanned.ToArray(),
         CallWinBannedNextHand = _engine.CallWinBannedNextHand.ToArray(),
+        PotPoints = _engine.PotPoints,
     };
 
     // ── 主循环 ───────────────────────────────────────────────────
@@ -1401,8 +1414,10 @@ public sealed class MatchRuntime
             ? MakeOutcome("special_flow", Array.Empty<int>(), "triple_ron")
             : MakeOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
         int honba = _engine.Honba;
+        int pot = _engine.PotPoints;
+        _scoresBeforeWin = _engine.Scores.ToArray();
         _engine.DeclareMultiRon(winners, pending.Discarder);
-        CaptureRonDetails(pending.Discarder, honba);
+        CaptureRonDetails(pending.Discarder, honba, pot);
         return true;
     }
 
@@ -1592,10 +1607,12 @@ public sealed class MatchRuntime
         _lastOutcome = MakeOutcome(sevenHonors ? "tiisuin" : "tsumo", new[] { playerIndex }, null);
         var settlement = EngineSettlement.From(result);
         int honba = _engine.Honba;
+        int pot = _engine.PotPoints;
+        _scoresBeforeWin = _engine.Scores.ToArray();
         _engine.DeclareWin(playerIndex, selfDraw: true, settlement);
         _lastDetails = sevenHonors || settlement.SevenHonors
             ? Array.Empty<SettlementDetail>()
-            : new[] { BuildSettlementDetail(playerIndex, selfDraw: true, payerIndex: null, settlement, honba, null) };
+            : new[] { BuildSettlementDetail(playerIndex, selfDraw: true, payerIndex: null, settlement, honba, pot, null) };
     }
 
     private void DeclareMultiRon(IReadOnlyList<RonCandidate> candidates, int discPlayer, Tile discarded)
@@ -1614,8 +1631,10 @@ public sealed class MatchRuntime
             ? MakeOutcome("special_flow", Array.Empty<int>(), "triple_ron")
             : MakeOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
         int honba = _engine.Honba;
+        int pot = _engine.PotPoints;
+        _scoresBeforeWin = _engine.Scores.ToArray();
         _engine.DeclareMultiRon(winners, discPlayer);
-        CaptureRonDetails(discPlayer, honba);
+        CaptureRonDetails(discPlayer, honba, pot);
     }
 
     /// <summary>
@@ -1628,6 +1647,7 @@ public sealed class MatchRuntime
         int? payerIndex,
         WinSettlement settlement,
         int honba,
+        int pot,
         int? engineFinalPoints)
     {
         var player = _engine.Players[winnerIndex];
@@ -1698,7 +1718,7 @@ public sealed class MatchRuntime
                           ?? ((dealer ? MahjongEngine.DealerBonus(subPoints) : subPoints) + honbaBonus);
         var (each, remainder) = _engine.SplitPayment(finalPoints);
         string payment = selfDraw
-            ? $"自摸 · 每家 {each} + 余数 {remainder}"
+            ? $"自摸 · 三家合计付 {finalPoints}（余数 {remainder} 分摊）"
             : $"荣和 · 放铳者付 {finalPoints}";
 
         return new SettlementDetail
@@ -1717,6 +1737,7 @@ public sealed class MatchRuntime
             DealerMultiplierApplied = dealer,
             HonbaCount = honba,
             HonbaBonus = honbaBonus,
+            PotPoints = pot,
             FinalPoints = finalPoints,
             PayEach = selfDraw ? each : 0,
             PayRemainder = selfDraw ? remainder : 0,
@@ -1725,7 +1746,7 @@ public sealed class MatchRuntime
     }
 
     /// <summary>多家荣和：以引擎最终生效的胜者列表（<see cref="MahjongEngine.LastRonMulti"/>）为准。</summary>
-    private void CaptureRonDetails(int payerIndex, int honba)
+    private void CaptureRonDetails(int payerIndex, int honba, int pot = 0)
     {
         if (_lastOutcome is null || _lastOutcome.Kind != "ron")
         {
@@ -1742,6 +1763,7 @@ public sealed class MatchRuntime
                 payerIndex,
                 winner.Result,
                 honba,
+                details.Count == 0 ? pot : 0,
                 winner.FinalPoints));
         }
 
@@ -1809,8 +1831,10 @@ public sealed class MatchRuntime
                 .ToList();
             _lastOutcome = MakeOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
             int honba = _engine.Honba;
+            int pot = _engine.PotPoints;
+            _scoresBeforeWin = _engine.Scores.ToArray();
             _engine.DeclareMultiRon(winners, player.Index);
-            CaptureRonDetails(player.Index, honba);
+            CaptureRonDetails(player.Index, honba, pot);
             return false;
         }
 
@@ -2016,6 +2040,105 @@ public sealed class MatchRuntime
 
     // ── 局末 ─────────────────────────────────────────────────────
 
+    /// <summary>
+    /// 单局结算自检：总分守恒；单和牌局的「分数变化」必须能由结算明细解释。
+    /// 多人和牌涉及跳庄等特殊支付，先只查总分；流局由引擎账本审计负责。
+    /// </summary>
+    private void AuditRoundResult(RoundResult result)
+    {
+        var issues = new List<string>();
+
+        // 出岭（破产）：引擎会把该家分数直接钉到 -7000，属于规则性调整，总分不守恒是预期。
+        if (result.Scores.Any(s => s == -7000))
+        {
+            return;
+        }
+
+        var baseline = result.Kind is "tsumo" or "ron" && _scoresBeforeWin is { Length: 4 }
+            ? _scoresBeforeWin
+            : result.ScoresBefore;
+        int sumBefore = baseline?.Sum() ?? 0;
+        int sumAfter = result.Scores.Sum();
+        // 场供池不在分数里：本局发出的场供会让总分增加，新产生的余数会让总分减少。
+        int potAwarded = result.Details?.Sum(d => d.PotPoints) ?? 0;
+        int potCreated = result.Details?.Where(d => d.SelfDraw).Sum(d => d.PayRemainder) ?? 0;
+        int expectedSum = sumBefore + potAwarded;
+        if (expectedSum != sumAfter)
+        {
+            issues.Add("总分不守恒: before=" + sumBefore + " after=" + sumAfter
+                + " 场供发出=" + potAwarded);
+        }
+
+        bool win = result.Kind is "tsumo" or "ron";
+        if (win && result.Details is { Count: 1 } && baseline is { Count: 4 } before)
+        {
+            var expected = new int[4];
+            var detail = result.Details[0];
+            if (detail.SelfDraw)
+            {
+                int each = detail.PayEach;
+                for (int i = 0; i < 4; i++)
+                {
+                    if (i == detail.WinnerIndex)
+                    {
+                        continue;
+                    }
+
+                    expected[i] -= each;
+                    expected[detail.WinnerIndex] += each;
+                }
+            }
+            else
+            {
+                expected[detail.WinnerIndex] += detail.FinalPoints;
+                if (detail.PayerIndex is int payer)
+                {
+                    expected[payer] -= detail.FinalPoints;
+                }
+            }
+
+            expected[detail.WinnerIndex] += detail.PotPoints;
+
+            for (int i = 0; i < 4; i++)
+            {
+                int actual = result.Scores[i] - before[i];
+                if (actual != expected[i])
+                {
+                    issues.Add(
+                        _engine.Players[i].Name + ": 实际Δ" + actual.ToString("+#;-#;0", CultureInfo.InvariantCulture)
+                        + "，明细Δ" + expected[i].ToString("+#;-#;0", CultureInfo.InvariantCulture));
+                }
+            }
+        }
+
+        if (issues.Count == 0)
+        {
+            return;
+        }
+
+        AuditIssueCount++;
+        string line = "seed=" + MatchSeed + " round=" + result.Round + " kind=" + result.Kind
+            + " | " + string.Join(" | ", issues)
+            + " | before=" + string.Join(",", result.ScoresBefore ?? Array.Empty<int>())
+            + " after=" + string.Join(",", result.Scores)
+            + " winners=" + string.Join(",", result.Winners);
+        if (_auditIssues.Count < 200)
+        {
+            _auditIssues.Add(line);
+        }
+
+        try
+        {
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tiisu-error.log"),
+                DateTime.Now.ToString("HH:mm:ss.fff") + " 结算自检: " + line + Environment.NewLine);
+        }
+        catch
+        {
+            // 日志失败忽略
+        }
+    }
+
     private void FinishRound()
     {
         if (_phase is MatchPhase.RoundEnded or MatchPhase.MatchOver)
@@ -2091,6 +2214,9 @@ public sealed class MatchRuntime
             }
         }
 
+        AuditRoundResult(result);
+
+        _scoresBeforeWin = null;
         _stats?.RecordRound(result, names);
         RecordEvent(
             GameEventTypes.RoundEnd,

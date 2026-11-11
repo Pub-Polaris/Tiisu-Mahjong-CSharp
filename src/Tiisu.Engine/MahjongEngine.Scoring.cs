@@ -43,8 +43,17 @@ public sealed partial class MahjongEngine
             ? 0
             : (winner.IsDealer ? DealerBonus(subPoints) : subPoints) + HonbaBonus();
 
+        // 场供池：和牌者拿走之前累积的底池。
+        int pot = PotPoints;
+        PotPoints = 0;
+        if (pot > 0)
+        {
+            _scores[winIndex] += pot;
+        }
+
         if (selfDraw)
         {
+            // 三家均摊按 350 点蓝筹取整：除不尽的尾数（0/350/700）进底池，不记给任何人。
             var (each, remainder) = SplitPayment(finalPoints);
             for (int pi = 0; pi < PlayerCount; pi++)
             {
@@ -57,7 +66,7 @@ public sealed partial class MahjongEngine
                 _scores[pi] -= each;
             }
 
-            _scores[winIndex] += remainder; // 余数归自摸者
+            PotPoints += remainder;
         }
         else
         {
@@ -116,6 +125,9 @@ public sealed partial class MahjongEngine
         GameOver = true;
         int payer = discarderIndex;
 
+        int pot = PotPoints;
+        PotPoints = 0;
+
         // 双和子跳庄（10.3）：子家与庄家同时荣和时，若子家手牌较大 → 庄家放弃和牌，并向该子家付 3500 点
         var effective = winners.ToList();
         if (winners.Count == 2)
@@ -167,6 +179,11 @@ public sealed partial class MahjongEngine
             winner.FinalPoints = finalPoints;
             _scores[winner.PlayerIndex] += finalPoints;
             _scores[payer] -= finalPoints;
+        }
+
+        if (pot > 0 && effective.Count > 0)
+        {
+            _scores[effective[0].PlayerIndex] += pot;
         }
 
         _lastRonMulti = effective.ToList();
@@ -269,10 +286,14 @@ public sealed partial class MahjongEngine
     /// <summary>庄家 ×1.5。JS 用浮点乘法；赋位表的点数都是 700 的倍数，故结果仍是整数。</summary>
     public static int DealerBonus(int points) => (int)(points * 1.5);
 
-    /// <summary>三家均摊取整：余数归自摸者（engine.js <c>splitPayment</c>）。</summary>
+    /// <summary>
+    /// 三家均摊按 350 点蓝筹取整：每家付 350 的整数倍，除不尽的尾数（0/350/700）作为场供进池。
+    /// 例：7700 → 每家 2450（7 蓝筹），余 350 进场供。
+    /// </summary>
     public (int Each, int Remainder) SplitPayment(int total)
     {
-        int each = (int)Math.Floor(total / 3.0);
+        int chip = 350;
+        int each = (total / (3 * chip)) * chip;
         int remainder = total - (each * 3);
         return (each, remainder);
     }
@@ -347,6 +368,9 @@ public sealed partial class MahjongEngine
     /// 听牌流局本场 +1；未听返杠 700/杠；鸣牌后无役听牌罚 1400/2100；七日终战强制过庄。
     /// </summary>
     /// <summary>最近一次荒牌流局实际执行的罚项（人读文案，供结算屏展示；无罚则空）。</summary>
+    /// <summary>场供池（底池）：自摸均摊除不尽的 350 点尾数进池，下一手和牌者拿走。</summary>
+    public int PotPoints { get; private set; }
+
     public IReadOnlyList<string> LastFlowPenalties { get; private set; } = Array.Empty<string>();
 
     /// <summary>最近一次荒牌流局的结构化分数转移（结算拆账 / 审计用；无罚则空）。</summary>

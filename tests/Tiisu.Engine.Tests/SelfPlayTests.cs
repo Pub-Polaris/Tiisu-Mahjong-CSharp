@@ -258,8 +258,9 @@ public sealed class SelfPlayTests
                 continue;
             }
 
-            // 自摸余数归自摸者：每局最多 +2，跨局总分只会缓慢上浮；无出岭时不得出现其它漂移。
-            Assert.InRange(result.FinalScores.Sum(), InitialScoreSum, InitialScoreSum + (2 * result.TsumoWins));
+            // 自摸余数进场供：未领取时总分低于初始值；场供被拿走时会一次性回到分数里，最多上浮 700/次自摸。
+            Assert.InRange(result.FinalScores.Sum(), InitialScoreSum - (700 * result.TsumoWins), InitialScoreSum + (700 * result.TsumoWins));
         }
     }
 }
+

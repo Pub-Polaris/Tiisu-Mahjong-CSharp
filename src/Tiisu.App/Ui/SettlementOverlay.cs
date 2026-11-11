@@ -602,6 +602,14 @@ public sealed class SettlementOverlay
             new RectF(x, y, width, 60), GoldBright, new TextStyle(44, Bold: true, Center: false));
         y += 60f;
 
+        if (detail.PotPoints > 0)
+        {
+            c.DrawText(
+                "场供 +" + detail.PotPoints.ToString(CultureInfo.InvariantCulture),
+                new RectF(x, y, width, 22), Gold, new TextStyle(14, Center: false));
+            y += 24f;
+        }
+
         if (detail.HonbaCount > 0)
         {
             c.DrawText(

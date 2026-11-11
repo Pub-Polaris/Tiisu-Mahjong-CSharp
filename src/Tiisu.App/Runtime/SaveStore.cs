@@ -232,4 +232,8 @@ public sealed class SaveState
     /// <summary>四家下局禁和（重罚错和）。</summary>
     [JsonPropertyName("callWinBannedNextHand")]
     public bool[] CallWinBannedNextHand { get; set; } = Array.Empty<bool>();
+
+    /// <summary>场供池（自摸余数累积）。</summary>
+    [JsonPropertyName("potPoints")]
+    public int PotPoints { get; set; }
 }
