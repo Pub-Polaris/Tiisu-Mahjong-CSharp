@@ -48,6 +48,9 @@ internal static class DevCommands
             ? parsedSeed
             : 1;
         bool record = args.Contains("--record", StringComparer.Ordinal);
+        bool uiAudit = args.Contains("--ui", StringComparer.Ordinal);
+        bool passive = args.Contains("--passive", StringComparer.Ordinal);
+        bool callMode = args.Contains("--call", StringComparer.Ordinal);
 
         int jobs = 1;
         int jobsIndex = Array.FindIndex(args, a => a == "--jobs");
@@ -64,6 +67,8 @@ internal static class DevCommands
         int flows = 0;
         int completed = 0;
         var samples = new System.Collections.Concurrent.ConcurrentBag<string>();
+          int uiIssueTotal = 0;
+          var uiSamples = new System.Collections.Concurrent.ConcurrentBag<string>();
         var clock = System.Diagnostics.Stopwatch.StartNew();
 
         void RunOne(int i)
@@ -76,23 +81,84 @@ internal static class DevCommands
                 RecordTiles = record,
             };
             var roundLog = record ? new RoundLogWriter { Enabled = true } : null;
-            var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), _ => { },
+            var auditor = uiAudit ? new UiInvariantAuditor() : null;
+            MatchRuntime? self = null;
+            var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), ev =>
+                {
+                    if (auditor is not null && ev is StateChangedEvent changed && self is not null)
+                    {
+                        auditor.Audit(self.Engine, changed.Snapshot);
+                    }
+                },
                 saveStore: null, stats: null, roundLog: roundLog, matchSeed: seed)
             {
-                AutoPilot = true,
+                AutoPilot = !passive,
             };
+            self = runtime;
 
             runtime.StartMatch(mode);
             int guard = 0;
-            while (runtime.Phase != MatchPhase.MatchOver && ++guard < 512)
+            if (passive)
             {
-                if (runtime.Phase == MatchPhase.RoundEnded)
+                // 被动的“人类”：能和也不和、有荣和窗口就过，用来覆盖提示与听牌分叉。
+                while (runtime.Phase != MatchPhase.MatchOver && ++guard < 200_000)
                 {
-                    runtime.NextRound();
+                    switch (runtime.Phase)
+                    {
+                        case MatchPhase.RoundEnded:
+                            runtime.NextRound();
+                            break;
+                        case MatchPhase.HumanRon:
+                        case MatchPhase.HumanMeld:
+                            runtime.Pass();
+                            break;
+                        case MatchPhase.HumanDiscard:
+                        {
+                            int human = runtime.HumanIndex;
+                            var player = runtime.Engine.Players[human];
+                            if (callMode && !player.IsCalled
+                                && (runtime.AvailableActions() & HumanAction.DeclareCall) != 0)
+                            {
+                                // 逐个试打，打出后能听就报听；失败的不改状态。
+                                for (int k = 0; k < player.Hand.Count && !player.IsCalled; k++)
+                                {
+                                    runtime.HumanDeclareCall(k);
+                                }
+
+                                if (player.IsCalled)
+                                {
+                                    break;
+                                }
+                            }
+
+                            int index = runtime.Snapshot.Seats[human].DrawnIndex;
+                            if (index < 0)
+                            {
+                                index = runtime.Snapshot.Seats[human].Hand.Count - 1;
+                            }
+
+                            runtime.HumanDiscard(index);
+                            break;
+                        }
+
+                        default:
+                            guard = 200_000;
+                            break;
+                    }
                 }
-                else
+            }
+            else
+            {
+                while (runtime.Phase != MatchPhase.MatchOver && ++guard < 512)
                 {
-                    break;
+                    if (runtime.Phase == MatchPhase.RoundEnded)
+                    {
+                        runtime.NextRound();
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
             }
 
@@ -110,6 +176,15 @@ internal static class DevCommands
             {
                 samples.Add(issue);
             }
+
+              if (auditor is not null)
+              {
+                  Interlocked.Add(ref uiIssueTotal, auditor.Count);
+                  foreach (string issue in auditor.Samples)
+                  {
+                      uiSamples.Add(issue);
+                  }
+              }
 
             int done = Interlocked.Increment(ref completed);
             if (jobs > 1 && done % 1000 == 0)
@@ -141,12 +216,13 @@ internal static class DevCommands
         Console.WriteLine($"audit-games: count={count} mode={mode} start={startSeed} jobs={jobs}");
         Console.WriteLine($"  完成 {count - failed}/{count}（异常 {failed}）· 总小局 {totalRounds}（和牌 {wins} / 流局 {flows}）");
         Console.WriteLine($"  结算自检问题: {issueTotal}");
+        Console.WriteLine($"  UI/提示自检问题: {uiIssueTotal}");
         foreach (string sample in samples.Take(10))
         {
             Console.WriteLine("   - " + sample);
         }
 
-        return issueTotal == 0 && failed == 0 ? 0 : 1;
+        return issueTotal == 0 && uiIssueTotal == 0 && failed == 0 ? 0 : 1;
     }
 
     private static int SmokeRun(string[] args)

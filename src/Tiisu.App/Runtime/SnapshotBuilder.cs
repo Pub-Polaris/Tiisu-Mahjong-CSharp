@@ -161,6 +161,7 @@ public static class SnapshotBuilder
         bool selfCalled = false;
         bool selfBanned = false;
         bool selfMisfire = false;
+          string winHint = string.Empty;
         if (selfIndex >= 0)
         {
             var self = engine.Players[selfIndex];
@@ -174,6 +175,27 @@ public static class SnapshotBuilder
             {
                 int maxFu = MaxWaitFu(engine, self);
                 selfMisfire = maxFu > 0 && maxFu < engine.BaseFu;
+            }
+
+            // 14 张形和牌不可用时的可见提示：不能再静默。
+            if (phase == "human_discard" && self.TotalTiles() == 14 + self.KongCount())
+            {
+                var eval = engine.EvaluateWinFor(self, self.Hand, selfDraw: true, self.LastDraw);
+                if (!eval.Success)
+                {
+                    if (engine.IsWinBanned(self))
+                    {
+                        winHint = "本局禁和，不能和牌";
+                    }
+                    else if (eval.Reason == "no_yaku")
+                    {
+                        int fu = eval.ThresholdFu;
+                        winHint = fu > 0 && fu < engine.BaseFu
+                            ? "牌形成和但赋 " + fu.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                              + " 不足起和线，报和会错和"
+                            : "牌形成和但无役，不能和";
+                    }
+                }
             }
         }
 
@@ -221,6 +243,7 @@ public static class SnapshotBuilder
             TenpaiTiles = tenpai,
             IsCalled = selfCalled,
             CallWouldMisfire = selfMisfire,
+              WinHint = winHint,
             WinBanned = selfBanned,
             DrawnTileId = selfIndex >= 0 ? engine.Players[selfIndex].LastDraw?.Id : null,
             DiceDealerText = diceDealerText,

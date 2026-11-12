@@ -498,6 +498,84 @@ public sealed partial class MahjongEngine
             player.Hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
 
     /// <summary>
+    /// 用与实际对局完全相同的 <see cref="WinContext"/> 评估一手牌是否可和（不改状态）。
+    /// 供 UI 提示与虚拟上桌自检复用，避免各处各算一套口径。
+    /// </summary>
+    public WinResult EvaluateWinFor(Player player, IReadOnlyList<Tile> hand, bool selfDraw, Tile? winTile)
+    {
+        int visible = 0;
+        if (winTile is Tile target)
+        {
+            int riverCount = 0;
+            foreach (var p in _players)
+            {
+                riverCount += CountOf(p.Discards, target);
+                foreach (var meld in p.Melds)
+                {
+                    visible += CountOf(meld.Tiles, target);
+                }
+            }
+
+            visible += riverCount;
+            if (!selfDraw && riverCount > 0)
+            {
+                visible--;
+            }
+        }
+
+        bool anyCalled = false;
+        foreach (var p in _players)
+        {
+            if (p.Melds.Count > 0 || p.MinkanCount > 0)
+            {
+                anyCalled = true;
+                break;
+            }
+        }
+
+        bool renhe = !selfDraw && !player.IsDealer && !anyCalled && player.FirstTurn && player.LastDraw is null;
+        bool waterDrop = player.FirstTurnTenpai && (selfDraw ? player.HaiDei : Wall.Count == 0);
+
+        return _checker.CheckWin(
+            hand,
+            selfDraw,
+            player.Melds.Count > 0 || player.MinkanCount > 0,
+            player.AnkanCount,
+            player.MinkanCount,
+            ToCoreMelds(player.Melds),
+            player.FirstTurn,
+            winTile,
+            new WinContext
+            {
+                SeaMoon = selfDraw && player.SeaMoon,
+                HaiDei = selfDraw && player.HaiDei,
+                RiverFish = !selfDraw && Wall.Count == 0,
+                LastTileVisible = visible,
+                RinshanFlower = selfDraw && player.RinshanDrawn,
+                RinshanGun = !selfDraw && KanThisTurn,
+                KanRiichi = KanThisTurn,
+                Renhe = renhe,
+                WaterDrop = waterDrop,
+                SeatWind = player.SeatWind.Wire(),
+                RoundWind = RoundWind.Wire(),
+            });
+    }
+
+    private static int CountOf(IReadOnlyList<Tile> tiles, Tile target)
+    {
+        int count = 0;
+        for (int i = 0; i < tiles.Count; i++)
+        {
+            if (tiles[i] == target)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
     /// 待牌提示用的 13 张形手牌：14 张形（刚摸牌）时去掉本次摸到的牌（摸切口径）。
     /// 不是 14 / 13 张形时原样返回。
     /// </summary>

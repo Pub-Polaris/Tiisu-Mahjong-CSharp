@@ -291,13 +291,15 @@ public sealed class TableScreen : Screen
         _actionBar.DrawTenpai(c, vm, _layout);
         _actionBar.Draw(c, time);
 
-        // 【错和可能】：牌形听牌但所有待牌赋数不足 → 报和必错和，提醒玩家。
-        if (vm.CallWouldMisfire)
+        // 和牌不可用 / 错和风险：不能静默。
+        if (!string.IsNullOrEmpty(vm.WinHint) || vm.CallWouldMisfire)
         {
+            string text = !string.IsNullOrEmpty(vm.WinHint)
+                ? vm.WinHint
+                : "【错和可能】待牌赋数不足，报和会被判错和";
             var bar = _layout.ActionBarRect;
-            var hint = new RectF(bar.CenterX - 190, bar.Y - 30, 380, 24);
-            c.DrawText("【错和可能】待牌赋数不足，报和会被判错和",
-                hint, Color.Rgb(255, 176, 64), new TextStyle(16, Bold: true, Center: true));
+            var hint = new RectF(bar.CenterX - 260, bar.Y - 30, 520, 24);
+            c.DrawText(text, hint, Color.Rgb(255, 176, 64), new TextStyle(16, Bold: true, Center: true));
         }
 
         PlayCues(vm);
@@ -787,6 +789,14 @@ public sealed class TableScreen : Screen
         {
             case Keys.H:
                 if ((vm.Actions & HumanAction.Tsumo) != 0)
+                {
+                    _commands(GameCommand.Tsumo());
+                    return true;
+                }
+
+                // 按钮不可用时也把命令发给运行时：由它给出「不能和 / 赋不足 / 禁和」的原因，
+                // 不能按了没反应。
+                if (vm.Phase == "human_discard")
                 {
                     _commands(GameCommand.Tsumo());
                     return true;

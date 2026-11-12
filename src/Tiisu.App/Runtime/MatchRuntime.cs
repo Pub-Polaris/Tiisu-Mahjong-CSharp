@@ -116,6 +116,8 @@ public sealed class MatchRuntime
 
     /// <summary>判役器唯一构造点，避免两处写法漂移（审计 P3-4）。</summary>
     private WinChecker CreateChecker() => new(SharedYaku, _settings.OptionalYaku, CurrentRuleset);
+    private readonly RoundConfirmationGate _roundGate = new();
+
     private MatchPhase _phase = MatchPhase.Idle;
     private RoundResult? _lastOutcome;
 
@@ -453,6 +455,26 @@ public sealed class MatchRuntime
             return;
         }
 
+        // 局末确认闸门：AI 在 FinishRound 已自动确认；人类按键才确认。
+        // 未全部确认前不推进、不摸下一局的牌。
+        if (AutoPilot || AllSeatsAi)
+        {
+            _roundGate.ConfirmAll();
+        }
+        else if (HumanIndex >= 0)
+        {
+            _roundGate.Confirm(HumanIndex);
+        }
+
+        if (!_roundGate.AllConfirmed)
+        {
+            _phase = MatchPhase.RoundEnded;
+            _message = "等待其他玩家确认";
+            EmitState();
+            return;
+        }
+
+        _roundGate.Reset();
         _pendingRon = null;
         _pendingMeld = null;
         _pendingChiList.Clear();
@@ -2264,6 +2286,16 @@ public sealed class MatchRuntime
         }
         else
         {
+            // AI 默认确认；人类等按键。确认前不预生成下一局任何数据。
+            _roundGate.Reset();
+            for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+            {
+                if (!_engine.Players[i].IsHuman)
+                {
+                    _roundGate.Confirm(i);
+                }
+            }
+
             _phase = MatchPhase.RoundEnded;
         }
 
@@ -2535,6 +2567,7 @@ public sealed class MatchRuntime
 
     private void StartNewRoundInternal()
     {
+        _roundGate.Reset();
         _pendingRon = null;
         _pendingMeld = null;
         _pendingChiList.Clear();

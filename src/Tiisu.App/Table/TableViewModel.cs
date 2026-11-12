@@ -174,6 +174,12 @@ public sealed class TableViewModel
     /// <summary>自己本局 / 本巡禁和（错和罚）。</summary>
     public bool WinBanned { get; init; }
 
+    /// <summary>
+    /// 和牌不可用时的可见提示（牌形成和但赋不足 / 无役 / 禁和）。
+    /// 空字符串 = 不需要提示；UI 与 CallWouldMisfire 二选一展示。
+    /// </summary>
+    public string WinHint { get; init; } = string.Empty;
+
     /// <summary>本巡刚摸进来的那张牌（摸切 / 长考超时自动切走用）；没有则为 null。</summary>
     public string? DrawnTileId { get; init; }
 
