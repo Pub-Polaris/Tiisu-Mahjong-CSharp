@@ -3523,7 +3523,7 @@ internal static class DevCommands
             {
                 Directory.CreateDirectory(Settings.DefaultDirectory);
                 File.WriteAllText(realPath, "{ \"version\": 1, \"regions\": ]", new System.Text.UTF8Encoding(false));
-                var screen = new TableScreen((Func<TableViewModel>)(() => TableDemoModel.Create(1)), null, null, null);
+                var screen = new TableScreen((Func<TableViewModel>)(() => TableDemoModel.Create(1)), null, null, (TileAtlas?)null);
                 startupOk = Math.Abs(screen.CanvasWidth - 1200f) < 0.01f
                             && Math.Abs(screen.CanvasHeight - 1200f) < 0.01f;
             }

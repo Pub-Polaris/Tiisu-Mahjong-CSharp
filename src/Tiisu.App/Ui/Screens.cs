@@ -26,6 +26,7 @@ public sealed class TableScreen : Screen
     private readonly Func<TableViewModel> _snapshot;
     private readonly Action<GameCommand>? _commands;
     private readonly Action? _backToMenu;
+    private readonly Action? _openSettings;
     /// <summary>结算覆盖层：左侧直接画和牌者手牌，右侧只给结果；多人和牌可翻页。</summary>
     private RoundResult? _settlement;
     private bool _settlementHidden;
@@ -56,32 +57,48 @@ public sealed class TableScreen : Screen
 
     /// <summary>演示快照（<c>--render-table</c> / <c>--render-screen table</c> 用）。</summary>
     public TableScreen(TileAtlas? atlas)
-        : this(() => TableDemoModel.Create(1), null, null, atlas)
+        : this(() => TableDemoModel.Create(1), null, null, null, atlas)
     {
     }
 
     /// <summary>演示快照 + 指定观感（<c>--render-25d</c> 用）。</summary>
     public TableScreen(TileAtlas? atlas, TableRenderStyle renderStyle)
-        : this(() => TableDemoModel.Create(1), null, null, atlas, renderStyle)
+        : this(() => TableDemoModel.Create(1), null, null, null, atlas, renderStyle)
     {
     }
 
     /// <summary>正式牌桌：只读会话快照 + 投递命令。</summary>
     public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu = null,
-        TableRenderStyle renderStyle = TableRenderStyle.Flat, Settings? settings = null)
-        : this(() => session.LatestSnapshot, session.Post, backToMenu, atlas, renderStyle, settings)
+        Action? openSettings = null, TableRenderStyle renderStyle = TableRenderStyle.Flat, Settings? settings = null)
+        : this(() => session.LatestSnapshot, session.Post, backToMenu, null, atlas, renderStyle, settings)
     {
         session.UiEvent += OnSessionEvent;
     }
 
+    /// <summary>兼容旧调用：不带设置页回调。</summary>
+    public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu,
+        TableRenderStyle renderStyle, Settings? settings = null)
+        : this(session, atlas, backToMenu, null, renderStyle, settings)
+    {
+    }
+
+    /// <summary>兼容旧调用：不带设置页回调。</summary>
+    public TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands, Action? backToMenu,
+        TileAtlas? atlas, TableRenderStyle renderStyle = TableRenderStyle.Flat, Settings? settings = null)
+        : this(snapshot, commands, backToMenu, null, atlas, renderStyle, settings)
+    {
+    }
+
     /// <summary>自检 / 预览用：直接给快照与命令通道（不订阅会话事件）。</summary>
     public TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands, Action? backToMenu = null,
-        TileAtlas? atlas = null, TableRenderStyle renderStyle = TableRenderStyle.Flat, Settings? settings = null)
+        Action? openSettings = null, TileAtlas? atlas = null, TableRenderStyle renderStyle = TableRenderStyle.Flat,
+        Settings? settings = null)
         : base("table")
     {
         _snapshot = snapshot;
         _commands = commands;
         _backToMenu = backToMenu;
+        _openSettings = openSettings;
         _thinkSeconds = Math.Max(0, settings?.ThinkSeconds ?? 0);
         _showWallButton = settings?.ShowWallViewer ?? false;
         _ruleset = settings?.Ruleset ?? Ruleset.Qizi;
@@ -370,7 +387,7 @@ public sealed class TableScreen : Screen
 
         if (vm.Phase == "round_end")
         {
-            return "本局结束 · Enter 下一局 · Esc 回菜单";
+            return "本局结束 · 点「下一局」继续 · Esc 设置";
         }
 
         var parts = new List<string>();
@@ -896,27 +913,25 @@ public sealed class TableScreen : Screen
     }
 
     /// <summary>
-    /// ESC = 返回，不是退出程序：
-    /// 结算弹窗先关掉看一眼牌桌；副露/荣和窗口先「过」；其余情况回菜单。
+    /// ESC = 打开设置页，不退出对局、也不回菜单。
+    /// 没有设置回调的演示/预览环境退回原来的返回逻辑。
     /// </summary>
     private bool HandleEscape()
     {
+        if (_openSettings is not null)
+        {
+            _openSettings();
+            return true;
+        }
+
         var vm = _snapshot();
         bool settled = (vm.Phase is "round_end" or "match_over") && _settlement is not null;
-
         if (settled && !_settlementHidden)
         {
             _settlementHidden = true;
             return true;
         }
 
-        if (!settled && _commands is not null && (vm.Actions & HumanAction.Pass) != 0)
-        {
-            _commands(GameCommand.Pass());
-            return true;
-        }
-
-        // 回菜单；再次进入牌桌时结算面板仍应可见。
         _settlementHidden = false;
         _backToMenu?.Invoke();
         return true;

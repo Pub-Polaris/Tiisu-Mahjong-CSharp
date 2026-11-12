@@ -65,6 +65,8 @@ public sealed class SettlementOverlay
 
     /// <summary>「下一家 ▶」按钮的屏幕矩形（每次绘制时算，命中测试与绘制共用）。</summary>
     private RectF _nextButton;
+    private RectF _nextRoundButton;
+    private bool _nextRoundHover;
 
     private bool _nextHover;
 
@@ -119,6 +121,15 @@ public sealed class SettlementOverlay
     }
 
     /// <summary>点击「下一个」按钮 → 切到下一页。</summary>
+    /// <summary>鼠标命中「下一局」按钮。</summary>
+    public bool HitNextRound(float x, float y) => _nextRoundButton.W > 0f && _nextRoundButton.Contains(x, y);
+
+    public bool SetNextRoundPointer(float x, float y)
+    {
+        _nextRoundHover = HitNextRound(x, y);
+        return _nextRoundHover;
+    }
+
     public bool HitNextButton(float x, float y, RoundResult result) =>
         PageCount(result) > 1 && _nextButton.W > 0f && _nextButton.Contains(x, y);
 
@@ -298,13 +309,25 @@ public sealed class SettlementOverlay
     }
 
     /// <summary>结算屏底部提示：翻页 / 下一局 / 回菜单。</summary>
-    private static void DrawFooter(ICanvas c, int winnerCount, bool matchOver, RectF panel)
+    private void DrawFooter(ICanvas c, int winnerCount, bool matchOver, RectF panel)
     {
         string footer = matchOver
-            ? "R / Enter 回菜单"
+            ? "Esc 进入设置"
             : winnerCount > 1
-                ? "← / → 切换和牌者 · Enter 下一局 · Esc 回菜单"
-                : "Enter 下一局 · Esc 回菜单";
+                ? "← / → 或点「下一个」切换和牌者 · 点「下一局」继续 · Esc 设置"
+                : "点「下一局」继续 · Esc 设置";
+
+        // 鼠标「下一局」按钮：不依赖键盘。
+        _nextRoundButton = default;
+        if (!matchOver)
+        {
+            var button = new RectF(panel.CenterX - 90f, panel.Bottom - 102f, 180f, 40f);
+            _nextRoundButton = button;
+            c.FillRoundRect(button, 10f, _nextRoundHover ? Color.Rgb(60, 82, 68) : Color.Rgb(42, 58, 48));
+            c.StrokeRoundRect(button, 10f, _nextRoundHover ? GoldBright : Gold, 1.5f);
+            c.DrawText("下一局", button, _nextRoundHover ? GoldBright : Gold,
+                new TextStyle(17, Bold: true, Center: true));
+        }
 
         c.DrawText(footer, new RectF(panel.X + 32f, panel.Bottom - 52f, panel.W - 64f, 28), Muted,
             new TextStyle(15, Center: true));

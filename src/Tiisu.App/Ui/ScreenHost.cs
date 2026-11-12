@@ -29,6 +29,7 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly TableScreen _table;
     private readonly MenuScreen _menu;
     private readonly SettingsScreen _settingsScreen;
+    private Screen? _settingsReturn;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly System.Windows.Forms.Timer _frameTimer;
     private readonly Action _close;
@@ -60,8 +61,17 @@ internal sealed class ScreenHostCore : IDisposable
         _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _menu = new MenuScreen(menuLayout, OnMenuAction, OpenUrl);
-        _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () => SwitchTo(_menu));
-        _table = new TableScreen(_session, atlas, () => SwitchTo(_menu), _settings.TableRender, _settings);
+        _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () =>
+        {
+            var back = _settingsReturn ?? _menu;
+            _settingsReturn = null;
+            SwitchTo(back);
+        });
+        _table = new TableScreen(_session, atlas, () => SwitchTo(_menu), () =>
+        {
+            _settingsReturn = _table;
+            SwitchTo(_settingsScreen);
+        }, _settings.TableRender, _settings);
 
         _current = _menu;
 
