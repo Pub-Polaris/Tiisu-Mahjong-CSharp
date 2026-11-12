@@ -117,7 +117,7 @@ public enum HumanAction
 }
 
 /// <summary>一屏牌桌所需的全部数据（渲染层不碰引擎）。</summary>
-public sealed class TableViewModel
+public sealed record TableViewModel
 {
     public string RoundLabel { get; init; } = "东1局";
     public int WallCount { get; init; }
@@ -194,6 +194,9 @@ public sealed class TableViewModel
 
     /// <summary>调试：四家 AI 档位（Simple / Normal / Hard / Shura，按座位 0..3）。</summary>
     public IReadOnlyList<string> AiLevels { get; init; } = Array.Empty<string>();
+
+    /// <summary>快照版本号：每帧 +1；UI 命令带上它，防止按到上一帧的画面。</summary>
+    public long Revision { get; init; }
 
     /// <summary>运行阶段：idle / human_discard / human_ron / human_meld / round_end / match_over。</summary>
     public string Phase { get; init; } = "idle";

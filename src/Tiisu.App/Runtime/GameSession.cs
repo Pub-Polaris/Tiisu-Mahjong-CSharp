@@ -93,6 +93,14 @@ public sealed class GameSession : IDisposable
             return;
         }
 
+        // 互动命令带上 UI 当前看到的快照版本；引擎收到时版本对不上就拒绝，避免按到旧画面。
+        if (command.SnapshotRevision == 0
+            && command.Kind is not (GameCommandKind.StartMatch or GameCommandKind.ResetAll
+                or GameCommandKind.ApplySettings or GameCommandKind.Resume))
+        {
+            command = command with { SnapshotRevision = LatestSnapshot.Revision };
+        }
+
         try
         {
             _queue.Add(command);

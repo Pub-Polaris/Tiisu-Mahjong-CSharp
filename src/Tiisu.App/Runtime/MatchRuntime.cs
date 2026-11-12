@@ -119,6 +119,7 @@ public sealed class MatchRuntime
     private readonly RoundConfirmationGate _roundGate = new();
 
     private MatchPhase _phase = MatchPhase.Idle;
+    private long _snapshotRevision;
     private RoundResult? _lastOutcome;
 
     /// <summary>结算自检发现的问题数（虚拟对局回归用；正常应为 0）。</summary>
@@ -271,6 +272,16 @@ public sealed class MatchRuntime
 
         try
         {
+            if (command.SnapshotRevision != 0
+                && command.SnapshotRevision != _snapshot.Revision
+                && command.Kind is not (GameCommandKind.StartMatch or GameCommandKind.ResetAll
+                    or GameCommandKind.ApplySettings or GameCommandKind.Resume))
+            {
+                Notify("画面还没跟上（快照版本不一致），刚才的操作已忽略，请再按一次", true);
+                EmitState();
+                return;
+            }
+
             switch (command.Kind)
             {
                 case GameCommandKind.StartMatch:
@@ -2510,7 +2521,10 @@ public sealed class MatchRuntime
             ActionLabels(),
             _message,
             _settings,
-            AiLevelWires());
+            AiLevelWires()) with
+        {
+            Revision = ++_snapshotRevision,
+        };
 
         _saveStore?.Save(CaptureSave(!_engine.MatchOver));
         Emit(new StateChangedEvent(_snapshot));

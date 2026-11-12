@@ -33,7 +33,8 @@ public sealed record GameCommand(
     int Mode = 0,
     string? Text = null,
     Settings? Settings = null,
-    SaveState? Save = null)
+    SaveState? Save = null,
+    long SnapshotRevision = 0)
 {
     public static GameCommand StartMatch(int mode) => new(GameCommandKind.StartMatch, Mode: mode);
 
