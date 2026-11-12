@@ -101,7 +101,7 @@ internal static class DevCommands
             if (passive)
             {
                 // 被动的“人类”：能和也不和、有荣和窗口就过，用来覆盖提示与听牌分叉。
-                while (runtime.Phase != MatchPhase.MatchOver && ++guard < 200_000)
+                while (runtime.Phase != MatchPhase.MatchOver && ++guard < 20_000)
                 {
                     switch (runtime.Phase)
                     {
@@ -142,8 +142,7 @@ internal static class DevCommands
                         }
 
                         default:
-                            guard = 200_000;
-                            break;
+                            throw new InvalidOperationException("passive 驱动遇到未知阶段: " + runtime.Phase);
                     }
                 }
             }
