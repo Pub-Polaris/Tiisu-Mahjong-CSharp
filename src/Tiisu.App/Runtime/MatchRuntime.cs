@@ -61,11 +61,6 @@ internal sealed record PendingRon(Tile Tile, WinResult? Result, int Discarder, i
 {
     public bool IsMisfire => Result is null;
 
-    /// <summary>
-    /// 待在手里的那张荣和牌是否已经临时加进手牌（真荣和 true；报听错和窗口 false）。
-    /// 过牌时只能移除「确实在手里」的那张，否则会把玩家手牌删成小相公。
-    /// </summary>
-    public bool TrialInHand { get; init; }
 }
 
 internal sealed record PendingMeld(Tile Tile, int Discarder);
@@ -907,7 +902,7 @@ public sealed class MatchRuntime
             var result = TryRon(human, discarded);
             if (result is not null)
             {
-                _pendingRon = new PendingRon(discarded, result, discPlayer) { TrialInHand = true };
+                _pendingRon = new PendingRon(discarded, result, discPlayer);
                 _pendingChiList.Clear();
                 _phase = MatchPhase.HumanRon;
                 _message = "荣和机会：别人打出 " + Display(discarded) + " · " + (result.TotalFu ?? 0) + "赋可和";
@@ -1400,6 +1395,10 @@ public sealed class MatchRuntime
             return true;
         }
 
+        var humanPlayer = _engine.Players[human];
+        humanPlayer.Hand.Add(pending.Tile);
+        humanPlayer.Hand.Sort();
+
         var winners = new List<RonWinner>
         {
             new(human, EngineSettlement.From(ronResult)),
@@ -1436,18 +1435,7 @@ public sealed class MatchRuntime
         _phase = MatchPhase.Idle;
         _message = null;
 
-        // 只有「真荣和」窗口才把待荣和的牌临时放进过手牌；报听错和窗口没有放，
-        // 这时不能移除任何牌，否则玩家的手牌会少一张（小相公）。
-        var player = _engine.Players[human];
-        if (pending.TrialInHand)
-        {
-            int pos = player.Hand.FindIndex(t => t == pending.Tile);
-            if (pos >= 0)
-            {
-                player.Hand.RemoveAt(pos);
-            }
-        }
-
+        // 荣和试探不再改动玩家手牌（铳张留在牌河），过牌时无事可回滚。
         var candidates = CheckRonForAi(pending.Tile, pending.Discarder);
         if (candidates.Count > 0)
         {
@@ -1855,8 +1843,11 @@ public sealed class MatchRuntime
         return true;
     }
 
-    /// <summary>人类荣和试探（<c>tryRon</c>）：成功时荣和张留在手里。</summary>
-    private WinResult? TryRon(int playerIndex, Tile tile)
+    /// <summary>
+    /// 人类荣和试探（tryRon）：只在临时副本上加铳张判和，铳张留在牌河、不动玩家手牌。
+    /// 这样过牌后手牌张数与听牌状态都不会被改坏。
+    /// </summary>
+    internal WinResult? TryRon(int playerIndex, Tile tile)
     {
         var player = _engine.Players[playerIndex];
         int meldTiles = 0;
@@ -1875,11 +1866,11 @@ public sealed class MatchRuntime
             return null;
         }
 
-        player.Hand.Add(tile);
-        player.Hand.Sort();
+        var trialHand = new List<Tile>(player.Hand) { tile };
+        trialHand.Sort();
 
         var result = _checker.CheckWin(
-            player.Hand,
+            trialHand,
             selfDraw: false,
             hasCalled: player.Melds.Count > 0 || player.MinkanCount > 0,
             ankanCount: player.AnkanCount,
@@ -1887,25 +1878,14 @@ public sealed class MatchRuntime
             melds: ToCoreMelds(player.Melds),
             firstTurn: player.FirstTurn,
             winTile: tile,
-            context: BuildWinContext(playerIndex, player.Hand, selfDraw: false, tile));
+            context: BuildWinContext(playerIndex, trialHand, selfDraw: false, tile));
 
-        if (!result.Success)
-        {
-            int pos = player.Hand.FindIndex(t => t == tile);
-            if (pos >= 0)
-            {
-                player.Hand.RemoveAt(pos);
-            }
-
-            return null;
-        }
-
-        return result;
+        return result.Success ? result : null;
     }
 
     /// <summary>
-    /// 报听荣和错和候选：手牌加上这张牌后成和形、但赋数不足起和线时返回该手赋数；否则返回 0。
-    /// 判定用的牌临时加进手牌再移走，不改对局状态。
+    /// 报听荣和错和候选：手牌加铳张（临时副本）成和形、但赋数不足起和线时返回该手赋数；否则返回 0。
+    /// 不改对局状态和玩家手牌。
     /// </summary>
     internal int RonMisfireFu(int playerIndex, Tile tile)
     {
@@ -1920,11 +1900,11 @@ public sealed class MatchRuntime
             return 0;
         }
 
-        player.Hand.Add(tile);
-        player.Hand.Sort();
+        var trialHand = new List<Tile>(player.Hand) { tile };
+        trialHand.Sort();
 
         var result = _checker.CheckWin(
-            player.Hand,
+            trialHand,
             selfDraw: false,
             hasCalled: player.Melds.Count > 0 || player.MinkanCount > 0,
             ankanCount: player.AnkanCount,
@@ -1932,13 +1912,7 @@ public sealed class MatchRuntime
             melds: ToCoreMelds(player.Melds),
             firstTurn: player.FirstTurn,
             winTile: tile,
-            context: BuildWinContext(playerIndex, player.Hand, selfDraw: false, tile));
-
-        int position = player.Hand.FindIndex(t => t == tile);
-        if (position >= 0)
-        {
-            player.Hand.RemoveAt(position);
-        }
+            context: BuildWinContext(playerIndex, trialHand, selfDraw: false, tile));
 
         if (result.Success || result.Reason != "no_yaku")
         {
