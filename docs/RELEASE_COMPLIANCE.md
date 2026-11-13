@@ -14,7 +14,7 @@
 | A5 | 字体 OFL 保留字体名 | ✅ | 子集重命名为 `Tiisu Rounded SC`，版权与 OFL 声明保留 |
 | A6 | BGM CC BY 4.0 署名 | ✅ | 菜单底部署名 + 许可页 Parisian 条目 |
 | A7 | 报牌语音不再分发 | ✅ | `Assets/voices` 已删除；本机 SAPI 生成到 `%LOCALAPPDATA%\TiisuMahjong\voices` |
-| A8 | 开发/测试依赖不随包 | ⚠️ | xUnit/vstest/coverlet 不应进 publish；需在发布产物里复核 |
+| A8 | 开发/测试依赖不随包 | ✅ | publish 已复核：无 xunit/testhost/coverlet/TestPlatform |
 | A9 | MIT 版权行完整 | ✅ | `MIT.txt` 已补 NAudio/OpenTK/HarfBuzzSharp/YogaSharp 等版权行；GLFW 单独 Zlib 文本 |
 
 ## B. 素材与来源
@@ -45,11 +45,11 @@
 | # | 项 | 状态 | 证据 / 下一步 |
 |---|---|---|---|
 | D1 | 发布包不含语音 | ✅ | publish 已确认无 `Assets/voices` |
-| D2 | 发布包含许可证全文 | ✅ | publish 已确认 `Assets/licenses/*` |
+| D2 | 发布包含许可证全文 | ✅ | publish 已确认 `Assets/licenses/*`（含数据集/牌面许可） |
 | D3 | 安装包/规则库校验和 | ⚠️ | Release 说明已有 SHA256；每次发版需更新 |
 | D4 | 音频哈希清单 | ✅ | `ASSET-HASHES.md` |
 | D5 | 安装包未签名 / SmartScreen | ⚠️ | 非合规硬伤，但影响信任；可考虑代码签名 |
-| D6 | 自动更新完整性 | ⚠️ | 更新器应有哈希/签名校验，需复核 |
+| D6 | 自动更新完整性 | ✅ | `Tiisu.Updater --sha256 <hex>` 支持应用前校验 zip 哈希；签名仍未做 |
 
 ## E. 平台与地区
 

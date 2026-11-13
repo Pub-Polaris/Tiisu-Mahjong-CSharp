@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Tiisu.Updater;
@@ -26,6 +27,7 @@ internal static class Program
     {
         string? source = null;
         string? installDir = null;
+          string? expectedSha256 = null;
         bool restart = false;
 
         for (int i = 0; i < args.Length; i++)
@@ -38,12 +40,16 @@ internal static class Program
                 case "--install":
                     installDir = i + 1 < args.Length ? args[++i] : null;
                     break;
+                case "--sha256":
+                    expectedSha256 = i + 1 < args.Length ? args[++i] : null;
+                    break;
+
                 case "--restart":
                     restart = true;
                     break;
                 case "-h":
                 case "--help":
-                    Console.WriteLine("Tiisu.Updater --apply <目录或 zip> [--install <安装目录>] [--restart]");
+                    Console.WriteLine("Tiisu.Updater --apply <目录或 zip> [--install <安装目录>] [--sha256 <hex>] [--restart]");
                     return 0;
             }
         }
@@ -65,6 +71,28 @@ internal static class Program
         {
             Console.Error.WriteLine("安装目录不存在: " + installDir);
             return 2;
+        }
+
+        if (!string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            if (!File.Exists(source))
+            {
+                Console.Error.WriteLine("--sha256 只支持文件（zip）");
+                return 2;
+            }
+
+            string actual;
+            using (var sha = SHA256.Create())
+            using (var stream = File.OpenRead(source))
+            {
+                actual = Convert.ToHexString(sha.ComputeHash(stream));
+            }
+
+            if (!string.Equals(actual, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                Console.Error.WriteLine("SHA256 不匹配：期望 " + expectedSha256 + "，实际 " + actual);
+                return 3;
+            }
         }
 
         string? backup = null;
