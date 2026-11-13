@@ -1073,9 +1073,8 @@ internal static class DevCommands
     {
         Directory.CreateDirectory(outDir);
         const int scale = 2;
-        const int logicalCellW = 240;
-        const int logicalCellH = 110;
-        const int cols = 6;
+        const int pad = 16;
+        const int maxWidth = 2048;
 
         var items = new List<(string Id, string Group, int LogicalW, int LogicalH, Action<SkiaCanvas, float, float> Draw)>();
 
@@ -1151,41 +1150,58 @@ internal static class DevCommands
         items.Add(("badge.honba", "badge", 120, 40, (c, x, y) =>
             Badge(c, x, y, 120, "本场 3", Color.Rgb(30, 42, 36), Color.Rgb(160, 132, 72), Color.Rgb(232, 218, 176))));
 
-        int rows = (items.Count + cols - 1) / cols;
-        int imageW = cols * logicalCellW * scale;
-        int imageH = rows * logicalCellH * scale;
+        // 大到小：先按面积，再按长边；从左到右、从上到下排。
+        var ordered = items
+            .OrderByDescending(i => (long)i.LogicalW * i.LogicalH)
+            .ThenByDescending(i => Math.Max(i.LogicalW, i.LogicalH))
+            .ToList();
+
+        var placed = new List<(string Id, string Group, int X, int Y, int W, int H, int LogicalW, int LogicalH, Action<SkiaCanvas, float, float> Draw)>(ordered.Count);
+        int cursorX = pad;
+        int cursorY = pad;
+        int rowHeight = 0;
+        int usedWidth = 0;
+        foreach (var item in ordered)
+        {
+            int w = item.LogicalW * scale;
+            int h = item.LogicalH * scale;
+            if (cursorX + w + pad > maxWidth && cursorX > pad)
+            {
+                cursorX = pad;
+                cursorY += rowHeight + pad;
+                rowHeight = 0;
+            }
+
+            placed.Add((item.Id, item.Group, cursorX, cursorY, w, h, item.LogicalW, item.LogicalH, item.Draw));
+            usedWidth = Math.Max(usedWidth, cursorX + w + pad);
+            cursorX += w + pad;
+            rowHeight = Math.Max(rowHeight, h);
+        }
+
+        int imageW = Math.Max(usedWidth, maxWidth);
+        int imageH = cursorY + rowHeight + pad;
         using var surface = SKSurface.Create(new SKImageInfo(imageW, imageH, SKColorType.Rgba8888, SKAlphaType.Premul));
         var raw = surface.Canvas;
         raw.Clear(new SKColor(0, 0, 0, 0));
 
-        var manifest = new List<object>(items.Count);
-        for (int i = 0; i < items.Count; i++)
+        var manifest = new List<object>(placed.Count);
+        foreach (var item in placed)
         {
-            var item = items[i];
-            int col = i % cols;
-            int row = i / cols;
-            float cellX = col * logicalCellW;
-            float cellY = row * logicalCellH;
-            float drawX = cellX + (logicalCellW - item.LogicalW) / 2f;
-            float drawY = cellY + (logicalCellH - item.LogicalH) / 2f;
-
             raw.Save();
-            raw.Translate(cellX * scale, cellY * scale);
+            raw.Translate(item.X, item.Y);
             raw.Scale(scale);
             var canvas = new SkiaCanvas(raw);
-            item.Draw(canvas, drawX - cellX, drawY - cellY);
+            item.Draw(canvas, 0f, 0f);
             raw.Restore();
 
-            int px = (int)MathF.Round((drawX) * scale);
-            int py = (int)MathF.Round((drawY) * scale);
             manifest.Add(new
             {
                 id = item.Id,
                 group = item.Group,
-                x = px,
-                y = py,
-                w = item.LogicalW * scale,
-                h = item.LogicalH * scale,
+                x = item.X,
+                y = item.Y,
+                w = item.W,
+                h = item.H,
                 logicalW = item.LogicalW,
                 logicalH = item.LogicalH,
             });
@@ -1204,15 +1220,12 @@ internal static class DevCommands
         {
             image = "ui-atlas.png",
             scale,
-            cellLogicalW = logicalCellW,
-            cellLogicalH = logicalCellH,
-            cols,
-            rows,
+            padding = pad,
             cells = manifest,
         }, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(jsonPath, json, new System.Text.UTF8Encoding(false));
 
-        Console.WriteLine($"ui atlas: {items.Count} cells → {imagePath} ({imageW}x{imageH}) + {jsonPath}");
+        Console.WriteLine($"ui atlas: {placed.Count} cells → {imagePath} ({imageW}x{imageH}, pad={pad}) + {jsonPath}");
         return 0;
     }
 
