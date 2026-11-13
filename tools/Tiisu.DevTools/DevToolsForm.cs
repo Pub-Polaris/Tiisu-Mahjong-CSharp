@@ -605,7 +605,7 @@ internal sealed class DevToolsForm : Form
             return executable;
         }
 
-        string message = $"找不到 {name}。\n\n先构建：{buildCommand}\n或用环境变量 TIISU_ROOT 指定仓库根目录。";
+        string message = $"找不到 {name}。\n\n先构建：{buildCommand}\n或在 config.toml 的 [dev] root 指定仓库根目录。";
         AppendLog("  ! " + message.Replace("\n\n", " ", StringComparison.Ordinal));
         SetStatus("找不到 " + name + "：先 " + buildCommand, string.Empty);
         MessageBox.Show(this, message, "找不到命令", MessageBoxButtons.OK, MessageBoxIcon.Warning);

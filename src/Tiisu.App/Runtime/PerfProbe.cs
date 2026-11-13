@@ -5,12 +5,13 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Tiisu.Core;
 
 namespace Tiisu.App.Runtime;
 
 /// <summary>
 /// 实际游戏进程内的轻量埋点（默认关闭）：
-/// 用环境变量 <c>TIISU_PERF=1</c> 或 <c>%TEMP%\tiisu-perf-on</c> 标记文件启用。
+/// 由 <c>%APPDATA%\TiisuMahjong\config.toml</c> 的 <c>[perf] enabled</c> 开启。
 /// 开启后只记录几个固定块，未开启时所有调用都是 no-op。
 /// </summary>
 public static class PerfProbe
@@ -116,12 +117,7 @@ public static class PerfProbe
     {
         try
         {
-            if (string.Equals(Environment.GetEnvironmentVariable("TIISU_PERF"), "1", StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            return File.Exists(Path.Combine(Path.GetTempPath(), "tiisu-perf-on"));
+            return TiisuConfig.Current.PerfEnabled;
         }
         catch
         {

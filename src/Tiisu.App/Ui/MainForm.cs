@@ -10,7 +10,7 @@ public sealed class MainForm : Form
 {
     private readonly TileAtlas _atlas;
     private readonly Control _host;
-    private readonly bool _logKeys = Environment.GetEnvironmentVariable("TIISU_LOG_KEYS") == "1";
+    private readonly bool _logKeys = Tiisu.Core.TiisuConfig.Current.LogKeys;
 
     public MainForm(TileAtlas atlas, bool forceCpuRender = false)
     {

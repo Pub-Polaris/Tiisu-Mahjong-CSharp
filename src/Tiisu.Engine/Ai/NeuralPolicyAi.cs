@@ -203,7 +203,7 @@ public static class NeuralPolicyAi
 
     private static IEnumerable<string> CandidatePaths()
     {
-        string? env = Environment.GetEnvironmentVariable("TIISU_POLICY_WEIGHTS");
+        string? env = Tiisu.Core.TiisuConfig.Current.PolicyWeights;
         if (!string.IsNullOrEmpty(env))
         {
             yield return env!;

@@ -5,7 +5,7 @@ namespace Tiisu.DevTools;
 /// <summary>
 /// 仓库根与外部工具（<c>Tiisu.Mahjong.exe</c> / <c>Tiisu.AudioGen.exe</c>）的位置。
 ///
-/// 仓库根：<c>TIISU_ROOT</c> 环境变量 → 从本程序目录 / 当前目录逐级向上找
+/// 仓库根：config.toml 的 <c>[dev] root</c> → 从本程序目录 / 当前目录逐级向上找
 /// 「含 <c>src/Tiisu.App</c> 与 <c>Tiisu.slnx</c>」的目录。
 ///
 /// 可执行文件：先试已知的构建输出（Release 优先、再 Debug），都没有就在 <c>bin/</c> 下递归找最新的一个。
@@ -72,16 +72,16 @@ internal sealed class Toolchain
     {
         var notes = new List<string>();
 
-        string? root = NormalizeRoot(Environment.GetEnvironmentVariable("TIISU_ROOT"), notes);
+        string? root = NormalizeRoot(Tiisu.Core.TiisuConfig.Current.DevRoot, notes);
         if (root is not null)
         {
-            notes.Add("仓库根来自 TIISU_ROOT：" + root);
+            notes.Add("仓库根来自 config.toml [dev] root：" + root);
         }
 
         root ??= FindRoot(AppContext.BaseDirectory) ?? FindRoot(Directory.GetCurrentDirectory());
         if (root is null)
         {
-            notes.Add("未找到仓库根（向上找不到同时含 src/Tiisu.App 与 Tiisu.slnx 的目录）；可用环境变量 TIISU_ROOT 指定。");
+            notes.Add("未找到仓库根；可在 %APPDATA%\\TiisuMahjong\\config.toml 的 [dev] root 指定。");
         }
 
         string? gameExe = null;
@@ -120,7 +120,7 @@ internal sealed class Toolchain
         string path = value.Trim().Trim('"').Trim();
         if (!Directory.Exists(path))
         {
-            notes.Add("TIISU_ROOT 指向的目录不存在：" + path);
+            notes.Add("config.toml [dev] root 指向的目录不存在：" + path);
             return null;
         }
 
@@ -135,7 +135,7 @@ internal sealed class Toolchain
 
         if (!LooksLikeRoot(path))
         {
-            notes.Add("TIISU_ROOT 目录里没有 src/Tiisu.App 与 Tiisu.slnx，仍按原样使用：" + path);
+            notes.Add("config.toml [dev] root 里没有 src/Tiisu.App 与 Tiisu.slnx，仍按原样使用：" + path);
         }
 
         return path;

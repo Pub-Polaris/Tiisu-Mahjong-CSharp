@@ -2542,7 +2542,7 @@ internal static class DevCommands
                     sameState = 0;
                     lastPhase = phase;
                     lastTurn = runtime.Engine.TurnIndex;
-                    if (Environment.GetEnvironmentVariable("TIISU_PLAY_TRACE") == "1")
+                    if (Tiisu.Core.TiisuConfig.Current.PlayTrace)
                     {
                         Console.WriteLine($"    [{steps}] phase={phase} turn={runtime.Engine.TurnIndex} hand={handCount}"
                             + $" called={player?.IsCalled} wall={runtime.Engine.Wall.Count}");
