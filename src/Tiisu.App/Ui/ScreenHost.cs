@@ -31,6 +31,7 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly MenuScreen _menu;
     private readonly SettingsScreen _settingsScreen;
     private readonly RulesScreen _rules;
+    private readonly LicensesScreen _licenses;
     private Screen? _settingsReturn;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly System.Windows.Forms.Timer _frameTimer;
@@ -62,7 +63,8 @@ internal sealed class ScreenHostCore : IDisposable
         _sound.SfxVolume = _settings.SfxVolume;
         _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
-        _menu = new MenuScreen(menuLayout, OnMenuAction, OpenUrl);
+        _licenses = new LicensesScreen(() => SwitchTo(_menu));
+        _menu = new MenuScreen(menuLayout, OnMenuAction, HandleLink);
         _rules = new RulesScreen(() => SwitchTo(_menu));
         _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () =>
         {
@@ -134,6 +136,18 @@ internal sealed class ScreenHostCore : IDisposable
     }
 
     /// <summary>用系统默认浏览器打开外链（署名 / 许可证 / 仓库）；失败只静默，不影响游戏。</summary>
+    /// <summary>菜单链接：app:licenses 在游戏内打开许可页，其余交给浏览器。</summary>
+    private void HandleLink(string url)
+    {
+        if (string.Equals(url, "app:licenses", StringComparison.Ordinal))
+        {
+            SwitchTo(_licenses);
+            return;
+        }
+
+        OpenUrl(url);
+    }
+
     private static void OpenUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -170,7 +184,7 @@ internal sealed class ScreenHostCore : IDisposable
 
     private void SwitchTo(Screen next)
     {
-        bool lobby = next is MenuScreen or SettingsScreen or RulesScreen;
+        bool lobby = next is MenuScreen or SettingsScreen or RulesScreen or LicensesScreen;
         if (lobby)
         {
             _sound.PlayBgm();
