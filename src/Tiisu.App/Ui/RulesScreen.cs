@@ -49,23 +49,25 @@ public sealed class RulesScreen : Screen
         c.DrawText("七子麻将 · 和「标准日麻」不同的地方", new RectF(0, 108, Width, 26),
             Color.Rgb(159, 180, 170), new TextStyle(16, Center: true));
 
-        float y = 166;
+        float y = 136;
+        const float lineH = 32f;
         foreach (var (title, lines) in _sections)
         {
-            var box = new RectF(150, y, Width - 300, 34 + lines.Length * 34);
+            float boxH = 14f + 28f + lines.Length * lineH + 10f;
+            var box = new RectF(150, y, Width - 300, boxH);
             c.FillRoundRect(box, 14, Color.Rgb(26, 38, 34));
             c.StrokeRoundRect(box, 14, Color.Rgb(96, 122, 108), 1.2f);
-            c.DrawText(title, new RectF(box.X + 26, box.Y + 12, box.W - 52, 30),
-                Color.Rgb(242, 201, 76), new TextStyle(22, Bold: true));
-            float ly = box.Y + 48;
+            c.DrawText(title, new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
+                Color.Rgb(242, 201, 76), new TextStyle(20, Bold: true, Center: false));
+            float ly = box.Y + 42;
             foreach (string line in lines)
             {
-                c.DrawText("· " + line, new RectF(box.X + 26, ly, box.W - 52, 28),
-                    Color.Rgb(220, 228, 220), new TextStyle(17));
-                ly += 34;
+                c.DrawText("· " + line, new RectF(box.X + 26, ly, box.W - 52, lineH),
+                    Color.Rgb(220, 228, 220), new TextStyle(16, Center: false));
+                ly += lineH;
             }
 
-            y = box.Bottom + 18;
+            y = box.Bottom + 10;
         }
 
         _backButton = new RectF(Width / 2f - 90, Height - 80, 180, 44);
