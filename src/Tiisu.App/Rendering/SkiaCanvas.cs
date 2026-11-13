@@ -280,7 +280,8 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     /// <summary>字号整体放大一档：小字 +2、中字 +3、大字 +4。</summary>
     private static float BoostSize(float size) => size < 16f ? size + 2f : size < 24f ? size + 3f : size + 4f;
 
-    private const string DefaultFamily = "Microsoft YaHei";
+    private const string SystemFamily = "Microsoft YaHei";
+    private const string DefaultFamily = "WenYuan Rounded SC";
     private const string RoundedFamily = "WenYuan Rounded SC";
     private static SKTypeface? _roundedBase;
 
@@ -296,6 +297,10 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
         if (fam == RoundedFamily)
         {
             tf = LoadRounded(bold);
+            if (tf is null)
+            {
+                fam = SystemFamily;
+            }
         }
 
         tf ??= SKTypeface.FromFamilyName(fam,
