@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Tiisu.Core;
 using System.Linq;
 
 namespace Tiisu.App.Table;
@@ -197,6 +198,9 @@ public sealed record TableViewModel
 
     /// <summary>快照版本号：每帧 +1；UI 命令带上它，防止按到上一帧的画面。</summary>
     public long Revision { get; init; }
+
+    /// <summary>当前规则集（快照时从运行时设置读取，避免设置热切换后 UI 还拿旧值）。</summary>
+    public Ruleset Ruleset { get; init; } = Ruleset.Qizi;
 
     /// <summary>运行阶段：idle / human_discard / human_ron / human_meld / round_end / match_over。</summary>
     public string Phase { get; init; } = "idle";

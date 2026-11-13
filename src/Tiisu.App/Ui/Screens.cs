@@ -52,7 +52,6 @@ public sealed class TableScreen : Screen
     /// <summary>牌山查看器：按住右下角按钮时显示，松开恢复牌桌。</summary>
     private bool _wallHeld;
     private readonly bool _showWallButton;
-    private readonly Ruleset _ruleset;
 
     private RectF WallButtonRect => new(CanvasWidth - 176, CanvasHeight - 108, 156, 48);
 
@@ -104,7 +103,6 @@ public sealed class TableScreen : Screen
         _sound = sound;
         _thinkSeconds = Math.Max(0, settings?.ThinkSeconds ?? 0);
         _showWallButton = settings?.ShowWallViewer ?? false;
-        _ruleset = settings?.Ruleset ?? Ruleset.Qizi;
         _scene.Style = renderStyle;
 
         YogaTableLayout.Apply(_layout);
@@ -191,7 +189,7 @@ public sealed class TableScreen : Screen
     private void DrawDiceViewer(ICanvas c, TableViewModel vm)
     {
         // 推倒胡：右下角常驻规则提示（无役 / 无点数 / 只记胜负）。
-        if (_ruleset == Ruleset.TuidaoHu)
+        if (vm.Ruleset == Ruleset.TuidaoHu)
         {
             c.DrawText("推倒胡：无役 · 无点数 · 只记胜负",
                 new RectF(CanvasWidth - 470, CanvasHeight - 140, 450, 22),

@@ -249,6 +249,7 @@ public static class SnapshotBuilder
             DiceDealerText = diceDealerText,
             DiceCutText = diceCutText,
             AiLevels = aiLevels ?? Array.Empty<string>(),
+              Ruleset = settings?.Ruleset ?? Ruleset.Qizi,
         };
     }
 
