@@ -192,7 +192,6 @@ public sealed class MatchRuntime
         _engine.Players[0].IsDealer = true;
         _engine.UpdateSeatWinds();
         _scoresAtRoundStart = _engine.Scores.ToArray();
-        using var perfSnapshot = PerfProbe.Measure("snapshot.build");
         _snapshot = SnapshotBuilder.Build(_engine, PhaseWire, HumanAction.None, null, null, _settings, AiLevelWires());
     }
 
@@ -280,7 +279,7 @@ public sealed class MatchRuntime
 
         try
         {
-            using var perfExecute = PerfProbe.Measure("command.execute");
+            using var perfExecute = PerfProbe.Measure("command.handle");
             if (command.SnapshotRevision != 0
                 && command.SnapshotRevision != _snapshot.Revision
                 && command.Kind is not (GameCommandKind.StartMatch or GameCommandKind.ResetAll
@@ -2529,6 +2528,7 @@ public sealed class MatchRuntime
 
     private void EmitState()
     {
+        using var perfSnapshot = PerfProbe.Measure("snapshot.build");
         _snapshot = SnapshotBuilder.Build(
             _engine,
             PhaseWire,

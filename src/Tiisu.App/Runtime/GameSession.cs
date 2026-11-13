@@ -121,7 +121,7 @@ public sealed class GameSession : IDisposable
             {
                 try
                 {
-                    using (PerfProbe.Measure("command.execute"))
+                    using (PerfProbe.Measure("command.queue"))
                     {
                         _runtime.Execute(command);
                     }
