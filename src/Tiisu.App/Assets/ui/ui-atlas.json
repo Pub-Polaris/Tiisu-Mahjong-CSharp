@@ -1,0 +1,360 @@
+{
+  "image": "ui-atlas.png",
+  "scale": 2,
+  "cellLogicalW": 240,
+  "cellLogicalH": 110,
+  "cols": 6,
+  "rows": 6,
+  "cells": [
+    {
+      "id": "button.kan.normal",
+      "group": "button",
+      "x": 120,
+      "y": 66,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.kan.hover",
+      "group": "button",
+      "x": 600,
+      "y": 66,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.kan.disabled",
+      "group": "button",
+      "x": 1080,
+      "y": 66,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.win.normal",
+      "group": "button",
+      "x": 1560,
+      "y": 66,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.win.hover",
+      "group": "button",
+      "x": 2040,
+      "y": 66,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.win.disabled",
+      "group": "button",
+      "x": 2520,
+      "y": 66,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.win.normal",
+      "group": "button",
+      "x": 120,
+      "y": 286,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.win.hover",
+      "group": "button",
+      "x": 600,
+      "y": 286,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.win.disabled",
+      "group": "button",
+      "x": 1080,
+      "y": 286,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.pon.normal",
+      "group": "button",
+      "x": 1560,
+      "y": 286,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.pon.hover",
+      "group": "button",
+      "x": 2040,
+      "y": 286,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.pon.disabled",
+      "group": "button",
+      "x": 2520,
+      "y": 286,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.chi.normal",
+      "group": "button",
+      "x": 120,
+      "y": 506,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.chi.hover",
+      "group": "button",
+      "x": 600,
+      "y": 506,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.chi.disabled",
+      "group": "button",
+      "x": 1080,
+      "y": 506,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.pass.normal",
+      "group": "button",
+      "x": 1560,
+      "y": 506,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.pass.hover",
+      "group": "button",
+      "x": 2040,
+      "y": 506,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.pass.disabled",
+      "group": "button",
+      "x": 2520,
+      "y": 506,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.flow.normal",
+      "group": "button",
+      "x": 120,
+      "y": 726,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.flow.hover",
+      "group": "button",
+      "x": 600,
+      "y": 726,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.flow.disabled",
+      "group": "button",
+      "x": 1080,
+      "y": 726,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.call.normal",
+      "group": "button",
+      "x": 1560,
+      "y": 726,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.call.hover",
+      "group": "button",
+      "x": 2040,
+      "y": 726,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "button.call.disabled",
+      "group": "button",
+      "x": 2520,
+      "y": 726,
+      "w": 240,
+      "h": 88,
+      "logicalW": 120,
+      "logicalH": 44
+    },
+    {
+      "id": "panel.dark",
+      "group": "panel",
+      "x": 0,
+      "y": 880,
+      "w": 480,
+      "h": 220,
+      "logicalW": 240,
+      "logicalH": 110
+    },
+    {
+      "id": "panel.gold",
+      "group": "panel",
+      "x": 480,
+      "y": 880,
+      "w": 480,
+      "h": 220,
+      "logicalW": 240,
+      "logicalH": 110
+    },
+    {
+      "id": "panel.warning",
+      "group": "panel",
+      "x": 960,
+      "y": 880,
+      "w": 480,
+      "h": 220,
+      "logicalW": 240,
+      "logicalH": 110
+    },
+    {
+      "id": "badge.dealer",
+      "group": "badge",
+      "x": 1580,
+      "y": 950,
+      "w": 200,
+      "h": 80,
+      "logicalW": 100,
+      "logicalH": 40
+    },
+    {
+      "id": "badge.wind.\u4E1C",
+      "group": "badge",
+      "x": 2080,
+      "y": 950,
+      "w": 160,
+      "h": 80,
+      "logicalW": 80,
+      "logicalH": 40
+    },
+    {
+      "id": "badge.wind.\u5357",
+      "group": "badge",
+      "x": 2560,
+      "y": 950,
+      "w": 160,
+      "h": 80,
+      "logicalW": 80,
+      "logicalH": 40
+    },
+    {
+      "id": "badge.wind.\u897F",
+      "group": "badge",
+      "x": 160,
+      "y": 1170,
+      "w": 160,
+      "h": 80,
+      "logicalW": 80,
+      "logicalH": 40
+    },
+    {
+      "id": "badge.wind.\u5317",
+      "group": "badge",
+      "x": 640,
+      "y": 1170,
+      "w": 160,
+      "h": 80,
+      "logicalW": 80,
+      "logicalH": 40
+    },
+    {
+      "id": "badge.called",
+      "group": "badge",
+      "x": 1100,
+      "y": 1170,
+      "w": 200,
+      "h": 80,
+      "logicalW": 100,
+      "logicalH": 40
+    },
+    {
+      "id": "badge.banned",
+      "group": "badge",
+      "x": 1580,
+      "y": 1170,
+      "w": 200,
+      "h": 80,
+      "logicalW": 100,
+      "logicalH": 40
+    },
+    {
+      "id": "badge.honba",
+      "group": "badge",
+      "x": 2040,
+      "y": 1170,
+      "w": 240,
+      "h": 80,
+      "logicalW": 120,
+      "logicalH": 40
+    }
+  ]
+}

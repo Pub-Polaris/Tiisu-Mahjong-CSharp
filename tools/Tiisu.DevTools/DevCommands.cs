@@ -1065,6 +1065,157 @@ internal static class DevCommands
     /// 先斜置（-35°），再向右旋转到 +35°，输出逐帧 PNG。Skia 用 4×4 透视矩阵
     /// 做真正的纹理透视，不是把四角手动收窄。
     /// </summary>
+    /// <summary>
+    /// <c>--export-ui-atlas &lt;outdir&gt;</c>：把当前代码画的 2D 界面元素（动作按钮/面板/徽章）
+    /// 栅格化成一张 ui-atlas.png + ui-atlas.json；不改任何运行时渲染。
+    /// </summary>
+    private static int ExportUiAtlas(string outDir)
+    {
+        Directory.CreateDirectory(outDir);
+        const int scale = 2;
+        const int logicalCellW = 240;
+        const int logicalCellH = 110;
+        const int cols = 6;
+
+        var items = new List<(string Id, string Group, int LogicalW, int LogicalH, Action<SkiaCanvas, float, float> Draw)>();
+
+        // ── 动作按钮：8 种 × 3 态 ─────────────────────────────
+        var buttons = new (ActionBar.Kind Kind, string Label)[]
+        {
+            (ActionBar.Kind.Kan, "杠"),
+            (ActionBar.Kind.Tsumo, "和牌"),
+            (ActionBar.Kind.Ron, "荣和"),
+            (ActionBar.Kind.Pon, "碰"),
+            (ActionBar.Kind.Chi, "吃"),
+            (ActionBar.Kind.Pass, "过"),
+            (ActionBar.Kind.Flow, "流局"),
+            (ActionBar.Kind.DeclareCall, "报听"),
+        };
+        foreach (var (kind, label) in buttons)
+        {
+            foreach (var (state, hover, enabled) in new[] { ("normal", false, true), ("hover", true, true), ("disabled", false, false) })
+            {
+                string id = "button." + ActionBar.SemanticId(kind) + "." + state;
+                items.Add((id, "button", 120, 44, (c, x, y) =>
+                {
+                    var colors = ActionBar.ColorsFor(kind, hover, enabled);
+                    var rect = new RectF(x, y, 120, 44);
+                    c.FillRoundRect(rect, 10f, colors.Fill);
+                    c.StrokeRoundRect(rect, 10f, colors.Border, 1.5f);
+                    c.DrawText(label, rect, colors.Text, new TextStyle(17, Bold: true, Center: true));
+                }));
+            }
+        }
+
+        // ── 面板 ─────────────────────────────────────────────
+        void Panel(SkiaCanvas c, float x, float y, float w, float h, Color fill, Color border, string label)
+        {
+            var rect = new RectF(x, y, w, h);
+            c.FillRoundRect(rect, 14f, fill);
+            c.StrokeRoundRect(rect, 14f, border, 1.5f);
+            if (!string.IsNullOrEmpty(label))
+            {
+                c.DrawText(label, rect, Color.Rgb(232, 218, 176), new TextStyle(22, Bold: true, Center: true));
+            }
+        }
+
+        items.Add(("panel.dark", "panel", 240, 110, (c, x, y) =>
+            Panel(c, x, y, 240, 110, Color.Rgb(30, 42, 36), Color.Rgb(160, 132, 72), "本局结算")));
+        items.Add(("panel.gold", "panel", 240, 110, (c, x, y) =>
+            Panel(c, x, y, 240, 110, Color.Rgb(36, 52, 44), Color.Rgb(214, 178, 92), "南 3 局")));
+        items.Add(("panel.warning", "panel", 240, 110, (c, x, y) =>
+            Panel(c, x, y, 240, 110, Color.Rgb(56, 38, 28), Color.Rgb(255, 176, 64), "错和警告")));
+
+        // ── 徽章 ─────────────────────────────────────────────
+        void Badge(SkiaCanvas c, float x, float y, float w, string text, Color fill, Color border, Color textColor)
+        {
+            var rect = new RectF(x, y, w, 34);
+            c.FillRoundRect(rect, 17f, fill);
+            c.StrokeRoundRect(rect, 17f, border, 1.2f);
+            c.DrawText(text, rect, textColor, new TextStyle(16, Bold: true, Center: true));
+        }
+
+        items.Add(("badge.dealer", "badge", 100, 40, (c, x, y) =>
+            Badge(c, x, y, 100, "庄", Color.Rgb(92, 64, 20), Color.Rgb(242, 201, 76), Color.Rgb(255, 236, 176))));
+        foreach (string wind in new[] { "东", "南", "西", "北" })
+        {
+            string id = "badge.wind." + wind;
+            items.Add((id, "badge", 80, 40, (c, x, y) =>
+                Badge(c, x, y, 80, wind, Color.Rgb(30, 42, 36), Color.Rgb(160, 132, 72), Color.Rgb(232, 218, 176))));
+        }
+
+        items.Add(("badge.called", "badge", 100, 40, (c, x, y) =>
+            Badge(c, x, y, 100, "报听", Color.Rgb(18, 70, 78), Color.Rgb(34, 195, 214), Color.Rgb(196, 248, 255))));
+        items.Add(("badge.banned", "badge", 100, 40, (c, x, y) =>
+            Badge(c, x, y, 100, "禁和", Color.Rgb(74, 26, 26), Color.Rgb(255, 120, 120), Color.Rgb(255, 210, 210))));
+        items.Add(("badge.honba", "badge", 120, 40, (c, x, y) =>
+            Badge(c, x, y, 120, "本场 3", Color.Rgb(30, 42, 36), Color.Rgb(160, 132, 72), Color.Rgb(232, 218, 176))));
+
+        int rows = (items.Count + cols - 1) / cols;
+        int imageW = cols * logicalCellW * scale;
+        int imageH = rows * logicalCellH * scale;
+        using var surface = SKSurface.Create(new SKImageInfo(imageW, imageH, SKColorType.Rgba8888, SKAlphaType.Premul));
+        var raw = surface.Canvas;
+        raw.Clear(new SKColor(0, 0, 0, 0));
+
+        var manifest = new List<object>(items.Count);
+        for (int i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            int col = i % cols;
+            int row = i / cols;
+            float cellX = col * logicalCellW;
+            float cellY = row * logicalCellH;
+            float drawX = cellX + (logicalCellW - item.LogicalW) / 2f;
+            float drawY = cellY + (logicalCellH - item.LogicalH) / 2f;
+
+            raw.Save();
+            raw.Translate(cellX * scale, cellY * scale);
+            raw.Scale(scale);
+            var canvas = new SkiaCanvas(raw);
+            item.Draw(canvas, drawX - cellX, drawY - cellY);
+            raw.Restore();
+
+            int px = (int)MathF.Round((drawX) * scale);
+            int py = (int)MathF.Round((drawY) * scale);
+            manifest.Add(new
+            {
+                id = item.Id,
+                group = item.Group,
+                x = px,
+                y = py,
+                w = item.LogicalW * scale,
+                h = item.LogicalH * scale,
+                logicalW = item.LogicalW,
+                logicalH = item.LogicalH,
+            });
+        }
+
+        string imagePath = Path.Combine(outDir, "ui-atlas.png");
+        using (var image = surface.Snapshot())
+        using (var data = image.Encode(SKEncodedImageFormat.Png, 95))
+        using (var stream = File.OpenWrite(imagePath))
+        {
+            data.SaveTo(stream);
+        }
+
+        string jsonPath = Path.Combine(outDir, "ui-atlas.json");
+        string json = JsonSerializer.Serialize(new
+        {
+            image = "ui-atlas.png",
+            scale,
+            cellLogicalW = logicalCellW,
+            cellLogicalH = logicalCellH,
+            cols,
+            rows,
+            cells = manifest,
+        }, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(jsonPath, json, new System.Text.UTF8Encoding(false));
+
+        Console.WriteLine($"ui atlas: {items.Count} cells → {imagePath} ({imageW}x{imageH}) + {jsonPath}");
+        return 0;
+    }
+
     private static int RenderTileRotate(string outDir)
     {
         Directory.CreateDirectory(outDir);
@@ -3751,6 +3902,12 @@ internal static class DevCommands
         if (args.Length >= 2 && args[0] == "--render-tile-rotate")
         {
             return RenderTileRotate(args[1]);
+        }
+
+        // 2D 界面元素图集：--export-ui-atlas <outdir>
+        if (args.Length >= 2 && args[0] == "--export-ui-atlas")
+        {
+            return ExportUiAtlas(args[1]);
         }
 
         // 四家手牌明示出图：--render-hands <png> [seed] [mode]
