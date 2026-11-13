@@ -18,6 +18,10 @@ public sealed class LicensesScreen : Screen
         new("Tiisu Rounded SC（文渊圆体子集）", "v1.110", "SIL OFL 1.1",
             "界面圆体；子集化后重命名，避免 OFL 保留字体名",
             "https://github.com/takushun-wu/WenYuanFonts"),
+        new("lietxia/mahjong_graphic（牌面素材）", "3e27580", "自定义自由许可",
+            "牌面矢量素材来源；允许商用/修改/再分发，无署名要求；本项目重排为 tiles.png",
+            "https://github.com/lietxia/mahjong_graphic"),
+
         new("SkiaSharp", "4.153.1", "MIT",
             "2D 绘制、牌面渲染、文字排版",
             "https://github.com/mono/SkiaSharp"),
@@ -345,6 +349,7 @@ public sealed class LicensesScreen : Screen
         _textTitle = entry.Name + " · " + entry.License;
         string file = entry.Reference
             ? "REFERENCES.txt"
+            : entry.Name.StartsWith("lietxia/", StringComparison.Ordinal) ? "TILES-LICENSE.txt"
             : entry.License.Contains("OFL", StringComparison.Ordinal) ? "OFL-1.1.txt"
             : entry.License.Contains("Apache", StringComparison.Ordinal) ? "Apache-2.0.txt"
             : entry.License.Contains("CC BY", StringComparison.Ordinal) ? "CC-BY-4.0.txt"

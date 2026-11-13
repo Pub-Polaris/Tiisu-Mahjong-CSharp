@@ -22,8 +22,8 @@
 | # | 项 | 状态 | 证据 / 下一步 |
 |---|---|---|---|
 | B1 | 音效可复现 | ✅ | `ASSET-HASHES.md`；9 个音效由 `Tiisu.AudioGen` 逐字节重建 |
-| B2 | 牌面 `tiles.png` | ⚠️ | 需记录：自制 / 生成 / 外部素材及授权 |
-| B3 | 图标 `Tiisu.Mahjong.ico` | ⚠️ | 同上 |
+| B2 | 牌面 `tiles.png` | ✅ | 来源 `lietxia/mahjong_graphic`（自由许可，可商用/修改/再分发）；见许可页与 `TILES-LICENSE.txt` |
+| B3 | 图标 `Tiisu.Mahjong.ico` | ✅ | 自制/生成（用户确认） |
 | B4 | UI 图集 `ui-atlas.png` | ✅ | 由 `--export-ui-atlas` 从现有 UI 绘制代码生成 |
 | B5 | 布局 `layout/menu.json` | ✅ | 本项目自有配置 |
 | B6 | BGM `lobby.wav` | ✅ | Kevin MacLeod · CC BY 4.0，已署名；修改仅音量 |

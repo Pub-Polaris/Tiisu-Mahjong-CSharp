@@ -37,6 +37,14 @@
 | [System.Speech](https://github.com/dotnet/runtime) | 9.0.0 | MIT | `Tiisu.AudioGen` 语音合成 |
 
 
+## 牌面素材
+
+| 来源 | 版本/提交 | 许可 | 用途 |
+|---|---|---|---|
+| [lietxia/mahjong_graphic](https://github.com/lietxia/mahjong_graphic) | 3e27580 (2023-05-14) | 自定义自由许可：可商用、可修改、可再分发，无署名要求 | 牌面矢量素材；本项目重排为 `Assets/tiles.png` |
+
+许可证全文：`src/Tiisu.App/Assets/licenses/TILES-LICENSE.txt`
+
 ## 字体
 
 | 组件 | 版本 | 许可 | 用途 |
