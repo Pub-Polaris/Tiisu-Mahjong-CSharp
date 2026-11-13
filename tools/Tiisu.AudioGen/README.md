@@ -21,16 +21,25 @@ dotnet run --project tools/Tiisu.AudioGen -- --out D:\tmp\audio
 | 类别 | 文件 | 特征 |
 |---|---|---|
 | 音效 | draw / discard / call / kan / win / flow / roundend | 程序合成，几十毫秒 |
-| 音效 | **deal** | 20 次碰撞、间隔 40–90ms、1.2s（对齐 IGS 参考 1.175s） |
-| 音效 | **shuffle** | 1.35s 连续摩擦（对齐参考 1.567s） |
+| 音效 | **deal** | 20 次碰撞、间隔 40–90ms、约 1.2s |
+| 音效 | **shuffle** | 约 1.35s 连续摩擦 |
 | 语音 | chi 吃 / peng 碰 / gang 杠 / hepai 和牌 / zimo 自摸 / ronghe 荣和 / liuju 流局 / tingpai 听牌 | espeak-ng `cmn+f4 / rate180 / pitch85`，F0≈256Hz（参考 261） |
 
 ## 参数来源
 
-`C:\Users\rksk1\Desktop\voice_igsmj02_01.wav`（IGS 原声）分析：14.43s / 24kHz / 40 个有声段 / F0 中位 261Hz。
-参数是在 `(变体 × rate × pitch)` 网格里按「F0 差 + 时长差」打分选出来的。
+音效参数按桌面麻将常见音效的总长、密度与包络特征设计；语音参数在
+`(变体 × rate × pitch)` 网格里按目标音高与时长打分选出。全部音频由本工具
+从零合成，不使用任何第三方录音采样。
 
 ## 运行时行为
 
 `Ui/SoundEffects.cs` 优先读 `Assets/sounds/<cue>.wav`；
 文件缺失才退回内联合成（保证打包漏文件也不会静音崩）。语音读 `Assets/voices/<name>.wav`，缺失静默。
+
+## 校验
+
+音效与语音的 SHA256 见仓库根目录 `ASSET-HASHES.md`。音效可用 `--sfx --out <目录>` 重新生成并逐字节对比；语音需相同版本 espeak-ng。
+
+```powershell
+dotnet run --project tools/Tiisu.AudioGen -- --sfx --out D:\tmp\audio
+```
