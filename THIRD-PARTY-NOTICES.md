@@ -37,15 +37,6 @@
 | [System.Speech](https://github.com/dotnet/runtime) | 9.0.0 | MIT | `Tiisu.AudioGen` 语音合成 |
 
 
-## 训练数据（7Neuu 小策略网）
-
-| 数据集 | 许可 | 用途 |
-|---|---|---|
-| [Tenhou MJAI Riichi Training Dataset](https://huggingface.co/datasets/1nfrared218/tenhou-mjai-riichi-training) | CC BY 4.0 | 人类弃牌风格训练；随权重分发时保留署名 |
-| [MCR Final-2026 Engine Correctness Test Set](https://huggingface.co/datasets/Dannibal/mcr-final2026-testset) | competition-game-logs（自定义） | 训练/对照；允许研究/工程使用，商用范围需确认 |
-
-许可证全文：`Assets/licenses/MCR-DATASET-LICENSE.txt`（CC BY 见 `CC-BY-4.0.txt`）
-
 ## 牌面素材
 
 | 来源 | 版本/提交 | 许可 | 用途 |

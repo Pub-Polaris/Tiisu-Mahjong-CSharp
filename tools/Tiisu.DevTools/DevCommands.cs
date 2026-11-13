@@ -188,10 +188,10 @@ internal static class DevCommands
             "Assets/licenses/REFERENCES.txt",
             "Assets/licenses/TILES-LICENSE.txt",
             "Assets/licenses/Zlib.txt",
-            "Assets/licenses/MCR-DATASET-LICENSE.txt",
             "Assets/fonts/LICENSE-WenYuan.md",
             "Assets/fonts/TiisuRoundedSC-subset.ttf",
             "Assets/tiles.png",
+            "Assets/ml/policy_weights_v4.json",
         };
         foreach (string rel in required)
         {

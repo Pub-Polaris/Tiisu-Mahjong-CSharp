@@ -70,5 +70,5 @@ python ml/train_policy_selfplay.py `
 ## 当前状态
 
 - 数据导出、训练脚本、运行时 v4 特征支持已通。
-- 还没训练出可发布的 v4 权重；当前包仍用 v2。
-- Steam 前要么用 v4 替换 v2，要么继续确认 v2 训练数据许可。
+- 已用 100,000 局自博弈、2,365,513 条样本训练 v4；val_top1 0.947。
+- 已替换旧 v2 权重，当前包只带 `policy_weights_v4.json`，不再使用 MCR/Tenhou 数据集。

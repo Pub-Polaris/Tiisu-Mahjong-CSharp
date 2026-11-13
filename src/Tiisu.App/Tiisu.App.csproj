@@ -43,15 +43,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 牌面雪碧图（由 Web/scripts/export_tiles.py 生成）随程序输出 -->
+    <None Include="..\..\ml\policy_weights_v4.json" Link="Assets\ml\policy_weights_v4.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Assets\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <!-- P2-1 小策略网权重：仓库 ml/ 一份，构建时带到 Assets/ml -->
-    <None Include="..\..\ml\policy_weights_v2.json" Link="Assets\ml\policy_weights_v2.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\ml\policy_weights.json" Link="Assets\ml\policy_weights.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

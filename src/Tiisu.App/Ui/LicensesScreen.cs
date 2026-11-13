@@ -91,12 +91,6 @@ public sealed class LicensesScreen : Screen
         new("Tiisu Mahjong 本项目代码", "见版本行", "MIT",
             "仓库内自有代码与文档",
             "https://github.com/Pub-Polaris/Tiisu-Mahjong-CSharp"),
-        new("Tenhou MJAI Riichi Training Dataset", "1nfrared218", "CC BY 4.0",
-            "7Neuu 训练数据（人类弃牌风格）；需保留署名",
-            "https://huggingface.co/datasets/1nfrared218/tenhou-mjai-riichi-training"),
-        new("MCR Final-2026 Engine Correctness Test Set", "Dannibal", "competition-game-logs（自定义）",
-            "7Neuu 训练/对照数据；允许研究/工程使用，商用范围待确认",
-            "https://huggingface.co/datasets/Dannibal/mcr-final2026-testset"),
         new("Alice in Cradle", "闭源商业作品", "EULA（仅参考）",
             "空间音频架构调研；未使用代码、中间件、素材或衍生产物",
             "—", true),
@@ -360,7 +354,6 @@ public sealed class LicensesScreen : Screen
             : entry.License.Contains("Apache", StringComparison.Ordinal) ? "Apache-2.0.txt"
             : entry.License.Contains("CC BY", StringComparison.Ordinal) ? "CC-BY-4.0.txt"
             : entry.License.Contains("Zlib", StringComparison.OrdinalIgnoreCase) ? "Zlib.txt"
-            : entry.License.Contains("competition-game-logs", StringComparison.OrdinalIgnoreCase) ? "MCR-DATASET-LICENSE.txt"
             : "MIT.txt";
 
         string text;
