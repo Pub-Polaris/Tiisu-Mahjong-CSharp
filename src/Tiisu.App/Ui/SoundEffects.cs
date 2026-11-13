@@ -39,7 +39,7 @@ public sealed class SoundEffects : ISoundEffects, IDisposable
         Win,        // 和牌
         Flow,       // 流局
         RoundEnd,   // 局末通用
-        Deal,       // 发牌（照 IGS 参考：20 次离散碰撞）
+        Deal,       // 发牌（20 次离散碰撞，按桌面麻将常见手感合成）
         Shuffle,    // 洗牌（连续摩擦）
     }
 
@@ -162,7 +162,7 @@ public sealed class SoundEffects : ISoundEffects, IDisposable
         return wav;
     }
 
-    /// <summary>发牌：20 次牌-牌碰撞（间隔 40–90ms），照 IGS 参考音的总长与密度。</summary>
+    /// <summary>发牌：20 次牌-牌碰撞（间隔 40–90ms），按桌面麻将常见总长与密度合成。</summary>
     private byte[] Deal()
     {
         const int rate = 24000;
@@ -201,7 +201,7 @@ public sealed class SoundEffects : ISoundEffects, IDisposable
         return ToWav(samples, rate);
     }
 
-    /// <summary>洗牌：连续摩擦噪声，带 8Hz 起伏（照 IGS 参考：1.5s 摩擦声）。</summary>
+    /// <summary>洗牌：连续摩擦噪声，带 8Hz 起伏（约 1.5s 的常见摩擦声）。</summary>
     private byte[] Shuffle()
     {
         const int rate = 24000;

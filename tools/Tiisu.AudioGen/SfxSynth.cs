@@ -6,7 +6,7 @@ namespace Tiisu.AudioGen;
 
 /// <summary>
 /// 音效合成：程序生成 WAV，不依赖外部素材。
-/// 参数对齐《明星三缺一 2002》（IGS）参考音的分析结果：
+/// 参数按桌面麻将常见音效的总长、密度与包络特征合成（不含任何原作采样）：
 ///   发牌 1.175 s / 20 次离散碰撞 / 间隔 40–90 ms；洗牌 1.567 s 连续摩擦。
 /// </summary>
 internal static class SfxSynth
