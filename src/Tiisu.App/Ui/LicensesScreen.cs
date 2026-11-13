@@ -88,39 +88,51 @@ public sealed class LicensesScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
 
-        c.DrawText("开源许可声明", new RectF(0, 38, Width, 50),
-            Color.Rgb(242, 230, 190), new TextStyle(38, Bold: true, Center: true));
+        c.DrawText("开源许可声明", new RectF(0, 54, Width, 56),
+            Color.Rgb(242, 230, 190), new TextStyle(42, Bold: true, Center: true));
         c.DrawText("本项目使用的全部开源组件与素材 · 第 " + (_page + 1) + " / " + Entries.Length + " 项",
-            new RectF(0, 90, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(15, Center: true));
+            new RectF(0, 108, Width, 26), Color.Rgb(159, 180, 170), new TextStyle(16, Center: true));
 
         var entry = Entries[_page];
-        var card = new RectF(150, 128, Width - 300, 420);
-        c.FillRoundRect(card, 16, Color.Rgb(26, 38, 34));
-        c.StrokeRoundRect(card, 16, Color.Rgb(96, 122, 108), 1.2f);
+        string[] lines =
+        {
+            "版本：" + entry.Version,
+            "许可：" + entry.License,
+            "用途：" + entry.Usage,
+            "链接：" + entry.Url,
+        };
 
-        c.DrawText(entry.Name, new RectF(card.X + 30, card.Y + 24, card.W - 60, 38),
-            Color.Rgb(242, 201, 76), new TextStyle(28, Bold: true, Center: false));
-        c.DrawText("版本：" + entry.Version, new RectF(card.X + 30, card.Y + 76, card.W - 60, 26),
-            Color.Rgb(220, 228, 220), new TextStyle(17, Center: false));
-        c.DrawText("许可：" + entry.License, new RectF(card.X + 30, card.Y + 112, card.W - 60, 26),
-            Color.Rgb(196, 232, 190), new TextStyle(17, Bold: true, Center: false));
-        c.DrawText("用途：" + entry.Usage, new RectF(card.X + 30, card.Y + 160, card.W - 60, 26),
-            Color.Rgb(220, 228, 220), new TextStyle(16, Center: false));
-        c.DrawText("链接：" + entry.Url, new RectF(card.X + 30, card.Y + 210, card.W - 60, 24),
-            Color.Rgb(159, 180, 170), new TextStyle(14, Center: false));
+        float y = 156;
+        const float lineH = 34f;
+        float boxH = 14f + 28f + lines.Length * lineH + 10f;
+        var box = new RectF(150, y, Width - 300, boxH);
+        c.FillRoundRect(box, 14, Color.Rgb(26, 38, 34));
+        c.StrokeRoundRect(box, 14, Color.Rgb(96, 122, 108), 1.2f);
+
+        c.DrawText(entry.Name, new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
+            Color.Rgb(242, 201, 76), new TextStyle(20, Bold: true, Center: false));
+
+        float ly = box.Y + 42;
+        foreach (string line in lines)
+        {
+            c.DrawText("· " + line, new RectF(box.X + 26, ly, box.W - 52, lineH),
+                Color.Rgb(220, 228, 220), new TextStyle(16, Center: false));
+            ly += lineH;
+        }
 
         c.DrawText("按 ← / → 翻页 · Esc 返回菜单",
-            new RectF(0, 566, Width, 22), Color.Rgb(127, 145, 137), new TextStyle(14, Center: true));
+            new RectF(0, 558, Width, 22), Color.Rgb(127, 145, 137), new TextStyle(14, Center: true));
 
-        _prevButton = new RectF(Width / 2f - 270, 600, 150, 44);
-        _nextButton = new RectF(Width / 2f + 120, 600, 150, 44);
-        _backButton = new RectF(Width / 2f - 75, 600, 150, 44);
+        _prevButton = new RectF(Width / 2f - 270, 596, 150, 44);
+        _backButton = new RectF(Width / 2f - 75, 596, 150, 44);
+        _nextButton = new RectF(Width / 2f + 120, 596, 150, 44);
 
         DrawButton(c, _prevButton, "上一页", _prevHover, _page > 0);
         DrawButton(c, _backButton, "返回菜单", _backHover, true);
         DrawButton(c, _nextButton, "下一页", _nextHover, _page < Entries.Length - 1);
     }
 
+    /// <summary>与规则速查页同一个按钮规格。</summary>
     private static void DrawButton(ICanvas c, RectF rect, string label, bool hover, bool enabled)
     {
         var border = !enabled ? Color.Rgb(70, 84, 78) : hover ? Color.Rgb(242, 201, 76) : Color.Rgb(196, 168, 96);
