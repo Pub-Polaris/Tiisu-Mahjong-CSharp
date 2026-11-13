@@ -15,7 +15,7 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     private readonly SKPaint _stroke = new() { IsAntialias = true, Style = SKPaintStyle.Stroke };
 
     // 每帧复用：字体按 (粗体, 字号) 缓存；透视矩阵只在相机参数变化时重建（P2-5）。
-    private readonly Dictionary<(bool Bold, float Size), SKFont> _fonts = new();
+    private readonly Dictionary<(bool Bold, float Size, string Family), SKFont> _fonts = new();
     private SKMatrix44 _perspective;
     private PerspectiveCamera _perspectiveCamera;
     private bool _perspectiveSet;
@@ -246,7 +246,7 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
             Color = ToSk(c),
             MaskFilter = null,
         };
-        var font = GetFont(style.Bold, BoostSize(style.Size));
+        var font = GetFont(style.Bold, BoostSize(style.Size), style.Family);
         var align = style.Right ? SKTextAlign.Right : style.Center ? SKTextAlign.Center : SKTextAlign.Left;
 
         var metrics = font.Metrics;
@@ -273,44 +273,82 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     /// <summary>无 canvas 的静态测量（命中测试、署名片段排版用）。</summary>
     public static float Measure(string text, TextStyle style)
     {
-        using var font = new SKFont(GetTypeface(style.Bold), BoostSize(style.Size));
+        using var font = new SKFont(GetTypeface(style.Bold, style.Family), BoostSize(style.Size));
         return font.MeasureText(text);
     }
 
     /// <summary>字号整体放大一档：小字 +2、中字 +3、大字 +4。</summary>
     private static float BoostSize(float size) => size < 16f ? size + 2f : size < 24f ? size + 3f : size + 4f;
 
-    private static SKTypeface GetTypeface(bool bold)
+    private const string DefaultFamily = "Microsoft YaHei";
+    private const string RoundedFamily = "WenYuan Rounded SC";
+    private static SKTypeface? _roundedBase;
+
+    private static SKTypeface GetTypeface(bool bold, string? family = null)
     {
-        const string family = "Microsoft YaHei";
-        var key = (family, bold);
+        string fam = string.IsNullOrWhiteSpace(family) ? DefaultFamily : family;
+        var key = (fam, bold);
         if (Typefaces.TryGetValue(key, out var tf) && tf is not null)
         {
             return tf;
         }
 
-        tf = SKTypeface.FromFamilyName(family,
-                 bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-                 SKFontStyleWidth.Normal,
-                 SKFontStyleSlant.Upright)
-             ?? SKTypeface.Default;
+        if (fam == RoundedFamily)
+        {
+            tf = LoadRounded(bold);
+        }
+
+        tf ??= SKTypeface.FromFamilyName(fam,
+                   bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+                   SKFontStyleWidth.Normal,
+                   SKFontStyleSlant.Upright)
+               ?? SKTypeface.Default;
         Typefaces[key] = tf;
         return tf;
     }
 
-    /// <summary>字体按 (粗体, 字号) 缓存，每帧不再 new SKFont（P2-5）。</summary>
-    private SKFont GetFont(bool bold, float size)
+    /// <summary>嵌入的文渊圆体可变字重：wght 400/700，失败回退系统字体。</summary>
+    private static SKTypeface? LoadRounded(bool bold)
     {
-        var key = (bold, size);
+        try
+        {
+            _roundedBase ??= SKTypeface.FromFile(Path.Combine(
+                AppContext.BaseDirectory, "Assets", "fonts", "WenYuanRoundedSC-subset.ttf"));
+            if (_roundedBase is null)
+            {
+                return null;
+            }
+
+            var args = new SKFontArguments
+            {
+                VariationDesignPosition = new SKFontVariationPositionCoordinate[]
+                {
+                    new() { Axis = SKFourByteTag.Parse("wght"), Value = bold ? 700 : 400 },
+                },
+            };
+            return _roundedBase.Clone(args);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>字体按 (粗体, 字号, 字体族) 缓存，每帧不再 new SKFont（P2-5）。</summary>
+    private SKFont GetFont(bool bold, float size, string? family = null)
+    {
+        string fam = string.IsNullOrWhiteSpace(family) ? DefaultFamily : family;
+        var key = (bold, size, fam);
         if (_fonts.TryGetValue(key, out SKFont? font))
         {
             return font;
         }
 
-        font = new SKFont(GetTypeface(bold), size);
+        font = new SKFont(GetTypeface(bold, family), size);
         _fonts[key] = font;
         return font;
     }
+
 
     public void DrawTile(string tileId, RectF dst, float alpha = 1f)
     {

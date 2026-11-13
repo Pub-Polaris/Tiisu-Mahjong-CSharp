@@ -51,7 +51,7 @@ public readonly record struct Color(byte R, byte G, byte B, byte A = 255)
 }
 
 /// <summary>文字样式。Right 优先于 Center（用于数字右对齐的列）。</summary>
-public readonly record struct TextStyle(float Size, bool Bold = false, bool Center = true, bool Shadow = false, bool Right = false);
+public readonly record struct TextStyle(float Size, bool Bold = false, bool Center = true, bool Shadow = false, bool Right = false, string? Family = null);
 
 /// <summary>
 /// 渲染抽象层：Scene 只依赖这个接口。

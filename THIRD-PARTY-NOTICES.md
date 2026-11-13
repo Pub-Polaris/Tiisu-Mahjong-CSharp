@@ -30,3 +30,14 @@
 | [xUnit](https://xunit.net/) / xunit.runner.visualstudio | 2.9.3 / 3.1.4 | Apache-2.0 | 测试（仅开发） |
 | [Microsoft.NET.Test.Sdk](https://github.com/microsoft/vstest) / coverlet.collector | 17.14.1 / 6.0.4 | MIT | 测试（仅开发） |
 | [System.Speech](https://github.com/dotnet/runtime) | 9.0.0 | MIT | `Tiisu.AudioGen` 语音合成 |
+
+
+## 字体
+
+| 组件 | 版本 | 许可 | 用途 |
+|---|---|---|---|
+| [文渊圆体 WenYuan Rounded SC](https://github.com/takushun-wu/WenYuanFonts) | v1.110 | SIL OFL 1.1 | 规则速查页标题/正文；可变字重 400/700 |
+
+- 文件：`src/Tiisu.App/Assets/fonts/WenYuanRoundedSC-subset.ttf`（仅子集化规则页用字）
+- 许可证全文：`src/Tiisu.App/Assets/fonts/LICENSE-WenYuan.md`
+- 未修改字形，仅按应用文案做子集化；分发时保留本声明与许可证。
