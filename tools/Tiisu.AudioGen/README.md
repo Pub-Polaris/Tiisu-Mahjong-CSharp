@@ -16,6 +16,11 @@ dotnet run --project tools/Tiisu.AudioGen -- --out D:\tmp\audio
 语音部分需要 **espeak-ng**（默认路径 `C:\Program Files\eSpeak NG\espeak-ng.exe`，可用 `--espeak` 指定）。
 没有它时只跑 `--sfx` 也能生成全部音效。
 
+## 分发说明
+
+报牌语音**不随安装包分发**：游戏首次播放语音时用本机 Windows SAPI 中文语音生成到
+`%LOCALAPPDATA%\TiisuMahjong\voices`。`--voices` 仅供本机调试/开发，语音受本机 Windows 许可约束。
+
 ## 生成内容
 
 | 类别 | 文件 | 特征 |

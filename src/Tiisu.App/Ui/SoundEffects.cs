@@ -1,4 +1,5 @@
 using Tiisu.App.Audio;
+using Tiisu.App.Runtime;
 
 namespace Tiisu.App.Ui;
 
@@ -292,7 +293,7 @@ public sealed class SoundEffects : ISoundEffects, IDisposable
         return ms.ToArray();
     }
 
-    private readonly Dictionary<string, byte[]> Voices = new();
+    private readonly LocalVoiceCache _localVoices = new();
     private byte[]? _bgm;
     private bool _bgmPlaying;
 
@@ -416,8 +417,8 @@ public sealed class SoundEffects : ISoundEffects, IDisposable
     }
 
     /// <summary>
-    /// 播放报牌语音（Assets/voices/*.wav，由 espeak-ng 生成）。
-    /// 文件不存在时静默跳过——不阻断游戏。
+    /// 播放报牌语音：不随包分发，首次调用后用本机 Windows SAPI 中文语音生成到
+    /// <c>%LOCALAPPDATA%\TiisuMahjong\voices</c>；没有中文语音时静默跳过。
     /// </summary>
     public void PlayVoice(string name)
     {
@@ -428,17 +429,11 @@ public sealed class SoundEffects : ISoundEffects, IDisposable
 
         try
         {
-            if (!Voices.TryGetValue(name, out var wav))
+            byte[]? wav = _localVoices.TryGet(name);
+            if (wav is null)
             {
-                string path = System.IO.Path.Combine(
-                    AppContext.BaseDirectory, "Assets", "voices", name + ".wav");
-                if (!File.Exists(path))
-                {
-                    return;
-                }
-
-                wav = File.ReadAllBytes(path);
-                Voices[name] = wav;
+                _localVoices.EnsureGenerated();
+                return;
             }
 
             _mixer.PlayOneShot(wav);

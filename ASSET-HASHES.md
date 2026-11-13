@@ -2,6 +2,8 @@
 
 生成时间：2026-11-14；用于核对发布资源与仓库内容是否一致。
 
+> 报牌语音不随安装包分发，由本机 Windows SAPI 在首次使用时生成；本清单不包含语音，也不保证跨机器哈希一致。
+
 ## 音效（由 Tiisu.AudioGen 可复现生成）
 
 ```
@@ -14,19 +16,6 @@ ba05d31cc3ae486ceb6caca5401fa78bf73ac53a90690d62a9c076a72b988204  sounds/kan.wav
 04cdf53e63d684748df9f128eb1ec389b269597d68d1d128c156dcba1ccd4eff  sounds/roundend.wav
 eeb197d04e0bd88b44a845eef8d16f4e80389a0d3cce7a38d2a0ef118fcbe8a5  sounds/shuffle.wav
 e15b2903fc4f02b219cb63e6e4c62e25b3f77d096dced84d062b8a35f61a2dde  sounds/win.wav
-```
-
-## 语音（由 Tiisu.AudioGen + espeak-ng 生成；版本不同可能不同）
-
-```
-2fad76bd0ff3f3d255849fd2ef2db4af2587b1815674c53d91758b70858cff9b  voices/chi.wav
-3c0be35185ca3e072be009ecc0e4d2c6ec3dfd6b9126e2ad3ce318617beeaa78  voices/gang.wav
-890c51d8929a9a1b3653dc6c18ac55ba1e202e006a32a505d3c649a4b4d4ae1a  voices/hepai.wav
-ead4191927ae79e72045c65bce8904c9ca9c8718079e3ebf4ab5336c5fac7132  voices/liuju.wav
-1804f37b4cfe16f4731d91e6ec204c24d1cafecf20e8bb6a09702df8fc56c53c  voices/peng.wav
-b60b35993e8c2d1ed318d43632e58f7e6950aa204a3beb9db9646686a7709260  voices/ronghe.wav
-dcc774bbbb7295599b0b0b14bf38952e629151cd21d4343274f092692bce7984  voices/tingpai.wav
-5fe61b7cef0b88c42668ebe2a570b8514ab8bef130797aa27736e722d31df66a  voices/zimo.wav
 ```
 
 ## BGM（第三方，不由 AudioGen 生成）
@@ -53,4 +42,4 @@ Get-ChildItem src\Tiisu.App\Assets\sounds\*.wav | ForEach-Object {
 }
 ```
 
-音效与仓库内文件应逐字节一致；语音需要相同版本 espeak-ng 才能复现。
+音效与仓库内文件应逐字节一致。语音在本机生成，不参与发布哈希核对。
