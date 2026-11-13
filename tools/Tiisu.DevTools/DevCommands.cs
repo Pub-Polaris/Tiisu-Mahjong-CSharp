@@ -35,6 +35,125 @@ internal static class DevCommands
     /// 用 Simple AI 提速；每局都走 MatchRuntime 的完整命令链路（人类座位 AutoPilot）。
     /// </summary>
     /// <summary>
+    /// <c>--check-publish [publishDir]</c>：发布前自检——许可全文、字体、素材哈希、
+    /// 禁止项（语音/测试依赖/FFmpeg/espeak）是否干净。
+    /// </summary>
+    private static int CheckPublish(string[] args)
+    {
+        string dir = args.Length > 1 ? args[1] : Path.Combine(Directory.GetCurrentDirectory(), "dist", "publish");
+        var errors = new List<string>();
+        var notes = new List<string>();
+
+        if (!Directory.Exists(dir))
+        {
+            Console.Error.WriteLine("publish 目录不存在: " + dir);
+            return 2;
+        }
+
+        string[] required =
+        {
+            "Assets/licenses/MIT.txt",
+            "Assets/licenses/Apache-2.0.txt",
+            "Assets/licenses/OFL-1.1.txt",
+            "Assets/licenses/CC-BY-4.0.txt",
+            "Assets/licenses/REFERENCES.txt",
+            "Assets/licenses/TILES-LICENSE.txt",
+            "Assets/licenses/Zlib.txt",
+            "Assets/licenses/MCR-DATASET-LICENSE.txt",
+            "Assets/fonts/LICENSE-WenYuan.md",
+            "Assets/fonts/TiisuRoundedSC-subset.ttf",
+            "Assets/tiles.png",
+        };
+        foreach (string rel in required)
+        {
+            if (!File.Exists(Path.Combine(dir, rel)))
+            {
+                errors.Add("缺少 " + rel);
+            }
+        }
+
+        if (Directory.Exists(Path.Combine(dir, "Assets", "voices")))
+        {
+            errors.Add("Assets/voices 仍存在（语音不应随包分发）");
+        }
+
+        string[] forbidden = { "xunit", "testhost", "coverlet", "Microsoft.TestPlatform", "ffmpeg", "espeak" };
+        foreach (string file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+        {
+            string name = Path.GetFileName(file).ToLowerInvariant();
+            foreach (string bad in forbidden)
+            {
+                if (name.Contains(bad, StringComparison.Ordinal))
+                {
+                    errors.Add("禁止文件: " + Path.GetRelativePath(dir, file));
+                    break;
+                }
+            }
+        }
+
+        string manifestPath = Path.Combine(Directory.GetCurrentDirectory(), "ASSET-HASHES.md");
+        if (!File.Exists(manifestPath))
+        {
+            notes.Add("未找到 ASSET-HASHES.md，跳过哈希核对");
+        }
+        else
+        {
+            int checkedHashes = 0;
+            foreach (string raw in File.ReadAllLines(manifestPath))
+            {
+                string line = raw.Trim();
+                if (line.Length < 70 || line[64] != ' ') continue;
+                string expected = line[..64];
+                string rel = line[66..].Trim();
+                if (!(rel.StartsWith("sounds/", StringComparison.Ordinal)
+                      || rel.StartsWith("bgm/", StringComparison.Ordinal)
+                      || rel.StartsWith("fonts/", StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                string path = Path.Combine(dir, "Assets", rel.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(path))
+                {
+                    errors.Add("哈希清单里的文件缺失: " + rel);
+                    continue;
+                }
+
+                using var sha = System.Security.Cryptography.SHA256.Create();
+                using var stream = File.OpenRead(path);
+                string actual = Convert.ToHexString(sha.ComputeHash(stream)).ToLowerInvariant();
+                if (!string.Equals(actual, expected, StringComparison.Ordinal))
+                {
+                    errors.Add("哈希不一致: " + rel);
+                }
+
+                checkedHashes++;
+            }
+
+            notes.Add("已核对资源哈希 " + checkedHashes + " 个");
+        }
+
+        foreach (string note in notes)
+        {
+            Console.WriteLine("  " + note);
+        }
+
+        if (errors.Count == 0)
+        {
+            Console.WriteLine("check-publish: OK  " + dir);
+            return 0;
+        }
+
+        foreach (string error in errors)
+        {
+            Console.Error.WriteLine("  FAIL " + error);
+        }
+
+        Console.Error.WriteLine("check-publish: " + errors.Count + " 项失败");
+        return 1;
+    }
+
+    /// <summary>
     /// <c>--bench-snapshot [iterations]</c>：用真实引擎状态反复构建 UI 快照，
     /// 统计单次耗时 / 分配，作为性能检查基线（不改游戏逻辑）。
     /// </summary>
@@ -3885,6 +4004,9 @@ internal static class DevCommands
                 return 0;
             case "--smoke-run":
                 return SmokeRun(args);
+
+            case "--check-publish":
+                return CheckPublish(args);
 
             case "--bench-snapshot":
                 return BenchSnapshot(args);

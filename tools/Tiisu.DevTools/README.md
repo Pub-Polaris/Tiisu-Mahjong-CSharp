@@ -18,7 +18,7 @@ dotnet build tools/Tiisu.AudioGen -c Release
 
 ## 路径解析
 
-1. `TIISU_ROOT` 环境变量（可指向仓库根 `NET` 或它的上级 `TiisuMahjong`）
+1. `%APPDATA%\TiisuMahjong\config.toml` 的 `[dev] root`（可指向仓库根 `NET` 或它的上级 `TiisuMahjong`）
 2. 从程序目录 / 当前目录向上找同时含 `src/Tiisu.App` 与 `Tiisu.slnx` 的目录
 3. 可执行文件优先
    `src/Tiisu.App/bin/Release/net10.0-windows10.0.19041/Tiisu.Mahjong.exe`，
@@ -36,6 +36,7 @@ dotnet build tools/Tiisu.AudioGen -c Release
 | 布局 | 查看当前自定义布局 | 打开 `%APPDATA%\TiisuMahjong\layout-custom.json` |
 | 布局 | 删除自定义布局（恢复默认） | 删除上面的 json（先确认） |
 | 牌桌样式 | Flat / Light25D / Medium25D / Mixed | `Tiisu.DevTools.exe --render-25d artifacts/uitools/style-<x>.png --variant <x>` |
+| 发布 | 发布自检 | `Tiisu.DevTools.exe --check-publish dist/publish` |
 
 生成成功后自动在资源管理器里定位输出文件；`全部生成并打开目录` 依次跑四档再开目录。
 状态栏显示每条的 exit code 与耗时，找不到命令时给出构建提示。

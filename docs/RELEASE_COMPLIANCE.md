@@ -49,6 +49,7 @@
 | D3 | 安装包/规则库校验和 | ⚠️ | Release 说明已有 SHA256；每次发版需更新 |
 | D4 | 音频哈希清单 | ✅ | `ASSET-HASHES.md` |
 | D5 | 安装包未签名 / SmartScreen | ⚠️ | 非合规硬伤，但影响信任；可考虑代码签名 |
+| D7 | 发布自检脚本 | ✅ | `Tiisu.DevTools --check-publish dist/publish`：许可/字体/哈希/禁带项，当前 OK |
 | D6 | 自动更新完整性 | ✅ | `Tiisu.Updater --sha256 <hex>` 支持应用前校验 zip 哈希；签名仍未做 |
 
 ## E. 发行策略（2026-11-14 确认）
