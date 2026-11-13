@@ -303,6 +303,7 @@ public static class NeuralPolicyAi
         }
 
         string baseDir = AppContext.BaseDirectory;
+        yield return Path.Combine(baseDir, "Assets", "ml", "policy_weights_v4.json");
         yield return Path.Combine(baseDir, "Assets", "ml", "policy_weights_v2.json");
         yield return Path.Combine(baseDir, "Assets", "ml", "policy_weights.json");
         yield return Path.Combine(baseDir, "policy_weights.json");
@@ -311,6 +312,7 @@ public static class NeuralPolicyAi
         var dir = new DirectoryInfo(baseDir);
         for (int i = 0; i < 6 && dir is not null; i++)
         {
+            yield return Path.Combine(dir.FullName, "ml", "policy_weights_v4.json");
             yield return Path.Combine(dir.FullName, "ml", "policy_weights_v2.json");
             yield return Path.Combine(dir.FullName, "ml", "policy_weights.json");
             dir = dir.Parent;
