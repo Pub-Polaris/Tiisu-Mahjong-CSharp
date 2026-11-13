@@ -42,25 +42,28 @@ public sealed partial class WinChecker
     };
 
     private readonly YakuData _yakuData;
-    private readonly HashSet<string> _optionalEnabled = new(StringComparer.Ordinal);
+
+    /// <summary>启用的可选役（写时复制；判役读取时只需一次引用快照，不再加锁）。</summary>
+    private volatile HashSet<string> _optionalEnabled = new(StringComparer.Ordinal);
 
     /// <summary>数据里标了 optional 的役 id（与启用开关无关）：门槛口径只认这个集合。</summary>
     private readonly HashSet<string> _optionalYakuIds = new(StringComparer.Ordinal);
 
-    private IReadOnlyList<Tile> _concealedHand = Array.Empty<Tile>();
-    private IReadOnlyList<Meld> _melds = Array.Empty<Meld>();
-    private int _ankanCount;
-    private int _minkanCount;
-    private bool _selfDraw;
-    private Tile? _winTile;
-    private WinContext? _winCtx;
-    private IReadOnlyList<Group>? _forcedGroups;
+    // ── 判役临时状态（P2-2）────────────────────────────────────────
+    // 原来这些字段挂在实例上 + 全局锁串行。现在改为「每线程一份」：
+    // 同一 WinChecker 仍可被多线程并发调用，每个线程只碰自己的暂存区，无需锁。
+    // 语义约定：判役过程不递归调用 CheckWin；同一线程上的连续判役自然串行。
+    [ThreadStatic] private static IReadOnlyList<Tile> _concealedHand;
+    [ThreadStatic] private static IReadOnlyList<Meld> _melds;
+    [ThreadStatic] private static int _ankanCount;
+    [ThreadStatic] private static int _minkanCount;
+    [ThreadStatic] private static bool _selfDraw;
+    [ThreadStatic] private static Tile? _winTile;
+    [ThreadStatic] private static WinContext? _winCtx;
+    [ThreadStatic] private static IReadOnlyList<Group>? _forcedGroups;
 
     /// <summary>暗手拆出来的面子（不含副露）；暗刻判定只认这里，避免和别的面子重叠或把副露算成暗刻。</summary>
-    private IReadOnlyList<Group>? _concealedGroups;
-
-    /// <summary>判定过程写实例字段，必须串行；并行自走时同一实例也只允许一个线程进来（审计 P2-2）。</summary>
-    private readonly object _gate = new();
+    [ThreadStatic] private static IReadOnlyList<Group>? _concealedGroups;
 
     /// <param name="yakuData">役种数据（通常为 <see cref="YakuData.LoadDefault"/>）。</param>
     /// <param name="optionalEnabled">
@@ -130,25 +133,19 @@ public sealed partial class WinChecker
     public IReadOnlyCollection<string> OptionalEnabled => _optionalEnabled;
 
     /// <summary>
-    /// 替换可选役集合（宿主设置变更时用）。与 <see cref="CheckWin"/> 共用同一把锁，
-    /// 并行自走时不会出现「判役遍历 HashSet 的同时被清空」（复核遗留 #3）。
+    /// 替换可选役集合（宿主设置变更时用）。写时复制：判役线程只读旧快照，
+    /// 不会出现「遍历 HashSet 时被清空」，也不需要全局锁。
     /// </summary>
     public void SetOptionalEnabled(IEnumerable<string> ids)
     {
         ArgumentNullException.ThrowIfNull(ids);
-        lock (_gate)
-        {
-            _optionalEnabled.Clear();
-            foreach (string id in ids)
-            {
-                _optionalEnabled.Add(id);
-            }
-        }
+        var next = new HashSet<string>(ids, StringComparer.Ordinal);
+        _optionalEnabled = next;
     }
 
     /// <summary>
     /// 和牌判定。参数顺序按语义分组；<paramref name="firstTurn"/> 与 JS 一样保留但当前判据未使用。
-    /// 内部会写实例字段，因此整个判定串行执行（审计 P2-2 的临时保护；后续可改成不可变 Evaluation）。
+    /// 判役临时状态按线程隔离（P2-2），同实例可被多线程并发调用，无全局锁。
     /// </summary>
     public WinResult CheckWin(
         IReadOnlyList<Tile> hand,
@@ -161,10 +158,7 @@ public sealed partial class WinChecker
         Tile? winTile = null,
         WinContext? context = null)
     {
-        lock (_gate)
-        {
-            return CheckWinCore(hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, firstTurn, winTile, context);
-        }
+        return CheckWinCore(hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, firstTurn, winTile, context);
     }
 
     private WinResult CheckWinCore(

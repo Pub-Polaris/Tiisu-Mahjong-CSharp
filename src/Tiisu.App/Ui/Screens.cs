@@ -27,6 +27,7 @@ public sealed class TableScreen : Screen
     private readonly Action<GameCommand>? _commands;
     private readonly Action? _backToMenu;
     private readonly Action? _openSettings;
+    private readonly ISoundEffects? _sound;
     /// <summary>结算覆盖层：左侧直接画和牌者手牌，右侧只给结果；多人和牌可翻页。</summary>
     private RoundResult? _settlement;
     private bool _settlementHidden;
@@ -69,8 +70,9 @@ public sealed class TableScreen : Screen
 
     /// <summary>正式牌桌：只读会话快照 + 投递命令。</summary>
     public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu = null,
-        Action? openSettings = null, TableRenderStyle renderStyle = TableRenderStyle.Flat, Settings? settings = null)
-        : this(() => session.LatestSnapshot, session.Post, backToMenu, null, atlas, renderStyle, settings)
+        Action? openSettings = null, TableRenderStyle renderStyle = TableRenderStyle.Flat, Settings? settings = null,
+        ISoundEffects? sound = null)
+        : this(() => session.LatestSnapshot, session.Post, backToMenu, null, atlas, renderStyle, settings, sound)
     {
         session.UiEvent += OnSessionEvent;
     }
@@ -92,13 +94,14 @@ public sealed class TableScreen : Screen
     /// <summary>自检 / 预览用：直接给快照与命令通道（不订阅会话事件）。</summary>
     public TableScreen(Func<TableViewModel> snapshot, Action<GameCommand>? commands, Action? backToMenu = null,
         Action? openSettings = null, TileAtlas? atlas = null, TableRenderStyle renderStyle = TableRenderStyle.Flat,
-        Settings? settings = null)
+        Settings? settings = null, ISoundEffects? sound = null)
         : base("table")
     {
         _snapshot = snapshot;
         _commands = commands;
         _backToMenu = backToMenu;
         _openSettings = openSettings;
+        _sound = sound;
         _thinkSeconds = Math.Max(0, settings?.ThinkSeconds ?? 0);
         _showWallButton = settings?.ShowWallViewer ?? false;
         _ruleset = settings?.Ruleset ?? Ruleset.Qizi;
@@ -603,45 +606,45 @@ public sealed class TableScreen : Screen
 
         if (_lastHandCount >= 0 && hand > _lastHandCount)
         {
-            SoundEffects.Play(SoundEffects.Cue.Draw);
+            _sound?.Play(SoundEffects.Cue.Draw);
         }
 
         if (_lastDiscardTotal >= 0 && discards > _lastDiscardTotal)
         {
-            SoundEffects.Play(SoundEffects.Cue.Discard);
+            _sound?.Play(SoundEffects.Cue.Discard);
         }
 
         if (_lastMeldTotal >= 0 && melds > _lastMeldTotal)
         {
-            SoundEffects.Play(SoundEffects.Cue.Call);
-            SoundEffects.PlayVoice(NewestMeldVoice(vm));
+            _sound?.Play(SoundEffects.Cue.Call);
+            _sound?.PlayVoice(NewestMeldVoice(vm));
         }
 
         if (_lastPhase != vm.Phase && vm.Phase is "round_end" or "match_over")
         {
             bool won = _settlement is { Details.Count: > 0 };
-            SoundEffects.Play(won ? SoundEffects.Cue.Win : SoundEffects.Cue.Flow);
+            _sound?.Play(won ? SoundEffects.Cue.Win : SoundEffects.Cue.Flow);
             if (_settlement is { Details.Count: > 0 } settled)
             {
-                SoundEffects.PlayVoice(settled.Details[0].SelfDraw ? "zimo" : "ronghe");
+                _sound?.PlayVoice(settled.Details[0].SelfDraw ? "zimo" : "ronghe");
             }
             else
             {
-                SoundEffects.PlayVoice("liuju");
+                _sound?.PlayVoice("liuju");
             }
         }
 
         if (_lastRoundLabel.Length > 0 && !string.Equals(_lastRoundLabel, vm.RoundLabel, StringComparison.Ordinal)
             && vm.Phase is "human_discard" or "human_meld" or "human_ron")
         {
-            SoundEffects.Play(SoundEffects.Cue.Deal);
+            _sound?.Play(SoundEffects.Cue.Deal);
         }
 
         _lastRoundLabel = vm.RoundLabel;
 
         if (_lastTenpaiCount == 0 && vm.TenpaiTiles.Count > 0)
         {
-            SoundEffects.PlayVoice("tingpai");
+            _sound?.PlayVoice("tingpai");
         }
 
         _lastTenpaiCount = vm.TenpaiTiles.Count;

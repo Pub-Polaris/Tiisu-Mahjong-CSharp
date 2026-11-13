@@ -43,6 +43,7 @@ public sealed class SettingsScreen : Screen
     private static readonly Color Muted = Color.Rgb(150, 164, 152);
     private static readonly Color Gold = Color.Rgb(196, 168, 96);
 
+    private readonly ISoundEffects? _sound;
     private readonly Settings _settings;
     private readonly Action<Settings> _changed;
     private readonly Action _back;
@@ -55,8 +56,10 @@ public sealed class SettingsScreen : Screen
     private int _selected;
     private int _hover = -1;
 
-    public SettingsScreen(Settings settings, Action<Settings> changed, Action back) : base("settings")
+    public SettingsScreen(Settings settings, Action<Settings> changed, Action back,
+        ISoundEffects? sound = null) : base("settings")
     {
+        _sound = sound;
         _settings = settings ?? new Settings();
         _changed = changed ?? (_ => { });
         _back = back ?? (() => { });
@@ -435,15 +438,15 @@ public sealed class SettingsScreen : Screen
         if (bgm)
         {
             _settings.BgmVolume = Math.Clamp(_settings.BgmVolume + step, 0, 100);
-            SoundEffects.BgmVolume = _settings.BgmVolume;
+            _sound?.BgmVolume = _settings.BgmVolume;
         }
         else
         {
             _settings.SfxVolume = Math.Clamp(_settings.SfxVolume + step, 0, 100);
-            SoundEffects.SfxVolume = _settings.SfxVolume;
+            _sound?.SfxVolume = _settings.SfxVolume;
             if (_settings.SfxVolume > 0)
             {
-                SoundEffects.Play(SoundEffects.Cue.Call);
+                _sound?.Play(SoundEffects.Cue.Call);
             }
         }
 

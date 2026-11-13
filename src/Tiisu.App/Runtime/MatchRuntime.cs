@@ -54,6 +54,12 @@ public sealed record RoundResult(
 }
 
 /// <summary>
+/// 尚在行牌中的局末产物（只带 kind/winners/reason）；真正的 <see cref="RoundResult"/>
+/// 到 FinishRound 才用引擎当前局数/分数构造，避免 P3-3 的 Round=0 占位对象被误读。
+/// </summary>
+internal sealed record RoundOutcome(string Kind, IReadOnlyList<int> Winners, string? Reason);
+
+/// <summary>
 /// 待决荣和。<see cref="Result"/> 为 null 表示「报听错和候选」：手牌成和形但赋不足起和线，
 /// 点荣和会走错和判罚（<see cref="MisfireFu"/> 是那手的赋数）。
 /// </summary>
@@ -120,7 +126,7 @@ public sealed class MatchRuntime
 
     private MatchPhase _phase = MatchPhase.Idle;
     private long _snapshotRevision;
-    private RoundResult? _lastOutcome;
+    private RoundOutcome? _lastOutcome;
 
     /// <summary>结算自检发现的问题数（虚拟对局回归用；正常应为 0）。</summary>
     public int AuditIssueCount { get; private set; }
@@ -137,8 +143,8 @@ public sealed class MatchRuntime
     /// 局末判定的占位结果：前半段只需要 kind/winners/reason，结算字段在 FinishRound 用 <c>with</c> 补齐。
     /// 原先的 RoundOutcome 与 RoundResult 字段重叠，已合并（审计 P3-3）。
     /// </summary>
-    private static RoundResult MakeOutcome(string kind, IReadOnlyList<int> winners, string? reason) =>
-        new(0, kind, winners, reason, Array.Empty<int>(), 0, 0, false);
+    private static RoundOutcome MakeOutcome(string kind, IReadOnlyList<int> winners, string? reason) =>
+        new(kind, winners, reason);
     private PendingRon? _pendingRon;
     private PendingMeld? _pendingMeld;
     private string? _message;
@@ -2229,24 +2235,27 @@ public sealed class MatchRuntime
         string? drawReason = outcome.Kind is "flow" or "special_flow"
             ? outcome.Reason ?? "exhaustive"
             : null;
-        var result = outcome with
-        {
-            Round = _engine.HandNumber,
-            Scores = _engine.Scores.ToArray(),
-            Honba = _engine.Honba,
-            DealerIndex = _engine.DealerIndex,
-            MatchOver = _engine.MatchOver,
-            Details = details,
-            DrawReason = drawReason,
-            ScoresBefore = _scoresAtRoundStart.ToArray(),
-            Penalties = outcome.Kind is "flow" or "special_flow" ? _engine.LastFlowPenalties : null,
-            Transfers = outcome.Kind is "flow" or "special_flow" ? _engine.LastFlowTransfers : null,
-            PenaltyAudit = outcome.Kind is "flow" or "special_flow" && _engine.LastFlowPenaltyAudit.Count > 0
-                ? _engine.LastFlowPenaltyAudit
-                : null,
-            Adjustments = _engine.RoundTransfers.Count > 0 ? _engine.RoundTransfers.ToArray() : null,
-            Simplified = _settings.Ruleset == Ruleset.TuidaoHu,
-        };
+          var result = new RoundResult(
+              _engine.HandNumber,
+              outcome.Kind,
+              outcome.Winners,
+              outcome.Reason,
+              _engine.Scores.ToArray(),
+              _engine.Honba,
+              _engine.DealerIndex,
+              _engine.MatchOver)
+          {
+              Details = details,
+              DrawReason = drawReason,
+              ScoresBefore = _scoresAtRoundStart.ToArray(),
+              Penalties = outcome.Kind is "flow" or "special_flow" ? _engine.LastFlowPenalties : null,
+              Transfers = outcome.Kind is "flow" or "special_flow" ? _engine.LastFlowTransfers : null,
+              PenaltyAudit = outcome.Kind is "flow" or "special_flow" && _engine.LastFlowPenaltyAudit.Count > 0
+                  ? _engine.LastFlowPenaltyAudit
+                  : null,
+              Adjustments = _engine.RoundTransfers.Count > 0 ? _engine.RoundTransfers.ToArray() : null,
+              Simplified = _settings.Ruleset == Ruleset.TuidaoHu,
+          };
 
         if (result.PenaltyAudit is { Count: > 0 })
         {

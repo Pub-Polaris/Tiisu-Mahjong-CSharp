@@ -2,11 +2,33 @@ using Tiisu.App.Audio;
 
 namespace Tiisu.App.Ui;
 
+/// <summary>音效接口：UI 只依赖它，测试 / 无音频环境可注入空实现或替身（P3-9）。</summary>
+public interface ISoundEffects
+{
+    bool Enabled { get; set; }
+
+    int SfxVolume { get; set; }
+
+    int BgmVolume { get; set; }
+
+    void Play(SoundEffects.Cue cue);
+
+    void PlayBgm();
+
+    void StopBgm();
+
+    void ApplyEnabled(bool enabled);
+
+    void PlayVoice(string name);
+
+    IReadOnlyList<(SoundEffects.Cue Cue, string Path, int Bytes)> ExportWavs(string dir);
+}
+
 /// <summary>
 /// 极简音效：运行时合成 WAV（不依赖外部素材），用 NAudio 混音异步播放（BGM 与音效可同时响）。
 /// 素材来源是程序生成的正弦/噪声，体积为 0，风格保持"低调的点击感"。
 /// </summary>
-public static class SoundEffects
+public sealed class SoundEffects : ISoundEffects, IDisposable
 {
     public enum Cue
     {
@@ -21,26 +43,26 @@ public static class SoundEffects
         Shuffle,    // 洗牌（连续摩擦）
     }
 
-    private static readonly Dictionary<Cue, byte[]> Cache = new();
+    private readonly Dictionary<Cue, byte[]> Cache = new();
 
     /// <summary>NAudio 混音后端（替换 winmm.PlaySound，审计 P1-1 / P1-2）。</summary>
-    private static readonly AudioMixer Mixer = new();
+    private readonly AudioMixer _mixer = new();
 
     /// <summary>音效总开关（由设置页控制）。</summary>
-    public static bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; } = true;
 
-    private static int _sfxVolume = 80;
-    private static int _bgmVolume = 60;
+    private int _sfxVolume = 80;
+    private int _bgmVolume = 60;
 
     /// <summary>音效音量 0..100（0 = 静音）。</summary>
-    public static int SfxVolume
+    public int SfxVolume
     {
         get => _sfxVolume;
         set => _sfxVolume = Math.Clamp(value, 0, 100);
     }
 
     /// <summary>音乐音量 0..100（0 = 静音）；播放中改音量实时生效，不重启 BGM。</summary>
-    public static int BgmVolume
+    public int BgmVolume
     {
         get => _bgmVolume;
         set
@@ -52,11 +74,11 @@ public static class SoundEffects
             }
 
             _bgmVolume = clamped;
-            Mixer.SetBgmVolume(clamped / 100f);
+            _mixer.SetBgmVolume(clamped / 100f);
         }
     }
 
-    public static void Play(Cue cue)
+    public void Play(Cue cue)
     {
         if (!Enabled || SfxVolume <= 0)
         {
@@ -66,7 +88,7 @@ public static class SoundEffects
         try
         {
             byte[] wav = Scaled(TryLoadCueFile(cue) ?? Get(cue), SfxVolume, cue.ToString());
-            Mixer.PlayOneShot(wav);
+            _mixer.PlayOneShot(wav);
         }
         catch
         {
@@ -74,10 +96,10 @@ public static class SoundEffects
         }
     }
 
-    private static readonly Dictionary<Cue, byte[]?> CueFiles = new();
+    private readonly Dictionary<Cue, byte[]?> CueFiles = new();
 
     /// <summary>Assets/sounds/&lt;cue&gt;.wav（由 tools/Tiisu.AudioGen 生成）；缺失返回 null。</summary>
-    private static byte[]? TryLoadCueFile(Cue cue)
+    private byte[]? TryLoadCueFile(Cue cue)
     {
         if (CueFiles.TryGetValue(cue, out var cached))
         {
@@ -103,7 +125,7 @@ public static class SoundEffects
         return wav;
     }
 
-    private static string cueName(Cue cue) => cue switch
+    private string cueName(Cue cue) => cue switch
     {
         Cue.Draw => "draw",
         Cue.Discard => "discard",
@@ -116,7 +138,7 @@ public static class SoundEffects
         _ => "roundend",
     };
 
-    private static byte[] Get(Cue cue)
+    private byte[] Get(Cue cue)
     {
         if (Cache.TryGetValue(cue, out var cached))
         {
@@ -141,7 +163,7 @@ public static class SoundEffects
     }
 
     /// <summary>发牌：20 次牌-牌碰撞（间隔 40–90ms），照 IGS 参考音的总长与密度。</summary>
-    private static byte[] Deal()
+    private byte[] Deal()
     {
         const int rate = 24000;
         const int clicks = 20;
@@ -180,7 +202,7 @@ public static class SoundEffects
     }
 
     /// <summary>洗牌：连续摩擦噪声，带 8Hz 起伏（照 IGS 参考：1.5s 摩擦声）。</summary>
-    private static byte[] Shuffle()
+    private byte[] Shuffle()
     {
         const int rate = 24000;
         int total = (int)(rate * 1.35);
@@ -201,7 +223,7 @@ public static class SoundEffects
         return ToWav(samples, rate);
     }
 
-    private static byte[] Tone((float Hz, float Seconds, float Amp)[] notes, float totalSeconds)
+    private byte[] Tone((float Hz, float Seconds, float Amp)[] notes, float totalSeconds)
     {
         const int rate = 22050;
         int total = (int)(rate * totalSeconds);
@@ -226,7 +248,7 @@ public static class SoundEffects
         return ToWav(samples, rate);
     }
 
-    private static byte[] Noise(float seconds, float amp)
+    private byte[] Noise(float seconds, float amp)
     {
         const int rate = 22050;
         int total = (int)(rate * seconds);
@@ -241,7 +263,7 @@ public static class SoundEffects
         return ToWav(samples, rate);
     }
 
-    private static byte[] ToWav(double[] samples, int rate)
+    private byte[] ToWav(double[] samples, int rate)
     {
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);
@@ -270,12 +292,12 @@ public static class SoundEffects
         return ms.ToArray();
     }
 
-    private static readonly Dictionary<string, byte[]> Voices = new();
-    private static byte[]? _bgm;
-    private static bool _bgmPlaying;
+    private readonly Dictionary<string, byte[]> Voices = new();
+    private byte[]? _bgm;
+    private bool _bgmPlaying;
 
     /// <summary>播放背景音乐（Assets/bgm/lobby.wav，循环）。没有文件就静默。</summary>
-    public static void PlayBgm()
+    public void PlayBgm()
     {
         if (!Enabled || _bgmPlaying)
         {
@@ -290,7 +312,7 @@ public static class SoundEffects
                 return;
             }
 
-            Mixer.PlayBgm(_bgm, _bgmVolume / 100f);
+            _mixer.PlayBgm(_bgm, _bgmVolume / 100f);
             _bgmPlaying = true;
         }
         catch
@@ -301,9 +323,9 @@ public static class SoundEffects
 
     /// <summary>按音量缩放 16-bit PCM（缓存按 cue 名 + 音量）。</summary>
     // 键用 cue 名而不是字节哈希：避免等长 WAV 互相命中（审计 P3-1）。
-    private static readonly Dictionary<(string Key, int Volume), byte[]> ScaledCache = new();
+    private readonly Dictionary<(string Key, int Volume), byte[]> ScaledCache = new();
 
-    private static byte[] Scaled(byte[] wav, int volume, string keyName)
+    private byte[] Scaled(byte[] wav, int volume, string keyName)
     {
         int clamped = Math.Clamp(volume, 0, 100);
         if (clamped >= 100)
@@ -363,28 +385,28 @@ public static class SoundEffects
         return copy;
     }
 
-    private static int HashCode(byte[] data) =>
+    private int HashCode(byte[] data) =>
         data.Length ^ (data.Length > 0 ? (data[0] << 8) | data[^1] : 0);
 
-    public static void StopBgm()
+    public void StopBgm()
     {
         if (!_bgmPlaying)
         {
             return;
         }
 
-        Mixer.StopBgm();
+        _mixer.StopBgm();
         _bgmPlaying = false;
     }
 
-    private static byte[]? LoadBgm()
+    private byte[]? LoadBgm()
     {
         string path = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "bgm", "lobby.wav");
         return File.Exists(path) ? File.ReadAllBytes(path) : null;
     }
 
     /// <summary>音效开关变化时同步 BGM。'</summary>
-    public static void ApplyEnabled(bool enabled)
+    public void ApplyEnabled(bool enabled)
     {
         Enabled = enabled;
         if (!enabled)
@@ -397,7 +419,7 @@ public static class SoundEffects
     /// 播放报牌语音（Assets/voices/*.wav，由 espeak-ng 生成）。
     /// 文件不存在时静默跳过——不阻断游戏。
     /// </summary>
-    public static void PlayVoice(string name)
+    public void PlayVoice(string name)
     {
         if (!Enabled)
         {
@@ -419,7 +441,7 @@ public static class SoundEffects
                 Voices[name] = wav;
             }
 
-            Mixer.PlayOneShot(wav);
+            _mixer.PlayOneShot(wav);
         }
         catch
         {
@@ -428,7 +450,7 @@ public static class SoundEffects
     }
 
     /// <summary>自检：把每个音效写到目录里（听不听都行，程序能验收）。</summary>
-    public static IReadOnlyList<(Cue Cue, string Path, int Bytes)> ExportWavs(string dir)
+    public IReadOnlyList<(Cue Cue, string Path, int Bytes)> ExportWavs(string dir)
     {
         Directory.CreateDirectory(dir);
         var list = new List<(Cue, string, int)>();
@@ -441,5 +463,18 @@ public static class SoundEffects
         }
 
         return list;
+    }
+
+
+    public void Dispose()
+    {
+        try
+        {
+            _mixer.Dispose();
+        }
+        catch
+        {
+            // 音频设备不可用时不阻断关闭
+        }
     }
 }

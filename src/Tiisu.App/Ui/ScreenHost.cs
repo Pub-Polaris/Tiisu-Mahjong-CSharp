@@ -26,6 +26,7 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly GameSession _session;
     private Tiisu.Core.Ruleset _appliedRuleset;
     private readonly Settings _settings;
+    private readonly SoundEffects _sound = new();
     private readonly TableScreen _table;
     private readonly MenuScreen _menu;
     private readonly SettingsScreen _settingsScreen;
@@ -56,8 +57,8 @@ internal sealed class ScreenHostCore : IDisposable
         // 会话必须在 UI 线程构造：它捕获当前 SynchronizationContext 把事件回投到 UI。
         _settings = Settings.Load();
         _appliedRuleset = _settings.Ruleset;
-        SoundEffects.BgmVolume = _settings.BgmVolume;
-        SoundEffects.SfxVolume = _settings.SfxVolume;
+        _sound.BgmVolume = _settings.BgmVolume;
+        _sound.SfxVolume = _settings.SfxVolume;
         _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _menu = new MenuScreen(menuLayout, OnMenuAction, OpenUrl);
@@ -147,8 +148,8 @@ internal sealed class ScreenHostCore : IDisposable
     /// <summary>设置屏每次改动后：热更新到引擎线程（可选役 / recordTiles / 长考秒数）。</summary>
     private void OnSettingsChanged(Settings settings)
     {
-        SoundEffects.BgmVolume = settings.BgmVolume;
-        SoundEffects.SfxVolume = settings.SfxVolume;
+        _sound.BgmVolume = settings.BgmVolume;
+        _sound.SfxVolume = settings.SfxVolume;
         bool rulesetChanged = _appliedRuleset != settings.Ruleset;
         _appliedRuleset = settings.Ruleset;
         _session.Post(GameCommand.ApplySettings(settings));
@@ -166,11 +167,11 @@ internal sealed class ScreenHostCore : IDisposable
         bool lobby = next is MenuScreen or SettingsScreen;
         if (lobby)
         {
-            SoundEffects.PlayBgm();
+            _sound.PlayBgm();
         }
         else
         {
-            SoundEffects.StopBgm();
+            _sound.StopBgm();
         }
         if (ReferenceEquals(next, _current))
         {
