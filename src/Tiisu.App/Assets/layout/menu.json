@@ -21,6 +21,9 @@
     { "id": "btnMode16", "type": "button", "x": 870, "y": 420, "w": 200, "h": 64, "radius": 14,
       "text": "全庄", "action": "mode:16", "fontSize": 24 },
 
+      { "id": "btnRules", "type": "button", "x": 870, "y": 520, "w": 200, "h": 56, "radius": 12,
+        "text": "规则速查", "action": "rules", "fontSize": 20 },
+
     { "id": "btnQuit", "type": "button", "x": 430, "y": 520, "w": 200, "h": 56, "radius": 12,
       "text": "退出", "action": "quit", "fontSize": 20 },
     { "id": "btnSettings", "type": "button", "x": 650, "y": 520, "w": 200, "h": 56, "radius": 12,

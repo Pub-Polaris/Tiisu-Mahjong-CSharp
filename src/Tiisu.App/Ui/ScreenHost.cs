@@ -30,6 +30,7 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly TableScreen _table;
     private readonly MenuScreen _menu;
     private readonly SettingsScreen _settingsScreen;
+    private readonly RulesScreen _rules;
     private Screen? _settingsReturn;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly System.Windows.Forms.Timer _frameTimer;
@@ -62,6 +63,7 @@ internal sealed class ScreenHostCore : IDisposable
         _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _menu = new MenuScreen(menuLayout, OnMenuAction, OpenUrl);
+        _rules = new RulesScreen(() => SwitchTo(_menu));
         _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () =>
         {
             var back = _settingsReturn ?? _menu;
@@ -117,6 +119,10 @@ internal sealed class ScreenHostCore : IDisposable
                 SwitchTo(_settingsScreen);
                 return true;
 
+            case "rules":
+                SwitchTo(_rules);
+                return true;
+
             case "quit":
                 // 菜单「退出」= 关主窗口（退出程序）；ESC 仍只做返回。
                 _close();
@@ -164,7 +170,7 @@ internal sealed class ScreenHostCore : IDisposable
 
     private void SwitchTo(Screen next)
     {
-        bool lobby = next is MenuScreen or SettingsScreen;
+        bool lobby = next is MenuScreen or SettingsScreen or RulesScreen;
         if (lobby)
         {
             _sound.PlayBgm();
