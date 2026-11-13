@@ -42,26 +42,33 @@ internal static class DevCommands
     {
         string outPath = args.Length > 1 ? args[1] : "dist/selfplay.jsonl";
         int games = 100;
-        uint seed = 1;
+        int gameSeed = 1;
         int mode = 4;
+        int jobs = 1;
+        int sampleEvery = 1;
+        double explore = 0;
         for (int i = 1; i < args.Length; i++)
         {
             if (args[i] == "--games" && i + 1 < args.Length && int.TryParse(args[i + 1], out int g)) games = Math.Max(1, g);
-            if (args[i] == "--start-seed" && i + 1 < args.Length && uint.TryParse(args[i + 1], out uint sd)) seed = sd;
+            if (args[i] == "--start-seed" && i + 1 < args.Length && int.TryParse(args[i + 1], out int sd)) gameSeed = sd;
             if (args[i] == "--mode" && i + 1 < args.Length && int.TryParse(args[i + 1], out int m)) mode = Math.Max(1, m);
+            if (args[i] == "--jobs" && i + 1 < args.Length && int.TryParse(args[i + 1], out int j)) jobs = Math.Clamp(j, 1, Environment.ProcessorCount);
+            if (args[i] == "--sample-every" && i + 1 < args.Length && int.TryParse(args[i + 1], out int se)) sampleEvery = Math.Max(1, se);
+            if (args[i] == "--explore" && i + 1 < args.Length && double.TryParse(args[i + 1], out double ex)) explore = Math.Clamp(ex, 0, 0.9);
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath))!);
-        var options = new Tiisu.Engine.SelfPlay.SelfPlayOptions { ModeTarget = mode, MaxHands = 512 };
         int written = 0;
+        object writeLock = new();
         using var writer = new StreamWriter(outPath, false, new System.Text.UTF8Encoding(false));
-        for (int g = 0; g < games; g++)
+        Parallel.For(0, games, new ParallelOptions { MaxDegreeOfParallelism = jobs }, g =>
         {
             var samples = new List<SelfPlaySample>();
             var opts = new Tiisu.Engine.SelfPlay.SelfPlayOptions
             {
                 ModeTarget = mode,
                 MaxHands = 512,
+                ExploreRate = explore,
                 DiscardObserver = (engine, player, index) =>
                 {
                     var p = engine.Players[player];
@@ -82,8 +89,7 @@ internal static class DevCommands
                     });
                 },
             };
-            uint gameSeed = seed + (uint)g;
-            var result = Tiisu.Engine.SelfPlay.SelfPlayDriver.Run(gameSeed, opts);
+            var result = Tiisu.Engine.SelfPlay.SelfPlayDriver.Run((uint)(gameSeed + g), opts);
             int initial = mode >= 16 ? 77000 : 49000;
             var melds = new int[4];
             var callWins = new int[4];
@@ -111,24 +117,28 @@ internal static class DevCommands
             var order = Enumerable.Range(0, 4).OrderByDescending(i => result.FinalScores[i]).ToArray();
             var rank = new int[4];
             for (int i = 0; i < 4; i++) rank[order[i]] = i + 1;
-            foreach (var sample in samples)
+            lock (writeLock)
             {
-                sample.FinalScore = result.FinalScores[sample.Player];
-                sample.InitialScore = initial;
-                sample.FinalRank = rank[sample.Player];
-                sample.Lead = rank[sample.Player] == 1
-                    ? result.FinalScores[sample.Player] - result.FinalScores.Where((_, i) => i != sample.Player).Max()
-                    : 0;
-                sample.Melds = melds[sample.Player];
-                sample.CallWins = callWins[sample.Player];
-                sample.DealsIn = dealsIn[sample.Player];
-                sample.Misfires = misfires[sample.Player];
-                writer.WriteLine(System.Text.Json.JsonSerializer.Serialize(sample));
-                written++;
+                foreach (var sample in samples)
+                {
+                    if (sample.Step % sampleEvery != 0) continue;
+                    sample.FinalScore = result.FinalScores[sample.Player];
+                    sample.InitialScore = initial;
+                    sample.FinalRank = rank[sample.Player];
+                    sample.Lead = rank[sample.Player] == 1
+                        ? result.FinalScores[sample.Player] - result.FinalScores.Where((_, i) => i != sample.Player).Max()
+                        : 0;
+                    sample.Melds = melds[sample.Player];
+                    sample.CallWins = callWins[sample.Player];
+                    sample.DealsIn = dealsIn[sample.Player];
+                    sample.Misfires = misfires[sample.Player];
+                    writer.WriteLine(System.Text.Json.JsonSerializer.Serialize(sample));
+                    written++;
+                }
             }
-        }
+        });
 
-        Console.WriteLine($"selfplay: {games} games, {written} samples -> {outPath}");
+        Console.WriteLine($"selfplay: {games} games, {written} samples -> {outPath} (jobs={jobs}, sampleEvery={sampleEvery}, explore={explore})");
         return 0;
     }
 

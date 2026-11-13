@@ -10,7 +10,8 @@
 ## 数据
 
 ```powershell
-dotnet "...\Tiisu.DevTools.dll" --export-selfplay dist/selfplay.jsonl --games 500 --start-seed 1 --mode 4
+dotnet "...\Tiisu.DevTools.dll" --export-selfplay dist/selfplay.jsonl `
+  --games 500 --start-seed 1 --mode 4 --jobs 8 --sample-every 10 --explore 0.1
 ```
 
 每条样本：
@@ -43,11 +44,16 @@ dotnet "...\Tiisu.DevTools.dll" --export-selfplay dist/selfplay.jsonl --games 50
 
 `ml/train_policy_selfplay.py` 的 `RewardConfig`：
 
-- 终局点数差 `/1000`
+- 特征与奖励都做归一化：特征 z-score（均值/方差随权重保存），奖励 `tanh(raw/20)` 压到 [-1,1]
 - 一位大幅领先时，正收益按领先幅度衰减
 - 吃碰和牌扣分；向听变差、连续多巡不降向听扣分
 - 错和、放铳额外扣分
 - 四位劣势时弃和/不冒进给极小正分
+
+## 探索
+
+- `--explore 0.1`：自走时按概率换一张合法弃牌，生成带探索的样本。
+- 训练默认 `--label-smoothing 0.02`，避免模型只记住自走函数而不是探索规则边界。
 
 ## 训练
 

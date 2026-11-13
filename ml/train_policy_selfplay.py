@@ -105,8 +105,14 @@ def train(args: argparse.Namespace) -> None:
     if bad:
         raise SystemExit(f"特征长度不一致，首行 {feature_count}，第 {bad[0]} 行 {len(rows[bad[0]]['Features'])}")
 
-    rewards = np.asarray(compute_rewards(rows, RewardConfig()), dtype=np.float32)
+    raw_rewards = np.asarray(compute_rewards(rows, RewardConfig()), dtype=np.float32)
+    # 数值归一化：tanh 压到 [-1,1]，不把 -80 这种极值直接喂给权重。
+    rewards = np.tanh(raw_rewards / max(1.0, float(args.reward_scale)))
     x = np.asarray([r["Features"] for r in rows], dtype=np.float32)
+    feature_mean = x.mean(axis=0)
+    feature_std = x.std(axis=0)
+    feature_std[feature_std < 1e-6] = 1.0
+    x = (x - feature_mean) / feature_std
     y = np.asarray([r["Action"] for r in rows], dtype=np.int64)
     weights = np.exp(np.clip(rewards, -2.0, 2.0)).astype(np.float32)
     weights /= weights.mean()
@@ -118,7 +124,7 @@ def train(args: argparse.Namespace) -> None:
     val = np.array([r.get("Game", 0) in val_games for r in rows])
     tr = ~val
     print(f"samples={len(rows)} features={feature_count} train={int(tr.sum())} val={int(val.sum())} "
-          f"reward=[{rewards.min():.3f},{rewards.max():.3f}]")
+          f"reward=[{rewards.min():.3f},{rewards.max():.3f}] raw=[{raw_rewards.min():.1f},{raw_rewards.max():.1f}]")
 
     rng_np = np.random.default_rng(args.seed)
     hidden = args.hidden
@@ -151,6 +157,8 @@ def train(args: argparse.Namespace) -> None:
             logits = h2 @ w3.T + b3
             p = softmax(logits)
             one = one_hot(yb)
+            if args.label_smoothing > 0:
+                one = one * (1.0 - args.label_smoothing) + args.label_smoothing / 34.0
             loss = -(np.log(np.clip(p[np.arange(len(sel)), yb], 1e-8, 1.0)) * wb[:, 0]).mean()
 
             dlogits = (p - one) * wb / len(sel)
@@ -193,6 +201,8 @@ def train(args: argparse.Namespace) -> None:
         ],
         "val_top1": best_acc,
         "samples": len(rows),
+        "feature_mean": feature_mean.tolist(),
+        "feature_std": feature_std.tolist(),
         "selfplay": True,
     }
     with open(args.out, "w", encoding="utf-8") as f:
@@ -209,6 +219,8 @@ def main() -> None:
     parser.add_argument("--batch", type=int, default=256)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--reward-scale", type=float, default=20.0)
+    parser.add_argument("--label-smoothing", type=float, default=0.02)
     train(parser.parse_args())
 
 

@@ -38,7 +38,7 @@ public static class NeuralPolicyAi
         EnsureLoaded();
         if (_weights is { } w)
         {
-            float[] x = BuildFeatures(ctx, w.Features);
+            float[] x = Normalize(BuildFeatures(ctx, w.Features), w);
             float[] h1 = Dense(w.L1, w.B1, x, w.Hidden);
             float[] h2 = Dense(w.L2, w.B2, h1, w.Hidden);
             float[] logits = Dense(w.L3, w.B3, h2, 34);
@@ -203,6 +203,26 @@ public static class NeuralPolicyAi
       }
 
 
+    private static float[] Normalize(float[] x, Weights w)
+    {
+        if (w.FeatureMean.Length != x.Length || w.FeatureStd.Length != x.Length)
+        {
+            return x;
+        }
+
+        for (int i = 0; i < x.Length; i++)
+        {
+            float std = w.FeatureStd[i];
+            if (std > 1e-6f)
+            {
+                x[i] = (x[i] - w.FeatureMean[i]) / std;
+            }
+        }
+
+        return x;
+    }
+
+
     private static int TileIndex(Tile tile)
     {
         int idx = tile.Index;
@@ -255,6 +275,8 @@ public static class NeuralPolicyAi
                 {
                     Hidden = (int?)obj["hidden"] ?? 256,
                           Features = (int?)obj["features"] ?? 181,
+                          FeatureMean = obj["feature_mean"] is JsonArray m ? ReadVector(m) : Array.Empty<float>(),
+                          FeatureStd = obj["feature_std"] is JsonArray st ? ReadVector(st) : Array.Empty<float>(),
                     L1 = ReadMatrix(layers[0]!["w"]),
                     B1 = ReadVector(layers[0]!["b"]),
                     L2 = ReadMatrix(layers[1]!["w"]),
@@ -323,6 +345,8 @@ public static class NeuralPolicyAi
     {
         public int Hidden { get; init; }
           public int Features { get; init; } = 181;
+          public float[] FeatureMean { get; init; } = Array.Empty<float>();
+          public float[] FeatureStd { get; init; } = Array.Empty<float>();
         public float[] L1 { get; init; } = Array.Empty<float>();
         public float[] B1 { get; init; } = Array.Empty<float>();
         public float[] L2 { get; init; } = Array.Empty<float>();

@@ -21,6 +21,9 @@ public sealed class SelfPlayOptions
 
     /// <summary>弃牌决策回调（引擎、玩家序号、弃牌下标）；用于自博弈训练数据导出。</summary>
     public Action<MahjongEngine, int, int>? DiscardObserver { get; init; }
+
+    /// <summary>探索率：按概率随机换一张合法弃牌，用于生成带探索的自博弈样本。</summary>
+    public double ExploreRate { get; init; }
 }
 
 /// <summary>

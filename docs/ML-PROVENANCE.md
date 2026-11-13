@@ -37,6 +37,8 @@
 
 - 数据：`--export-selfplay` 从引擎自走生成，已不使用外部数据集。
 - 特征：`SelfPlayFeatures` v4，339 维：手牌/四家牌河/四家副露/点数与点差/本场/场风/座次 + 12 维牌型结构（三色同顺/同刻、对对、五门齐等，不含偶发役）。
-- 奖励：`ml/train_policy_selfplay.py` 的 `RewardConfig`：终局点数差、吃碰和牌扣分、向听破坏/长期不降扣分、错和/放铳扣分、四位弃和极小正分、一位大领先时正收益衰减。
+- 奖励：`ml/train_policy_selfplay.py` 的 `RewardConfig`：终局点数差、吃碰和牌扣分、向听破坏/长期不降扣分、错和/放铳扣分、四位弃和极小正分、一位大领先时正收益衰减；`tanh(raw/20)` 归一化。
+- 探索：自走 `--explore` 随机换合法弃牌；训练标签平滑 0.02。
+- 特征 z-score 归一化，均值/方差随权重保存，运行时 `NeuralPolicyAi` 同口径。
 - 训练：`python ml/train_policy_selfplay.py --data dist/selfplay.jsonl --out ml/policy_weights_v4.json`。
 - 状态：管线可用；当前**尚未训练出可发布 v4 权重**，运行时仍回退 v2。Steam 前需用 v4 替换 v2，或确认 v2 数据许可。
