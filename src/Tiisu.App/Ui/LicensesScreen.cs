@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using Tiisu.App.Rendering;
 using Color = Tiisu.App.Rendering.Color;
 
 namespace Tiisu.App.Ui;
 
-/// <summary>菜单「开源信息」：逐页列出本项目使用的全部开源组件与素材许可。</summary>
+/// <summary>菜单「开源信息」：逐页列出组件许可，支持查看全文与闭源参考鸣谢。</summary>
 public sealed class LicensesScreen : Screen
 {
     private sealed record Entry(string Name, string Version, string License, string Usage, string Url, bool Reference = false);
@@ -44,7 +46,7 @@ public sealed class LicensesScreen : Screen
             "运行时、WinForms 与基础库",
             "https://github.com/dotnet/runtime"),
         new("System.Speech", "9.0.0", "MIT",
-            "Tiisu.AudioGen 的语音合成",
+            "本机 Windows SAPI 报牌语音生成",
             "https://github.com/dotnet/runtime"),
         new("xUnit", "2.9.3", "Apache-2.0",
             "单元测试（仅开发构建）",
@@ -61,8 +63,8 @@ public sealed class LicensesScreen : Screen
         new("Parisian", "Kevin MacLeod", "CC BY 4.0",
             "菜单 BGM（lobby.wav，已做音量调整）",
             "https://incompetech.com/music/royalty-free/"),
-        new("音效与语音素材", "本仓合成", "随项目 MIT",
-            "Assets/sounds、Assets/voices 由 Tiisu.AudioGen 合成，不含第三方录音",
+        new("音效与语音素材", "本仓合成/本机生成", "随项目 MIT",
+            "音效由 AudioGen 合成；语音本机 SAPI 生成，不随包分发",
             "—"),
         new("Tiisu Mahjong 本项目代码", "见版本行", "MIT",
             "仓库内自有代码与文档",
@@ -78,14 +80,25 @@ public sealed class LicensesScreen : Screen
             "—", true),
     };
 
+    private const int TextLinesPerPage = 24;
+    private const int TextCharsPerLine = 100;
+
     private readonly Action _back;
     private int _page;
+    private bool _textMode;
+    private string _textTitle = string.Empty;
+    private string[] _textAllLines = Array.Empty<string>();
+    private int _textPage;
+    private int _textPages = 1;
+
     private RectF _prevButton;
     private RectF _nextButton;
     private RectF _backButton;
+    private RectF _textButton;
     private bool _prevHover;
     private bool _nextHover;
     private bool _backHover;
+    private bool _textHover;
 
     public LicensesScreen(Action back) : base("licenses")
     {
@@ -96,6 +109,12 @@ public sealed class LicensesScreen : Screen
     {
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
+
+        if (_textMode)
+        {
+            DrawTextMode(c);
+            return;
+        }
 
         c.DrawText("开源许可与参考鸣谢", new RectF(0, 54, Width, 56),
             Color.Rgb(242, 230, 190), new TextStyle(42, Bold: true, Center: true));
@@ -138,16 +157,44 @@ public sealed class LicensesScreen : Screen
         c.DrawText("按 ← / → 翻页 · Esc 返回菜单",
             new RectF(0, 558, Width, 22), Color.Rgb(127, 145, 137), new TextStyle(14, Center: true));
 
-        _prevButton = new RectF(Width / 2f - 270, 596, 150, 44);
+        _textButton = new RectF(Width / 2f - 140, 510, 280, 40);
+        DrawButton(c, _textButton, "查看本页许可全文", _textHover, true);
+
+        _prevButton = new RectF(Width / 2f - 330, 596, 150, 44);
         _backButton = new RectF(Width / 2f - 75, 596, 150, 44);
         _nextButton = new RectF(Width / 2f + 120, 596, 150, 44);
-
         DrawButton(c, _prevButton, "上一页", _prevHover, _page > 0);
         DrawButton(c, _backButton, "返回菜单", _backHover, true);
         DrawButton(c, _nextButton, "下一页", _nextHover, _page < Entries.Length - 1);
     }
 
-    /// <summary>与规则速查页同一个按钮规格。</summary>
+    private void DrawTextMode(ICanvas c)
+    {
+        c.DrawText(_textTitle, new RectF(0, 40, Width, 48),
+            Color.Rgb(242, 230, 190), new TextStyle(34, Bold: true, Center: true));
+        c.DrawText("许可全文 · 第 " + (_textPage + 1) + " / " + _textPages + " 页",
+            new RectF(0, 88, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(15, Center: true));
+
+        var box = new RectF(90, 122, Width - 180, 480);
+        c.FillRoundRect(box, 14, Color.Rgb(20, 30, 26));
+        c.StrokeRoundRect(box, 14, Color.Rgb(80, 102, 90), 1.2f);
+
+        int start = _textPage * TextLinesPerPage;
+        for (int i = 0; i < TextLinesPerPage && start + i < _textAllLines.Length; i++)
+        {
+            c.DrawText(_textAllLines[start + i],
+                new RectF(box.X + 22, box.Y + 14 + i * 18, box.W - 44, 18),
+                Color.Rgb(216, 224, 214), new TextStyle(13, Center: false));
+        }
+
+        _prevButton = new RectF(Width / 2f - 270, 620, 150, 44);
+        _backButton = new RectF(Width / 2f - 75, 620, 150, 44);
+        _nextButton = new RectF(Width / 2f + 120, 620, 150, 44);
+        DrawButton(c, _prevButton, "上一页", _prevHover, _textPage > 0);
+        DrawButton(c, _backButton, "返回列表", _backHover, true);
+        DrawButton(c, _nextButton, "下一页", _nextHover, _textPage < _textPages - 1);
+    }
+
     private static void DrawButton(ICanvas c, RectF rect, string label, bool hover, bool enabled)
     {
         var border = !enabled ? Color.Rgb(70, 84, 78) : hover ? Color.Rgb(242, 201, 76) : Color.Rgb(196, 168, 96);
@@ -162,9 +209,38 @@ public sealed class LicensesScreen : Screen
 
     public override bool OnClick(float x, float y)
     {
+        if (_textMode)
+        {
+            if (_backButton.Contains(x, y))
+            {
+                _textMode = false;
+                return true;
+            }
+
+            if (_prevButton.Contains(x, y) && _textPage > 0)
+            {
+                _textPage--;
+                return true;
+            }
+
+            if (_nextButton.Contains(x, y) && _textPage < _textPages - 1)
+            {
+                _textPage++;
+                return true;
+            }
+
+            return false;
+        }
+
         if (_backButton.Contains(x, y))
         {
             _back();
+            return true;
+        }
+
+        if (_textButton.Contains(x, y))
+        {
+            OpenText();
             return true;
         }
 
@@ -185,37 +261,107 @@ public sealed class LicensesScreen : Screen
 
     public override bool OnPointerMove(float x, float y)
     {
-        _prevHover = _page > 0 && _prevButton.Contains(x, y);
-        _nextHover = _page < Entries.Length - 1 && _nextButton.Contains(x, y);
+        _prevHover = (_textMode ? _textPage > 0 : _page > 0) && _prevButton.Contains(x, y);
+        _nextHover = (_textMode ? _textPage < _textPages - 1 : _page < Entries.Length - 1) && _nextButton.Contains(x, y);
         _backHover = _backButton.Contains(x, y);
-        return _prevHover || _nextHover || _backHover;
+        _textHover = !_textMode && _textButton.Contains(x, y);
+        return _prevHover || _nextHover || _backHover || _textHover;
     }
 
     public override bool OnKey(Keys key)
     {
-        switch (key)
+        if (key == Keys.Escape)
         {
-            case Keys.Escape:
+            if (_textMode)
+            {
+                _textMode = false;
+            }
+            else
+            {
                 _back();
-                return true;
-            case Keys.Left:
-            case Keys.PageUp:
-                if (_page > 0)
-                {
-                    _page--;
-                }
+            }
 
-                return true;
-            case Keys.Right:
-            case Keys.PageDown:
-                if (_page < Entries.Length - 1)
-                {
-                    _page++;
-                }
-
-                return true;
-            default:
-                return false;
+            return true;
         }
+
+        if (key is Keys.Left or Keys.PageUp)
+        {
+            if (_textMode)
+            {
+                if (_textPage > 0)
+                {
+                    _textPage--;
+                }
+            }
+            else if (_page > 0)
+            {
+                _page--;
+            }
+
+            return true;
+        }
+
+        if (key is Keys.Right or Keys.PageDown)
+        {
+            if (_textMode)
+            {
+                if (_textPage < _textPages - 1)
+                {
+                    _textPage++;
+                }
+            }
+            else if (_page < Entries.Length - 1)
+            {
+                _page++;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private void OpenText()
+    {
+        var entry = Entries[_page];
+        _textTitle = entry.Name + " · " + entry.License;
+        string file = entry.Reference
+            ? "REFERENCES.txt"
+            : entry.License.Contains("OFL", StringComparison.Ordinal) ? "OFL-1.1.txt"
+            : entry.License.Contains("Apache", StringComparison.Ordinal) ? "Apache-2.0.txt"
+            : entry.License.Contains("CC BY", StringComparison.Ordinal) ? "CC-BY-4.0.txt"
+            : "MIT.txt";
+
+        string text;
+        try
+        {
+            text = File.ReadAllText(Path.Combine(
+                AppContext.BaseDirectory, "Assets", "licenses", file));
+        }
+        catch
+        {
+            text = "未找到许可全文：" + file;
+        }
+
+        var wrapped = new List<string>();
+        foreach (string raw in text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+        {
+            string line = raw.TrimEnd();
+            if (line.Length == 0)
+            {
+                wrapped.Add(string.Empty);
+                continue;
+            }
+
+            for (int i = 0; i < line.Length; i += TextCharsPerLine)
+            {
+                wrapped.Add(line.Substring(i, Math.Min(TextCharsPerLine, line.Length - i)));
+            }
+        }
+
+        _textAllLines = wrapped.ToArray();
+        _textPages = Math.Max(1, (int)Math.Ceiling(_textAllLines.Length / (double)TextLinesPerPage));
+        _textPage = 0;
+        _textMode = true;
     }
 }
