@@ -1060,6 +1060,78 @@ internal static class DevCommands
     /// 再按牌桌屏 + 结算覆盖层出图。明细打印到控制台供对数。
     /// <para><c>--double</c>：双和演示（验证「第 1/2 位 + 下一家」）；<c>--flow</c>：荒牌流局演示。</para>
     /// </summary>
+    /// <summary>
+    /// <c>--render-tile-rotate &lt;outdir&gt;</c>：用牌面雪碧图的幺鸡（1s），
+    /// 先斜置（-35°），再向右旋转到 +35°，输出逐帧 PNG。Skia 用 4×4 透视矩阵
+    /// 做真正的纹理透视，不是把四角手动收窄。
+    /// </summary>
+    private static int RenderTileRotate(string outDir)
+    {
+        Directory.CreateDirectory(outDir);
+        using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
+        if (!atlas.IsLoaded || atlas.Sheet is not { } sheet
+            || !atlas.TryGetSource("1s", out var src))
+        {
+            Console.Error.WriteLine("牌面图集不可用（Assets/tiles.png / tiles.json）");
+            return 1;
+        }
+
+        const int canvasW = 900;
+        const int canvasH = 900;
+        const int tileW = 216;
+        const int tileH = 300;
+        const float distance = 1000f;
+        const float fovDegrees = 50f;
+        float focal = canvasH / 2f / MathF.Tan(fovDegrees * MathF.PI / 360f);
+
+        int frames = 25;
+        for (int frame = 0; frame < frames; frame++)
+        {
+            // -35° → +35°，两端慢、中间快（easeInOut）
+            float t = frames <= 1 ? 1f : frame / (float)(frames - 1);
+            float eased = t * t * (3f - 2f * t);
+            float degrees = -35f + 70f * eased;
+            float rad = degrees * MathF.PI / 180f;
+            float cos = MathF.Cos(rad);
+            float sin = MathF.Sin(rad);
+
+            var matrix = new SKMatrix44();
+            // x' = focal*cos*x + canvasW/2*distance（再除以 w）
+            matrix[0, 0] = focal * cos;
+            matrix[3, 0] = canvasW / 2f * distance;
+            // y' = focal*y + canvasH/2*distance
+            matrix[1, 1] = focal;
+            matrix[3, 1] = canvasH / 2f * distance;
+            matrix[2, 2] = 1f;
+            // w = sin*x + distance（右侧靠近/远离，形成透视）
+            matrix[0, 3] = sin;
+            matrix[3, 3] = distance;
+
+            using var surface = SKSurface.Create(new SKImageInfo(canvasW, canvasH, SKColorType.Rgba8888, SKAlphaType.Premul));
+            var canvas = surface.Canvas;
+            canvas.Clear(new SKColor(18, 26, 22));
+
+            // 地面阴影（随旋转轻微移动）
+            using var shadow = new SKPaint { Color = new SKColor(0, 0, 0, 110), IsAntialias = true, ImageFilter = SKImageFilter.CreateBlur(18, 18) };
+            canvas.DrawOval(new SKRect(250, 700, 650, 780), shadow);
+
+            canvas.Save();
+            canvas.Concat(matrix);
+            using var paint = new SKPaint { IsAntialias = true };
+            canvas.DrawImage(sheet, src, new SKRect(-tileW / 2f, -tileH / 2f, tileW / 2f, tileH / 2f), paint);
+            canvas.Restore();
+
+            string path = Path.Combine(outDir, $"tile-1s-{frame:000}.png");
+            using var image = surface.Snapshot();
+            using var data = image.Encode(SKEncodedImageFormat.Png, 95);
+            using var stream = File.OpenWrite(path);
+            data.SaveTo(stream);
+        }
+
+        Console.WriteLine($"tile rotation frames: {frames} → {outDir}");
+        return 0;
+    }
+
     private static int RenderRoundEndToPng(string[] args)
     {
         Tiisu.App.Program.TryUseUtf8Console();
@@ -3673,6 +3745,12 @@ internal static class DevCommands
         {
             RenderLayoutEdit(args[1]);
             return 0;
+        }
+
+        // 牌面斜置/向右旋转演示：--render-tile-rotate <outdir>
+        if (args.Length >= 2 && args[0] == "--render-tile-rotate")
+        {
+            return RenderTileRotate(args[1]);
         }
 
         // 四家手牌明示出图：--render-hands <png> [seed] [mode]
