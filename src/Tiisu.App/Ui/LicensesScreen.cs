@@ -36,6 +36,24 @@ public sealed class LicensesScreen : Screen
         new("NAudio", "2.2.1", "MIT",
             "BGM / 音效混音与播放",
             "https://github.com/naudio/NAudio"),
+        new("NAudio.Asio / Core / Midi / Wasapi / WinForms / WinMM", "2.2.1", "MIT",
+            "NAudio 的传递依赖模块",
+            "https://github.com/naudio/NAudio"),
+        new("HarfBuzzSharp / NativeAssets.Win32", "14.2.1.301", "MIT",
+            "SkiaSharp.HarfBuzz 的传递依赖",
+            "https://github.com/mono/SkiaSharp"),
+        new("OpenTK", "4.8.2", "MIT",
+            "OpenGL 窗口与图形绑定（OpenTK.* 传递依赖）",
+            "https://github.com/opentk/opentk"),
+        new("OpenTK.GLControl", "4.0.1", "MIT",
+            "WinForms GL 控件",
+            "https://github.com/opentk/opentk"),
+        new("GLFW（OpenTK.redist.glfw）", "3.3.8.39", "Zlib/libpng",
+            "窗口/输入原生库",
+            "https://www.glfw.org/"),
+        new("YogaSharp.Core / SkiaSharp.Views.Desktop.Common", "1.0.6 / 4.153.1", "MIT",
+            "布局与 Skia 桌面控件的传递依赖",
+            "https://github.com/RaZeR-RaY/YogaSharp"),
         new("YogaSharp.Layout", "1.0.6", "MIT",
             "牌桌 Flex 布局绑定",
             "https://github.com/RaZeR-RaY/YogaSharp"),
@@ -330,6 +348,7 @@ public sealed class LicensesScreen : Screen
             : entry.License.Contains("OFL", StringComparison.Ordinal) ? "OFL-1.1.txt"
             : entry.License.Contains("Apache", StringComparison.Ordinal) ? "Apache-2.0.txt"
             : entry.License.Contains("CC BY", StringComparison.Ordinal) ? "CC-BY-4.0.txt"
+            : entry.License.Contains("Zlib", StringComparison.OrdinalIgnoreCase) ? "Zlib.txt"
             : "MIT.txt";
 
         string text;

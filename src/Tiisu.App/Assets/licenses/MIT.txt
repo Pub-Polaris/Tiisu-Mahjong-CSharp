@@ -1,10 +1,12 @@
 MIT License
 
 Copyright (c) 2026 公民北极星_Offiicial
-Copyright (c) NAudio contributors
+Copyright (c) Mark Heath and NAudio contributors
 Copyright (c) Microsoft Corporation
 Copyright (c) Mono Project / SkiaSharp contributors
-Copyright (c) RaZeR-RaY / YogaSharp contributors
+Copyright (c) OpenTK contributors
+Copyright (c) HarfBuzzSharp contributors
+Copyright (c) YogaSharp contributors
 Copyright (c) Facebook, Inc. and its affiliates (Yoga)
 Copyright (c) .NET Foundation and Contributors
 Copyright (c) HarfBuzz contributors

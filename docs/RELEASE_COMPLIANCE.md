@@ -8,14 +8,14 @@
 | # | 项 | 状态 | 证据 / 下一步 |
 |---|---|---|---|
 | A1 | 项目自身 MIT 许可证 | ✅ | `LICENSE` |
-| A2 | 第三方组件清单 | ⚠️ | `THIRD-PARTY-NOTICES.md` 只覆盖直接依赖，漏了传递依赖：HarfBuzzSharp、OpenTK / GLFW、NAudio.*、YogaSharp.Core |
+| A2 | 第三方组件清单 | ✅ | 已补 HarfBuzzSharp、OpenTK/GLFW、NAudio.*、YogaSharp.Core 等到 `THIRD-PARTY-NOTICES.md` 与游戏内列表 |
 | A3 | 许可证全文随包分发 | ✅ | `Assets/licenses/MIT.txt`、`Apache-2.0.txt`、`OFL-1.1.txt`、`CC-BY-4.0.txt`、`REFERENCES.txt` |
 | A4 | 游戏内可查看 | ✅ | 菜单「开源信息」→ 每页「查看本页许可全文」 |
 | A5 | 字体 OFL 保留字体名 | ✅ | 子集重命名为 `Tiisu Rounded SC`，版权与 OFL 声明保留 |
 | A6 | BGM CC BY 4.0 署名 | ✅ | 菜单底部署名 + 许可页 Parisian 条目 |
 | A7 | 报牌语音不再分发 | ✅ | `Assets/voices` 已删除；本机 SAPI 生成到 `%LOCALAPPDATA%\TiisuMahjong\voices` |
 | A8 | 开发/测试依赖不随包 | ⚠️ | xUnit/vstest/coverlet 不应进 publish；需在发布产物里复核 |
-| A9 | MIT 版权行完整 | ⚠️ | `MIT.txt` 目前是汇总版权行，需逐项对照上游 NOTICE |
+| A9 | MIT 版权行完整 | ✅ | `MIT.txt` 已补 NAudio/OpenTK/HarfBuzzSharp/YogaSharp 等版权行；GLFW 单独 Zlib 文本 |
 
 ## B. 素材与来源
 

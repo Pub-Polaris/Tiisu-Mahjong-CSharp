@@ -24,6 +24,11 @@
 | 组件 | 版本 | 许可 | 用途 |
 |---|---|---|---|
 | [NAudio](https://github.com/naudio/NAudio) | 2.2.1 | MIT | 音频混音与播放（BGM + 音效） |
+| NAudio.Asio / Core / Midi / Wasapi / WinForms / WinMM | 2.2.1 | MIT | NAudio 传递依赖 |
+| HarfBuzzSharp / NativeAssets.Win32 | 14.2.1.301 | MIT | SkiaSharp.HarfBuzz 传递依赖 |
+| OpenTK / OpenTK.GLControl | 4.8.2 / 4.0.1 | MIT | OpenGL 窗口与控件 |
+| GLFW（OpenTK.redist.glfw） | 3.3.8.39 | Zlib/libpng | 窗口/输入原生库 |
+| YogaSharp.Core / SkiaSharp.Views.Desktop.Common | 1.0.6 / 4.153.1 | MIT | 布局/桌面控件传递依赖 |
 | [SkiaSharp](https://github.com/mono/SkiaSharp)（含 NativeAssets.Win32 / Views.WindowsForms / HarfBuzz） | 4.153.1 | MIT | 2D 绘制与牌面渲染 |
 | [YogaSharp.Layout](https://github.com/RaZeR-RaY/YogaSharp) | 1.0.6 | MIT | 牌桌 Flex 布局 |
 | [.NET](https://github.com/dotnet/runtime)（含 Windows Desktop Runtime） | 10 | MIT | 运行时与 WinForms |
