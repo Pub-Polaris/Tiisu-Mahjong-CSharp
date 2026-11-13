@@ -66,6 +66,9 @@ public sealed class SettlementOverlay
     /// <summary>「下一家 ▶」按钮的屏幕矩形（每次绘制时算，命中测试与绘制共用）。</summary>
     private RectF _nextButton;
     private RectF _nextRoundButton;
+
+    /// <summary>上一帧画出的「下一局」按钮矩形（命中测试 / 自检用）。</summary>
+    public RectF NextRoundBounds => _nextRoundButton;
     private bool _nextRoundHover;
 
     private bool _nextHover;
@@ -162,6 +165,7 @@ public sealed class SettlementOverlay
     /// <summary>画一屏结算。调用方负责只在本局已结束时调用。</summary>
     public void Draw(ICanvas c, RoundResult result, TableViewModel vm, TableLayoutSpec? layout = null)
     {
+        using var perfSettlement = PerfProbe.Measure("settlement.draw");
         Sync(result);
 
         bool matchOver = vm.Phase == "match_over" || result.MatchOver;

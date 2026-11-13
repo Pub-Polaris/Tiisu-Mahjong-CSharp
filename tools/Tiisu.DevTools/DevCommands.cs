@@ -34,6 +34,53 @@ internal static class DevCommands
     /// <c>--audit-games [count] [mode] [startSeed]</c>：批量跑完整对局，收集结算自检问题。
     /// 用 Simple AI 提速；每局都走 MatchRuntime 的完整命令链路（人类座位 AutoPilot）。
     /// </summary>
+    /// <summary>
+    /// <c>--bench-snapshot [iterations]</c>：用真实引擎状态反复构建 UI 快照，
+    /// 统计单次耗时 / 分配，作为性能检查基线（不改游戏逻辑）。
+    /// </summary>
+    private static int BenchSnapshot(string[] args)
+    {
+        Tiisu.App.Program.TryUseUtf8Console();
+        int iterations = args.Length >= 2 && int.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)
+            ? Math.Max(1, n)
+            : 20000;
+        var settings = new Settings { RecordTiles = false, AiSeatLocks = new[] { 0, 0, 0, 0 } };
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(1), _ => { }, null, null, null, 1)
+        {
+            AutoPilot = true,
+        };
+        runtime.StartMatch(4);
+        var engine = runtime.Engine;
+
+        // 预热
+        for (int i = 0; i < 1000; i++)
+        {
+            SnapshotBuilder.Build(engine, "human_discard", HumanAction.Discard, null, null, settings);
+        }
+
+        // 缓存版：同一状态重复构建（对应按和失败后的补发、重复 EmitState）。
+        var cache = new TenpaiHintCache();
+        for (int i = 0; i < 1000; i++)
+        {
+            SnapshotBuilder.Build(engine, "human_discard", HumanAction.Discard, null, null, settings, null, cache);
+        }
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        for (int i = 0; i < iterations; i++)
+        {
+            SnapshotBuilder.Build(engine, "human_discard", HumanAction.Discard, null, null, settings, null, cache);
+        }
+
+        sw.Stop();
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Console.WriteLine($"bench-snapshot: {iterations} iters");
+        Console.WriteLine($"  avg: {sw.Elapsed.TotalMilliseconds * 1000.0 / iterations:F2} us/iter");
+        Console.WriteLine($"  alloc: {(double)allocated / iterations:F1} B/iter");
+        Console.WriteLine("  (听牌缓存开启；同状态重复构建)");
+        return 0;
+    }
+
     private static int AuditGames(string[] args)
     {
         Tiisu.App.Program.TryUseUtf8Console();
@@ -3843,6 +3890,9 @@ internal static class DevCommands
                 return 0;
             case "--smoke-run":
                 return SmokeRun(args);
+
+            case "--bench-snapshot":
+                return BenchSnapshot(args);
 
             case "--audit-games":
                 return AuditGames(args);

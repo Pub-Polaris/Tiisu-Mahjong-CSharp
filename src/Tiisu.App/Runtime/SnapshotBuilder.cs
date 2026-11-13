@@ -26,7 +26,8 @@ public static class SnapshotBuilder
         IReadOnlyList<string>? actionLabels,
         string? message,
         Settings? settings,
-        IReadOnlyList<string>? aiLevels = null)
+        IReadOnlyList<string>? aiLevels = null,
+        TenpaiHintCache? tenpaiCache = null)
     {
         ArgumentNullException.ThrowIfNull(engine);
 
@@ -167,7 +168,9 @@ public static class SnapshotBuilder
             var self = engine.Players[selfIndex];
             selfCalled = self.IsCalled;
             selfBanned = engine.IsWinBanned(self);
-            tenpai.AddRange(TenpaiTileIds(engine, self));
+            tenpai.AddRange(tenpaiCache is null
+                ? TenpaiTileIds(engine, self)
+                : tenpaiCache.Get(engine, self, settings ?? new Settings()));
 
             // 【错和可能】：只在「还没报听、且正轮到自己出牌」时提示。
             // 报听后已经是既定事实，提示必须消失；荣和/副露窗口也不该提示。
@@ -360,8 +363,21 @@ public static class TileNotation
     public static string TileToStr(Tile tile) =>
         tile.Num.ToString(System.Globalization.CultureInfo.InvariantCulture) + SuitChar(tile.Suit);
 
-    /// <summary>牌面图集 id（同 <see cref="TileToStr"/>）。</summary>
-    public static string AtlasId(Tile tile) => TileToStr(tile);
+    /// <summary>牌面图集 id（同 <see cref="TileToStr"/>）。预生成 36 个常量串，避免每帧重复分配。</summary>
+    private static readonly string[] AtlasIds = BuildAtlasIds();
+
+    private static string[] BuildAtlasIds()
+    {
+        var ids = new string[36];
+        for (int i = 0; i < ids.Length; i++)
+        {
+            ids[i] = TileToStr(Tile.FromIndex(i));
+        }
+
+        return ids;
+    }
+
+    public static string AtlasId(Tile tile) => AtlasIds[tile.Index];
 
     /// <summary>手牌 → <c>123m456p789s1122z</c>（按花色分组，组内升序）。</summary>
     public static string HandToStr(IReadOnlyList<Tile> hand)

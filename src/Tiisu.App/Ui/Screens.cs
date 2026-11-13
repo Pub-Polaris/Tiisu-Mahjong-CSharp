@@ -42,6 +42,7 @@ public sealed class TableScreen : Screen
 
     /// <summary>报听待弃状态：点「报听」后，下一张手牌 = 打出并完成报听。</summary>
     private bool _callArmed;
+    private bool _nextRoundRequested;
 
     /// <summary>长考秒数（0 = 关闭）；到点自动摸切 / 自动过吃碰杠。</summary>
     private readonly int _thinkSeconds;
@@ -116,6 +117,11 @@ public sealed class TableScreen : Screen
     public override void Update(double dt)
     {
         base.Update(dt);
+
+        if (_nextRoundRequested && _snapshot().Phase != "round_end")
+        {
+            _nextRoundRequested = false;
+        }
         var vm = _snapshot();
         bool human = vm.Phase is "human_discard" or "human_meld" or "human_ron";
         if (!human)
@@ -447,7 +453,17 @@ public sealed class TableScreen : Screen
         if (_snapshot().Phase is "round_end" or "match_over")
         {
             _hover = -1;
-            return _settlement is { } settled && !_settlementHidden && _overlay.SetPointer(x, y, settled);
+            if (_settlement is not { } end || _settlementHidden)
+            {
+                return false;
+            }
+
+            if (!end.MatchOver && _overlay.SetNextRoundPointer(x, y))
+            {
+                return true;
+            }
+
+            return _overlay.SetPointer(x, y, end);
         }
 
         if (_actionBar.HitTest(x, y) is not null)
@@ -527,6 +543,19 @@ public sealed class TableScreen : Screen
             if (_settlement is { } settled && !_settlementHidden && _overlay.HitNextButton(x, y, settled))
             {
                 _overlay.Step(settled, 1);
+                return true;
+            }
+
+            // 鼠标「下一局」按钮（防连点）。
+            if (_settlement is { } endResult && !_settlementHidden && !endResult.MatchOver
+                && _overlay.HitNextRound(x, y))
+            {
+                if (!_nextRoundRequested)
+                {
+                    _nextRoundRequested = true;
+                    _commands?.Invoke(GameCommand.NextRound());
+                }
+
                 return true;
             }
 

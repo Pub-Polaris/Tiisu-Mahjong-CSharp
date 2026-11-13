@@ -123,6 +123,7 @@ public sealed class MatchRuntime
     /// <summary>判役器唯一构造点，避免两处写法漂移（审计 P3-4）。</summary>
     private WinChecker CreateChecker() => new(SharedYaku, _settings.OptionalYaku, CurrentRuleset);
     private readonly RoundConfirmationGate _roundGate = new();
+    private readonly TenpaiHintCache _tenpaiCache = new();
 
     private MatchPhase _phase = MatchPhase.Idle;
     private long _snapshotRevision;
@@ -191,6 +192,7 @@ public sealed class MatchRuntime
         _engine.Players[0].IsDealer = true;
         _engine.UpdateSeatWinds();
         _scoresAtRoundStart = _engine.Scores.ToArray();
+        using var perfSnapshot = PerfProbe.Measure("snapshot.build");
         _snapshot = SnapshotBuilder.Build(_engine, PhaseWire, HumanAction.None, null, null, _settings, AiLevelWires());
     }
 
@@ -278,6 +280,7 @@ public sealed class MatchRuntime
 
         try
         {
+            using var perfExecute = PerfProbe.Measure("command.execute");
             if (command.SnapshotRevision != 0
                 && command.SnapshotRevision != _snapshot.Revision
                 && command.Kind is not (GameCommandKind.StartMatch or GameCommandKind.ResetAll
@@ -2530,7 +2533,8 @@ public sealed class MatchRuntime
             ActionLabels(),
             _message,
             _settings,
-            AiLevelWires()) with
+            AiLevelWires(),
+            _tenpaiCache) with
         {
             Revision = ++_snapshotRevision,
         };

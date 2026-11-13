@@ -152,6 +152,7 @@ public sealed class GameSession : IDisposable
 
     private void Dispatch(UiEvent uiEvent)
     {
+        using var perfDispatch = PerfProbe.Measure("event.dispatch");
         if (uiEvent is StateChangedEvent changed)
         {
             Volatile.Write(ref _latest, changed.Snapshot);
