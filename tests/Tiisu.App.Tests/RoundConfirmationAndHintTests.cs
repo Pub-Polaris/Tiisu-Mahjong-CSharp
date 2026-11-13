@@ -75,25 +75,22 @@ public sealed class WinHintTests
     }
 
     [Fact]
-    public void WinningShapeWithoutYaku_ShowsHint()
+    public void WinningShapeWithoutYaku_NoHint()
     {
         var engine = new MahjongEngine(ruleset: Ruleset.Qizi);
 
         var vm = Build(engine, called: false);
 
-        Assert.False(string.IsNullOrEmpty(vm.WinHint));
+        Assert.True(string.IsNullOrEmpty(vm.WinHint));
     }
 
     [Fact]
-    public void CalledWinningShapeUnderThreshold_ShowsMisfireHint()
+    public void CalledWinningShapeUnderThreshold_NoMisfireHint()
     {
         var engine = new MahjongEngine(ruleset: Ruleset.Qizi);
 
         var vm = Build(engine, called: true);
 
-        Assert.False(string.IsNullOrEmpty(vm.WinHint));
-        Assert.True(
-            vm.WinHint.Contains("错和", StringComparison.Ordinal)
-            || vm.WinHint.Contains("无役", StringComparison.Ordinal));
+        Assert.True(string.IsNullOrEmpty(vm.WinHint));
     }
 }

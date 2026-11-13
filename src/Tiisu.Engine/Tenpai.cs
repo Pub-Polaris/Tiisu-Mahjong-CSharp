@@ -13,6 +13,9 @@ public sealed record TenpaiEntry(Tile Tile, bool Success, int TotalFu, int NoYak
 
     /// <summary>起和门槛口径的赋（不含可选役）；错和提示与判罚用这个值比 BaseFu。</summary>
     public int ThresholdFu { get; init; }
+
+    /// <summary>这张候选牌的完整判和结果（用于算打点）；不可能和时 null。</summary>
+    public WinResult? Result { get; init; }
 }
 
 /// <summary>listTenpai 的入参（engine.js 里给 <c>listTenpai</c> 的第二层 opts）。</summary>

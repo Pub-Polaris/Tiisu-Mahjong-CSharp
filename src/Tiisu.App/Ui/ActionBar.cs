@@ -280,6 +280,13 @@ public sealed class ActionBar
         float x = hand.CenterX - totalW / 2f;
         float y = hand.Y - 46f - 16f - th - 8f;
 
+        if (!string.IsNullOrEmpty(vm.TenpaiSummary))
+        {
+            c.DrawText(vm.TenpaiSummary,
+                new RectF(x, y - 30, Math.Max(totalW, 360f), 22),
+                Color.Rgb(255, 226, 140), new TextStyle(14, Bold: true, Center: false));
+        }
+
         var box = new RectF(x - 8, y - 6, totalW + 8, th + 12);
         c.FillRoundRect(box, 8, Color.Rgb(0, 0, 0).WithAlpha(150));
         c.DrawText("听牌", new RectF(x, y + th / 2f - 10, labelW, 20),

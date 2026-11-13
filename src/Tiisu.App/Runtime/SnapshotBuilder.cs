@@ -161,24 +161,18 @@ public static class SnapshotBuilder
 
         bool selfCalled = false;
         bool selfBanned = false;
-        bool selfMisfire = false;
           string winHint = string.Empty;
+        string tenpaiSummary = string.Empty;
         if (selfIndex >= 0)
         {
             var self = engine.Players[selfIndex];
             selfCalled = self.IsCalled;
             selfBanned = engine.IsWinBanned(self);
-            tenpai.AddRange(tenpaiCache is null
-                ? TenpaiTileIds(engine, self)
-                : tenpaiCache.Get(engine, self, settings ?? new Settings()));
-
-            // 【错和可能】：只在「还没报听、且正轮到自己出牌」时提示。
-            // 报听后已经是既定事实，提示必须消失；荣和/副露窗口也不该提示。
-            if (!self.IsCalled && phase == "human_discard" && engine.CanDeclareCall(self))
-            {
-                int maxFu = MaxWaitFu(engine, self);
-                selfMisfire = maxFu > 0 && maxFu < engine.BaseFu;
-            }
+            var hints = tenpaiCache is null
+                ? BuildTenpaiHints(engine, self)
+                : tenpaiCache.Get(engine, self, settings ?? new Settings());
+            tenpai.AddRange(hints.Tiles);
+            tenpaiSummary = hints.Summary;
 
             // 14 张形和牌不可用时的可见提示：不能再静默。
             if (phase == "human_discard" && self.TotalTiles() == 14 + self.KongCount())
@@ -189,14 +183,6 @@ public static class SnapshotBuilder
                     if (engine.IsWinBanned(self))
                     {
                         winHint = "本局禁和，不能和牌";
-                    }
-                    else if (eval.Reason == "no_yaku")
-                    {
-                        int fu = eval.ThresholdFu;
-                        winHint = fu > 0 && fu < engine.BaseFu
-                            ? "牌形成和但赋 " + fu.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                              + " 不足起和线，报和会错和"
-                            : "牌形成和但无役，不能和";
                     }
                 }
             }
@@ -244,8 +230,8 @@ public static class SnapshotBuilder
             Phase = phase,
             Seats = seats,
             TenpaiTiles = tenpai,
+              TenpaiSummary = tenpaiSummary,
             IsCalled = selfCalled,
-            CallWouldMisfire = selfMisfire,
               WinHint = winHint,
             WinBanned = selfBanned,
             DrawnTileId = selfIndex >= 0 ? engine.Players[selfIndex].LastDraw?.Id : null,
@@ -287,29 +273,78 @@ public static class SnapshotBuilder
         return -1;
     }
 
-    /// <summary>听牌张里最高的赋数（牌形形成才算；用于判断报听后报和是否必然错和）。</summary>
-    private static int MaxWaitFu(MahjongEngine engine, Player player)
+
+    /// <summary>听牌牌 id + 摘要：余张 / 打点范围。供快照与顶部提示共用。</summary>
+    public static TenpaiHints BuildTenpaiHints(MahjongEngine engine, Player player)
     {
-        int max = 0;
         try
         {
             var hand = engine.TenpaiHandOf(player);
-            foreach (var entry in engine.ListTenpaiForHand(
-                         hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn))
+            var entries = engine.ListTenpaiForHand(
+                hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+            bool shape = player.IsCalled;
+            var ids = new List<string>();
+            var remain = new List<int>();
+            int minPoints = int.MaxValue;
+            int maxPoints = int.MinValue;
+            var visible = new int[36];
+            foreach (var p in engine.Players)
             {
-                if (entry.Formed)
+                foreach (var d in p.Discards)
                 {
-                    max = Math.Max(max, entry.ThresholdFu);
+                    visible[d.Index]++;
+                }
+
+                foreach (var meld in p.Melds)
+                {
+                    foreach (var t in meld.Tiles)
+                    {
+                        visible[t.Index]++;
+                    }
                 }
             }
+
+            foreach (var t in player.Hand)
+            {
+                visible[t.Index]++;
+            }
+
+            foreach (var entry in entries)
+            {
+                if (!(shape ? entry.TotalFu > 0 : entry.Success))
+                {
+                    continue;
+                }
+
+                ids.Add(TileNotation.AtlasId(entry.Tile));
+                remain.Add(Math.Max(0, 4 - visible[entry.Tile.Index]));
+                if (entry.Success && entry.Result is { } result)
+                {
+                    int sub = engine.CalcFinalPoints(EngineSettlement.From(result), entry.TotalFu);
+                    int final = (player.IsDealer ? MahjongEngine.DealerBonus(sub) : sub) + engine.HonbaBonus();
+                    minPoints = Math.Min(minPoints, final);
+                    maxPoints = Math.Max(maxPoints, final);
+                }
+            }
+
+            if (ids.Count == 0)
+            {
+                return TenpaiHints.Empty;
+            }
+
+            string listen = string.Join("/", ids);
+            string left = string.Join("/", remain);
+            string points = minPoints != int.MaxValue
+                ? minPoints == maxPoints ? " · 打点 " + minPoints : " · 打点 " + minPoints + "–" + maxPoints
+                : string.Empty;
+            return new TenpaiHints(ids, "听 " + listen + " · 余 " + left + " 张" + points);
         }
         catch
         {
-            // 判定失败不影响主流程
+            return TenpaiHints.Empty;
         }
-
-        return max;
     }
+
 
     /// <summary>
     /// 待牌提示：对「13 张形」手牌列可和牌（14 张形时按摸切口径去掉本次摸到的牌）。

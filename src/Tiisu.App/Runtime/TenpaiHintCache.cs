@@ -7,6 +7,12 @@ using Tiisu.Engine;
 
 namespace Tiisu.App.Runtime;
 
+/// <summary>听牌提示的两块数据：牌 id 列表 + 顶部摘要（余张/打点）。</summary>
+public sealed record TenpaiHints(IReadOnlyList<string> Tiles, string Summary)
+{
+    public static readonly TenpaiHints Empty = new(Array.Empty<string>(), string.Empty);
+}
+
 /// <summary>
 /// 听牌提示缓存（安全路径，替代 unsafe 快照方案）：
 /// 只有手牌 / 副露 / 报听 / 风 / 第一巡 / 可选役配置完全一致时才复用上一份
@@ -17,9 +23,9 @@ public sealed class TenpaiHintCache
     private readonly object _gate = new();
     private MahjongEngine? _engine;
     private Key _key;
-    private IReadOnlyList<string> _value = Array.Empty<string>();
+    private TenpaiHints _value = TenpaiHints.Empty;
 
-    public IReadOnlyList<string> Get(MahjongEngine engine, Player player, Settings settings)
+    public TenpaiHints Get(MahjongEngine engine, Player player, Settings settings)
     {
         var key = Key.From(engine, player, settings);
         lock (_gate)
@@ -29,7 +35,7 @@ public sealed class TenpaiHintCache
                 return _value;
             }
 
-            var value = SnapshotBuilder.TenpaiTileIds(engine, player);
+            var value = SnapshotBuilder.BuildTenpaiHints(engine, player);
             _engine = engine;
             _key = key;
             _value = value;

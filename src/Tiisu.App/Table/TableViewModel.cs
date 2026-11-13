@@ -163,6 +163,9 @@ public sealed record TableViewModel
     /// <summary>听牌提示：当前可和的牌（牌面图集 id，如 1m / 5z）。真听牌时常显，不限阶段。</summary>
     public IReadOnlyList<string> TenpaiTiles { get; init; } = Array.Empty<string>();
 
+    /// <summary>听牌摘要：余张 / 打点范围，画在待听牌上方。</summary>
+    public string TenpaiSummary { get; init; } = string.Empty;
+
     /// <summary>自己已报听（叫胡）：按钮显示「已报听」。</summary>
     public bool IsCalled { get; init; }
 
@@ -170,14 +173,12 @@ public sealed record TableViewModel
     /// 报听后和牌会算错和：听牌形成立、但所有待牌的最高赋都低于起和线。
     /// UI 用它在报听按钮附近显示【错和可能】提示。
     /// </summary>
-    public bool CallWouldMisfire { get; init; }
-
     /// <summary>自己本局 / 本巡禁和（错和罚）。</summary>
     public bool WinBanned { get; init; }
 
     /// <summary>
     /// 和牌不可用时的可见提示（牌形成和但赋不足 / 无役 / 禁和）。
-    /// 空字符串 = 不需要提示；UI 与 CallWouldMisfire 二选一展示。
+    /// 空字符串 = 不需要提示。
     /// </summary>
     public string WinHint { get; init; } = string.Empty;
 

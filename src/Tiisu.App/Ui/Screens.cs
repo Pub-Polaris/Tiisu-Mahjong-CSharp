@@ -316,15 +316,12 @@ public sealed class TableScreen : Screen
         _actionBar.DrawTenpai(c, vm, _layout);
         _actionBar.Draw(c, time);
 
-        // 和牌不可用 / 错和风险：不能静默。
-        if (!string.IsNullOrEmpty(vm.WinHint) || vm.CallWouldMisfire)
+        // 只保留禁和这类硬提示；错和提醒已移除。
+        if (!string.IsNullOrEmpty(vm.WinHint))
         {
-            string text = !string.IsNullOrEmpty(vm.WinHint)
-                ? vm.WinHint
-                : "【错和可能】待牌赋数不足，报和会被判错和";
             var bar = _layout.ActionBarRect;
             var hint = new RectF(bar.CenterX - 260, bar.Y - 30, 520, 24);
-            c.DrawText(text, hint, Color.Rgb(255, 176, 64), new TextStyle(16, Bold: true, Center: true));
+            c.DrawText(vm.WinHint, hint, Color.Rgb(255, 176, 64), new TextStyle(16, Bold: true, Center: true));
         }
 
         PlayCues(vm);
