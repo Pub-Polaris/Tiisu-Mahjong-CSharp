@@ -24,10 +24,10 @@ e15b2903fc4f02b219cb63e6e4c62e25b3f77d096dced84d062b8a35f61a2dde  sounds/win.wav
 f9c200fac374da23267d2c5b67ba2e880d97715659177be5a24690d11e334e2a  bgm/lobby.wav
 ```
 
-## 字体子集（由文渊圆体 v1.110 提取，非 AudioGen）
+## 字体子集（由文渊圆体 v1.110 提取并重命名）
 
 ```
-bcaa354091eb8da6e9c0593542567b50cfcf2107510985b8c7f9ef3357c10791  fonts/WenYuanRoundedSC-subset.ttf
+62fd13c0db8e802204c6b51dbf5585eaa36c6286bb17a0e77cc7bc8d322c05fd  fonts/TiisuRoundedSC-subset.ttf
 ```
 
 ## 重建与核对

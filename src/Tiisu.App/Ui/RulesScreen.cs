@@ -32,7 +32,7 @@ public sealed class RulesScreen : Screen
         }),
     };
 
-    private const string Rounded = "WenYuan Rounded SC";
+    private const string Rounded = "Tiisu Rounded SC";
 
     private RectF _backButton;
 

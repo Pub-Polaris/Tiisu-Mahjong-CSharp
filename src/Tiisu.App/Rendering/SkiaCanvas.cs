@@ -281,8 +281,8 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     private static float BoostSize(float size) => size < 16f ? size + 2f : size < 24f ? size + 3f : size + 4f;
 
     private const string SystemFamily = "Microsoft YaHei";
-    private const string DefaultFamily = "WenYuan Rounded SC";
-    private const string RoundedFamily = "WenYuan Rounded SC";
+    private const string DefaultFamily = "Tiisu Rounded SC";
+    private const string RoundedFamily = "Tiisu Rounded SC";
     private static SKTypeface? _roundedBase;
 
     private static SKTypeface GetTypeface(bool bold, string? family = null)
@@ -318,7 +318,7 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
         try
         {
             _roundedBase ??= SKTypeface.FromFile(Path.Combine(
-                AppContext.BaseDirectory, "Assets", "fonts", "WenYuanRoundedSC-subset.ttf"));
+                AppContext.BaseDirectory, "Assets", "fonts", "TiisuRoundedSC-subset.ttf"));
             if (_roundedBase is null)
             {
                 return null;

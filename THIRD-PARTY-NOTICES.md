@@ -36,8 +36,8 @@
 
 | 组件 | 版本 | 许可 | 用途 |
 |---|---|---|---|
-| [文渊圆体 WenYuan Rounded SC](https://github.com/takushun-wu/WenYuanFonts) | v1.110 | SIL OFL 1.1 | 规则速查页标题/正文；可变字重 400/700 |
+| [文渊圆体 WenYuan Rounded SC](https://github.com/takushun-wu/WenYuanFonts) | v1.110 | SIL OFL 1.1 | 界面圆体子集；重命名为 Tiisu Rounded SC（OFL 保留字体名） |
 
-- 文件：`src/Tiisu.App/Assets/fonts/WenYuanRoundedSC-subset.ttf`（仅子集化规则页用字）
+- 文件：`src/Tiisu.App/Assets/fonts/TiisuRoundedSC-subset.ttf`（仅子集化规则页用字）
 - 许可证全文：`src/Tiisu.App/Assets/fonts/LICENSE-WenYuan.md`
 - 未修改字形，仅按应用文案做子集化；分发时保留本声明与许可证。

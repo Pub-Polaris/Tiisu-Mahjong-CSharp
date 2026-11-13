@@ -9,12 +9,12 @@ namespace Tiisu.App.Ui;
 /// <summary>菜单「开源信息」：逐页列出本项目使用的全部开源组件与素材许可。</summary>
 public sealed class LicensesScreen : Screen
 {
-    private sealed record Entry(string Name, string Version, string License, string Usage, string Url);
+    private sealed record Entry(string Name, string Version, string License, string Usage, string Url, bool Reference = false);
 
     private static readonly Entry[] Entries =
     {
-        new("文渊圆体 WenYuan Rounded SC", "v1.110", "SIL OFL 1.1",
-            "规则速查页标题/正文；界面圆体（子集化可变字体）",
+        new("Tiisu Rounded SC（文渊圆体子集）", "v1.110", "SIL OFL 1.1",
+            "界面圆体；子集化后重命名，避免 OFL 保留字体名",
             "https://github.com/takushun-wu/WenYuanFonts"),
         new("SkiaSharp", "4.153.1", "MIT",
             "2D 绘制、牌面渲染、文字排版",
@@ -67,6 +67,15 @@ public sealed class LicensesScreen : Screen
         new("Tiisu Mahjong 本项目代码", "见版本行", "MIT",
             "仓库内自有代码与文档",
             "https://github.com/Pub-Polaris/Tiisu-Mahjong-CSharp"),
+        new("Alice in Cradle", "闭源商业作品", "EULA（仅参考）",
+            "空间音频架构调研；未使用代码、中间件、素材或衍生产物",
+            "—", true),
+        new("明星三缺一 2002", "IGS 商业作品", "EULA（仅参考）",
+            "音效包络/时长/密度特征分析；未使用原音频、代码或美术",
+            "—", true),
+        new("天凤 Tenhou", "在线服务", "服务条款（仅参考）",
+            "人类听牌形参考；未使用代码、数据或素材",
+            "—", true),
     };
 
     private readonly Action _back;
@@ -88,9 +97,9 @@ public sealed class LicensesScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
 
-        c.DrawText("开源许可声明", new RectF(0, 54, Width, 56),
+        c.DrawText("开源许可与参考鸣谢", new RectF(0, 54, Width, 56),
             Color.Rgb(242, 230, 190), new TextStyle(42, Bold: true, Center: true));
-        c.DrawText("本项目使用的全部开源组件与素材 · 第 " + (_page + 1) + " / " + Entries.Length + " 项",
+        c.DrawText("开源组件 + 闭源参考项目 · 第 " + (_page + 1) + " / " + Entries.Length + " 项",
             new RectF(0, 108, Width, 26), Color.Rgb(159, 180, 170), new TextStyle(16, Center: true));
 
         var entry = Entries[_page];
@@ -104,16 +113,22 @@ public sealed class LicensesScreen : Screen
 
         float y = 156;
         const float lineH = 34f;
-        float boxH = 14f + 28f + lines.Length * lineH + 10f;
+        int bodyCount = entry.Reference ? lines.Length + 1 : lines.Length;
+        float boxH = 14f + 28f + bodyCount * lineH + 10f;
         var box = new RectF(150, y, Width - 300, boxH);
         c.FillRoundRect(box, 14, Color.Rgb(26, 38, 34));
         c.StrokeRoundRect(box, 14, Color.Rgb(96, 122, 108), 1.2f);
 
-        c.DrawText(entry.Name, new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
-            Color.Rgb(242, 201, 76), new TextStyle(20, Bold: true, Center: false));
+        c.DrawText((entry.Reference ? "参考 · " : string.Empty) + entry.Name,
+            new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
+            entry.Reference ? Color.Rgb(196, 232, 190) : Color.Rgb(242, 201, 76),
+            new TextStyle(20, Bold: true, Center: false));
 
+        string[] body = entry.Reference
+            ? new[] { "性质：闭源/EULA 参考鸣谢，未使用其代码或素材" }.Concat(lines).ToArray()
+            : lines;
         float ly = box.Y + 42;
-        foreach (string line in lines)
+        foreach (string line in body)
         {
             c.DrawText("· " + line, new RectF(box.X + 26, ly, box.W - 52, lineH),
                 Color.Rgb(220, 228, 220), new TextStyle(16, Center: false));

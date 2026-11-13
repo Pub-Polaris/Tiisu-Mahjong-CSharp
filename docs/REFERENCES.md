@@ -27,3 +27,8 @@
 
 - 语音不随安装包分发；运行时在本机用 Windows SAPI 中文语音生成到 `%LOCALAPPDATA%\TiisuMahjong\voices`。
 - 不使用、不嵌入第三方录音；语音输出受本机 Windows 许可约束。
+
+## 字体
+
+- 使用文渊圆体 v1.110 的可变字体子集，按 OFL 保留字体名要求重命名为 `Tiisu Rounded SC`。
+- 未修改字形，仅做字符子集与家族重命名；许可证见 `Assets/fonts/LICENSE-WenYuan.md`。
