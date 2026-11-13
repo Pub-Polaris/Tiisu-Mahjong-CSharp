@@ -4,16 +4,17 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Tiisu.Engine.SelfPlay;
 
 namespace Tiisu.Engine.Ai;
 
 /// <summary>
-/// 小策略网推理（P2-1）：42 维局面特征 → 34 类分数，取手牌内最高分。
+/// 小策略网推理（P2-1）：支持 v2（181 维）与 v4（339 维，自博弈特征）权重。
 /// 权重由 <c>ml/train_policy.py</c> 导出；文件缺失时返回 -1，调用方回退 <see cref="TieredAi"/>。
 /// </summary>
 public static class NeuralPolicyAi
 {
-    private const int FeatureCount = 181;
+    private const int V2FeatureCount = 181;
 
     private static Weights? _weights;
     private static bool _loadTried;
@@ -37,7 +38,7 @@ public static class NeuralPolicyAi
         EnsureLoaded();
         if (_weights is { } w)
         {
-            float[] x = BuildFeatures(ctx);
+            float[] x = BuildFeatures(ctx, w.Features);
             float[] h1 = Dense(w.L1, w.B1, x, w.Hidden);
             float[] h2 = Dense(w.L2, w.B2, h1, w.Hidden);
             float[] logits = Dense(w.L3, w.B3, h2, 34);
@@ -66,9 +67,12 @@ public static class NeuralPolicyAi
         return -1;
     }
 
-    private static float[] BuildFeatures(AiDecisionContext ctx)
+      private static float[] BuildFeatures(AiDecisionContext ctx, int featureCount) =>
+          featureCount >= SelfPlayFeatures.Count ? BuildFeaturesV4(ctx) : BuildFeaturesV2(ctx);
+
+      private static float[] BuildFeaturesV2(AiDecisionContext ctx)
     {
-        var x = new float[FeatureCount];
+        var x = new float[V2FeatureCount];
 
         // 0..33 手牌
         foreach (var tile in ctx.Hand)
@@ -133,6 +137,72 @@ public static class NeuralPolicyAi
         return x;
     }
 
+      private static float[] BuildFeaturesV4(AiDecisionContext ctx)
+      {
+          var x = new float[SelfPlayFeatures.Count];
+
+          foreach (var tile in ctx.Hand)
+          {
+              int idx = TileIndex(tile);
+              if (idx >= 0) x[idx] += 1f;
+          }
+
+          for (int seat = 0; seat < 4; seat++)
+          {
+              if (seat >= ctx.AllDiscards.Count) continue;
+              foreach (var tile in ctx.AllDiscards[seat])
+              {
+                  int idx = TileIndex(tile);
+                  if (idx >= 0) x[34 + seat * 34 + idx] += 0.25f;
+              }
+          }
+
+          for (int seat = 0; seat < 4; seat++)
+          {
+              IReadOnlyList<Meld> melds;
+              if (ctx.AllMelds is { } all && seat < all.Count)
+              {
+                  melds = all[seat];
+              }
+              else if (seat == (int)ctx.SeatWind)
+              {
+                  melds = ctx.Melds;
+              }
+              else
+              {
+                  melds = ctx.OpponentMelds;
+              }
+
+              x[306 + seat] = Math.Min(melds.Count, 4) / 4f;
+              foreach (var meld in melds)
+              {
+                  foreach (var tile in meld.Tiles)
+                  {
+                      int idx = TileIndex(tile);
+                      if (idx >= 0) x[170 + seat * 34 + idx] += 0.25f;
+                  }
+              }
+          }
+
+          double avg = 0;
+          for (int i = 0; i < 4; i++) avg += ctx.Scores[i];
+          avg /= 4;
+          for (int seat = 0; seat < 4; seat++)
+          {
+              x[310 + seat] = ctx.Scores[seat] / 10000f;
+              x[314 + seat] = (float)((ctx.Scores[seat] - avg) / 10000.0);
+          }
+
+          x[318] = Math.Min(ctx.Honba, 8) / 8f;
+          x[319 + (int)ctx.RoundWind] = 1f;
+          x[323 + (int)ctx.SeatWind] = 1f;
+
+          var pattern = HandPatternFeatures.Build(ctx.Hand);
+          Array.Copy(pattern, 0, x, 327, pattern.Length);
+          return x;
+      }
+
+
     private static int TileIndex(Tile tile)
     {
         int idx = tile.Index;
@@ -184,6 +254,7 @@ public static class NeuralPolicyAi
                 _weights = new Weights
                 {
                     Hidden = (int?)obj["hidden"] ?? 256,
+                          Features = (int?)obj["features"] ?? 181,
                     L1 = ReadMatrix(layers[0]!["w"]),
                     B1 = ReadVector(layers[0]!["b"]),
                     L2 = ReadMatrix(layers[1]!["w"]),
@@ -251,6 +322,7 @@ public static class NeuralPolicyAi
     private sealed class Weights
     {
         public int Hidden { get; init; }
+          public int Features { get; init; } = 181;
         public float[] L1 { get; init; } = Array.Empty<float>();
         public float[] B1 { get; init; } = Array.Empty<float>();
         public float[] L2 { get; init; } = Array.Empty<float>();

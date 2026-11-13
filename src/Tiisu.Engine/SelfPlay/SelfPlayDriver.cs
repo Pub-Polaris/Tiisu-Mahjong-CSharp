@@ -18,6 +18,9 @@ public sealed class SelfPlayOptions
     /// 终局动作（和牌加了荣和张、流局）后也会回调一次，届时 <see cref="MahjongEngine.GameOver"/> 为 true。
     /// </summary>
     public Action<MahjongEngine>? Observer { get; init; }
+
+    /// <summary>弃牌决策回调（引擎、玩家序号、弃牌下标）；用于自博弈训练数据导出。</summary>
+    public Action<MahjongEngine, int, int>? DiscardObserver { get; init; }
 }
 
 /// <summary>
@@ -276,6 +279,7 @@ public static class SelfPlayDriver
             }
 
             var tile = player.Hand[discardIndex];
+            options.DiscardObserver?.Invoke(engine, pi, discardIndex);
             var discarded = engine.Discard(player, tile);
             if (discarded is null)
             {

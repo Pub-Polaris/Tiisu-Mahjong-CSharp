@@ -35,6 +35,125 @@ internal static class DevCommands
     /// 用 Simple AI 提速；每局都走 MatchRuntime 的完整命令链路（人类座位 AutoPilot）。
     /// </summary>
     /// <summary>
+    /// <c>--export-selfplay &lt;out.jsonl&gt; [--games N] [--start-seed K] [--mode 4]</c>：
+    /// 自博弈弃牌样本；特征为 SelfPlayFeatures v3（除牌山外全部场况）。
+    /// </summary>
+    private static int ExportSelfPlay(string[] args)
+    {
+        string outPath = args.Length > 1 ? args[1] : "dist/selfplay.jsonl";
+        int games = 100;
+        uint seed = 1;
+        int mode = 4;
+        for (int i = 1; i < args.Length; i++)
+        {
+            if (args[i] == "--games" && i + 1 < args.Length && int.TryParse(args[i + 1], out int g)) games = Math.Max(1, g);
+            if (args[i] == "--start-seed" && i + 1 < args.Length && uint.TryParse(args[i + 1], out uint sd)) seed = sd;
+            if (args[i] == "--mode" && i + 1 < args.Length && int.TryParse(args[i + 1], out int m)) mode = Math.Max(1, m);
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath))!);
+        var options = new Tiisu.Engine.SelfPlay.SelfPlayOptions { ModeTarget = mode, MaxHands = 512 };
+        int written = 0;
+        using var writer = new StreamWriter(outPath, false, new System.Text.UTF8Encoding(false));
+        for (int g = 0; g < games; g++)
+        {
+            var samples = new List<SelfPlaySample>();
+            var opts = new Tiisu.Engine.SelfPlay.SelfPlayOptions
+            {
+                ModeTarget = mode,
+                MaxHands = 512,
+                DiscardObserver = (engine, player, index) =>
+                {
+                    var p = engine.Players[player];
+                    int before = Tiisu.Engine.Ai.Shanten.Calculate(p.Hand, p.Melds).Shanten;
+                    var after = p.Hand.ToList();
+                    if (index >= 0 && index < after.Count) after.RemoveAt(index);
+                    int afterShanten = Tiisu.Engine.Ai.Shanten.Calculate(after, p.Melds).Shanten;
+                    samples.Add(new SelfPlaySample
+                    {
+                        Features = Tiisu.Engine.SelfPlay.SelfPlayFeatures.Build(engine, player),
+                        Action = p.Hand[index].Index,
+                        Player = player,
+                        Round = engine.HandNumber,
+                        Step = samples.Count,
+                        Game = g,
+                        ShantenBefore = before,
+                        ShantenAfter = afterShanten,
+                    });
+                },
+            };
+            uint gameSeed = seed + (uint)g;
+            var result = Tiisu.Engine.SelfPlay.SelfPlayDriver.Run(gameSeed, opts);
+            int initial = mode >= 16 ? 77000 : 49000;
+            var melds = new int[4];
+            var callWins = new int[4];
+            var dealsIn = new int[4];
+            var misfires = new int[4];
+            foreach (var ev in result.Events)
+            {
+                if (ev.Player is < 0 or > 3) continue;
+                if (ev.Type == "meld") melds[ev.Player]++;
+                if (ev.Type == "call" && ev.Detail is not null && ev.Detail.Contains("misfire", StringComparison.OrdinalIgnoreCase))
+                    misfires[ev.Player]++;
+                if (ev.Type == "win")
+                {
+                    if (ev.Detail is not null && ev.Detail.Contains("ron:from=", StringComparison.Ordinal))
+                    {
+                        int from = ev.Detail.IndexOf("from=", StringComparison.Ordinal);
+                        if (from >= 0 && from + 5 < ev.Detail.Length && int.TryParse(ev.Detail.Substring(from + 5, 1), out int loser))
+                            dealsIn[loser]++;
+                    }
+
+                    if (melds[ev.Player] > 0) callWins[ev.Player]++;
+                }
+            }
+
+            var order = Enumerable.Range(0, 4).OrderByDescending(i => result.FinalScores[i]).ToArray();
+            var rank = new int[4];
+            for (int i = 0; i < 4; i++) rank[order[i]] = i + 1;
+            foreach (var sample in samples)
+            {
+                sample.FinalScore = result.FinalScores[sample.Player];
+                sample.InitialScore = initial;
+                sample.FinalRank = rank[sample.Player];
+                sample.Lead = rank[sample.Player] == 1
+                    ? result.FinalScores[sample.Player] - result.FinalScores.Where((_, i) => i != sample.Player).Max()
+                    : 0;
+                sample.Melds = melds[sample.Player];
+                sample.CallWins = callWins[sample.Player];
+                sample.DealsIn = dealsIn[sample.Player];
+                sample.Misfires = misfires[sample.Player];
+                writer.WriteLine(System.Text.Json.JsonSerializer.Serialize(sample));
+                written++;
+            }
+        }
+
+        Console.WriteLine($"selfplay: {games} games, {written} samples -> {outPath}");
+        return 0;
+    }
+
+    private sealed class SelfPlaySample
+    {
+        public int V { get; set; } = Tiisu.Engine.SelfPlay.SelfPlayFeatures.Version;
+        public float[] Features { get; set; } = Array.Empty<float>();
+        public int Action { get; set; }
+        public int Player { get; set; }
+        public int Round { get; set; }
+        public int ShantenBefore { get; set; }
+        public int ShantenAfter { get; set; }
+        public int Game { get; set; }
+        public int Step { get; set; }
+        public int FinalRank { get; set; }
+        public int Lead { get; set; }
+        public int FinalScore { get; set; }
+        public int InitialScore { get; set; }
+        public int Melds { get; set; }
+        public int CallWins { get; set; }
+        public int DealsIn { get; set; }
+        public int Misfires { get; set; }
+    }
+
+    /// <summary>
     /// <c>--check-publish [publishDir]</c>：发布前自检——许可全文、字体、素材哈希、
     /// 禁止项（语音/测试依赖/FFmpeg/espeak）是否干净。
     /// </summary>
@@ -4004,6 +4123,9 @@ internal static class DevCommands
                 return 0;
             case "--smoke-run":
                 return SmokeRun(args);
+
+            case "--export-selfplay":
+                return ExportSelfPlay(args);
 
             case "--check-publish":
                 return CheckPublish(args);

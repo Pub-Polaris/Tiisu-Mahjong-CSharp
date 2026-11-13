@@ -84,4 +84,5 @@
 |---|---|---|
 | `ml/policy_weights.json` / `policy_weights_v2.json` | ✅ | 本项目 `ml/train_policy*.py` 生成，权重自有 |
 | Tenhou MJAI Riichi Training Dataset | ✅ | CC BY 4.0；随权重分发需署名（已加入许可页） |
+| 自博弈 v4 管线 | ⚠️ | 数据导出/训练/运行时特征已通；尚未训练发布权重，当前仍用 v2（含 MCR 数据） |
 | MCR Final-2026 Engine Correctness Test Set | ⚠️ | competition-game-logs 自定义许可；研究/工程可用，商用范围需确认；商业发行前建议确认或改用纯自走数据重训 |
