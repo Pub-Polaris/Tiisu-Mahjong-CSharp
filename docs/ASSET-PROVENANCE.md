@@ -12,7 +12,7 @@
 | `Assets/fonts/TiisuRoundedSC-subset.ttf` | 文渊圆体 v1.110 子集 | SIL OFL 1.1；重命名避开 OFL 保留字体名；许可证随包 | ✅ |
 | `Assets/layout/menu.json` | 本项目自有配置 | MIT | ✅ |
 | `Assets/licenses/*` | 官方许可文本 / 字体包 / 本项目说明 | 各自原文 | ✅ |
-| `Assets/ml/policy_weights*.json` | 待审计 | 未知 | ⚠️ 见下一项 |
+| `ml/policy_weights*.json` | 本项目 `ml/train_policy*.py` 生成；数据混合自走 + Tenhou MJAI（CC BY 4.0）+ MCR Final-2026（自定义） | 权重项目自有；数据许可见 `docs/ML-PROVENANCE.md` | ⚠️ MCR 商用待确认 |
 
 ## 说明
 

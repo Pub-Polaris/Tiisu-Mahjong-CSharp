@@ -1,0 +1,21 @@
+MCR Final-2026 Engine Correctness Test Set — usage note
+========================================================
+
+This dataset consists of machine-generated game logs from the IJCAI-2026
+Mahjong AI Competition Final Stage 2, played on the Botzone platform
+(https://botzone.org.cn) between four autonomous bots. The logs record only
+game protocol events (deals, draws, discards, claims, wins, scores) produced
+by the competition judge and the bots' action strings.
+
+- Redistributed for research and engineering use: engine/judge correctness
+  testing, rules verification, game-AI and imitation-learning research.
+- The bot policies (code, model weights) that produced the moves are NOT
+  included and remain the property of their respective authors.
+- Match records were harvested from the publicly viewable Botzone match
+  archive. Player identifiers are the public competition user/bot names.
+- No warranty of any kind. If you believe any content should not be
+  redistributed, open a discussion on the dataset page.
+
+If you use this dataset in a publication, please cite the IJCAI-2026 Mahjong
+AI Competition and link the dataset card:
+https://huggingface.co/datasets/Dannibal/mcr-final2026-testset
