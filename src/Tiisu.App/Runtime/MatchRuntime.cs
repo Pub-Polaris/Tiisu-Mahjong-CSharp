@@ -611,7 +611,10 @@ public sealed class MatchRuntime
                 return;
             }
 
-            AiTurn();
+            using (PerfProbe.Measure("ai.turn"))
+            {
+                AiTurn();
+            }
             if (AiStepDelayMilliseconds > 0 && _phase == MatchPhase.Idle && !_engine.GameOver)
             {
                 // 可被玩家命令提前唤醒，Sleep 不再无条件堵住命令队列（审计 P3-12）。

@@ -121,7 +121,10 @@ public sealed class GameSession : IDisposable
             {
                 try
                 {
-                    _runtime.Execute(command);
+                    using (PerfProbe.Measure("command.execute"))
+                    {
+                        _runtime.Execute(command);
+                    }
                 }
                 catch (Exception ex)
                 {

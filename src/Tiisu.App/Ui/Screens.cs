@@ -296,6 +296,7 @@ public sealed class TableScreen : Screen
 
     public override void Draw(ICanvas c, double time)
     {
+        using var perfFrame = PerfProbe.Measure("ui.frame");
         var vm = _snapshot();
         if (vm.Phase is "round_end" or "match_over" && _settlement is { } settlement && !_settlementHidden)
         {
@@ -328,6 +329,14 @@ public sealed class TableScreen : Screen
 
         PlayCues(vm);
         DrawHud(c, vm);
+
+        if (PerfProbe.Enabled)
+        {
+            PerfProbe.Tick();
+            c.DrawText(PerfProbe.HudText(),
+                new RectF(CanvasWidth - 620, 12, 600, 20), Color.Rgb(255, 210, 120),
+                new TextStyle(13, Center: false, Right: true));
+        }
 
         // 长考倒计时（设置里配了秒数才显示）。
         if (_thinkLeft >= 0 && _thinkSeconds > 0)
