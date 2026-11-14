@@ -72,6 +72,7 @@ dotnet build tools/Tiisu.AudioGen -c Release
 | 审局 | 整场冒烟 | `--smoke-run 1 4` |
 | 资源 | 字体缺字检查 | `--check-font`，覆盖版本号/UI/docs，有缺字退出 1 |
 | 资源 | 导出 UI 图集 | `--export-ui-atlas <dir>`，完成后右侧预览 |
+| 盘点 UI 文案 | `--audit-ui-strings`，输出本地化范围 CSV |
 | 资源 | 打开 Assets / docs | 定位资源与文档目录 |
 
 所有分类均已迁移；旧版工具页保留，后续决定是否移除。

@@ -172,6 +172,63 @@ internal static class DevCommands
     /// <c>--check-font</c>：检查字体子集是否覆盖当前版本代号、UI 常用字与 docs。
     /// 对应线上曾出现的「北斗」缺字；有缺失返回 1。
     /// </summary>
+    /// <summary>
+    /// <c>--audit-ui-strings [root] [csv]</c>：盘点 App 里的中文 UI 字符串字面量，
+    /// 为英文本地化评估规模；默认输出到 artifacts/localization/ui-strings.csv。
+    /// </summary>
+    private static int AuditUiStrings(string[] args)
+    {
+        Tiisu.App.Program.TryUseUtf8Console();
+        string root = args.Length >= 2 && Directory.Exists(args[1])
+            ? Path.GetFullPath(args[1])
+            : Directory.GetCurrentDirectory();
+        string app = Path.Combine(root, "src", "Tiisu.App");
+        if (!Directory.Exists(app))
+        {
+            Console.WriteLine("audit-ui-strings: FAIL 找不到 " + app);
+            return 1;
+        }
+
+        string csv = args.Length >= 3 ? args[2] : Path.Combine(root, "artifacts", "localization", "ui-strings.csv");
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(csv))!);
+        var pattern = new Regex("\"[^\"\r\n]*[\u4e00-\u9fff][^\"\r\n]*\"");
+        var rows = new List<(string File, int Count)>();
+        int total = 0;
+        foreach (string file in Directory.EnumerateFiles(app, "*.cs", SearchOption.AllDirectories))
+        {
+            if (file.Contains(Path.Combine("bin", string.Empty), StringComparison.Ordinal)
+                || file.Contains(Path.Combine("obj", string.Empty), StringComparison.Ordinal)
+                || file.Contains(Path.Combine("Generated", string.Empty), StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            int count = pattern.Matches(File.ReadAllText(file)).Count;
+            if (count == 0)
+            {
+                continue;
+            }
+
+            rows.Add((Path.GetRelativePath(root, file), count));
+            total += count;
+        }
+
+        rows.Sort((a, b) => b.Count.CompareTo(a.Count));
+        var csvLines = new List<string> { "file,count" };
+        csvLines.AddRange(rows.Select(r => r.File.Replace(',', '_') + "," + r.Count));
+        File.WriteAllText(csv, string.Join("\n", csvLines) + "\n", new System.Text.UTF8Encoding(false));
+
+        Console.WriteLine($"audit-ui-strings: {total} 个中文 UI 字面量，{rows.Count} 个文件");
+        foreach (var row in rows.Take(15))
+        {
+            Console.WriteLine($"  {row.Count,4}  {row.File}");
+        }
+
+        Console.WriteLine("  CSV: " + csv);
+        return 0;
+    }
+
+
     private static int CheckFont(string[] args)
     {
         Tiisu.App.Program.TryUseUtf8Console();
@@ -4316,6 +4373,9 @@ internal static class DevCommands
 
             case "--check-font":
                 return CheckFont(args);
+
+            case "--audit-ui-strings":
+                return AuditUiStrings(args);
 
             case "--bench-snapshot":
                 return BenchSnapshot(args);

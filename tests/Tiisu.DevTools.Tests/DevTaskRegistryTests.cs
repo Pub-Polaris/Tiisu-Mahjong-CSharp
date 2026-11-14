@@ -82,6 +82,7 @@ public sealed class DevTaskRegistryTests
         var resources = DevTaskRegistry.Resource(new ResourceTaskActions(
             () => Task.CompletedTask,
             () => Task.CompletedTask,
+            () => Task.CompletedTask,
             () => "artifacts/uitools/ui-atlas.png",
             () => Task.CompletedTask,
             () => Task.CompletedTask));
@@ -89,8 +90,9 @@ public sealed class DevTaskRegistryTests
         Assert.Equal(4, audit.Count);
         Assert.All(audit, t => Assert.Equal("审局", t.Category));
         Assert.Contains(audit, t => t.Id == "audit.games");
-        Assert.Equal(4, resources.Count);
+        Assert.Equal(5, resources.Count);
         Assert.Contains(resources, t => t.Id == "resource.font");
+        Assert.Contains(resources, t => t.Id == "resource.i18n");
         Assert.Contains(resources, t => t.Id == "resource.atlas" && t.OutputPath is not null);
     }
 

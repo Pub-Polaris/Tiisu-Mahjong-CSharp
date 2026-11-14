@@ -35,6 +35,7 @@ internal sealed record AuditTaskActions(
 
 internal sealed record ResourceTaskActions(
     Func<Task> CheckFont,
+    Func<Task> AuditUiStrings,
     Func<Task> ExportAtlas,
     Func<string?> AtlasPath,
     Func<Task> OpenAssets,
@@ -200,6 +201,9 @@ internal static class DevTaskRegistry
         new DevTask("resource.font", "资源", "字体缺字检查",
             "检查字体子集是否覆盖版本代号、UI 文案与 docs。", "日志：缺字列表 / PASS",
             actions.CheckFont),
+        new DevTask("resource.i18n", "资源", "盘点 UI 文案",
+            "扫描 App 里的中文 UI 字面量，输出 CSV 作为英文本地化范围。", "artifacts/localization/ui-strings.csv",
+            actions.AuditUiStrings),
         new DevTask("resource.atlas", "资源", "导出 UI 图集",
             "把 UI 图元导出为图集 PNG。", "ui-atlas.png",
             actions.ExportAtlas, OutputPath: () => actions.AtlasPath()),

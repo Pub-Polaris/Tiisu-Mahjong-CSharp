@@ -108,6 +108,7 @@ golden 语料在 `tests/fixtures/`（`yaku-golden*.json`、`engine-golden.json`�
 - [docs/STEAM_RELEASE_CHECKLIST.md](docs/STEAM_RELEASE_CHECKLIST.md)：Steam 前置清单
 - [docs/STEAM_ACHIEVEMENTS.md](docs/STEAM_ACHIEVEMENTS.md)：Steam 成就映射（草案）
 - [docs/STEAM_STORE_COPY.md](docs/STEAM_STORE_COPY.md)：商店文案草案
+- [docs/LOCALIZATION.md](docs/LOCALIZATION.md)：UI 文案盘点与英文本地化方案
 - 游戏内「开源信息」：逐页列出全部组件 + 闭源参考鸣谢，可查看许可全文
 
 ### v4 权重声明

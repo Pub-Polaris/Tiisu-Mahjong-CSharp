@@ -141,6 +141,7 @@ internal sealed class DevToolsForm : Form
             SmokeRunTaskAsync));
         var resourceTasks = DevTaskRegistry.Resource(new ResourceTaskActions(
             CheckFontTaskAsync,
+            AuditUiStringsTaskAsync,
             ExportAtlasTaskAsync,
             () => _lastAtlasPath,
             OpenAssetsAsync,
@@ -642,6 +643,16 @@ internal sealed class DevToolsForm : Form
             "字体缺字检查",
             Application.ExecutablePath,
             new[] { "--check-font", _tools.WorkingDirectory },
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private async Task AuditUiStringsTaskAsync()
+    {
+        await ExecuteAsync(
+            "盘点 UI 文案",
+            Application.ExecutablePath,
+            new[] { "--audit-ui-strings", _tools.WorkingDirectory },
             _tools.WorkingDirectory,
             revealPath: null);
     }
