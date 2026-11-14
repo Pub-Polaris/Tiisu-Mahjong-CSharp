@@ -88,13 +88,13 @@ public sealed class SettingsScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(20, 28, 34), Color.Rgb(8, 12, 16));
 
-        c.DrawText("设置", new RectF(0, 36, Width, 52), Gold,
+        c.DrawText(UiText.Tr("设置"), new RectF(0, 36, Width, 52), Gold,
             new TextStyle(32, Bold: true, Center: true));
 
         // 左上角返回按钮
         c.FillRoundRect(BackButton, 10, _backHover ? Color.Rgb(44, 66, 60) : Color.Rgb(24, 34, 30).WithAlpha(200));
         c.StrokeRoundRect(BackButton, 10, Gold, 1.2f);
-        c.DrawText("← 返回", BackButton, TextColor, new TextStyle(18, Bold: false, Center: true));
+        c.DrawText(UiText.Tr("← 返回"), BackButton, TextColor, new TextStyle(18, Bold: false, Center: true));
 
         for (int t = 0; t < Groups.Length; t++)
         {
@@ -102,7 +102,7 @@ public sealed class SettingsScreen : Screen
             bool active = Groups[t].Group == _group;
             c.FillRoundRect(tab, 8, active ? Color.Rgb(44, 66, 60) : Color.Rgb(22, 32, 28));
             c.StrokeRoundRect(tab, 8, active ? Gold : Color.Rgb(70, 88, 80), 1.2f);
-            c.DrawText(Groups[t].Label, tab, active ? Color.Rgb(255, 244, 214) : Muted,
+            c.DrawText(UiText.Tr(Groups[t].Label), tab, active ? Color.Rgb(255, 244, 214) : Muted,
                 new TextStyle(15, Bold: active, Center: true));
         }
 
@@ -131,7 +131,7 @@ public sealed class SettingsScreen : Screen
                 c.StrokeRoundRect(rect, 8, Gold, 1.4f);
             }
 
-            c.DrawText(row.Label, new RectF(rect.X + 16, rect.Y, rect.W - 180, rect.H),
+            c.DrawText(UiText.Tr(row.Label), new RectF(rect.X + 16, rect.Y, rect.W - 180, rect.H),
                 selected ? Color.Rgb(255, 244, 214) : TextColor,
                 new TextStyle(17, Bold: selected, Center: false));
 
@@ -142,13 +142,13 @@ public sealed class SettingsScreen : Screen
               }
             else
             {
-                c.DrawText(row.Value(), new RectF(rect.Right - 170, rect.Y, 150, rect.H),
+                c.DrawText(UiText.Tr(row.Value()), new RectF(rect.Right - 170, rect.Y, 150, rect.H),
                     row.IsOn() ? Gold : Muted,
                     new TextStyle(16, Bold: row.IsOn(), Center: false, Right: true));
             }
         }
 
-        c.DrawText("↑↓ 选择 · ←→ 改值 · Tab 切换分组 · Esc 返回", new RectF(0, 684, Width, 28), Muted,
+        c.DrawText(UiText.Tr("↑↓ 选择 · ←→ 改值 · Tab 切换分组 · Esc 返回"), new RectF(0, 684, Width, 28), Muted,
             new TextStyle(16, Center: true));
     }
 
@@ -357,6 +357,8 @@ public sealed class SettingsScreen : Screen
         _rows.Add(new Row("报牌语音", () => OnOff(_settings.VoiceEnabled), () => _settings.VoiceEnabled, _ => Toggle(
             () => _settings.VoiceEnabled,
             value => _settings.VoiceEnabled = value)));
+        _rows.Add(new Row("语言 / Language", () => _settings.Language == "en-US" ? "English" : "中文",
+            () => _settings.Language == "en-US", _ => CycleLanguage()));
         _rows.Add(new Row("大字号界面", TextScaleName, () => _settings.UiTextScale > 1.01, _ => CycleTextScale()));
         _rows.Add(new Row("显示岭上指示牌", () => OnOff(_settings.ShowMa), () => _settings.ShowMa, _ => Toggle(
             () => _settings.ShowMa,
@@ -614,6 +616,13 @@ public sealed class SettingsScreen : Screen
         >= 1.14 => "115%",
         _ => "100%",
     };
+
+    private void CycleLanguage()
+    {
+        _settings.Language = _settings.Language == "en-US" ? "zh-CN" : "en-US";
+        UiText.SetLanguage(_settings.Language);
+        Save();
+    }
 
     private void CycleTextScale()
     {

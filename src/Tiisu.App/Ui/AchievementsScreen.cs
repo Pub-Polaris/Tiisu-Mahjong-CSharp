@@ -29,9 +29,9 @@ public sealed class AchievementsScreen : Screen
     {
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
-        c.DrawText("成就", new RectF(0, 32, Width, 50), Gold,
+        c.DrawText(UiText.Tr("成就"), new RectF(0, 32, Width, 50), Gold,
             new TextStyle(36, Bold: true, Center: true));
-        c.DrawText("已解锁 " + Achievements.UnlockedCount(_items) + " / " + _items.Count,
+        c.DrawText(UiText.Tr("已解锁 " + Achievements.UnlockedCount(_items) + " / " + _items.Count),
             new RectF(0, 82, Width, 24), Muted, new TextStyle(15, Center: true));
 
         for (int i = 0; i < _items.Count; i++)
@@ -43,13 +43,19 @@ public sealed class AchievementsScreen : Screen
             c.FillRoundRect(rect, 12, item.Unlocked ? Color.Rgb(30, 46, 40) : Color.Rgb(22, 30, 28));
             c.StrokeRoundRect(rect, 12,
                 item.Unlocked ? Gold : Color.Rgb(66, 82, 74), item.Unlocked ? 1.4f : 1.0f);
-            c.DrawText(item.Title, new RectF(rect.X + 18, rect.Y + 12, rect.W - 36, 28),
+            c.DrawText(UiText.Tr(item.Title), new RectF(rect.X + 18, rect.Y + 12, rect.W - 36, 28),
                 item.Unlocked ? Color.Rgb(255, 244, 214) : Muted, new TextStyle(19, Bold: true));
-            c.DrawText(item.Description, new RectF(rect.X + 18, rect.Y + 44, rect.W - 36, 22),
+            string description = UiText.Tr(item.Description);
+            if (!item.Unlocked)
+            {
+                description += " (" + item.Progress + ")";
+            }
+
+            c.DrawText(description, new RectF(rect.X + 18, rect.Y + 44, rect.W - 36, 22),
                 item.Unlocked ? Text : Color.Rgb(120, 136, 126), new TextStyle(14));
             if (item.Unlocked)
             {
-                c.DrawText("已解锁", new RectF(rect.Right - 100, rect.Y + 12, 82, 22), Gold,
+                c.DrawText(UiText.Tr("已解锁"), new RectF(rect.Right - 100, rect.Y + 12, 82, 22), Gold,
                     new TextStyle(13, Bold: true, Right: true));
             }
         }
@@ -57,7 +63,7 @@ public sealed class AchievementsScreen : Screen
         _backButton = new RectF(Width / 2f - 90, 650, 180, 42);
         c.FillRoundRect(_backButton, 10, _backHover ? Color.Rgb(52, 86, 78) : Color.Rgb(40, 58, 48));
         c.StrokeRoundRect(_backButton, 10, _backHover ? Gold : Color.Rgb(196, 168, 96), 1.3f);
-        c.DrawText("返回战绩", _backButton, Color.Rgb(242, 230, 190),
+        c.DrawText(UiText.Tr("返回战绩"), _backButton, Color.Rgb(242, 230, 190),
             new TextStyle(17, Bold: true, Center: true));
     }
 

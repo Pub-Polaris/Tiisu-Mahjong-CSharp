@@ -2208,6 +2208,17 @@ internal static class DevCommands
     private static void RenderScreenToPng(string path, string screenName)
     {
         using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
+        bool english = screenName.EndsWith("-en", StringComparison.OrdinalIgnoreCase);
+        if (english)
+        {
+            screenName = screenName[..^3];
+            UiText.SetLanguage("en-US");
+        }
+        else
+        {
+            UiText.SetLanguage("zh-CN");
+        }
+
         var screen = CreateScreen(screenName, atlas);
 
         var info = new SKImageInfo((int)screen.CanvasWidth, (int)screen.CanvasHeight);

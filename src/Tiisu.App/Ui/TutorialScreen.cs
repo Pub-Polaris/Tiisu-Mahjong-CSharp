@@ -55,9 +55,9 @@ public sealed class TutorialScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
 
-        c.DrawText("新手引导", new RectF(0, 44, Width, 54),
+        c.DrawText(UiText.Tr("新手引导"), new RectF(0, 44, Width, 54),
             Color.Rgb(242, 230, 190), new TextStyle(40, Bold: true, Center: true));
-        c.DrawText("三步上手 · 第 " + (_page + 1) + " / " + Pages.Length + " 页",
+        c.DrawText(UiText.Tr("三步上手 · 第 " + (_page + 1) + " / " + Pages.Length + " 页"),
             new RectF(0, 100, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(15, Center: true));
 
         var (title, lines) = Pages[_page];
@@ -65,12 +65,12 @@ public sealed class TutorialScreen : Screen
         c.FillRoundRect(card, 16, Color.Rgb(26, 38, 34));
         c.StrokeRoundRect(card, 16, Color.Rgb(96, 122, 108), 1.2f);
 
-        c.DrawText(title, new RectF(card.X + 30, card.Y + 24, card.W - 60, 34),
+        c.DrawText(UiText.Tr(title), new RectF(card.X + 30, card.Y + 24, card.W - 60, 34),
             Color.Rgb(242, 201, 76), new TextStyle(24, Bold: true, Center: false));
         float y = card.Y + 78;
         foreach (string line in lines)
         {
-            c.DrawText("· " + line, new RectF(card.X + 30, y, card.W - 60, 30),
+            c.DrawText("· " + UiText.Tr(line), new RectF(card.X + 30, y, card.W - 60, 30),
                 Color.Rgb(220, 228, 220), new TextStyle(17, Center: false));
             y += 42;
         }
@@ -100,7 +100,7 @@ public sealed class TutorialScreen : Screen
             : Color.Rgb(28, 36, 32);
         c.FillRoundRect(rect, 10, fill);
         c.StrokeRoundRect(rect, 10, border, 1.3f);
-        c.DrawText(label, rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
+        c.DrawText(UiText.Tr(label), rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
             new TextStyle(17, Bold: true, Center: true));
     }
 

@@ -68,6 +68,7 @@ internal sealed class ScreenHostCore : IDisposable
         _sound.SfxVolume = _settings.SfxVolume;
         _sound.VoiceEnabled = _settings.VoiceEnabled;
         _uiTextScale = (float)_settings.UiTextScale;
+        UiText.SetLanguage(_settings.Language);
         _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _licenses = new LicensesScreen(() => SwitchTo(_menu), OpenMarkdown);
@@ -217,6 +218,7 @@ internal sealed class ScreenHostCore : IDisposable
         _sound.SfxVolume = settings.SfxVolume;
         _sound.VoiceEnabled = settings.VoiceEnabled;
         _uiTextScale = (float)settings.UiTextScale;
+        UiText.SetLanguage(settings.Language);
         bool rulesetChanged = _appliedRuleset != settings.Ruleset;
         _appliedRuleset = settings.Ruleset;
         _session.Post(GameCommand.ApplySettings(settings));

@@ -71,6 +71,9 @@ public sealed class Settings
     /// <summary>界面字号倍率：1.0 / 1.15 / 1.3（仅非牌桌页面）。</summary>
     public double UiTextScale { get; set; } = 1.0;
 
+    /// <summary>UI 语言：zh-CN / en-US。</summary>
+    public string Language { get; set; } = "zh-CN";
+
     /// <summary>开启后写牌型日志（ASCII JSONL）。</summary>
     public bool RecordTiles { get; set; }
 
@@ -112,6 +115,7 @@ public sealed class Settings
             loaded.AiWeights = NormalizeWeights(loaded.AiWeights);
             loaded.AiSeatLocks = NormalizeLocks(loaded.AiSeatLocks);
             loaded.UiTextScale = Math.Clamp(loaded.UiTextScale, 1.0, 1.3);
+            loaded.Language = Tiisu.App.Ui.UiText.Normalize(loaded.Language);
             return loaded;
         }
         catch

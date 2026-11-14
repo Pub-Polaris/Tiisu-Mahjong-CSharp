@@ -1115,7 +1115,7 @@ public sealed class MenuScreen : Screen
                     c.FillRoundRect(el.Rect, el.Radius <= 0 ? 10 : el.Radius, fill);
                     c.StrokeRoundRect(el.Rect, el.Radius <= 0 ? 10 : el.Radius,
                         ParseColor(el.Border, Color.Rgb(196, 168, 96)), 1.5f);
-                    c.DrawText(el.Text ?? el.Id, el.Rect,
+                    c.DrawText(UiText.Tr(el.Text ?? el.Id), el.Rect,
                         ParseColor(el.FontColor, Color.Rgb(240, 236, 220)),
                         new TextStyle(el.FontSize, Bold: true, Center: true));
                     break;
@@ -1147,7 +1147,7 @@ public sealed class MenuScreen : Screen
             return;
         }
 
-        c.DrawText(el.Text ?? string.Empty, el.Rect,
+        c.DrawText(UiText.Tr(el.Text ?? string.Empty), el.Rect,
             ParseColor(el.FontColor, Color.White),
             new TextStyle(el.FontSize,
                 Center: align != "left" && align != "right",

@@ -44,6 +44,22 @@ public sealed class SettingsTests
     }
 
     [Fact]
+    public void Save再Load_语言保持()
+    {
+        string dir = TempDir();
+        try
+        {
+            new Settings { Language = "en-US" }.Save(dir);
+            Assert.Equal("en-US", Settings.Load(dir).Language);
+            Assert.Equal("zh-CN", new Settings().Language);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Save再Load_大字号倍率保持()
     {
         string dir = TempDir();

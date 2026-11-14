@@ -34,9 +34,9 @@ public sealed class StatsScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
 
-        c.DrawText("战绩统计", new RectF(0, 32, Width, 50), Gold,
+        c.DrawText(UiText.Tr("战绩统计"), new RectF(0, 32, Width, 50), Gold,
             new TextStyle(36, Bold: true, Center: true));
-        c.DrawText("本机累计 · " + _stats.Rounds + " 个小局", new RectF(0, 82, Width, 24), Muted,
+        c.DrawText(UiText.Tr("本机累计 · " + _stats.Rounds + " 个小局"), new RectF(0, 82, Width, 24), Muted,
             new TextStyle(15, Center: true));
 
         DrawCard(c, new RectF(100, 126, 250, 90), "总局数", _stats.Rounds.ToString(CultureInfo.InvariantCulture));
@@ -58,7 +58,7 @@ public sealed class StatsScreen : Screen
 
         if (_stats.Players.Count == 0)
         {
-            c.DrawText(_stats.Rounds == 0 ? "还没有对局记录，先打一局。" : "还没有玩家统计。",
+            c.DrawText(UiText.Tr(_stats.Rounds == 0 ? "还没有对局记录，先打一局。" : "还没有玩家统计。"),
                 new RectF(table.X, table.CenterY - 18, table.W, 28), Muted,
                 new TextStyle(18, Center: true));
         }
@@ -66,11 +66,11 @@ public sealed class StatsScreen : Screen
         {
             float x = table.X + 24;
             float y = table.Y + 16;
-            c.DrawText("玩家", new RectF(x, y, 390, 24), Gold, new TextStyle(15, Bold: true));
-            c.DrawText("和牌", new RectF(x + 410, y, 100, 24), Gold, new TextStyle(15, Bold: true, Right: true));
-            c.DrawText("大七星", new RectF(x + 540, y, 110, 24), Gold, new TextStyle(15, Bold: true, Right: true));
-            c.DrawText("见证", new RectF(x + 680, y, 110, 24), Gold, new TextStyle(15, Bold: true, Right: true));
-            c.DrawText("累计点数", new RectF(x + 820, y, 190, 24), Gold, new TextStyle(15, Bold: true, Right: true));
+            c.DrawText(UiText.Tr("玩家"), new RectF(x, y, 260, 24), Gold, new TextStyle(15, Bold: true));
+            c.DrawText(UiText.Tr("和牌"), new RectF(x + 280, y, 80, 24), Gold, new TextStyle(15, Bold: true, Right: true));
+            c.DrawText(UiText.Tr("大七星"), new RectF(x + 370, y, 160, 24), Gold, new TextStyle(15, Bold: true, Right: true));
+            c.DrawText(UiText.Tr("见证"), new RectF(x + 540, y, 100, 24), Gold, new TextStyle(15, Bold: true, Right: true));
+            c.DrawText(UiText.Tr("累计点数"), new RectF(x + 650, y, 190, 24), Gold, new TextStyle(15, Bold: true, Right: true));
 
             y += 34;
             foreach (PlayerStats player in _stats.Players)
@@ -80,15 +80,15 @@ public sealed class StatsScreen : Screen
                     break;
                 }
 
-                c.DrawText(player.Name, new RectF(x, y, 390, 24), Text, new TextStyle(16));
+                c.DrawText(UiText.Tr(player.Name), new RectF(x, y, 260, 24), Text, new TextStyle(16));
                 c.DrawText(player.Wins.ToString(CultureInfo.InvariantCulture),
-                    new RectF(x + 410, y, 100, 24), Text, new TextStyle(16, Right: true));
+                    new RectF(x + 280, y, 80, 24), Text, new TextStyle(16, Right: true));
                 c.DrawText(player.Tiisuin.ToString(CultureInfo.InvariantCulture),
-                    new RectF(x + 540, y, 110, 24), Text, new TextStyle(16, Right: true));
+                    new RectF(x + 370, y, 160, 24), Text, new TextStyle(16, Right: true));
                 c.DrawText(player.Witness.ToString(CultureInfo.InvariantCulture),
-                    new RectF(x + 680, y, 110, 24), Text, new TextStyle(16, Right: true));
+                    new RectF(x + 540, y, 100, 24), Text, new TextStyle(16, Right: true));
                 c.DrawText(player.Points.ToString("+0;-0;0", CultureInfo.InvariantCulture),
-                    new RectF(x + 820, y, 190, 24), Text, new TextStyle(16, Right: true));
+                    new RectF(x + 650, y, 190, 24), Text, new TextStyle(16, Right: true));
                 y += 30;
             }
         }
@@ -106,7 +106,7 @@ public sealed class StatsScreen : Screen
     {
         c.FillRoundRect(rect, 12, Color.Rgb(26, 38, 34));
         c.StrokeRoundRect(rect, 12, Color.Rgb(74, 96, 84), 1.1f);
-        c.DrawText(label, new RectF(rect.X + 16, rect.Y + 12, rect.W - 32, 22), Muted,
+        c.DrawText(UiText.Tr(label), new RectF(rect.X + 16, rect.Y + 12, rect.W - 32, 22), Muted,
             new TextStyle(14));
         c.DrawText(value, new RectF(rect.X + 16, rect.Y + 42, rect.W - 32, 34), Text,
             new TextStyle(24, Bold: true));
@@ -116,7 +116,7 @@ public sealed class StatsScreen : Screen
     {
         c.FillRoundRect(rect, 10, hover ? Color.Rgb(52, 86, 78) : Color.Rgb(40, 58, 48));
         c.StrokeRoundRect(rect, 10, hover ? Gold : Color.Rgb(196, 168, 96), 1.3f);
-        c.DrawText(label, rect, Color.Rgb(242, 230, 190), new TextStyle(17, Bold: true, Center: true));
+        c.DrawText(UiText.Tr(label), rect, Color.Rgb(242, 230, 190), new TextStyle(17, Bold: true, Center: true));
     }
 
     public override bool OnClick(float x, float y)
