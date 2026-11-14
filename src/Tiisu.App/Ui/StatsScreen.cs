@@ -11,17 +11,21 @@ namespace Tiisu.App.Ui;
 public sealed class StatsScreen : Screen
 {
     private readonly Action _back;
+    private readonly Action? _openAchievements;
     private readonly StatsSummary _stats;
     private RectF _backButton;
+    private RectF _achievementsButton;
     private bool _backHover;
+    private bool _achievementsHover;
 
     private static readonly Color Gold = Color.Rgb(242, 201, 76);
     private static readonly Color Text = Color.Rgb(222, 230, 220);
     private static readonly Color Muted = Color.Rgb(150, 168, 158);
 
-    public StatsScreen(Action back) : base("stats")
+    public StatsScreen(Action back, Action? openAchievements = null) : base("stats")
     {
         _back = back;
+        _openAchievements = openAchievements;
         _stats = StatsSummary.Load(new StatsStore());
     }
 
@@ -89,8 +93,10 @@ public sealed class StatsScreen : Screen
             }
         }
 
-        _backButton = new RectF(Width / 2f - 90, 628, 180, 44);
+        _backButton = new RectF(Width / 2f - 190, 628, 180, 44);
         DrawButton(c, _backButton, "返回菜单", _backHover);
+        _achievementsButton = new RectF(Width / 2f + 10, 628, 180, 44);
+        DrawButton(c, _achievementsButton, "成就", _achievementsHover);
     }
 
     private static string Percent(double value) =>
@@ -121,13 +127,20 @@ public sealed class StatsScreen : Screen
             return true;
         }
 
+        if (_achievementsButton.Contains(x, y) && _openAchievements is not null)
+        {
+            _openAchievements();
+            return true;
+        }
+
         return false;
     }
 
     public override bool OnPointerMove(float x, float y)
     {
         _backHover = _backButton.Contains(x, y);
-        return _backHover;
+        _achievementsHover = _openAchievements is not null && _achievementsButton.Contains(x, y);
+        return _backHover || _achievementsHover;
     }
 
     public override bool OnKey(Keys key)
