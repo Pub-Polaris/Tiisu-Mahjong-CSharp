@@ -15,7 +15,11 @@ public sealed record ReplayRound(string FileName, int Round, int Honba, int Roun
 /// <summary>读取 roundlog_*.jsonl 的最后一局，供牌谱回看页使用。</summary>
 public static class RoundLogReader
 {
-    public static ReplayRound? LoadLatest(string? directory = null)
+    public static ReplayRound? LoadLatest(string? directory = null) =>
+        LoadLatestRounds(directory)?.Rounds.LastOrDefault();
+
+    /// <summary>读取最新一份 roundlog 的全部局；返回 null 表示还没有日志。</summary>
+    public static (string FileName, IReadOnlyList<ReplayRound> Rounds)? LoadLatestRounds(string? directory = null)
     {
         string logs = new RoundLogWriter(directory).LogsDirectory;
         if (!Directory.Exists(logs))
@@ -33,7 +37,8 @@ public static class RoundLogReader
 
         try
         {
-            return Parse(File.ReadLines(file), Path.GetFileName(file)).LastOrDefault();
+            var rounds = Parse(File.ReadLines(file), Path.GetFileName(file));
+            return rounds.Count == 0 ? null : (Path.GetFileName(file), rounds);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {

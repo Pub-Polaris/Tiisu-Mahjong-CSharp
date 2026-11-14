@@ -12,13 +12,19 @@ namespace Tiisu.App.Ui;
 public sealed class ReplayScreen : Screen
 {
     private readonly Action _back;
-    private readonly ReplayRound? _round;
+    private readonly IReadOnlyList<ReplayRound> _rounds;
+    private ReplayRound? _round;
+    private int _roundIndex;
     private int _index;
     private RectF _prev;
     private RectF _next;
+    private RectF _prevRound;
+    private RectF _nextRound;
     private RectF _backButton;
     private bool _prevHover;
     private bool _nextHover;
+    private bool _prevRoundHover;
+    private bool _nextRoundHover;
     private bool _backHover;
 
     private static readonly Color Gold = Color.Rgb(242, 201, 76);
@@ -28,7 +34,10 @@ public sealed class ReplayScreen : Screen
     public ReplayScreen(Action back) : base("replay")
     {
         _back = back;
-        _round = RoundLogReader.LoadLatest();
+        var loaded = RoundLogReader.LoadLatestRounds();
+        _rounds = loaded?.Rounds ?? Array.Empty<ReplayRound>();
+        _roundIndex = Math.Max(0, _rounds.Count - 1);
+        _round = _rounds.Count > 0 ? _rounds[_roundIndex] : null;
     }
 
     public override void Draw(ICanvas c, double time)
@@ -40,7 +49,8 @@ public sealed class ReplayScreen : Screen
             new TextStyle(36, Bold: true, Center: true));
         c.DrawText(_round is null
                 ? "本机 logs 里还没有牌谱；在设置中开启「记录牌型日志」后打一局。"
-                : _round.FileName + " · " + _round.Round + " 局 · " + _round.Honba + " 本场",
+                : (_rounds.Count > 1 ? "第 " + (_roundIndex + 1) + "/" + _rounds.Count + " 局 · " : string.Empty)
+                  + _round.FileName + " · " + _round.Round + " 局 · " + _round.Honba + " 本场",
             new RectF(0, 78, Width, 24), Muted, new TextStyle(14, Center: true));
 
         if (_round is null || _round.Steps.Count == 0)
@@ -105,6 +115,14 @@ public sealed class ReplayScreen : Screen
         DrawButton(c, _prev, "上一手", _prevHover, _round is not null && _index > 0);
         DrawButton(c, _backButton, "返回菜单", _backHover, true);
         DrawButton(c, _next, "下一手", _nextHover, _round is not null && _index < _round.Steps.Count - 1);
+
+        _prevRound = new RectF(80, 610, 140, 30);
+        _nextRound = new RectF(Width - 220, 610, 140, 30);
+        if (_rounds.Count > 1)
+        {
+            DrawButton(c, _prevRound, "← 上一局", _prevRoundHover, _roundIndex > 0);
+            DrawButton(c, _nextRound, "下一局 →", _nextRoundHover, _roundIndex < _rounds.Count - 1);
+        }
     }
 
     private static string RiversLine(ReplayRound round, ReplayStep step)
@@ -142,6 +160,13 @@ public sealed class ReplayScreen : Screen
         return (index + 1).ToString(CultureInfo.InvariantCulture) + ". " + player + " " + action + tile + wall;
     }
 
+    private void SetRound(int index)
+    {
+        _roundIndex = Math.Clamp(index, 0, _rounds.Count - 1);
+        _round = _rounds.Count > 0 ? _rounds[_roundIndex] : null;
+        _index = 0;
+    }
+
     public override bool OnClick(float x, float y)
     {
         if (_backButton.Contains(x, y))
@@ -153,6 +178,18 @@ public sealed class ReplayScreen : Screen
         if (_round is null)
         {
             return false;
+        }
+
+        if (_rounds.Count > 1 && _prevRound.Contains(x, y) && _roundIndex > 0)
+        {
+            SetRound(_roundIndex - 1);
+            return true;
+        }
+
+        if (_rounds.Count > 1 && _nextRound.Contains(x, y) && _roundIndex < _rounds.Count - 1)
+        {
+            SetRound(_roundIndex + 1);
+            return true;
         }
 
         if (_prev.Contains(x, y) && _index > 0)
@@ -174,8 +211,10 @@ public sealed class ReplayScreen : Screen
     {
         _prevHover = _round is not null && _index > 0 && _prev.Contains(x, y);
         _nextHover = _round is not null && _index < _round.Steps.Count - 1 && _next.Contains(x, y);
+        _prevRoundHover = _rounds.Count > 1 && _roundIndex > 0 && _prevRound.Contains(x, y);
+        _nextRoundHover = _rounds.Count > 1 && _roundIndex < _rounds.Count - 1 && _nextRound.Contains(x, y);
         _backHover = _backButton.Contains(x, y);
-        return _prevHover || _nextHover || _backHover;
+        return _prevHover || _nextHover || _prevRoundHover || _nextRoundHover || _backHover;
     }
 
     public override bool OnKey(Keys key)
@@ -198,6 +237,20 @@ public sealed class ReplayScreen : Screen
                 if (_round is not null && _index < _round.Steps.Count - 1)
                 {
                     _index++;
+                }
+
+                return true;
+            case Keys.PageUp:
+                if (_rounds.Count > 1 && _roundIndex > 0)
+                {
+                    SetRound(_roundIndex - 1);
+                }
+
+                return true;
+            case Keys.PageDown:
+                if (_rounds.Count > 1 && _roundIndex < _rounds.Count - 1)
+                {
+                    SetRound(_roundIndex + 1);
                 }
 
                 return true;
