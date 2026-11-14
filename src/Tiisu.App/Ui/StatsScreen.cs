@@ -67,7 +67,7 @@ public sealed class StatsScreen : Screen
             float x = table.X + 24;
             float y = table.Y + 16;
             c.DrawText(UiText.Tr("玩家"), new RectF(x, y, 260, 24), Gold, new TextStyle(15, Bold: true));
-            c.DrawText(UiText.Tr("和牌"), new RectF(x + 280, y, 80, 24), Gold, new TextStyle(15, Bold: true, Right: true));
+            c.DrawText(UiText.Tr("和牌次数"), new RectF(x + 280, y, 80, 24), Gold, new TextStyle(15, Bold: true, Right: true));
             c.DrawText(UiText.Tr("大七星"), new RectF(x + 370, y, 160, 24), Gold, new TextStyle(15, Bold: true, Right: true));
             c.DrawText(UiText.Tr("见证"), new RectF(x + 540, y, 100, 24), Gold, new TextStyle(15, Bold: true, Right: true));
             c.DrawText(UiText.Tr("累计点数"), new RectF(x + 650, y, 190, 24), Gold, new TextStyle(15, Bold: true, Right: true));

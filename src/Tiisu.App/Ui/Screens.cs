@@ -207,7 +207,7 @@ public sealed class TableScreen : Screen
         // 推倒胡：右下角常驻规则提示（无役 / 无点数 / 只记胜负）。
         if (vm.Ruleset == Ruleset.TuidaoHu)
         {
-            c.DrawText("推倒胡：无役 · 无点数 · 只记胜负",
+            c.DrawText(UiText.Tr("推倒胡：无役 · 无点数 · 只记胜负"),
                 new RectF(CanvasWidth - 470, CanvasHeight - 140, 450, 22),
                 Color.Rgb(196, 168, 96), new TextStyle(13, Center: false, Right: true));
         }
@@ -220,9 +220,9 @@ public sealed class TableScreen : Screen
         var btn = WallButtonRect;
         c.FillRoundRect(btn, 10, Color.Rgb(28, 40, 36).WithAlpha((byte)(_wallHeld ? 245 : 200)));
         c.StrokeRoundRect(btn, 10, _wallHeld ? Color.Rgb(242, 201, 76) : Color.Rgb(90, 110, 98), 1.2f);
-        c.DrawText("骰子", new RectF(btn.X, btn.Y + 4, btn.W, 22), Color.Rgb(226, 236, 228),
+        c.DrawText(UiText.Tr("骰子"), new RectF(btn.X, btn.Y + 4, btn.W, 22), Color.Rgb(226, 236, 228),
             new TextStyle(15, Bold: true, Center: true));
-        c.DrawText("按住查看", new RectF(btn.X, btn.Y + 26, btn.W, 18), Color.Rgb(150, 168, 158),
+        c.DrawText(UiText.Tr("按住查看"), new RectF(btn.X, btn.Y + 26, btn.W, 18), Color.Rgb(150, 168, 158),
             new TextStyle(11, Center: true));
 
         if (!_wallHeld)
