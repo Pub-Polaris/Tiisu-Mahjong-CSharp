@@ -42,7 +42,7 @@
         { "text": "音乐 Parisian · Kevin MacLeod · ", "url": "https://incompetech.com/music/royalty-free/" },
         { "text": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/" },
         { "text": " ｜ ", "url": "" },
-        { "text": "开源信息", "url": "https://github.com/Pub-Polaris/Tiisu-Mahjong-CSharp" }
+        { "text": "开源信息", "url": "app:licenses" }
       ] }
   ]
 }

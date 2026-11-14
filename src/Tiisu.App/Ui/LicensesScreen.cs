@@ -106,6 +106,7 @@ public sealed class LicensesScreen : Screen
     private const int TextCharsPerLine = 100;
 
     private readonly Action _back;
+    private readonly Action<string>? _openMarkdown;
     private int _page;
     private bool _textMode;
     private string _textTitle = string.Empty;
@@ -117,14 +118,17 @@ public sealed class LicensesScreen : Screen
     private RectF _nextButton;
     private RectF _backButton;
     private RectF _textButton;
+    private RectF _docsButton;
     private bool _prevHover;
     private bool _nextHover;
     private bool _backHover;
     private bool _textHover;
+    private bool _docsHover;
 
-    public LicensesScreen(Action back) : base("licenses")
+    public LicensesScreen(Action back, Action<string>? openMarkdown = null) : base("licenses")
     {
         _back = back;
+        _openMarkdown = openMarkdown;
     }
 
     public override void Draw(ICanvas c, double time)
@@ -181,6 +185,9 @@ public sealed class LicensesScreen : Screen
 
         _textButton = new RectF(Width / 2f - 140, 510, 280, 40);
         DrawButton(c, _textButton, "查看本页许可全文", _textHover, true);
+
+        _docsButton = new RectF(Width / 2f - 140, 458, 280, 40);
+        DrawButton(c, _docsButton, "参考与合规说明", _docsHover, _openMarkdown is not null);
 
         _prevButton = new RectF(Width / 2f - 330, 596, 150, 44);
         _backButton = new RectF(Width / 2f - 75, 596, 150, 44);
@@ -260,6 +267,12 @@ public sealed class LicensesScreen : Screen
             return true;
         }
 
+        if (_docsButton.Contains(x, y) && _openMarkdown is not null)
+        {
+            _openMarkdown("REFERENCES.md");
+            return true;
+        }
+
         if (_textButton.Contains(x, y))
         {
             OpenText();
@@ -287,7 +300,8 @@ public sealed class LicensesScreen : Screen
         _nextHover = (_textMode ? _textPage < _textPages - 1 : _page < Entries.Length - 1) && _nextButton.Contains(x, y);
         _backHover = _backButton.Contains(x, y);
         _textHover = !_textMode && _textButton.Contains(x, y);
-        return _prevHover || _nextHover || _backHover || _textHover;
+        _docsHover = !_textMode && _docsButton.Contains(x, y);
+        return _prevHover || _nextHover || _backHover || _textHover || _docsHover;
     }
 
     public override bool OnKey(Keys key)

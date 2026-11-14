@@ -186,6 +186,12 @@ internal static class DevCommands
             "Assets/licenses/OFL-1.1.txt",
             "Assets/licenses/CC-BY-4.0.txt",
             "Assets/licenses/REFERENCES.txt",
+            "Assets/docs/REFERENCES.md",
+            "Assets/docs/ASSET-PROVENANCE.md",
+            "Assets/docs/ML-PROVENANCE.md",
+            "Assets/docs/SELFPLAY_TRAINING.md",
+            "Assets/docs/RELEASE_COMPLIANCE.md",
+            "Assets/docs/THIRD-PARTY-NOTICES.md",
             "Assets/licenses/TILES-LICENSE.txt",
             "Assets/licenses/Zlib.txt",
             "Assets/fonts/LICENSE-WenYuan.md",
@@ -1157,6 +1163,7 @@ internal static class DevCommands
         "tutorial" => new TutorialScreen(() => { }, () => { }),
         "rules" => new RulesScreen(() => { }),
         "licenses" => new LicensesScreen(() => { }),
+        "markdown" => new MarkdownScreen("参考与合规说明", System.IO.File.ReadAllText(Path.Combine(Tiisu.App.Program.AssetsDir, "docs", "REFERENCES.md")), () => { }),
         _ => new TableScreen(atlas),
     };
 

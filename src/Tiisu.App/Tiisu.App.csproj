@@ -46,6 +46,24 @@
     <None Include="..\..\ml\policy_weights_v4.json" Link="Assets\ml\policy_weights_v4.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\..\docs\REFERENCES.md" Link="Assets\docs\REFERENCES.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\docs\ASSET-PROVENANCE.md" Link="Assets\docs\ASSET-PROVENANCE.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\docs\ML-PROVENANCE.md" Link="Assets\docs\ML-PROVENANCE.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\docs\SELFPLAY_TRAINING.md" Link="Assets\docs\SELFPLAY_TRAINING.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\docs\RELEASE_COMPLIANCE.md" Link="Assets\docs\RELEASE_COMPLIANCE.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="Assets\docs\THIRD-PARTY-NOTICES.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Assets\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -64,12 +64,12 @@ internal sealed class ScreenHostCore : IDisposable
         _sound.SfxVolume = _settings.SfxVolume;
         _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
-        _licenses = new LicensesScreen(() => SwitchTo(_menu));
+        _licenses = new LicensesScreen(() => SwitchTo(_menu), OpenMarkdown);
         _tutorial = new TutorialScreen(() => SwitchTo(_menu), () =>
         {
             _session.Post(GameCommand.StartMatch(1));
             SwitchTo(_table);
-        });
+        }, () => SwitchTo(_rules));
         _menu = new MenuScreen(menuLayout, OnMenuAction, HandleLink);
         _rules = new RulesScreen(() => SwitchTo(_menu));
         _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () =>
@@ -142,6 +142,32 @@ internal sealed class ScreenHostCore : IDisposable
     }
 
     /// <summary>用系统默认浏览器打开外链（署名 / 许可证 / 仓库）；失败只静默，不影响游戏。</summary>
+    private void OpenMarkdown(string file)
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "Assets", "docs", file);
+        string text;
+        try
+        {
+            text = File.Exists(path) ? File.ReadAllText(path) : "未找到文档：" + file;
+        }
+        catch (Exception ex)
+        {
+            text = "读取失败：" + ex.Message;
+        }
+
+        string title = file switch
+        {
+            "REFERENCES.md" => "参考与合规说明",
+            "ASSET-PROVENANCE.md" => "素材来源",
+            "ML-PROVENANCE.md" => "ML 权重来源",
+            "SELFPLAY_TRAINING.md" => "自博弈训练",
+            "RELEASE_COMPLIANCE.md" => "发布合规清单",
+            "THIRD-PARTY-NOTICES.md" => "第三方声明",
+            _ => Path.GetFileNameWithoutExtension(file),
+        };
+        SwitchTo(new MarkdownScreen(title, text, () => SwitchTo(_licenses)));
+    }
+
     /// <summary>菜单链接：app:licenses 在游戏内打开许可页，其余交给浏览器。</summary>
     private void HandleLink(string url)
     {
@@ -190,7 +216,7 @@ internal sealed class ScreenHostCore : IDisposable
 
     private void SwitchTo(Screen next)
     {
-        bool lobby = next is MenuScreen or SettingsScreen or RulesScreen or LicensesScreen or TutorialScreen;
+        bool lobby = next is MenuScreen or SettingsScreen or RulesScreen or LicensesScreen or TutorialScreen or MarkdownScreen;
         if (lobby)
         {
             _sound.PlayBgm();

@@ -32,6 +32,7 @@ public sealed class TutorialScreen : Screen
 
     private readonly Action _back;
     private readonly Action _start;
+    private readonly Action _openRules;
     private int _page;
     private RectF _prev;
     private RectF _next;
@@ -42,10 +43,11 @@ public sealed class TutorialScreen : Screen
     private bool _backHover;
     private bool _startHover;
 
-    public TutorialScreen(Action back, Action start) : base("tutorial")
+    public TutorialScreen(Action back, Action start, Action? openRules = null) : base("tutorial")
     {
         _back = back;
         _start = start;
+        _openRules = openRules ?? (() => { });
     }
 
     public override void Draw(ICanvas c, double time)
@@ -81,10 +83,13 @@ public sealed class TutorialScreen : Screen
         DrawButton(c, _prev, "上一步", _prevHover, _page > 0);
         DrawButton(c, _next, "下一步", _nextHover, _page < Pages.Length - 1);
         DrawButton(c, _backButton, "返回菜单", _backHover, true);
-        if (_page == Pages.Length - 1)
+        string actionLabel = _page switch
         {
-            DrawButton(c, _startButton, "开始一局", _startHover, true);
-        }
+            0 => "试打一局",
+            1 => "查看规则速查",
+            _ => "开始一局",
+        };
+        DrawButton(c, _startButton, actionLabel, _startHover, true);
     }
 
     private static void DrawButton(ICanvas c, RectF rect, string label, bool hover, bool enabled)
@@ -119,9 +124,17 @@ public sealed class TutorialScreen : Screen
             return true;
         }
 
-        if (_page == Pages.Length - 1 && _startButton.Contains(x, y))
+        if (_startButton.Contains(x, y))
         {
-            _start();
+            if (_page == 1)
+            {
+                _openRules();
+            }
+            else
+            {
+                _start();
+            }
+
             return true;
         }
 
@@ -133,7 +146,7 @@ public sealed class TutorialScreen : Screen
         _prevHover = _page > 0 && _prev.Contains(x, y);
         _nextHover = _page < Pages.Length - 1 && _next.Contains(x, y);
         _backHover = _backButton.Contains(x, y);
-        _startHover = _page == Pages.Length - 1 && _startButton.Contains(x, y);
+        _startHover = _startButton.Contains(x, y);
         return _prevHover || _nextHover || _backHover || _startHover;
     }
 
@@ -157,6 +170,10 @@ public sealed class TutorialScreen : Screen
                 if (_page < Pages.Length - 1)
                 {
                     _page++;
+                }
+                else if (_page == 1)
+                {
+                    _openRules();
                 }
                 else
                 {
