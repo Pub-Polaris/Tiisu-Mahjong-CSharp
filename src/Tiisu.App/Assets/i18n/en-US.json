@@ -332,5 +332,9 @@
   "这个副露不可用": "That meld is not available",
   "当前手牌不满足推牌流局条件": "Hand does not meet the push-flow condition",
   "等待其他玩家确认": "Waiting for other players",
-  "已重置": "Reset"
+  "已重置": "Reset",
+  "南 AI": "South AI",
+  "西 AI": "West AI",
+  "北 AI": "North AI",
+  "东 AI": "East AI"
 }

@@ -530,7 +530,7 @@ public sealed class SettlementOverlay
         for (int r = 0; r < rows; r++)
         {
             var seat = vm.Seats[r];
-            c.DrawText(seat.Name, new RectF(zone.X + 22, y, nameW, FlowTileH), TextColor,
+            c.DrawText(UiText.Tr(seat.Name), new RectF(zone.X + 22, y, nameW, FlowTileH), TextColor,
                 new TextStyle(14, Center: false));
 
             int count = Math.Min(seat.Hand.Count, 13);
@@ -544,7 +544,8 @@ public sealed class SettlementOverlay
             if (seat.Melds.Count > 0)
             {
                 float endX = zone.X + 22 + nameW + count * (FlowTileW + gap);
-                c.DrawText("＋" + seat.Melds.Count.ToString(CultureInfo.InvariantCulture) + " 副露",
+                c.DrawText((UiText.IsEnglish ? "+" : "＋") + seat.Melds.Count.ToString(CultureInfo.InvariantCulture)
+                        + (UiText.IsEnglish ? " melds" : " 副露"),
                     new RectF(endX + 4, y, 80, FlowTileH), Muted, new TextStyle(12, Center: false));
             }
 
@@ -716,7 +717,7 @@ public sealed class SettlementOverlay
         float width = zone.W - 40f;
         float y = zone.Y + 12f;
 
-        c.DrawText(DrawReasonText(result.DrawReason), new RectF(x, y, width, 44), GoldBright,
+        c.DrawText(UiText.Tr(DrawReasonText(result.DrawReason)), new RectF(x, y, width, 44), GoldBright,
             new TextStyle(28, Bold: true, Center: false));
         y += 48f;
 
