@@ -25,6 +25,13 @@ internal sealed record RenderTaskActions(
     Func<string, Task> RenderTableStyle,
     Func<Task> OpenOutput);
 
+internal sealed record AiTaskActions(
+    Func<Task> ExportSelfplay,
+    Func<Task> SmokeNeural,
+    Func<Task> Smoke7Neuu,
+    Func<Task> BenchSnapshot,
+    Func<Task> OpenDataDir);
+
 internal sealed record PublishTaskActions(
     Func<Task> Check,
     Func<Task> BuildInstaller,
@@ -132,5 +139,25 @@ internal static class DevTaskRegistry
                 actions.OpenOutput),
         };
     }
+
+
+    public static IReadOnlyList<DevTask> Ai(AiTaskActions actions) => new[]
+    {
+        new DevTask("ai.export-selfplay", "AI 数据", "导出自博弈数据",
+            "跑自博弈并导出弃牌样本 JSONL；参数在弹窗里选。", "selfplay-*.jsonl",
+            actions.ExportSelfplay, Confirm: true),
+        new DevTask("ai.smoke-neural", "AI 数据", "验证 7Neuu 权重",
+            "检查 v4 权重能否加载并给出合法弃牌。", "日志：PASS / FAIL",
+            actions.SmokeNeural),
+        new DevTask("ai.smoke-7neuu", "AI 数据", "验证 7Neuu 决策",
+            "整局跑一遍，确认 7Neuu 座位真的走小策略网。", "日志：PASS / FAIL",
+            actions.Smoke7Neuu),
+        new DevTask("ai.bench-snapshot", "AI 数据", "UI 快照性能",
+            "用真实引擎状态重复构建 UI 快照，输出耗时/分配。", "日志：us/iter",
+            actions.BenchSnapshot),
+        new DevTask("ai.open-data", "AI 数据", "打开数据目录",
+            "定位自博弈 JSONL 的输出目录。", "资源管理器",
+            actions.OpenDataDir),
+    };
 
 }

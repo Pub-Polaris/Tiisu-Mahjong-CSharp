@@ -52,6 +52,24 @@ public sealed class DevTaskRegistryTests
     }
 
     [Fact]
+    public void Ai_RegistersFiveTasks()
+    {
+        var actions = new AiTaskActions(
+            () => Task.CompletedTask,
+            () => Task.CompletedTask,
+            () => Task.CompletedTask,
+            () => Task.CompletedTask,
+            () => Task.CompletedTask);
+
+        var tasks = DevTaskRegistry.Ai(actions);
+
+        Assert.Equal(5, tasks.Count);
+        Assert.All(tasks, t => Assert.Equal("AI 数据", t.Category));
+        Assert.Contains(tasks, t => t.Id == "ai.export-selfplay" && t.Confirm);
+        Assert.Contains(tasks, t => t.Id == "ai.smoke-neural");
+    }
+
+    [Fact]
     public void Categories_IncludePublishAndFuture()
     {
         Assert.Contains(DevTaskRegistry.PublishCategory, DevTaskRegistry.Categories);

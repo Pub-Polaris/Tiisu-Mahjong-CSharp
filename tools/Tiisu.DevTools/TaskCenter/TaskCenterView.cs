@@ -212,7 +212,7 @@ internal sealed class TaskCenterView : UserControl
 
     private void ResizeCards()
     {
-        int width = Math.Max(380, _cards.ClientSize.Width - 28);
+        int width = Math.Max(300, _cards.ClientSize.Width - 28);
         foreach (Control control in _cards.Controls)
         {
             if (control is not Panel card)
@@ -239,7 +239,7 @@ internal sealed class TaskCenterView : UserControl
     {
         var card = new Panel
         {
-            Width = Math.Max(380, _cards.ClientSize.Width - 28),
+            Width = Math.Max(300, _cards.ClientSize.Width - 28),
             Height = 96,
             BackColor = Color.White,
             BorderStyle = BorderStyle.FixedSingle,

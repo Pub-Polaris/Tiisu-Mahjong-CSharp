@@ -18,11 +18,13 @@ internal sealed class DevToolsForm : Form
     private readonly ToolStripStatusLabel _timing;
     private bool _busy;
     private string _renderOutputDir = string.Empty;
+    private string _aiOutputDir = string.Empty;
 
     public DevToolsForm(Toolchain tools)
     {
         _tools = tools;
         _renderOutputDir = tools.OutputDir;
+        _aiOutputDir = Path.Combine(tools.WorkingDirectory, "artifacts", "selfplay");
 
         SuspendLayout();
 
@@ -123,7 +125,13 @@ internal sealed class DevToolsForm : Form
             ExportUiSvgTaskAsync,
             RenderTableStyleTaskAsync,
             OpenRenderOutputAsync));
-        var allTasks = publishTasks.Concat(renderTasks).ToArray();
+        var aiTasks = DevTaskRegistry.Ai(new AiTaskActions(
+            ExportSelfplayTaskAsync,
+            SmokeNeuralTaskAsync,
+            Smoke7NeuuTaskAsync,
+            BenchSnapshotTaskAsync,
+            OpenAiDataAsync));
+        var allTasks = publishTasks.Concat(renderTasks).Concat(aiTasks).ToArray();
 
         var taskCenter = new TaskCenterView(
             allTasks,
@@ -480,6 +488,80 @@ internal sealed class DevToolsForm : Form
         return Task.CompletedTask;
     }
 
+
+    private async Task ExportSelfplayTaskAsync()
+    {
+        using var dialog = new SelfPlayDialog(_tools.WorkingDirectory);
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            AppendLog("  已取消：导出自博弈数据");
+            return;
+        }
+
+        string? directory = Path.GetDirectoryName(dialog.OutputPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+            _aiOutputDir = directory;
+        }
+
+        var args = new List<string>
+        {
+            "--export-selfplay",
+            dialog.OutputPath,
+            "--games",
+            dialog.Games.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--jobs",
+            dialog.Jobs.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--sample-every",
+            dialog.SampleEvery.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--explore",
+            dialog.Explore.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture),
+        };
+        await ExecuteAsync(
+            "导出自博弈数据",
+            Application.ExecutablePath,
+            args,
+            _tools.WorkingDirectory,
+            dialog.OutputPath);
+    }
+
+    private async Task SmokeNeuralTaskAsync()
+    {
+        await ExecuteAsync(
+            "验证 7Neuu 权重",
+            Application.ExecutablePath,
+            new[] { "--smoke-neural" },
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private async Task Smoke7NeuuTaskAsync()
+    {
+        await ExecuteAsync(
+            "验证 7Neuu 决策",
+            Application.ExecutablePath,
+            new[] { "--smoke-7neuu" },
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private async Task BenchSnapshotTaskAsync()
+    {
+        await ExecuteAsync(
+            "UI 快照性能",
+            Application.ExecutablePath,
+            new[] { "--bench-snapshot", "20000" },
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private Task OpenAiDataAsync()
+    {
+        Directory.CreateDirectory(_aiOutputDir);
+        OpenDirectory(_aiOutputDir, "自博弈数据");
+        return Task.CompletedTask;
+    }
 
     // ── 命令 ───────────────────────────────────────────────────────
 

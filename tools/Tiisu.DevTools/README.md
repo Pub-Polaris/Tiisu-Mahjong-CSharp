@@ -51,7 +51,17 @@ dotnet build tools/Tiisu.AudioGen -c Release
 
 出图完成自动在右侧显示缩略图；目录可输入或浏览选择。
 
-后续分类（审局 / AI 数据 / 资源）按轮次迁移，未迁移时只显示占位说明。
+## 任务中心（AI 数据）
+
+| 任务 | 说明 |
+|---|---|
+| 导出自博弈数据 | 弹窗选局数/jobs/每 N 步采样/探索率/输出 JSONL |
+| 验证 7Neuu 权重 | `--smoke-neural` |
+| 验证 7Neuu 决策 | `--smoke-7neuu` |
+| UI 快照性能 | `--bench-snapshot 20000` |
+| 打开数据目录 | 定位 `artifacts/selfplay` |
+
+后续分类（审局 / 资源）按轮次迁移，未迁移时只显示占位说明。
 
 ## 命令
 
