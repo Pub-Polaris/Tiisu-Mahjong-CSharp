@@ -46,9 +46,9 @@ public sealed class RulesScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
 
-        c.DrawText("规则速查", new RectF(0, 54, Width, 56),
+        c.DrawText(UiText.Tr("规则速查"), new RectF(0, 54, Width, 56),
             Color.Rgb(242, 230, 190), new TextStyle(42, Bold: true, Center: true, Family: Rounded));
-        c.DrawText("七子麻将 · 和「标准日麻」不同的地方", new RectF(0, 108, Width, 26),
+        c.DrawText(UiText.Tr("七子麻将 · 和「标准日麻」不同的地方"), new RectF(0, 108, Width, 26),
             Color.Rgb(159, 180, 170), new TextStyle(16, Center: true, Family: Rounded));
 
         float y = 136;
@@ -75,7 +75,7 @@ public sealed class RulesScreen : Screen
         _backButton = new RectF(Width / 2f - 90, Height - 80, 180, 44);
         c.FillRoundRect(_backButton, 10, Color.Rgb(40, 58, 48));
         c.StrokeRoundRect(_backButton, 10, Color.Rgb(214, 178, 92), 1.5f);
-        c.DrawText("返回菜单", _backButton, Color.Rgb(242, 230, 190), new TextStyle(17, Bold: true, Center: true, Family: Rounded));
+        c.DrawText(UiText.Tr("返回菜单"), _backButton, Color.Rgb(242, 230, 190), new TextStyle(17, Bold: true, Center: true, Family: Rounded));
     }
 
     public override bool OnClick(float x, float y)

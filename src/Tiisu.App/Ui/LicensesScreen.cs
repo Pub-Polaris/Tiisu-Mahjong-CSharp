@@ -142,9 +142,9 @@ public sealed class LicensesScreen : Screen
             return;
         }
 
-        c.DrawText("开源许可与参考鸣谢", new RectF(0, 54, Width, 56),
+        c.DrawText(UiText.Tr("开源许可与参考鸣谢"), new RectF(0, 54, Width, 56),
             Color.Rgb(242, 230, 190), new TextStyle(42, Bold: true, Center: true));
-        c.DrawText("开源组件 + 闭源参考项目 · 第 " + (_page + 1) + " / " + Entries.Length + " 项",
+        c.DrawText(UiText.IsEnglish ? "Open-source components + closed references · " + (_page + 1) + " / " + Entries.Length : "开源组件 + 闭源参考项目 · 第 " + (_page + 1) + " / " + Entries.Length + " 项",
             new RectF(0, 108, Width, 26), Color.Rgb(159, 180, 170), new TextStyle(16, Center: true));
 
         var entry = Entries[_page];
@@ -164,7 +164,7 @@ public sealed class LicensesScreen : Screen
         c.FillRoundRect(box, 14, Color.Rgb(26, 38, 34));
         c.StrokeRoundRect(box, 14, Color.Rgb(96, 122, 108), 1.2f);
 
-        c.DrawText((entry.Reference ? "参考 · " : string.Empty) + entry.Name,
+        c.DrawText((entry.Reference ? UiText.Tr("参考") + " · " : string.Empty) + entry.Name,
             new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
             entry.Reference ? Color.Rgb(196, 232, 190) : Color.Rgb(242, 201, 76),
             new TextStyle(20, Bold: true, Center: false));
@@ -180,7 +180,7 @@ public sealed class LicensesScreen : Screen
             ly += lineH;
         }
 
-        c.DrawText("按 ← / → 翻页 · Esc 返回菜单",
+        c.DrawText(UiText.Tr("按 ← / → 翻页 · Esc 返回菜单"),
             new RectF(0, 558, Width, 22), Color.Rgb(127, 145, 137), new TextStyle(14, Center: true));
 
         _textButton = new RectF(Width / 2f - 140, 510, 280, 40);
@@ -201,7 +201,7 @@ public sealed class LicensesScreen : Screen
     {
         c.DrawText(_textTitle, new RectF(0, 40, Width, 48),
             Color.Rgb(242, 230, 190), new TextStyle(34, Bold: true, Center: true));
-        c.DrawText("许可全文 · 第 " + (_textPage + 1) + " / " + _textPages + " 页",
+        c.DrawText(UiText.IsEnglish ? "License text · Page " + (_textPage + 1) + " / " + _textPages : "许可全文 · 第 " + (_textPage + 1) + " / " + _textPages + " 页",
             new RectF(0, 88, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(15, Center: true));
 
         var box = new RectF(90, 122, Width - 180, 480);
@@ -232,7 +232,7 @@ public sealed class LicensesScreen : Screen
             : Color.Rgb(28, 36, 32);
         c.FillRoundRect(rect, 10, fill);
         c.StrokeRoundRect(rect, 10, border, 1.3f);
-        c.DrawText(label, rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
+        c.DrawText(UiText.Tr(label), rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
             new TextStyle(17, Bold: true, Center: true));
     }
 

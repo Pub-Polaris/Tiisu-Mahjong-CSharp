@@ -41,9 +41,9 @@ public sealed class MarkdownScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
 
-        c.DrawText(_title, new RectF(0, 36, Width, 46),
+        c.DrawText(UiText.Tr(_title), new RectF(0, 36, Width, 46),
             Color.Rgb(242, 230, 190), new TextStyle(34, Bold: true, Center: true));
-        c.DrawText("第 " + (_page + 1) + " / " + Math.Max(1, _pages.Count) + " 页",
+        c.DrawText(UiText.IsEnglish ? "Page " + (_page + 1) + " / " + Math.Max(1, _pages.Count) : "第 " + (_page + 1) + " / " + Math.Max(1, _pages.Count) + " 页",
             new RectF(0, 86, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(14, Center: true));
 
         var card = new RectF(110, 118, Width - 220, 490);
@@ -64,7 +64,7 @@ public sealed class MarkdownScreen : Screen
             }
         }
 
-        c.DrawText("← / → 翻页 · 滚轮翻页 · Esc 返回",
+        c.DrawText(UiText.Tr("← / → 翻页 · 滚轮翻页 · Esc 返回"),
             new RectF(0, 616, Width, 22), Color.Rgb(127, 145, 137), new TextStyle(13, Center: true));
 
         _prev = new RectF(Width / 2f - 270, 650, 150, 44);
@@ -83,7 +83,7 @@ public sealed class MarkdownScreen : Screen
             : Color.Rgb(28, 36, 32);
         c.FillRoundRect(rect, 10, fill);
         c.StrokeRoundRect(rect, 10, border, 1.3f);
-        c.DrawText(label, rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
+        c.DrawText(UiText.Tr(label), rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
             new TextStyle(17, Bold: true, Center: true));
     }
 

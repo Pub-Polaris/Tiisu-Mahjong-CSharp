@@ -173,5 +173,21 @@
   "四风连打": "Four Winds",
   "三家和牌": "Three Winners",
   "三家和牌（抢杠）": "Three Winners (Robbing Kan)",
-  "荒牌流局": "Exhaustive Draw"
+  "荒牌流局": "Exhaustive Draw",
+  "七子麻将 · 和「标准日麻」不同的地方": "Tiisu Mahjong · Differences from standard riichi",
+  "开源许可与参考鸣谢": "Licenses & Credits",
+  "参考": "Reference",
+  "按 ← / → 翻页 · Esc 返回菜单": "← / → Page · Esc Back to Menu",
+  "← / → 翻页 · 滚轮翻页 · Esc 返回": "← / → Page · Wheel · Esc Back",
+  "查看本页许可全文": "View Full License",
+  "参考与合规说明": "References & Compliance",
+  "上一页": "Prev Page",
+  "下一页": "Next Page",
+  "参考与合规说明（Markdown）": "References & Compliance (Markdown)",
+  "参考与合规说明": "References & Compliance",
+  "素材来源": "Asset Provenance",
+  "ML 权重来源": "ML Weights Provenance",
+  "自博弈训练": "Self-play Training",
+  "发布合规清单": "Release Compliance",
+  "第三方声明": "Third-party Notices"
 }
