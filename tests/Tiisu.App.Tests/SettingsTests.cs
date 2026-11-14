@@ -136,6 +136,25 @@ public sealed class SettingsTests
     }
 
     [Fact]
+    public void Clone_保留语言与热更新字段()
+    {
+        var settings = new Settings
+        {
+            Language = "ja-JP",
+            UiTextScale = 1.15,
+            VoiceEnabled = false,
+            ThinkSeconds = 42,
+        };
+
+        var copy = settings.Clone();
+
+        Assert.Equal("ja-JP", copy.Language);
+        Assert.Equal(1.15, copy.UiTextScale, 3);
+        Assert.False(copy.VoiceEnabled);
+        Assert.Equal(42, copy.ThinkSeconds);
+    }
+
+    [Fact]
     public void Load_坏文件改名corrupt并回默认()
     {
         string dir = TempDir();

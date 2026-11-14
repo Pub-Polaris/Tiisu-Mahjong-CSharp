@@ -165,6 +165,9 @@ public sealed class Settings
         ShowWallViewer = other.ShowWallViewer;
         RecordTiles = other.RecordTiles;
         SoundEnabled = other.SoundEnabled;
+        VoiceEnabled = other.VoiceEnabled;
+        UiTextScale = other.UiTextScale;
+        Language = other.Language;
         AiWeights = NormalizeWeights(other.AiWeights);
         AiSeatLocks = NormalizeLocks(other.AiSeatLocks);
         AiMctsEnabled = other.AiMctsEnabled;

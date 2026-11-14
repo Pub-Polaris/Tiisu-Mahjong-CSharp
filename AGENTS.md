@@ -32,6 +32,7 @@
 - `AchievementsScreen.Reload()` 在进入时调用
 - `ReplayScreen.Reload()` 在菜单进入时调用
 - `TableScreen` 的 `openSettings`/`backToMenu` 回调确实非 null
+- `Settings.CopyFrom` 与 `Clone` 必须带上全部字段，尤其是 Language / UiTextScale / VoiceEnabled
 - 语言切换必须：重载 `UiText` 翻译、重载战绩/成就/回放、清除许可全文缓存、`ApplySettings` 刷新快照，并实际切一次看当前屏
 - 语言切换走 `UiText.LanguageChanged` 并触发界面重绘
 - 全桌 AI 快捷档能到达 `7Neuu`
@@ -62,6 +63,7 @@
 - `TableScreen(GameSession...)` 链式构造把 `openSettings` 传成 `null`，暂停菜单“设置”无效
 - 战绩/成就/回放只读构造时数据，打完一局后页面仍是旧内容
 - 语言切换只改了设置值，没有通知当前界面重绘
+- `Settings.CopyFrom/Clone` 漏字段：语言、字号、语音设置被回调副本重置，界面值变了但实际语言仍是旧值
 - 全桌 AI 快捷档数组漏了 `7Neuu`，用户永远切不到
 
 修改任何相关代码后，先对照本清单复查。
