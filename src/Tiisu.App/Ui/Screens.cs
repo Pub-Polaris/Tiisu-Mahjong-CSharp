@@ -1140,7 +1140,7 @@ public sealed class MenuScreen : Screen
             {
                 var (link, rect) = rects[i];
                 bool lit = link.Url.Length > 0 && _hoverLinkId == el.Id && _hoverLinkIndex == i;
-                c.DrawText(link.Text, rect, lit ? hover : color,
+                c.DrawText(UiText.Tr(link.Text), rect, lit ? hover : color,
                     new TextStyle(el.FontSize, Center: false));
             }
 
@@ -1167,7 +1167,7 @@ public sealed class MenuScreen : Screen
         float total = 0f;
         foreach (var link in el.Links)
         {
-            total += SkiaCanvas.Measure(link.Text, style);
+            total += SkiaCanvas.Measure(UiText.Tr(link.Text), style);
         }
 
         string align = (el.Align ?? "center").Trim().ToLowerInvariant();
@@ -1177,7 +1177,7 @@ public sealed class MenuScreen : Screen
 
         foreach (var link in el.Links)
         {
-            float w = SkiaCanvas.Measure(link.Text, style);
+            float w = SkiaCanvas.Measure(UiText.Tr(link.Text), style);
             result.Add((link, new RectF(x, el.Rect.Y, w, el.Rect.H)));
             x += w;
         }

@@ -2140,9 +2140,10 @@ internal static class DevCommands
     }
 
     /// <summary>按屏自己的逻辑画布尺寸出图（与游戏内走同一条 Screen 路径）。</summary>
-    private static int ExportSteamShots(string outputDirectory)
+    private static int ExportSteamShots(string outputDirectory, string language)
     {
         Tiisu.App.Program.TryUseUtf8Console();
+        UiText.SetLanguage(language);
         string root = Path.GetFullPath(outputDirectory);
         Directory.CreateDirectory(root);
         using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
@@ -4570,7 +4571,8 @@ internal static class DevCommands
         // Steam 商店截图：1920×1080，黑底等比居中，输出到 artifacts/steam。
         if (args.Length >= 1 && args[0] == "--export-steam-shots")
         {
-            return ExportSteamShots(args.Length >= 2 ? args[1] : "artifacts/steam");
+            string language = args.Length >= 4 && args[2] == "--lang" ? args[3] : "zh-CN";
+            return ExportSteamShots(args.Length >= 2 ? args[1] : "artifacts/steam", language);
         }
 
 

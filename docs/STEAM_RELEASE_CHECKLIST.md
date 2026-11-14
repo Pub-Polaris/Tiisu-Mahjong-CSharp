@@ -48,6 +48,8 @@ dotnet run --project tools/Tiisu.DevTools -- --check-publish dist/publish
 ```powershell
 # 一次导出 6 张 1920×1080 商店截图
 dotnet run --project tools/Tiisu.DevTools -- --export-steam-shots artifacts/steam
+# 英文版
+dotnet run --project tools/Tiisu.DevTools -- --export-steam-shots artifacts/steam-en --lang en-US
 
 # 单张出图
 dotnet run --project tools/Tiisu.DevTools -- --render-screen artifacts/steam/table.png table
