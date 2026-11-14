@@ -56,7 +56,7 @@ Program.Main
 
 ## 4. 成就
 
-本地成就由 `Achievements.From(StatsSummary)` 现算，Steam 只负责上报。
+本地成就由 `Achievements.From(StatsSummary)` 现算，Steam 只负责上报。对局结束时 `ScreenHost` 触发一次扫描；服务不可用时写入 `steam-pending.json`，下次可用时补报。
 
 - 映射：`SteamAchievementMap`（10 项，已加测试）
 - 时机：启动后扫描一次 + 每局结束扫描一次
@@ -109,6 +109,6 @@ Steam Stats 只做展示用途，不参与判分：
 - [ ] 申请 AppID / DepotID
 - [ ] 加 Steamworks.NET 包与原生库
 - [x] 实现 `ISteamService` / `NullSteamService` / `SteamAchievementSync` 骨架
-- [ ] 接入成就扫描与离线补报
+- [x] 接入成就扫描（对局结束触发）与离线补报
 - [ ] Steam Cloud 配置
 - [ ] Depot 模板填真实 ID

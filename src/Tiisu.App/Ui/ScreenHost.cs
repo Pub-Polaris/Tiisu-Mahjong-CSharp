@@ -28,6 +28,9 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly Settings _settings;
     private float _uiTextScale = 1f;
     private readonly SoundEffects _sound = new();
+    private readonly ISteamService _steam = new NullSteamService();
+    private readonly SteamAchievementSync _steamAchievements;
+    private bool _steamMatchSynced;
     private readonly TableScreen _table;
     private readonly MenuScreen _menu;
     private readonly SettingsScreen _settingsScreen;
@@ -70,6 +73,8 @@ internal sealed class ScreenHostCore : IDisposable
         _uiTextScale = (float)_settings.UiTextScale;
         UiText.SetLanguage(_settings.Language);
         _session = new GameSession(_settings);
+        _steamAchievements = new SteamAchievementSync(_steam, new SteamAchievementStore());
+        _session.UiEvent += OnSteamSyncEvent;
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _licenses = new LicensesScreen(() => SwitchTo(_menu), OpenMarkdown);
         _tutorial = new TutorialScreen(() => SwitchTo(_menu), () =>
@@ -109,9 +114,40 @@ internal sealed class ScreenHostCore : IDisposable
         }
 
         _disposed = true;
+        _session.UiEvent -= OnSteamSyncEvent;
+        _steam.Shutdown();
         _frameTimer.Stop();
         _frameTimer.Dispose();
         _session.Dispose();
+    }
+
+    private void OnSteamSyncEvent(UiEvent uiEvent)
+    {
+        if (uiEvent is not StateChangedEvent changed)
+        {
+            return;
+        }
+
+        if (changed.Snapshot.Phase != "match_over")
+        {
+            _steamMatchSynced = false;
+            return;
+        }
+
+        if (_steamMatchSynced)
+        {
+            return;
+        }
+
+        _steamMatchSynced = true;
+        try
+        {
+            _steamAchievements.Report(Achievements.From(StatsSummary.Load(new StatsStore())));
+        }
+        catch
+        {
+            // 成就上报失败不能影响结算/下一局。
+        }
     }
 
     private bool OnMenuAction(string action)

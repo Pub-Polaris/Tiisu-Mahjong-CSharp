@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Tiisu.App.Runtime;
 
@@ -28,16 +29,18 @@ public sealed class NullSteamService : ISteamService
 
 /// <summary>
 /// 把本地成就批量上报到 Steam。幂等：同一 Steam ID 只上报一次。
-/// 真实离线队列留到 SDK 接入时再落盘；本轮先锁行为。
+/// 服务不可用时把 Steam ID 写入离线队列；服务恢复后补报。
 /// </summary>
 public sealed class SteamAchievementSync
 {
     private readonly ISteamService _steam;
+    private readonly SteamAchievementStore? _store;
     private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
 
-    public SteamAchievementSync(ISteamService steam)
+    public SteamAchievementSync(ISteamService steam, SteamAchievementStore? store = null)
     {
         _steam = steam ?? throw new ArgumentNullException(nameof(steam));
+        _store = store;
     }
 
     public IReadOnlyList<string> Reported => new List<string>(_reported);
@@ -45,21 +48,25 @@ public sealed class SteamAchievementSync
     public IReadOnlyList<string> Report(IEnumerable<Achievement> achievements)
     {
         ArgumentNullException.ThrowIfNull(achievements);
+        var unlocked = achievements
+            .Where(a => a.Unlocked)
+            .Select(a => SteamAchievementMap.SteamIdFor(a.Id))
+            .Where(id => id is not null)
+            .Select(id => id!)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
         if (!_steam.IsAvailable)
         {
+            _store?.Add(unlocked);
             return Array.Empty<string>();
         }
 
         var sent = new List<string>();
-        foreach (Achievement achievement in achievements)
+        var pending = _store?.Load() ?? Array.Empty<string>();
+        foreach (string steamId in pending.Concat(unlocked).Distinct(StringComparer.Ordinal))
         {
-            if (!achievement.Unlocked)
-            {
-                continue;
-            }
-
-            string? steamId = SteamAchievementMap.SteamIdFor(achievement.Id);
-            if (steamId is null || _reported.Contains(steamId))
+            if (_reported.Contains(steamId))
             {
                 continue;
             }
@@ -69,6 +76,11 @@ public sealed class SteamAchievementSync
                 _reported.Add(steamId);
                 sent.Add(steamId);
             }
+        }
+
+        if (sent.Count > 0)
+        {
+            _store?.Remove(sent);
         }
 
         return sent;
