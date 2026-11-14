@@ -148,13 +148,21 @@ public sealed class LicensesScreen : Screen
             new RectF(0, 108, Width, 26), Color.Rgb(159, 180, 170), new TextStyle(16, Center: true));
 
         var entry = Entries[_page];
-        string[] lines =
-        {
-            "版本：" + entry.Version,
-            "许可：" + entry.License,
-            "用途：" + entry.Usage,
-            "链接：" + entry.Url,
-        };
+        string[] lines = UiText.IsEnglish
+            ? new[]
+            {
+                "Version: " + entry.Version,
+                "License: " + UiText.Tr(entry.License),
+                "Usage: " + UiText.Tr(entry.Usage),
+                "Link: " + entry.Url,
+            }
+            : new[]
+            {
+                "版本：" + entry.Version,
+                "许可：" + entry.License,
+                "用途：" + entry.Usage,
+                "链接：" + entry.Url,
+            };
 
         float y = 156;
         const float lineH = 34f;
@@ -164,13 +172,13 @@ public sealed class LicensesScreen : Screen
         c.FillRoundRect(box, 14, Color.Rgb(26, 38, 34));
         c.StrokeRoundRect(box, 14, Color.Rgb(96, 122, 108), 1.2f);
 
-        c.DrawText((entry.Reference ? UiText.Tr("参考") + " · " : string.Empty) + entry.Name,
+        c.DrawText((entry.Reference ? UiText.Tr("参考") + " · " : string.Empty) + UiText.Tr(entry.Name),
             new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
             entry.Reference ? Color.Rgb(196, 232, 190) : Color.Rgb(242, 201, 76),
             new TextStyle(20, Bold: true, Center: false));
 
         string[] body = entry.Reference
-            ? new[] { "性质：闭源/EULA 参考鸣谢，未使用其代码或素材" }.Concat(lines).ToArray()
+            ? new[] { UiText.Tr("性质：闭源/EULA 参考鸣谢，未使用其代码或素材") }.Concat(lines).ToArray()
             : lines;
         float ly = box.Y + 42;
         foreach (string line in body)
