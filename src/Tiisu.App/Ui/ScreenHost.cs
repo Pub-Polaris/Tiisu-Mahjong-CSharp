@@ -194,7 +194,13 @@ internal sealed class ScreenHostCore : IDisposable
     /// <summary>用系统默认浏览器打开外链（署名 / 许可证 / 仓库）；失败只静默，不影响游戏。</summary>
     private void OpenMarkdown(string file)
     {
-        string path = Path.Combine(AppContext.BaseDirectory, "Assets", "docs", file);
+        string basePath = Path.Combine(AppContext.BaseDirectory, "Assets", "docs");
+        string path = UiText.IsEnglish ? Path.Combine(basePath, "en", file) : Path.Combine(basePath, file);
+        if (!File.Exists(path))
+        {
+            path = Path.Combine(basePath, file);
+        }
+
         string text;
         try
         {

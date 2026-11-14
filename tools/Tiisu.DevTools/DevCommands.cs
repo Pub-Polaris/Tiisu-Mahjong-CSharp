@@ -1373,7 +1373,11 @@ internal static class DevCommands
       "replay" => new ReplayScreen(() => { }),
         "rules" => new RulesScreen(() => { }),
         "licenses" => new LicensesScreen(() => { }),
-        "markdown" => new MarkdownScreen("参考与合规说明", System.IO.File.ReadAllText(Path.Combine(Tiisu.App.Program.AssetsDir, "docs", "REFERENCES.md")), () => { }),
+        "markdown" => new MarkdownScreen(
+          "参考与合规说明",
+          System.IO.File.ReadAllText(Path.Combine(Tiisu.App.Program.AssetsDir, "docs",
+              UiText.IsEnglish ? "en/REFERENCES.md" : "REFERENCES.md")),
+          () => { }),
         _ => new TableScreen(atlas),
     };
 
