@@ -746,6 +746,31 @@ public sealed class TableSceneSkia
             Color.Rgb(150, 236, 226), new TextStyle(21, Center: true));
         c.DrawText("本场 " + vm.Honba + " · 场赏 " + vm.Kyotaku, new RectF(p.X, p.CenterY + 20, p.W, 24),
             Color.Rgb(180, 214, 208), new TextStyle(15, Center: true));
+        // 实时点数与顺位：2×2 排在中央面板下半部。
+        var ordered = Enumerable.Range(0, 4)
+            .OrderByDescending(i => Seat(vm, i).Score)
+            .ThenBy(i => i)
+            .ToArray();
+        var rank = new int[4];
+        for (int r = 0; r < ordered.Length; r++)
+        {
+            rank[ordered[r]] = r + 1;
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            var seat = Seat(vm, i);
+            float x = p.CenterX - 188f + (i % 2) * 198f;
+            float y = p.CenterY + 50f + (i / 2) * 28f;
+            bool first = rank[i] == 1;
+            bool human = seat.IsHuman;
+            string text = rank[i].ToString(System.Globalization.CultureInfo.InvariantCulture)
+                          + "  " + seat.Wind + (human ? "(你)" : string.Empty) + "  " + seat.Score;
+            c.DrawText(text, new RectF(x, y, 188, 24),
+                first ? Color.Rgb(255, 226, 140) : human ? Color.Rgb(210, 236, 220) : Color.Rgb(176, 200, 188),
+                new TextStyle(14, Bold: first || human, Center: false));
+        }
+
 
         const float s = 38f, m = 14f;
         var winds = new[] { Seat(vm, 0).Wind, Seat(vm, 1).Wind, Seat(vm, 2).Wind, Seat(vm, 3).Wind };
