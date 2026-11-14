@@ -75,7 +75,7 @@ Steam Stats 只做展示用途，不参与判分：
 
 ## 6. Cloud
 
-策略代码：`SteamCloudPolicy`（只允许配置/统计小文件，测试覆盖日志/语音/临时队列排除）。
+策略代码：`SteamCloudPolicy`（只允许配置/统计小文件，测试覆盖日志/语音/临时队列排除）。同步骨架：`SteamCloudSync` + `LocalCloudStorage`（本地优先、缺则下载、冲突不覆盖本地，测试覆盖）。
 
 仅同步：
 
@@ -112,5 +112,6 @@ Steam Stats 只做展示用途，不参与判分：
 - [ ] 加 Steamworks.NET 包与原生库
 - [x] 实现 `ISteamService` / `NullSteamService` / `SteamAchievementSync` 骨架
 - [x] 接入成就扫描（对局结束触发）与离线补报
-- [ ] Steam Cloud 配置
+- [x] Cloud 策略/同步骨架（`SteamCloudSync`）
+- [ ] Steam Remote Storage 真实适配器
 - [ ] Depot 模板填真实 ID
