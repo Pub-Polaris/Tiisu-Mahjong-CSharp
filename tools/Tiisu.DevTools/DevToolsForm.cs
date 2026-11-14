@@ -113,6 +113,7 @@ internal sealed class DevToolsForm : Form
 
         var publishTasks = DevTaskRegistry.Publish(new PublishTaskActions(
             CheckPublishAsync,
+            CheckSteamTaskAsync,
             BuildInstallerAsync,
             BuildSteamDepotAsync,
             BuildRulesAsync,
@@ -347,6 +348,16 @@ internal sealed class DevToolsForm : Form
             "发布自检",
             Application.ExecutablePath,
             new[] { "--check-publish", publish },
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private async Task CheckSteamTaskAsync()
+    {
+        await ExecuteAsync(
+            "Steam 就绪检查",
+            Application.ExecutablePath,
+            new[] { "--check-steam", _tools.WorkingDirectory },
             _tools.WorkingDirectory,
             revealPath: null);
     }

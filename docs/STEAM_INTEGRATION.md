@@ -75,6 +75,8 @@ Steam Stats 只做展示用途，不参与判分：
 
 ## 6. Cloud
 
+策略代码：`SteamCloudPolicy`（只允许配置/统计小文件，测试覆盖日志/语音/临时队列排除）。
+
 仅同步：
 
 - `settings.json`

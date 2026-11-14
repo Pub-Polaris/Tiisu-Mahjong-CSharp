@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
 using SkiaSharp;
@@ -176,6 +177,59 @@ internal static class DevCommands
     /// <c>--audit-ui-strings [root] [csv]</c>：盘点 App 里的中文 UI 字符串字面量，
     /// 为英文本地化评估规模；默认输出到 artifacts/localization/ui-strings.csv。
     /// </summary>
+    /// <summary>
+    /// <c>--check-steam [root]</c>：Steam 接入就绪检查。没有 AppID 时只报告阻塞项，不报错退出。
+    /// </summary>
+    private static int CheckSteam(string[] args)
+    {
+        Tiisu.App.Program.TryUseUtf8Console();
+        string root = args.Length >= 2 && Directory.Exists(args[1])
+            ? Path.GetFullPath(args[1])
+            : Directory.GetCurrentDirectory();
+        string docs = Path.Combine(root, "docs");
+        string mapPath = Path.Combine(docs, "steam", "achievements.json");
+        var blockers = new List<string>();
+        var ready = new List<string>();
+
+        if (File.Exists(Path.Combine(docs, "STEAM_INTEGRATION.md"))) ready.Add("接入文档");
+        if (File.Exists(Path.Combine(docs, "STEAM_ACHIEVEMENTS.md"))) ready.Add("成就映射文档");
+        if (File.Exists(Path.Combine(docs, "STEAM_RELEASE_CHECKLIST.md"))) ready.Add("发布清单");
+
+        int mapCount = 0;
+        if (File.Exists(mapPath))
+        {
+            try
+            {
+                if (JsonNode.Parse(File.ReadAllText(mapPath))?["achievements"] is JsonArray items)
+                {
+                    mapCount = items.Count;
+                }
+            }
+            catch (JsonException)
+            {
+                blockers.Add("achievements.json 无法解析");
+            }
+        }
+
+        if (mapCount == 10) ready.Add("成就映射 10 项"); else blockers.Add("成就映射不是 10 项");
+
+        bool hasAppId = File.Exists(Path.Combine(root, "steam_appid.txt"))
+                        || File.Exists(Path.Combine(root, "dist", "publish", "steam_appid.txt"));
+        bool hasNative = File.Exists(Path.Combine(root, "dist", "publish", "steam_api64.dll"));
+        if (hasAppId) ready.Add("steam_appid.txt"); else blockers.Add("AppID（steam_appid.txt）");
+        if (hasNative) ready.Add("steam_api64.dll"); else blockers.Add("steam_api64.dll / Steamworks SDK");
+
+        if (File.Exists(Path.Combine(root, "dist", "steam", "depot-manifest.json"))) ready.Add("Steam depot"); else blockers.Add("Steam depot manifest");
+        if (File.Exists(Path.Combine(root, "dist", "steam", "app_build.vdf.template"))) ready.Add("VDF 模板");
+
+        Console.WriteLine("Steam 接入检查");
+        Console.WriteLine("  已就绪：" + string.Join(" / ", ready));
+        Console.WriteLine("  阻塞项：" + string.Join(" / ", blockers));
+        Console.WriteLine(hasAppId && hasNative ? "  结果：可以接真实 SDK" : "  结果：未就绪（等待 AppID / SDK）");
+        return 0;
+    }
+
+
     private static int AuditUiStrings(string[] args)
     {
         Tiisu.App.Program.TryUseUtf8Console();
@@ -4479,6 +4533,9 @@ internal static class DevCommands
 
             case "--audit-ui-strings":
                 return AuditUiStrings(args);
+
+            case "--check-steam":
+                return CheckSteam(args);
 
             case "--bench-snapshot":
                 return BenchSnapshot(args);

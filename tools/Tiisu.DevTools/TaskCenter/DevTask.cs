@@ -52,6 +52,7 @@ internal sealed record AiTaskActions(
 
 internal sealed record PublishTaskActions(
     Func<Task> Check,
+    Func<Task> CheckSteam,
     Func<Task> BuildInstaller,
     Func<Task> BuildSteamDepot,
     Func<Task> BuildRules,
@@ -81,6 +82,13 @@ internal static class DevTaskRegistry
             "检查 dist/publish 的许可、字体、资源哈希与禁带项。",
             "无文件产物；结果看日志",
             actions.Check),
+        new DevTask(
+            "publish.steam-check",
+            PublishCategory,
+            "Steam 就绪检查",
+            "检查 AppID、Steamworks SDK、成就映射、Depot；缺 AppID 只报告不报错。",
+            "日志：就绪项 / 阻塞项",
+            actions.CheckSteam),
         new DevTask(
             "publish.installer",
             PublishCategory,
