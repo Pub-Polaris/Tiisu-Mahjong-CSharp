@@ -69,4 +69,5 @@ src/Tiisu.App/Assets/i18n/en-US.json
 - 对局 HUD/动作/动态提示/结算/流局
 - `Assets/i18n/ja-JP.json` 以中文原文为 key
 - 马牌相关术语使用「卯」；马赏指示牌读作「卯先（うさき）」
+- 七子统一写 Tiisu（除中文）；日文振假名「てぃーつ」
 - 关键标题用 `{汉字|振假名}` 记法，由 `RubyText` 在字形上方绘制

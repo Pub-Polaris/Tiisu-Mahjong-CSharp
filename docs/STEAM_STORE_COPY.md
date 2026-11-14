@@ -34,9 +34,9 @@ A single-player mahjong variant with 7-fu minimum wins, call-lock, misfire penal
 
 **Long description**
 
-Tiisu Mahjong is a single-player desktop implementation of the Qizi ruleset: 136 tiles, 7-fu minimum, call-lock, misfire penalties, table bonus pool, and four AI tiers.
+Tiisu Mahjong is a single-player desktop implementation of the Tiisu ruleset: 136 tiles, 7-fu minimum, call-lock, misfire penalties, table bonus pool, and four AI tiers.
 
-- Full Qizi rules: 50 normal yaku + 20 high yaku, special seven-pairs shapes, nine gates, Great Seven Stars
+- Full Tiisu rules: 50 normal yaku + 20 high yaku, special seven-pairs shapes, nine gates, Great Seven Stars
 - Four AI tiers: Easy / Normal / Hard / Shura (MCTS)
 - Tutorial, rules reference, match stats, achievements, and replay viewer
 - Fully offline single-player; F11 fullscreen and large-text UI

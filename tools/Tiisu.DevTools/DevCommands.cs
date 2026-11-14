@@ -2319,7 +2319,7 @@ internal static class DevCommands
                 Color.Rgb(242, 230, 190), new TextStyle(titleSize, Bold: true, Center: false));
             if (!small)
             {
-                ctx.DrawText("QIZI MAHJONG · SINGLE PLAYER",
+                ctx.DrawText("TIISU MAHJONG · SINGLE PLAYER",
                     new RectF(x, y + titleSize * 1.35f, width - x * 2, titleSize * 0.55f),
                     Color.Rgb(159, 180, 170), new TextStyle(Math.Max(10, titleSize * 0.26f)));
             }
