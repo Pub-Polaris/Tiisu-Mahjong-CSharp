@@ -64,6 +64,39 @@ public static class UiText
             return translated;
         }
 
+        // 对局内动态提示：固定前缀 + 运行时内容。
+        if (chinese.StartsWith("未知命令：", StringComparison.Ordinal))
+        {
+            return "Unknown command: " + chinese["未知命令：".Length..];
+        }
+
+        if (chinese.StartsWith("已恢复存档继续 · ", StringComparison.Ordinal))
+        {
+            return "Save restored · " + Tr(chinese["已恢复存档继续 · ".Length..]);
+        }
+
+        if (chinese.StartsWith("已报听 · 听 ", StringComparison.Ordinal))
+        {
+            return "Called · waiting: " + chinese["已报听 · 听 ".Length..];
+        }
+
+        if (chinese.StartsWith("荣和机会：别人打出 ", StringComparison.Ordinal))
+        {
+            return "Ron chance: discarded " + chinese["荣和机会：别人打出 ".Length..].Replace("赋可和", " fu", StringComparison.Ordinal);
+        }
+
+        if (chinese.StartsWith("副露机会：别人打出 ", StringComparison.Ordinal))
+        {
+            return "Meld chance: discarded " + chinese["副露机会：别人打出 ".Length..];
+        }
+
+        if (chinese.StartsWith("报听错和风险：这手只有 ", StringComparison.Ordinal))
+        {
+            return "Misfire risk: only " + chinese["报听错和风险：这手只有 ".Length..]
+                .Replace(" 赋（不足 ", " fu (below ", StringComparison.Ordinal)
+                .Replace("）· 点荣和按错和罚", ") · Ron triggers penalty", StringComparison.Ordinal);
+        }
+
         // 带数字的固定句式：不放进 map 的 key 里。
         if (chinese.StartsWith("第 ", StringComparison.Ordinal) && chinese.EndsWith(" 页", StringComparison.Ordinal))
         {

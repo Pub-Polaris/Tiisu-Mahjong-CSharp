@@ -387,7 +387,7 @@ public sealed class TableScreen : Screen
         {
             var box = new RectF(_layout.CanvasW / 2f - 330, 18, 660, 38);
             c.FillRoundRect(box, 10, Color.Rgb(0, 0, 0).WithAlpha(150));
-            c.DrawText(vm.Message, box, Color.Rgb(255, 228, 120), new TextStyle(17, Bold: true));
+            c.DrawText(UiText.Tr(vm.Message), box, Color.Rgb(255, 228, 120), new TextStyle(17, Bold: true));
         }
 
         // 报听待弃：点一张手牌打出即完成报听（无二次确认）。
