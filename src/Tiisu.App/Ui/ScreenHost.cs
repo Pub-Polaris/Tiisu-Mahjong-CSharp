@@ -200,7 +200,9 @@ internal sealed class ScreenHostCore : IDisposable
     private void OpenMarkdown(string file)
     {
         string basePath = Path.Combine(AppContext.BaseDirectory, "Assets", "docs");
-        string path = UiText.IsEnglish ? Path.Combine(basePath, "en", file) : Path.Combine(basePath, file);
+        string path = UiText.IsEnglish ? Path.Combine(basePath, "en", file)
+            : UiText.IsJapanese ? Path.Combine(basePath, "ja", file)
+            : Path.Combine(basePath, file);
         if (!File.Exists(path))
         {
             path = Path.Combine(basePath, file);

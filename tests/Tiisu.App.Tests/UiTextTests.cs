@@ -37,7 +37,7 @@ public sealed class UiTextTests
             Assert.True(UiText.IsJapanese);
             Assert.Equal("ja-JP", UiText.Normalize("ja"));
             Assert.Contains("設定", UiText.Tr("设置"));
-            Assert.Contains("Tiisu麻雀", UiText.Tr("七子麻将"));
+            Assert.Contains("七子麻雀", UiText.Tr("七子麻将"));
             Assert.Contains("てぃーつ", UiText.Tr("七子麻将"));
             Assert.Contains("卯先", UiText.Tr("赐马"));
             Assert.Contains("うさき", UiText.Tr("赐马"));

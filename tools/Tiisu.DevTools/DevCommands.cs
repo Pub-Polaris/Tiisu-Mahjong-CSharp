@@ -1436,7 +1436,7 @@ internal static class DevCommands
         "markdown" => new MarkdownScreen(
           "参考与合规说明",
           System.IO.File.ReadAllText(Path.Combine(Tiisu.App.Program.AssetsDir, "docs",
-              UiText.IsEnglish ? "en/REFERENCES.md" : "REFERENCES.md")),
+              UiText.IsEnglish ? "en/REFERENCES.md" : UiText.IsJapanese ? "ja/REFERENCES.md" : "REFERENCES.md")),
           () => { }),
         _ => new TableScreen(atlas),
     };

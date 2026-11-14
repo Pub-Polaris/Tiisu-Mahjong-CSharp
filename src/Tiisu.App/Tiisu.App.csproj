@@ -82,6 +82,24 @@
     <None Include="..\..\docs\en\THIRD-PARTY-NOTICES.md" Link="Assets\docs\en\THIRD-PARTY-NOTICES.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\..\docs\ja\REFERENCES.md" Link="Assets\docs\ja\REFERENCES.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\docs\ja\ASSET-PROVENANCE.md" Link="Assets\docs\ja\ASSET-PROVENANCE.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\docs\ja\ML-PROVENANCE.md" Link="Assets\docs\ja\ML-PROVENANCE.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\docs\ja\SELFPLAY_TRAINING.md" Link="Assets\docs\ja\SELFPLAY_TRAINING.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\docs\ja\RELEASE_COMPLIANCE.md" Link="Assets\docs\ja\RELEASE_COMPLIANCE.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\docs\ja\THIRD-PARTY-NOTICES.md" Link="Assets\docs\ja\THIRD-PARTY-NOTICES.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Assets\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
