@@ -87,7 +87,7 @@ public sealed class TableScreen : Screen
     public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu = null,
         Action? openSettings = null, TableRenderStyle renderStyle = TableRenderStyle.Flat, Settings? settings = null,
         ISoundEffects? sound = null)
-        : this(() => session.LatestSnapshot, session.Post, backToMenu, null, atlas, renderStyle, settings, sound)
+        : this(() => session.LatestSnapshot, session.Post, backToMenu, openSettings, atlas, renderStyle, settings, sound)
     {
         session.UiEvent += OnSessionEvent;
     }
