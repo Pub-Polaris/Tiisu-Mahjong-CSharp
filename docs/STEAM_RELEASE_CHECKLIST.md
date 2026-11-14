@@ -39,11 +39,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/steam_package.ps1
 | 素材 | 要求 | 现状 |
 |---|---|---|
 | 截图 | 1920×1080，≥5 张 | 可出牌桌/菜单/结算/战绩/成就 |
-| 主胶囊 | 616×353 | 待做 |
-| 小胶囊 | 231×87 | 待做 |
-| 页头胶囊 | 460×215 | 待做 |
-| 库胶囊 | 600×900 | 待做 |
-| 库头图 | 920×430 | 待做 |
+| 主胶囊 | 616×353 | 已生成 `artifacts/steam/capsules/main-616x353.png` |
+| 小胶囊 | 231×87 | 已生成 `artifacts/steam/capsules/small-231x87.png` |
+| 页头胶囊 | 460×215 | 已生成 `artifacts/steam/capsules/header-460x215.png` |
+| 库胶囊 | 600×900 | 已生成 `artifacts/steam/capsules/library-600x900.png` |
+| 库头图 | 920×430 | 已生成 `artifacts/steam/capsules/library-hero-920x430.png` |
 | 预告片 | 可选 | 未做 |
 
 可用出图命令：
@@ -53,6 +53,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/steam_package.ps1
 dotnet run --project tools/Tiisu.DevTools -- --export-steam-shots artifacts/steam
 # 英文版
 dotnet run --project tools/Tiisu.DevTools -- --export-steam-shots artifacts/steam-en --lang en-US
+
+# 胶囊图（主图/页头/小图/库图/库头图）
+dotnet run --project tools/Tiisu.DevTools -- --export-steam-capsules artifacts/steam/capsules
 
 # 单张出图
 dotnet run --project tools/Tiisu.DevTools -- --render-screen artifacts/steam/table.png table

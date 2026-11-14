@@ -49,6 +49,7 @@ dotnet build tools/Tiisu.AudioGen -c Release
 | 牌桌样式：平面 | `--render-25d --variant flat` |
 | 英文截图 | `--render-screen <page>-en`（menu-en / settings-en / stats-en / achievements-en / replay-en / tutorial-en） |
 | Steam 商店截图 | `--export-steam-shots`，输出 1920×1080 到 artifacts/steam |
+| Steam 胶囊图 | `--export-steam-capsules`，5 种尺寸 |
 | 打开出图目录 | 定位本次输出 |
 
 出图完成自动在右侧显示缩略图；目录可输入或浏览选择。

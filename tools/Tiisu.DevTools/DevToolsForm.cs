@@ -128,6 +128,8 @@ internal sealed class DevToolsForm : Form
             RenderTableStyleTaskAsync,
             ExportSteamTaskAsync,
             () => Path.Combine(_tools.WorkingDirectory, "artifacts", "steam", "01-table.png"),
+            ExportSteamCapsulesTaskAsync,
+            () => Path.Combine(_tools.WorkingDirectory, "artifacts", "steam", "capsules", "main-616x353.png"),
             OpenRenderOutputAsync));
         var aiTasks = DevTaskRegistry.Ai(new AiTaskActions(
             ExportSelfplayTaskAsync,
@@ -526,6 +528,18 @@ internal sealed class DevToolsForm : Form
             new[] { "--export-steam-shots", dir },
             _tools.WorkingDirectory,
             Path.Combine(dir, "01-table.png"));
+    }
+
+    private async Task ExportSteamCapsulesTaskAsync()
+    {
+        string dir = Path.Combine(_tools.WorkingDirectory, "artifacts", "steam", "capsules");
+        Directory.CreateDirectory(dir);
+        await ExecuteAsync(
+            "Steam 胶囊图",
+            Application.ExecutablePath,
+            new[] { "--export-steam-capsules", dir },
+            _tools.WorkingDirectory,
+            Path.Combine(dir, "main-616x353.png"));
     }
 
     private Task OpenRenderOutputAsync()

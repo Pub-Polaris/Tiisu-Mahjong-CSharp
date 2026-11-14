@@ -25,6 +25,8 @@ internal sealed record RenderTaskActions(
     Func<string, Task> RenderTableStyle,
     Func<Task> ExportSteamShots,
     Func<string?> SteamShotsPath,
+    Func<Task> ExportSteamCapsules,
+    Func<string?> SteamCapsulePath,
     Func<Task> OpenOutput);
 
 internal sealed record AuditTaskActions(
@@ -161,6 +163,9 @@ internal static class DevTaskRegistry
             new DevTask("render.steam", "出图", "Steam 商店截图",
                 "1920×1080 牌桌/菜单/设置/战绩/成就/回牌谱，输出到 artifacts/steam。", "artifacts/steam/*.png",
                 actions.ExportSteamShots, OutputPath: actions.SteamShotsPath),
+            new DevTask("render.steam-capsules", "出图", "Steam 胶囊图",
+                "生成主图/页头/小图/库图/库头图，输出 artifacts/steam/capsules。", "主图 616×353 等 5 张",
+                actions.ExportSteamCapsules, OutputPath: actions.SteamCapsulePath),
             new DevTask("render.open-output", "出图", "打开出图目录",
                 "定位本次出图的输出目录。", "资源管理器",
                 actions.OpenOutput),

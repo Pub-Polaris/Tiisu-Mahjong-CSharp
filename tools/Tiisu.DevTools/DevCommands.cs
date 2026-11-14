@@ -2140,6 +2140,97 @@ internal static class DevCommands
     }
 
     /// <summary>按屏自己的逻辑画布尺寸出图（与游戏内走同一条 Screen 路径）。</summary>
+    private static int ExportSteamCapsules(string outputDirectory)
+    {
+        Tiisu.App.Program.TryUseUtf8Console();
+        string dir = Path.GetFullPath(outputDirectory);
+        Directory.CreateDirectory(dir);
+        using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
+
+        var sizes = new (string Name, int Width, int Height)[]
+        {
+            ("main-616x353", 616, 353),
+            ("header-460x215", 460, 215),
+            ("small-231x87", 231, 87),
+            ("library-600x900", 600, 900),
+            ("library-hero-920x430", 920, 430),
+        };
+
+        foreach (var (name, width, height) in sizes)
+        {
+            using var surface = SKSurface.Create(new SKImageInfo(width, height));
+            SKCanvas canvas = surface.Canvas;
+            using (var bg = new SKPaint
+                   {
+                       Shader = SKShader.CreateLinearGradient(
+                           new SKPoint(0, 0), new SKPoint(width, height),
+                           new[] { new SKColor(28, 48, 42), new SKColor(6, 10, 9) },
+                           null, SKShaderTileMode.Clamp),
+                   })
+            {
+                canvas.DrawRect(new SKRect(0, 0, width, height), bg);
+            }
+
+            using (var border = new SKPaint
+                   {
+                       IsAntialias = true,
+                       Style = SKPaintStyle.Stroke,
+                       StrokeWidth = Math.Max(2f, width / 300f),
+                       Color = new SKColor(196, 168, 96, 210),
+                   })
+            {
+                canvas.DrawRoundRect(new SKRect(10, 10, width - 10, height - 10), 12, 12, border);
+            }
+
+            using var ctx = new SkiaCanvas(canvas, atlas);
+            bool small = width < 300;
+            bool vertical = height > width * 1.25f;
+            float scale = MathF.Min(width / 616f, height / 353f);
+            float titleSize = small
+                ? 14f
+                : Math.Clamp(44f * scale, 20f, 60f);
+            float x = small ? 10f : width * 0.06f;
+            float y = small ? 14f : vertical ? height * 0.12f : height * 0.22f;
+
+            ctx.DrawText("Tiisu Mahjong", new RectF(x, y, width - x * 2, titleSize * 1.3f),
+                Color.Rgb(242, 230, 190), new TextStyle(titleSize, Bold: true, Center: false));
+            if (!small)
+            {
+                ctx.DrawText("QIZI MAHJONG · SINGLE PLAYER",
+                    new RectF(x, y + titleSize * 1.35f, width - x * 2, titleSize * 0.55f),
+                    Color.Rgb(159, 180, 170), new TextStyle(Math.Max(10, titleSize * 0.26f)));
+            }
+
+            string[] tiles = small ? new[] { "7m", "7p" } : new[] { "7m", "7p", "7s" };
+            float tileW = small
+                ? 34f
+                : vertical ? Math.Clamp(width * 0.15f, 54f, 104f) : Math.Clamp(width * 0.12f, 44f, 90f);
+            float tileH = tileW * 1.38f;
+            float gap = tileW * 0.14f;
+            float total = tileW * tiles.Length + gap * (tiles.Length - 1);
+            float tileX = small
+                ? width - total - 6f
+                : vertical ? (width - total) / 2f : width - total - width * 0.04f;
+            float tileY = small
+                ? (height - tileH) / 2f
+                : vertical ? height * 0.44f : height * 0.42f;
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                ctx.DrawTile(tiles[i], new RectF(tileX + i * (tileW + gap), tileY, tileW, tileH));
+            }
+
+            using var image = surface.Snapshot();
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            string path = Path.Combine(dir, name + ".png");
+            File.WriteAllBytes(path, data.ToArray());
+            Console.WriteLine($"  capsule: {path}  {width}x{height}");
+        }
+
+        Console.WriteLine($"steam capsules: {sizes.Length} -> {dir}");
+        return 0;
+    }
+
+
     private static int ExportSteamShots(string outputDirectory, string language)
     {
         Tiisu.App.Program.TryUseUtf8Console();
@@ -4574,6 +4665,13 @@ internal static class DevCommands
             string language = args.Length >= 4 && args[2] == "--lang" ? args[3] : "zh-CN";
             return ExportSteamShots(args.Length >= 2 ? args[1] : "artifacts/steam", language);
         }
+
+        // Steam 胶囊图：主图/页头/小图/库图/库头图。
+        if (args.Length >= 1 && args[0] == "--export-steam-capsules")
+        {
+            return ExportSteamCapsules(args.Length >= 2 ? args[1] : "artifacts/steam/capsules");
+        }
+
 
 
         // 暗杠展示自检：--render-ankan <png 基名 | 目录> → 出「对局中 / 和牌后」两张图
