@@ -47,6 +47,8 @@ public sealed class ReplayScreen : Screen
         _index = 0;
     }
 
+    public override void OnLanguageChanged() => Reload();
+
     public override void Draw(ICanvas c, double time)
     {
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,

@@ -131,6 +131,14 @@ public sealed class LicensesScreen : Screen
         _openMarkdown = openMarkdown;
     }
 
+    public override void OnLanguageChanged()
+    {
+        _textMode = false;
+        _textTitle = string.Empty;
+        _textAllLines = Array.Empty<string>();
+        _textPage = 0;
+    }
+
     public override void Draw(ICanvas c, double time)
     {
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,

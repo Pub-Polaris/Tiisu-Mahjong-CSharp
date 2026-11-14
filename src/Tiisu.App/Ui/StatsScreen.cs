@@ -32,6 +32,8 @@ public sealed class StatsScreen : Screen
     /// <summary>重新读取本机统计；进入战绩页时调用，避免显示启动时缓存。</summary>
     public void Reload() => _stats = StatsSummary.Load(new StatsStore());
 
+    public override void OnLanguageChanged() => Reload();
+
     public override void Draw(ICanvas c, double time)
     {
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,

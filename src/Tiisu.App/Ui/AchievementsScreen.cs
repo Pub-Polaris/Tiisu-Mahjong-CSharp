@@ -28,6 +28,8 @@ public sealed class AchievementsScreen : Screen
     /// <summary>重新读取统计并重算成就；进入成就页时调用。</summary>
     public void Reload() => _items = Achievements.From(StatsSummary.Load(new StatsStore()));
 
+    public override void OnLanguageChanged() => Reload();
+
     public override void Draw(ICanvas c, double time)
     {
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,

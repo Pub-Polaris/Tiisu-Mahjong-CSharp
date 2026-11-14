@@ -31,6 +31,7 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly ISteamService _steam = new NullSteamService();
     private readonly SteamAchievementSync _steamAchievements;
     private bool _steamMatchSynced;
+    private string _appliedLanguage;
     private readonly TableScreen _table;
     private readonly MenuScreen _menu;
     private readonly SettingsScreen _settingsScreen;
@@ -71,6 +72,7 @@ internal sealed class ScreenHostCore : IDisposable
         {
             _settings.Language = UiText.Normalize(launchLanguage);
         }
+        _appliedLanguage = _settings.Language;
         _appliedRuleset = _settings.Ruleset;
         _sound.BgmVolume = _settings.BgmVolume;
         _sound.SfxVolume = _settings.SfxVolume;
@@ -277,11 +279,27 @@ internal sealed class ScreenHostCore : IDisposable
     /// <summary>设置屏每次改动后：热更新到引擎线程（可选役 / recordTiles / 长考秒数）。</summary>
     private void OnSettingsChanged(Settings settings)
     {
+        bool languageChanged = !string.Equals(_appliedLanguage, settings.Language, StringComparison.Ordinal);
+        _appliedLanguage = settings.Language;
         _sound.BgmVolume = settings.BgmVolume;
         _sound.SfxVolume = settings.SfxVolume;
         _sound.VoiceEnabled = settings.VoiceEnabled;
         _uiTextScale = (float)settings.UiTextScale;
         UiText.SetLanguage(settings.Language);
+        if (languageChanged)
+        {
+            // 语言切换必须让所有有缓存的屏幕重新取当前语言资源。
+            _menu.OnLanguageChanged();
+            _settingsScreen.OnLanguageChanged();
+            _rules.OnLanguageChanged();
+            _licenses.OnLanguageChanged();
+            _tutorial.OnLanguageChanged();
+            _stats.OnLanguageChanged();
+            _achievements.OnLanguageChanged();
+            _replay.OnLanguageChanged();
+            _table.OnLanguageChanged();
+            _current?.OnLanguageChanged();
+        }
         bool rulesetChanged = _appliedRuleset != settings.Ruleset;
         _appliedRuleset = settings.Ruleset;
         _session.Post(GameCommand.ApplySettings(settings));

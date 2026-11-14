@@ -23,6 +23,9 @@ public abstract class Screen
 
     public virtual void Update(double dt) { }
 
+    /// <summary>语言切换后强制刷新该屏的缓存资源；无缓存可忽略。</summary>
+    public virtual void OnLanguageChanged() { }
+
     public abstract void Draw(ICanvas c, double time);
 
     /// <summary>返回 true 表示事件被消费。</summary>

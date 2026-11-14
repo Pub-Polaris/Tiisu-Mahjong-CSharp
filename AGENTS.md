@@ -32,6 +32,7 @@
 - `AchievementsScreen.Reload()` 在进入时调用
 - `ReplayScreen.Reload()` 在菜单进入时调用
 - `TableScreen` 的 `openSettings`/`backToMenu` 回调确实非 null
+- 语言切换必须：重载 `UiText` 翻译、重载战绩/成就/回放、清除许可全文缓存、`ApplySettings` 刷新快照，并实际切一次看当前屏
 - 语言切换走 `UiText.LanguageChanged` 并触发界面重绘
 - 全桌 AI 快捷档能到达 `7Neuu`
 
