@@ -55,6 +55,8 @@ public sealed class SettingsScreen : Screen
     private bool _backHover;
     private int _selected;
     private int _hover = -1;
+      private Slider? _activeSlider;
+      private bool _sliderHit;
 
     public SettingsScreen(Settings settings, Action<Settings> changed, Action back,
         ISoundEffects? sound = null) : base("settings")
@@ -107,18 +109,11 @@ public sealed class SettingsScreen : Screen
                 selected ? Color.Rgb(255, 244, 214) : TextColor,
                 new TextStyle(17, Bold: selected, Center: false));
 
-            if (row.Percent is { } percentOf)
-            {
-                // 音量类用滑条，不显示数字（北极星 2026-11-02）。
-                int pct = Math.Clamp(percentOf(), 0, 100);
-                float trackW = 150f;
-                float trackX = rect.Right - 170f;
-                float trackY = rect.Y + (rect.H / 2f) - 2f;
-                c.FillRoundRect(new RectF(trackX, trackY, trackW, 4), 2, Color.Rgb(60, 78, 70));
-                c.FillRoundRect(new RectF(trackX, trackY, trackW * pct / 100f, 4), 2, Gold);
-                c.FillCircle(trackX + (trackW * pct / 100f), trackY + 2f, 7f,
-                    selected ? Color.Rgb(255, 244, 214) : Gold);
-            }
+              if (row.Slider is { } slider)
+              {
+                  slider.Layout(new RectF(rect.Right - 190, rect.Y + 4, 170, rect.H - 8));
+                  slider.Draw(c, selected, hover);
+              }
             else
             {
                 c.DrawText(row.Value(), new RectF(rect.Right - 170, rect.Y, 150, rect.H),
@@ -133,6 +128,11 @@ public sealed class SettingsScreen : Screen
 
     public override bool OnPointerMove(float x, float y)
     {
+        if (_activeSlider is { Dragging: true } active)
+        {
+            _activeSlider = active;
+            return active.OnPointerMove(x, y);
+        }
         _backHover = BackButton.Contains(x, y);
         _hover = RowAt(x, y);
         return _backHover || _hover >= 0;
@@ -156,6 +156,28 @@ public sealed class SettingsScreen : Screen
         _rows[index].Change(1);
         return true;
     }
+
+      public override bool OnPointerDown(float x, float y)
+      {
+          int index = RowAt(x, y);
+          if (index >= 0 && _rows[index].Slider is { } slider && slider.OnPointerDown(x, y))
+          {
+              _activeSlider = slider;
+              _sliderHit = true;
+              _selected = index;
+              return true;
+          }
+
+          return false;
+      }
+
+      public override bool OnPointerUp(float x, float y)
+      {
+          bool handled = _activeSlider?.Dragging == true;
+          _activeSlider?.OnPointerUp();
+          _activeSlider = null;
+          return handled;
+      }
 
     public override bool OnKey(Keys key)
     {
@@ -222,18 +244,24 @@ public sealed class SettingsScreen : Screen
                 _ => ToggleOptional(id)));
         }
 
-        _rows.Add(new Row(
-            "音乐音量",
-            () => _settings.BgmVolume + "%",
-            () => _settings.BgmVolume > 0,
-            direction => SetVolume(bgm: true, direction),
-            () => _settings.BgmVolume));
-        _rows.Add(new Row(
-            "音效音量",
-            () => _settings.SfxVolume + "%",
-            () => _settings.SfxVolume > 0,
-            direction => SetVolume(bgm: false, direction),
-            () => _settings.SfxVolume));
+          var bgmSlider = new Slider(0, 100, _settings.BgmVolume,
+              v => SetVolumeLive(bgm: true, v), Save);
+          var sfxSlider = new Slider(0, 100, _settings.SfxVolume,
+              v => SetVolumeLive(bgm: false, v), Save);
+          _rows.Add(new Row(
+              "音乐音量",
+              () => _settings.BgmVolume + "%",
+              () => _settings.BgmVolume > 0,
+              direction => bgmSlider.Step(direction * 10),
+              () => _settings.BgmVolume,
+              bgmSlider));
+          _rows.Add(new Row(
+              "音效音量",
+              () => _settings.SfxVolume + "%",
+              () => _settings.SfxVolume > 0,
+              direction => sfxSlider.Step(direction * 10),
+              () => _settings.SfxVolume,
+              sfxSlider));
         _rows.Add(new Row("显示岭上指示牌", () => OnOff(_settings.ShowMa), () => _settings.ShowMa, _ => Toggle(
             () => _settings.ShowMa,
             value => _settings.ShowMa = value)));
@@ -432,6 +460,25 @@ public sealed class SettingsScreen : Screen
     }
 
     /// <summary>音量滑条：左右/点击按 10 一档，0 = 静音。</summary>
+      private void SetVolumeLive(bool bgm, float value)
+      {
+          int v = Math.Clamp((int)MathF.Round(value), 0, 100);
+          if (bgm)
+          {
+              _settings.BgmVolume = v;
+              _sound?.BgmVolume = v;
+          }
+          else
+          {
+              _settings.SfxVolume = v;
+              _sound?.SfxVolume = v;
+              if (v > 0 && v % 10 == 0)
+              {
+                  _sound?.Play(SoundEffects.Cue.Call);
+              }
+          }
+      }
+
     private void SetVolume(bool bgm, int direction)
     {
         int step = direction >= 0 ? 10 : -10;
@@ -489,13 +536,14 @@ public sealed class SettingsScreen : Screen
     private sealed class Row
     {
         public Row(string label, Func<string> value, Func<bool> isOn, Action<int> change,
-            Func<int>? percent = null)
+            Func<int>? percent = null, Slider? slider = null)
         {
             Label = label;
             Value = value;
             IsOn = isOn;
             Change = change;
             Percent = percent;
+              Slider = slider;
         }
 
         public string Label { get; }
@@ -508,5 +556,8 @@ public sealed class SettingsScreen : Screen
 
         /// <summary>非 null 时该行画成 0..100 滑条，不显示文字数值。</summary>
         public Func<int>? Percent { get; }
+
+          /// <summary>非 null 时该行绘制并可拖动独立滑条。</summary>
+          public Slider? Slider { get; }
     }
 }
