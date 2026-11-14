@@ -20,6 +20,7 @@ public sealed class LaunchOptionsTests
     {
         Assert.Equal(new LaunchOptions(false, false, null), LaunchOptions.Parse(System.Array.Empty<string>()));
         Assert.Equal("zh-CN", LaunchOptions.Parse(new[] { "--lang", "fr" }).Language);
+        Assert.Equal("ja-JP", LaunchOptions.Parse(new[] { "--lang", "ja" }).Language);
         Assert.Null(LaunchOptions.Parse(new[] { "--lang" }).Language);
     }
 }

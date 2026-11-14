@@ -34,7 +34,7 @@ internal static class Program
             {
                 Console.WriteLine($"未知参数：{args[0]}");
                 Console.WriteLine("开发/自检命令请用 tools/Tiisu.DevTools（同一批参数）。");
-                Console.WriteLine("启动项：--cpu-render --fullscreen --lang zh-CN|en-US");
+                Console.WriteLine("启动项：--cpu-render --fullscreen --lang zh-CN|en-US|ja-JP");
                 return;
             }
         }

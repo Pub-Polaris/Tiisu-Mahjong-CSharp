@@ -144,7 +144,9 @@ public sealed class LicensesScreen : Screen
 
         c.DrawText(UiText.Tr("开源许可与参考鸣谢"), new RectF(0, 54, Width, 56),
             Color.Rgb(242, 230, 190), new TextStyle(42, Bold: true, Center: true));
-        c.DrawText(UiText.IsEnglish ? "Open-source components + closed references · " + (_page + 1) + " / " + Entries.Length : "开源组件 + 闭源参考项目 · 第 " + (_page + 1) + " / " + Entries.Length + " 项",
+        c.DrawText(UiText.IsEnglish ? "Open-source components + closed references · " + (_page + 1) + " / " + Entries.Length
+            : UiText.IsJapanese ? "オープンソース + クローズド参考 · " + (_page + 1) + " / " + Entries.Length + " 項目"
+            : "开源组件 + 闭源参考项目 · 第 " + (_page + 1) + " / " + Entries.Length + " 项",
             new RectF(0, 108, Width, 26), Color.Rgb(159, 180, 170), new TextStyle(16, Center: true));
 
         var entry = Entries[_page];
@@ -156,13 +158,21 @@ public sealed class LicensesScreen : Screen
                 "Usage: " + UiText.Tr(entry.Usage),
                 "Link: " + entry.Url,
             }
-            : new[]
-            {
-                "版本：" + entry.Version,
-                "许可：" + entry.License,
-                "用途：" + entry.Usage,
-                "链接：" + entry.Url,
-            };
+            : UiText.IsJapanese
+                ? new[]
+                {
+                    "バージョン：" + entry.Version,
+                    "ライセンス：" + UiText.Tr(entry.License),
+                    "用途：" + UiText.Tr(entry.Usage),
+                    "リンク：" + entry.Url,
+                }
+                : new[]
+                {
+                    "版本：" + entry.Version,
+                    "许可：" + entry.License,
+                    "用途：" + entry.Usage,
+                    "链接：" + entry.Url,
+                };
 
         float y = 156;
         const float lineH = 34f;
@@ -209,7 +219,7 @@ public sealed class LicensesScreen : Screen
     {
         c.DrawText(_textTitle, new RectF(0, 40, Width, 48),
             Color.Rgb(242, 230, 190), new TextStyle(34, Bold: true, Center: true));
-        c.DrawText(UiText.IsEnglish ? "License text · Page " + (_textPage + 1) + " / " + _textPages : "许可全文 · 第 " + (_textPage + 1) + " / " + _textPages + " 页",
+        c.DrawText(UiText.IsEnglish ? "License text · Page " + (_textPage + 1) + " / " + _textPages : UiText.IsJapanese ? "ライセンス全文 · " + (_textPage + 1) + " / " + _textPages + " ページ" : "许可全文 · 第 " + (_textPage + 1) + " / " + _textPages + " 页",
             new RectF(0, 88, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(15, Center: true));
 
         var box = new RectF(90, 122, Width - 180, 480);

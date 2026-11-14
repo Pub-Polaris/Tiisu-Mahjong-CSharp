@@ -357,8 +357,8 @@ public sealed class SettingsScreen : Screen
         _rows.Add(new Row("报牌语音", () => OnOff(_settings.VoiceEnabled), () => _settings.VoiceEnabled, _ => Toggle(
             () => _settings.VoiceEnabled,
             value => _settings.VoiceEnabled = value)));
-        _rows.Add(new Row("语言 / Language", () => _settings.Language == "en-US" ? "English" : "中文",
-            () => _settings.Language == "en-US", _ => CycleLanguage()));
+        _rows.Add(new Row("语言 / Language", LanguageName,
+            () => _settings.Language != "zh-CN", _ => CycleLanguage()));
         _rows.Add(new Row("大字号界面", TextScaleName, () => _settings.UiTextScale > 1.01, _ => CycleTextScale()));
         _rows.Add(new Row("显示岭上指示牌", () => OnOff(_settings.ShowMa), () => _settings.ShowMa, _ => Toggle(
             () => _settings.ShowMa,
@@ -617,9 +617,21 @@ public sealed class SettingsScreen : Screen
         _ => "100%",
     };
 
+    private string LanguageName() => _settings.Language switch
+    {
+        "en-US" => "English",
+        "ja-JP" => "日本語",
+        _ => "中文",
+    };
+
     private void CycleLanguage()
     {
-        _settings.Language = _settings.Language == "en-US" ? "zh-CN" : "en-US";
+        _settings.Language = _settings.Language switch
+        {
+            "zh-CN" => "en-US",
+            "en-US" => "ja-JP",
+            _ => "zh-CN",
+        };
         UiText.SetLanguage(_settings.Language);
         Save();
     }

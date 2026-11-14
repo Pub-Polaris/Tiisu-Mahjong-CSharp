@@ -195,8 +195,14 @@ internal static class DevCommands
             return 1;
         }
 
-        using var doc = JsonDocument.Parse(File.ReadAllText(mapPath));
-        var translated = new HashSet<string>(doc.RootElement.EnumerateObject().Select(p => p.Name), StringComparer.Ordinal);
+        var maps = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (string lang in new[] { "en-US", "ja-JP" })
+        {
+            string path = Path.Combine(root, "src", "Tiisu.App", "Assets", "i18n", lang + ".json");
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            maps[lang] = new HashSet<string>(doc.RootElement.EnumerateObject().Select(p => p.Name), StringComparer.Ordinal);
+        }
+
         var pattern = new Regex("UiText\\.Tr\\(\"((?:[^\"\\\\]|\\\\.)*)\"\\)");
         var missing = new SortedSet<string>(StringComparer.Ordinal);
         foreach (string file in Directory.EnumerateFiles(app, "*.cs", SearchOption.AllDirectories))
@@ -210,14 +216,22 @@ internal static class DevCommands
             foreach (Match match in pattern.Matches(File.ReadAllText(file)))
             {
                 string key = Regex.Unescape(match.Groups[1].Value);
-                if (key.Any(c => c >= 0x4e00 && c <= 0x9fff) && !translated.Contains(key))
+                if (!key.Any(c => c >= 0x4e00 && c <= 0x9fff))
                 {
-                    missing.Add(key);
+                    continue;
+                }
+
+                foreach (var (lang, translated) in maps)
+                {
+                    if (!translated.Contains(key))
+                    {
+                        missing.Add(lang + ": " + key);
+                    }
                 }
             }
         }
 
-        Console.WriteLine($"check-i18n: {missing.Count} 个 UiText.Tr 中文键缺英文映射");
+        Console.WriteLine($"check-i18n: {missing.Count} 个 UiText.Tr 中文键缺翻译（en/ja）");
         foreach (string key in missing.Take(40))
         {
             Console.WriteLine("  缺：" + key);
@@ -2410,10 +2424,16 @@ internal static class DevCommands
     {
         using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
         bool english = screenName.EndsWith("-en", StringComparison.OrdinalIgnoreCase);
+        bool japanese = screenName.EndsWith("-ja", StringComparison.OrdinalIgnoreCase);
         if (english)
         {
             screenName = screenName[..^3];
             UiText.SetLanguage("en-US");
+        }
+        else if (japanese)
+        {
+            screenName = screenName[..^3];
+            UiText.SetLanguage("ja-JP");
         }
         else
         {

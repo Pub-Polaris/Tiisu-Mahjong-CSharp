@@ -50,7 +50,7 @@ public sealed class MainForm : Form
         // GPU（SKGLControl + GRContext）优先，不可用时工厂内部自动回退 CPU（SKControl）。
         _host = ScreenHostFactory.Create(atlas, forceCpuRender);
         Controls.Add(_host);
-        Text = UiText.IsEnglish ? "Tiisu Mahjong" : "七子麻将 · Tiisu Mahjong";
+        Text = UiText.IsEnglish ? "Tiisu Mahjong" : UiText.IsJapanese ? "七子麻雀 · Tiisu Mahjong" : "七子麻将 · Tiisu Mahjong";
 
         // 启动/激活时把焦点交给画布，否则键盘事件没有落点。
         Shown += (_, _) =>

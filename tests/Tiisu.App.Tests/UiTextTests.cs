@@ -29,11 +29,32 @@ public sealed class UiTextTests
     }
 
     [Fact]
+    public void JapaneseTranslationsAndRuby()
+    {
+        try
+        {
+            UiText.SetLanguage("ja-JP");
+            Assert.True(UiText.IsJapanese);
+            Assert.Equal("ja-JP", UiText.Normalize("ja"));
+            Assert.Contains("設定", UiText.Tr("设置"));
+            Assert.Contains("七子麻雀", UiText.Tr("七子麻将"));
+            Assert.Contains("卯先", UiText.Tr("赐马"));
+            Assert.Contains("うさき", UiText.Tr("赐马"));
+            Assert.Equal("言語 / Language", UiText.Tr("语言 / Language"));
+        }
+        finally
+        {
+            UiText.SetLanguage("zh-CN");
+        }
+    }
+
+    [Fact]
     public void ChineseReturnsOriginal()
     {
         UiText.SetLanguage("zh-CN");
         Assert.Equal("设置", UiText.Tr("设置"));
         Assert.Equal("en-US", UiText.Normalize("en"));
         Assert.Equal("zh-CN", UiText.Normalize("fr"));
+        Assert.Equal("ja-JP", UiText.Normalize("ja-JP"));
     }
 }

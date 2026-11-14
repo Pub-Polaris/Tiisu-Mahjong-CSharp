@@ -71,7 +71,7 @@ public sealed class Settings
     /// <summary>界面字号倍率：1.0 / 1.15 / 1.3（仅非牌桌页面）。</summary>
     public double UiTextScale { get; set; } = 1.0;
 
-    /// <summary>UI 语言：zh-CN / en-US。</summary>
+    /// <summary>UI 语言：zh-CN / en-US / ja-JP。</summary>
     public string Language { get; set; } = "zh-CN";
 
     /// <summary>开启后写牌型日志（ASCII JSONL）。</summary>

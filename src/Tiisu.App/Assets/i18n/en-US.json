@@ -340,5 +340,6 @@
   "Space 过": "Space Pass",
   "F 流局": "F Draw",
   "点手牌出牌": "Click a tile to discard",
-  "和牌次数": "Wins"
+  "和牌次数": "Wins",
+  "本局禁和，不能和牌": "Winning is forbidden this round"
 }

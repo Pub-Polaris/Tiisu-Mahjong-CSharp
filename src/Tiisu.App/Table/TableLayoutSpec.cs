@@ -531,7 +531,7 @@ public sealed class TableSceneSkia : ITableScene
             return;
         }
 
-        float badgeW = UiText.IsEnglish ? 82f : 62f;
+        float badgeW = UiText.IsEnglish || UiText.IsJapanese ? 82f : 62f;
         const float badgeH = 24f;
 
         for (int seat = 1; seat < 4 && seat < levels.Count; seat++)
@@ -560,7 +560,7 @@ public sealed class TableSceneSkia : ITableScene
 
             c.FillRoundRect(box, 7, Color.Rgb(0, 0, 0).WithAlpha(150));
             c.StrokeRoundRect(box, 7, Color.Rgb(150, 170, 160).WithAlpha(90), 1f);
-            c.DrawText((UiText.IsEnglish ? WindShort(view.Wind) : view.Wind) + "·" + level, box,
+            c.DrawText((UiText.IsEnglish ? WindShort(view.Wind) : UiText.IsJapanese ? UiText.Tr(view.Wind) : view.Wind) + "·" + level, box,
                 Color.Rgb(214, 230, 220), new TextStyle(13, Bold: true, Center: true));
         }
     }
@@ -575,10 +575,10 @@ public sealed class TableSceneSkia : ITableScene
 
         return level switch
         {
-            "Simple" => UiText.IsEnglish ? "Simple" : AiLevelBadges[0],
-            "Normal" => UiText.IsEnglish ? "Normal" : AiLevelBadges[1],
-            "Hard" => UiText.IsEnglish ? "Hard" : AiLevelBadges[2],
-            "Shura" => AiLevelBadges[3],
+            "Simple" => UiText.IsEnglish ? "Simple" : UiText.IsJapanese ? "簡単" : AiLevelBadges[0],
+            "Normal" => UiText.IsEnglish ? "Normal" : UiText.IsJapanese ? "普通" : AiLevelBadges[1],
+            "Hard" => UiText.IsEnglish ? "Hard" : UiText.IsJapanese ? "難しい" : AiLevelBadges[2],
+            "Shura" => UiText.IsEnglish ? "Shura" : UiText.IsJapanese ? "修羅" : AiLevelBadges[3],
             _ => string.Empty,
         };
     }

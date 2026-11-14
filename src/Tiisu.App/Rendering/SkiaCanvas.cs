@@ -256,6 +256,12 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
         float baseline = box.Y + (box.H - (metrics.Descent - metrics.Ascent)) / 2f - metrics.Ascent;
         float x = style.Right ? box.Right : style.Center ? box.CenterX : box.X;
 
+        if (RubyText.HasMarkup(text))
+        {
+            DrawRubyText(text, box, style, paint, font, align, baseline);
+            return;
+        }
+
         if (style.Shadow)
         {
             using var shadowPaint = new SKPaint
@@ -270,8 +276,58 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
         _canvas.DrawText(text, x, baseline, align, font, paint);
     }
 
+    private void DrawRubyText(string text, RectF box, TextStyle style, SKPaint paint,
+        SKFont font, SKTextAlign align, float baseline)
+    {
+        var segments = RubyText.Parse(text);
+        float total = 0f;
+        foreach (var segment in segments)
+        {
+            total += font.MeasureText(segment.Base);
+        }
+
+        using var rubyFont = new SKFont(GetTypeface(style.Bold, style.Family),
+            BoostSize(style.Size) * Math.Clamp(TextScale, 0.8f, 1.5f) * 0.42f);
+        using SKPaint? shadowPaint = style.Shadow
+            ? new SKPaint
+            {
+                IsAntialias = true,
+                Color = new SKColor(0, 0, 0, 140),
+                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2.5f),
+            }
+            : null;
+
+        float cursor = align == SKTextAlign.Right ? box.Right - total
+            : align == SKTextAlign.Center ? box.CenterX - total / 2f
+            : box.X;
+        float rubyBaseline = baseline + font.Metrics.Ascent - 1.5f;
+        foreach (var segment in segments)
+        {
+            float baseWidth = font.MeasureText(segment.Base);
+            if (shadowPaint is not null)
+            {
+                _canvas.DrawText(segment.Base, cursor + 1.5f, baseline + 1.5f,
+                    SKTextAlign.Left, font, shadowPaint);
+            }
+            _canvas.DrawText(segment.Base, cursor, baseline, SKTextAlign.Left, font, paint);
+            if (!string.IsNullOrEmpty(segment.Ruby))
+            {
+                float rubyWidth = rubyFont.MeasureText(segment.Ruby);
+                float rubyX = cursor + (baseWidth - rubyWidth) / 2f;
+                if (shadowPaint is not null)
+                {
+                    _canvas.DrawText(segment.Ruby, rubyX + 1.5f, rubyBaseline + 1.5f,
+                        SKTextAlign.Left, rubyFont, shadowPaint);
+                }
+                _canvas.DrawText(segment.Ruby, rubyX, rubyBaseline, SKTextAlign.Left, rubyFont, paint);
+            }
+
+            cursor += baseWidth;
+        }
+    }
+
     /// <summary>量文字宽度：与 DrawText 共用同一 typeface / 字号（含 BoostSize），保证点击区与字形对齐。</summary>
-    public float MeasureText(string text, TextStyle style) => MeasureScaled(text, style);
+    public float MeasureText(string text, TextStyle style) => MeasureScaled(RubyText.StripMarkup(text), style);
 
     private float MeasureScaled(string text, TextStyle style)
     {
@@ -283,7 +339,7 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     public static float Measure(string text, TextStyle style)
     {
         using var font = new SKFont(GetTypeface(style.Bold, style.Family), BoostSize(style.Size));
-        return font.MeasureText(text);
+        return font.MeasureText(RubyText.StripMarkup(text));
     }
 
     /// <summary>字号整体放大一档：小字 +2、中字 +3、大字 +4。</summary>

@@ -331,7 +331,7 @@ public sealed class TableScreen : Screen
         {
             var bar = _layout.ActionBarRect;
             var hint = new RectF(bar.CenterX - 260, bar.Y - 30, 520, 24);
-            c.DrawText(vm.WinHint, hint, Color.Rgb(255, 176, 64), new TextStyle(16, Bold: true, Center: true));
+            c.DrawText(UiText.Tr(vm.WinHint), hint, Color.Rgb(255, 176, 64), new TextStyle(16, Bold: true, Center: true));
         }
 
         if (_confirmAction is not null)

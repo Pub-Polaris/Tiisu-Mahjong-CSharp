@@ -160,7 +160,7 @@ public sealed class ReplayScreen : Screen
         string action = UiText.Tr(RoundLogReader.ActionName(step.Action));
         string tile = string.IsNullOrEmpty(step.Tile) ? string.Empty : " " + step.Tile;
         string wall = step.Wall > 0
-            ? (UiText.IsEnglish ? " (wall " + step.Wall + ")" : "（余 " + step.Wall + "）")
+            ? (UiText.IsEnglish ? " (wall " + step.Wall + ")" : UiText.IsJapanese ? "（残り " + step.Wall + "）" : "（余 " + step.Wall + "）")
             : string.Empty;
         return (index + 1).ToString(CultureInfo.InvariantCulture) + ". " + player + " " + action + tile + wall;
     }

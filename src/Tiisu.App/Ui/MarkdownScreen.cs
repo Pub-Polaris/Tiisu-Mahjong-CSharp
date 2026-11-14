@@ -43,7 +43,7 @@ public sealed class MarkdownScreen : Screen
 
         c.DrawText(UiText.Tr(_title), new RectF(0, 36, Width, 46),
             Color.Rgb(242, 230, 190), new TextStyle(34, Bold: true, Center: true));
-        c.DrawText(UiText.IsEnglish ? "Page " + (_page + 1) + " / " + Math.Max(1, _pages.Count) : "第 " + (_page + 1) + " / " + Math.Max(1, _pages.Count) + " 页",
+        c.DrawText(UiText.IsEnglish ? "Page " + (_page + 1) + " / " + Math.Max(1, _pages.Count) : UiText.IsJapanese ? (_page + 1) + " / " + Math.Max(1, _pages.Count) + " ページ" : "第 " + (_page + 1) + " / " + Math.Max(1, _pages.Count) + " 页",
             new RectF(0, 86, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(14, Center: true));
 
         var card = new RectF(110, 118, Width - 220, 490);
