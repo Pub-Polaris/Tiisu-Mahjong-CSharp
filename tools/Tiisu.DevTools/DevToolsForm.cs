@@ -82,6 +82,9 @@ internal sealed class DevToolsForm : Form
         sections.Controls.Add(BuildAudioSection(), 1, 0);
         sections.Controls.Add(BuildLayoutSection(), 0, 1);
         sections.Controls.Add(BuildStyleSection(), 1, 1);
+          var publish = BuildPublishSection();
+          sections.Controls.Add(publish, 0, 2);
+          sections.SetColumnSpan(publish, 2);
 
         var logBox = new GroupBox
         {
@@ -177,6 +180,53 @@ internal sealed class DevToolsForm : Form
             CommandButton("全部生成并打开目录", RenderAllStylesAsync));
     }
 
+    private GroupBox BuildPublishSection()
+    {
+        var grid = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 2,
+            Height = 84,
+            Margin = new Padding(0),
+        };
+        for (int c = 0; c < 3; c++)
+        {
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3));
+        }
+
+        for (int r = 0; r < 2; r++)
+        {
+            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        }
+
+        var buttons = new (string Text, Func<Task> Action)[]
+        {
+            ("发布自检", CheckPublishAsync),
+            ("生成安装包", BuildInstallerAsync),
+            ("生成规则库", BuildRulesAsync),
+            ("复制产物哈希", CopyArtifactHashesAsync),
+            ("打开 dist", OpenDistAsync),
+            ("打开桌面安装包", OpenDesktopSetupAsync),
+        };
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            var button = new Button
+            {
+                Text = buttons[i].Text,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(2, 3, 2, 3),
+                UseVisualStyleBackColor = true,
+            };
+            button.Click += async (_, _) => await RunGuardedAsync(buttons[i].Text, buttons[i].Action);
+            grid.Controls.Add(button, i % 3, i / 3);
+        }
+
+        return Section("发布 / 合规", grid);
+    }
+
+
     private static GroupBox Section(string title, params Control[] rows)
     {
         var box = new GroupBox
@@ -198,7 +248,7 @@ internal sealed class DevToolsForm : Form
 
         foreach (Control row in rows)
         {
-            content.RowStyles.Add(new RowStyle(SizeType.Absolute, row is Button ? 38 : 42));
+            content.RowStyles.Add(new RowStyle(SizeType.Absolute, row is Button ? 38 : row is TableLayoutPanel grid ? 42 * Math.Max(1, grid.RowCount) : 42));
             row.Dock = DockStyle.Fill;
             row.Margin = new Padding(2, 3, 2, 3);
             content.Controls.Add(row);
@@ -220,6 +270,116 @@ internal sealed class DevToolsForm : Form
         button.Click += async (_, _) => await RunGuardedAsync(text, action);
         return button;
     }
+
+    private async Task CheckPublishAsync()
+    {
+        string publish = Path.Combine(_tools.WorkingDirectory, "dist", "publish");
+        if (!Directory.Exists(publish))
+        {
+            AppendLog("  ! 还没有 dist/publish：先生成安装包");
+            SetStatus("还没有 dist/publish", string.Empty);
+            return;
+        }
+
+        await ExecuteAsync(
+            "发布自检",
+            Application.ExecutablePath,
+            new[] { "--check-publish", publish },
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private async Task BuildInstallerAsync()
+    {
+        string script = Path.Combine(_tools.WorkingDirectory, "installer", "build_installer.ps1");
+        if (!File.Exists(script))
+        {
+            AppendLog("  ! 找不到安装包脚本：" + script);
+            SetStatus("找不到 installer/build_installer.ps1", string.Empty);
+            return;
+        }
+
+        string desktopSetup = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            "TiisuMahjong-Setup.exe");
+        await ExecuteAsync(
+            "生成安装包",
+            "powershell",
+            new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-CopyToDesktop" },
+            _tools.WorkingDirectory,
+            File.Exists(desktopSetup) ? desktopSetup : null);
+    }
+
+    private async Task BuildRulesAsync()
+    {
+        string script = Path.Combine(_tools.WorkingDirectory, "tools", "build_rules_lib.ps1");
+        if (!File.Exists(script))
+        {
+            AppendLog("  ! 找不到规则库脚本：" + script);
+            SetStatus("找不到 tools/build_rules_lib.ps1", string.Empty);
+            return;
+        }
+
+        await ExecuteAsync(
+            "生成规则库",
+            "powershell",
+            new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script },
+            _tools.WorkingDirectory,
+            Path.Combine(_tools.WorkingDirectory, "dist"));
+    }
+
+    private Task CopyArtifactHashesAsync()
+    {
+        AppendLog(string.Empty);
+        AppendLog($"[{DateTime.Now:HH:mm:ss}] 产物 SHA256");
+        string dist = Path.Combine(_tools.WorkingDirectory, "dist");
+        if (!Directory.Exists(dist))
+        {
+            AppendLog("  ! dist 不存在，先生成安装包 / 规则库");
+            return Task.CompletedTask;
+        }
+
+        foreach (string file in Directory.EnumerateFiles(dist, "*", SearchOption.TopDirectoryOnly))
+        {
+            try
+            {
+                using var stream = File.OpenRead(file);
+                string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream));
+                AppendLog("  " + Path.GetFileName(file) + "  " + hash);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                AppendLog("  ! " + Path.GetFileName(file) + "：" + ex.Message);
+            }
+        }
+
+        SetStatus("已把 dist 产物哈希写入日志", string.Empty);
+        return Task.CompletedTask;
+    }
+
+    private Task OpenDistAsync()
+    {
+        OpenDirectory(Path.Combine(_tools.WorkingDirectory, "dist"), "dist");
+        return Task.CompletedTask;
+    }
+
+    private Task OpenDesktopSetupAsync()
+    {
+        string setup = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            "TiisuMahjong-Setup.exe");
+        if (!File.Exists(setup))
+        {
+            AppendLog("  ! 桌面没有 TiisuMahjong-Setup.exe，先生成安装包");
+            SetStatus("桌面没有安装包", string.Empty);
+            return Task.CompletedTask;
+        }
+
+        CommandRunner.OpenInExplorer(setup, selectFile: true);
+        SetStatus("已定位桌面安装包", string.Empty);
+        return Task.CompletedTask;
+    }
+
 
     // ── 命令 ───────────────────────────────────────────────────────
 
