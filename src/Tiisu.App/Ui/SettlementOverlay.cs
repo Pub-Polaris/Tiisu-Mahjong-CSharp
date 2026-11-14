@@ -275,9 +275,14 @@ public sealed class SettlementOverlay
         int honbaShown = result.Kind is "ron" or "tsumo" && details.Count > 0
             ? details[0].HonbaCount
             : result.Honba;
-        string meta = "第 " + result.Round.ToString(CultureInfo.InvariantCulture) + " 局 · "
-                      + (result.Simplified ? "推倒胡 · " + outcome : outcome)
-                      + (honbaShown > 0 ? " · " + honbaShown.ToString(CultureInfo.InvariantCulture) + " 本场" : string.Empty);
+        string meta = UiText.IsEnglish
+            ? "Round " + result.Round.ToString(CultureInfo.InvariantCulture) + " · "
+              + (result.Simplified ? "Tuidao Hu · " : string.Empty)
+              + UiText.Tr(outcome)
+              + (honbaShown > 0 ? " · " + honbaShown.ToString(CultureInfo.InvariantCulture) + " honba" : string.Empty)
+            : "第 " + result.Round.ToString(CultureInfo.InvariantCulture) + " 局 · "
+              + (result.Simplified ? "推倒胡 · " + outcome : outcome)
+              + (honbaShown > 0 ? " · " + honbaShown.ToString(CultureInfo.InvariantCulture) + " 本场" : string.Empty);
         c.DrawText(meta, new RectF(left, panel.Y + 66f, 560, 28), Muted,
             new TextStyle(16, Center: false));
 
@@ -288,8 +293,9 @@ public sealed class SettlementOverlay
             var button = new RectF(right - 132f, panel.Y + 18f, 132f, 42f);
             _nextButton = button;
 
-            string page = "第 " + (_index + 1).ToString(CultureInfo.InvariantCulture) + "/" +
-                          pages.ToString(CultureInfo.InvariantCulture) + " 页";
+            string page = UiText.IsEnglish
+                ? "Page " + (_index + 1).ToString(CultureInfo.InvariantCulture) + " / " + pages.ToString(CultureInfo.InvariantCulture)
+                : "第 " + (_index + 1).ToString(CultureInfo.InvariantCulture) + "/" + pages.ToString(CultureInfo.InvariantCulture) + " 页";
             c.DrawText(page, new RectF(button.X - 176f, panel.Y + 26f, 166f, 26f), Muted,
                 new TextStyle(15, Center: false, Right: true));
 
@@ -371,9 +377,16 @@ public sealed class SettlementOverlay
         var hand = seat?.Hand ?? Array.Empty<TileView>();
         var melds = (seat?.Melds ?? Array.Empty<MeldView>()).Where(m => m.Tiles.Count > 0).ToList();
 
-        string heading = seat is null ? "和牌者的手牌" : seat.Name + " 的手牌";
-        string sub = hand.Count.ToString(CultureInfo.InvariantCulture) + " 张";
-        sub += melds.Count == 0 ? " · 无副露" : " · " + melds.Count.ToString(CultureInfo.InvariantCulture) + " 组副露";
+        string heading = UiText.IsEnglish
+            ? seat is null ? "Winner's hand"
+              : seat.IsHuman ? "Your hand" : UiText.Tr(seat.Name) + "'s hand"
+            : seat is null ? "和牌者的手牌" : seat.Name + " 的手牌";
+        string sub = UiText.IsEnglish
+            ? hand.Count.ToString(CultureInfo.InvariantCulture) + " tiles"
+              + (melds.Count == 0 ? " · no melds"
+                  : " · " + melds.Count.ToString(CultureInfo.InvariantCulture) + (melds.Count == 1 ? " meld" : " melds"))
+            : hand.Count.ToString(CultureInfo.InvariantCulture) + " 张"
+              + (melds.Count == 0 ? " · 无副露" : " · " + melds.Count.ToString(CultureInfo.InvariantCulture) + " 组副露");
 
         int handRows = hand.Count == 0 ? 0 : (hand.Count + TilesPerRow - 1) / TilesPerRow;
 
@@ -431,7 +444,7 @@ public sealed class SettlementOverlay
                 rowY += MeldLabelH + MeldTileH + 18f;
             }
 
-            c.DrawText(MeldLabel(meld.Type), new RectF(cursorX, rowY, width, MeldLabelH), Muted,
+            c.DrawText(UiText.Tr(MeldLabel(meld.Type)), new RectF(cursorX, rowY, width, MeldLabelH), Muted,
                 new TextStyle(13, Center: false));
 
             for (int i = 0; i < meld.Tiles.Count; i++)
@@ -553,13 +566,13 @@ public sealed class SettlementOverlay
         string who = SeatName(vm, detail.WinnerIndex);
         if (seat is { IsDealer: true })
         {
-            who += "（庄）";
+            who += UiText.IsEnglish ? " (Dealer)" : "（庄）";
         }
 
-        string how = detail.SelfDraw ? "自摸" : "荣和";
+        string how = detail.SelfDraw ? UiText.Tr("自摸") : UiText.Tr("荣和");
         if (!detail.SelfDraw && detail.PayerIndex is int payer)
         {
-            how += " · 放铳者 " + SeatName(vm, payer);
+            how += (UiText.IsEnglish ? " · Discarder " : " · 放铳者 ") + SeatName(vm, payer);
         }
 
         var yaku = detail.Yaku.Where(y => y.Flag != SettlementYakuFlag.Ma).ToList();
@@ -591,7 +604,7 @@ public sealed class SettlementOverlay
         for (int i = 0; i < rows; i++)
         {
             var row = yaku[i];
-            string label = row.Name + FlagSuffix(row.Flag);
+            string label = UiText.Tr(row.Name) + FlagSuffix(row.Flag);
             var color = row.Flag == SettlementYakuFlag.Tableless ? Color.Rgb(206, 190, 150) : TextColor;
             c.DrawText(label, new RectF(x + 2, y, width - 80, 26), color,
                 new TextStyle(16, Center: false));
@@ -603,7 +616,9 @@ public sealed class SettlementOverlay
 
         if (yaku.Count > rows)
         {
-            c.DrawText("… 另有 " + (yaku.Count - rows).ToString(CultureInfo.InvariantCulture) + " 项",
+            c.DrawText(UiText.IsEnglish
+                    ? "… " + (yaku.Count - rows).ToString(CultureInfo.InvariantCulture) + " more"
+                    : "… 另有 " + (yaku.Count - rows).ToString(CultureInfo.InvariantCulture) + " 项",
                 new RectF(x + 2, y, width, 22), Muted, new TextStyle(13, Center: false));
             y += 24f;
         }
@@ -616,8 +631,9 @@ public sealed class SettlementOverlay
             c.FillRoundRect(box, 8, Color.Rgb(44, 62, 50).WithAlpha(220));
             c.StrokeRoundRect(box, 8, Gold.WithAlpha(120), 1f);
 
-            string ma = "马赏 " + detail.MaFu.ToString(CultureInfo.InvariantCulture) + " 匹 · 合计 " +
-                        (detail.MaFu * 700).ToString(CultureInfo.InvariantCulture);
+            string ma = UiText.IsEnglish
+                ? "Ma bonus " + detail.MaFu.ToString(CultureInfo.InvariantCulture) + " · total " + (detail.MaFu * 700).ToString(CultureInfo.InvariantCulture)
+                : "马赏 " + detail.MaFu.ToString(CultureInfo.InvariantCulture) + " 匹 · 合计 " + (detail.MaFu * 700).ToString(CultureInfo.InvariantCulture);
             c.DrawText(ma, box, Color.Rgb(232, 218, 176), new TextStyle(15, Center: true));
             y += 44f;
         }
@@ -636,7 +652,7 @@ public sealed class SettlementOverlay
         if (detail.PotPoints > 0)
         {
             c.DrawText(
-                "场供 +" + detail.PotPoints.ToString(CultureInfo.InvariantCulture),
+                (UiText.IsEnglish ? "Table bonus +" : "场供 +") + detail.PotPoints.ToString(CultureInfo.InvariantCulture),
                 new RectF(x, y, width, 22), Gold, new TextStyle(14, Center: false));
             y += 24f;
         }
@@ -644,8 +660,9 @@ public sealed class SettlementOverlay
         if (detail.HonbaCount > 0)
         {
             c.DrawText(
-                "本场 " + detail.HonbaCount.ToString(CultureInfo.InvariantCulture)
-                + " · 连庄奖励 +" + detail.HonbaBonus.ToString(CultureInfo.InvariantCulture),
+                UiText.IsEnglish
+                    ? "Honba " + detail.HonbaCount.ToString(CultureInfo.InvariantCulture) + " · repeat bonus +" + detail.HonbaBonus.ToString(CultureInfo.InvariantCulture)
+                    : "本场 " + detail.HonbaCount.ToString(CultureInfo.InvariantCulture) + " · 连庄奖励 +" + detail.HonbaBonus.ToString(CultureInfo.InvariantCulture),
                 new RectF(x, y, width, 22), Muted, new TextStyle(14, Center: false));
             y += 24f;
         }
@@ -891,8 +908,8 @@ public sealed class SettlementOverlay
 
     private static string FlagSuffix(SettlementYakuFlag flag) => flag switch
     {
-        SettlementYakuFlag.Optional => "（可选）",
-        SettlementYakuFlag.Tableless => "（表外）",
+        SettlementYakuFlag.Optional => UiText.IsEnglish ? " (optional)" : "（可选）",
+        SettlementYakuFlag.Tableless => UiText.IsEnglish ? " (off-table)" : "（表外）",
         SettlementYakuFlag.FixedPoints => "",
         _ => string.Empty,
     };
@@ -907,6 +924,19 @@ public sealed class SettlementOverlay
         }
 
         string wind = string.IsNullOrEmpty(seat.Wind) ? seat.Name : seat.Wind;
+        if (UiText.IsEnglish)
+        {
+            string w = wind switch
+            {
+                "东" => "East",
+                "南" => "South",
+                "西" => "West",
+                "北" => "North",
+                _ => wind,
+            };
+            return seat.IsHuman ? w + " · You" : w + " seat";
+        }
+
         return seat.IsHuman ? wind + "·你" : wind + "家";
     }
 

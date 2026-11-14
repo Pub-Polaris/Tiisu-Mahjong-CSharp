@@ -1867,6 +1867,11 @@ internal static class DevCommands
         string path = args[1];
         bool doubleWin = args.Contains("--double", StringComparer.Ordinal);
         bool flow = args.Contains("--flow", StringComparer.Ordinal);
+        int langAt = Array.IndexOf(args, "--lang");
+        if (langAt >= 0 && langAt + 1 < args.Length)
+        {
+            UiText.SetLanguage(args[langAt + 1]);
+        }
 
         if (args.Contains("--ankan", StringComparer.Ordinal))
         {
