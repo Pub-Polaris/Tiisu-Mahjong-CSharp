@@ -64,6 +64,20 @@ public sealed class MainForm : Form
         Activated += (_, _) => _host.Focus();
     }
 
+    /// <summary>Tab 会被 WinForms 焦点遍历吞掉；显式转给画布，菜单/设置才能用 Tab 切换。</summary>
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (keyData == Keys.Tab || keyData == (Keys.Tab | Keys.Shift))
+        {
+            if (_host is IKeyRouter router && router.RouteKey(Keys.Tab, (keyData & Keys.Shift) == Keys.Shift))
+            {
+                return true;
+            }
+        }
+
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
     /// <summary>窗口层接管按键：KeyPreview 保证这里先收到，再转给当前 Screen。</summary>
     protected override void OnKeyDown(KeyEventArgs e)
     {
