@@ -1,6 +1,6 @@
 # Steamworks 接入预研
 
-状态：**未接入**。本文只定义接口与顺序，等 AppID/DepotID 下来后实施。
+状态：**未接入**。`ISteamService` / `NullSteamService` / `SteamAchievementSync` 骨架已完成；等 AppID/DepotID 下来后替换真实适配器。
 
 ## 1. 依赖选择
 
@@ -108,7 +108,7 @@ Steam Stats 只做展示用途，不参与判分：
 
 - [ ] 申请 AppID / DepotID
 - [ ] 加 Steamworks.NET 包与原生库
-- [ ] 实现 `SteamService` / `NullSteamService`
+- [x] 实现 `ISteamService` / `NullSteamService` / `SteamAchievementSync` 骨架
 - [ ] 接入成就扫描与离线补报
 - [ ] Steam Cloud 配置
 - [ ] Depot 模板填真实 ID
