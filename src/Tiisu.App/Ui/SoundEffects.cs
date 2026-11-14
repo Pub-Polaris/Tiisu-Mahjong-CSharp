@@ -8,6 +8,8 @@ public interface ISoundEffects
 {
     bool Enabled { get; set; }
 
+    bool VoiceEnabled { get; set; }
+
     int SfxVolume { get; set; }
 
     int BgmVolume { get; set; }
@@ -51,6 +53,9 @@ public sealed class SoundEffects : ISoundEffects, IDisposable
 
     /// <summary>音效总开关（由设置页控制）。</summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>报牌语音独立开关。</summary>
+    public bool VoiceEnabled { get; set; } = true;
 
     private int _sfxVolume = 80;
     private int _bgmVolume = 60;
@@ -422,10 +427,10 @@ public sealed class SoundEffects : ISoundEffects, IDisposable
     /// </summary>
     public void PlayVoice(string name)
     {
-        if (!Enabled)
-        {
-            return;
-        }
+            if (!Enabled || !VoiceEnabled)
+            {
+                return;
+            }
 
         try
         {

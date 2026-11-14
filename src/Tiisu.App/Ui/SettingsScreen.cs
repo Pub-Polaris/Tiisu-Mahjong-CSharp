@@ -353,6 +353,9 @@ public sealed class SettingsScreen : Screen
               direction => sfxSlider.Step(direction * 10),
               () => _settings.SfxVolume,
               sfxSlider));
+        _rows.Add(new Row("报牌语音", () => OnOff(_settings.VoiceEnabled), () => _settings.VoiceEnabled, _ => Toggle(
+            () => _settings.VoiceEnabled,
+            value => _settings.VoiceEnabled = value)));
         _rows.Add(new Row("显示岭上指示牌", () => OnOff(_settings.ShowMa), () => _settings.ShowMa, _ => Toggle(
             () => _settings.ShowMa,
             value => _settings.ShowMa = value)));

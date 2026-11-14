@@ -44,6 +44,22 @@ public sealed class SettingsTests
     }
 
     [Fact]
+    public void Save再Load_语音开关保持()
+    {
+        string dir = TempDir();
+        try
+        {
+            new Settings { VoiceEnabled = false }.Save(dir);
+            Assert.False(Settings.Load(dir).VoiceEnabled);
+            Assert.True(new Settings().VoiceEnabled);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Save再Load_字段保持()
     {
         string dir = TempDir();

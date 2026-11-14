@@ -65,6 +65,9 @@ public sealed class Settings
     /// <summary>音效开关（默认开）。</summary>
     public bool SoundEnabled { get; set; } = true;
 
+    /// <summary>报牌语音开关（默认开；与音效独立）。</summary>
+    public bool VoiceEnabled { get; set; } = true;
+
     /// <summary>开启后写牌型日志（ASCII JSONL）。</summary>
     public bool RecordTiles { get; set; }
 
