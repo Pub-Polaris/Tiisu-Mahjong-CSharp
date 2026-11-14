@@ -125,6 +125,8 @@ internal sealed class DevToolsForm : Form
             RenderActionsTaskAsync,
             ExportUiSvgTaskAsync,
             RenderTableStyleTaskAsync,
+            ExportSteamTaskAsync,
+            () => Path.Combine(_tools.WorkingDirectory, "artifacts", "steam", "01-table.png"),
             OpenRenderOutputAsync));
         var aiTasks = DevTaskRegistry.Ai(new AiTaskActions(
             ExportSelfplayTaskAsync,
@@ -492,6 +494,18 @@ internal sealed class DevToolsForm : Form
             StyleArguments(outputPath, "flat"),
             _tools.WorkingDirectory,
             outputPath);
+    }
+
+    private async Task ExportSteamTaskAsync()
+    {
+        string dir = Path.Combine(_tools.WorkingDirectory, "artifacts", "steam");
+        Directory.CreateDirectory(dir);
+        await ExecuteAsync(
+            "Steam 商店截图",
+            Application.ExecutablePath,
+            new[] { "--export-steam-shots", dir },
+            _tools.WorkingDirectory,
+            Path.Combine(dir, "01-table.png"));
     }
 
     private Task OpenRenderOutputAsync()

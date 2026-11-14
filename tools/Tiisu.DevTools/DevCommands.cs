@@ -2083,6 +2083,71 @@ internal static class DevCommands
     }
 
     /// <summary>按屏自己的逻辑画布尺寸出图（与游戏内走同一条 Screen 路径）。</summary>
+    private static int ExportSteamShots(string outputDirectory)
+    {
+        Tiisu.App.Program.TryUseUtf8Console();
+        string root = Path.GetFullPath(outputDirectory);
+        Directory.CreateDirectory(root);
+        using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
+
+        var screens = new (string Name, Func<UiScreen> Create)[]
+        {
+            ("01-table", () => new TableScreen(atlas)),
+            ("02-menu", () => new MenuScreen(
+                UiLayout.Load(Path.Combine(Tiisu.App.Program.AssetsDir, "layout", "menu.json")),
+                _ => false)),
+            ("03-settings", () => new SettingsScreen(Settings.Load(), _ => { }, () => { })),
+            ("04-stats", () => new StatsScreen(() => { }, () => { })),
+            ("05-achievements", () => new AchievementsScreen(() => { })),
+            ("06-replay", () => new ReplayScreen(() => { })),
+        };
+
+        const int width = 1920;
+        const int height = 1080;
+        foreach (var (name, create) in screens)
+        {
+            UiScreen screen = create();
+            using var surface = SKSurface.Create(new SKImageInfo(width, height));
+            SKCanvas canvas = surface.Canvas;
+            canvas.Clear(new SKColor(8, 12, 16));
+            using (var backdrop = new SKPaint
+                   {
+                       Shader = SKShader.CreateLinearGradient(
+                           new SKPoint(0, 0),
+                           new SKPoint(width, height),
+                           new[] { new SKColor(18, 26, 30), new SKColor(6, 9, 8) },
+                           null,
+                           SKShaderTileMode.Clamp),
+                   })
+            {
+                canvas.DrawRect(new SKRect(0, 0, width, height), backdrop);
+            }
+
+            float scale = MathF.Min(width / screen.CanvasWidth, height / screen.CanvasHeight);
+            float offsetX = (width - screen.CanvasWidth * scale) / 2f;
+            float offsetY = (height - screen.CanvasHeight * scale) / 2f;
+            canvas.Save();
+            canvas.Translate(offsetX, offsetY);
+            canvas.Scale(scale);
+            screen.Update(0.6);
+            using (var ctx = new SkiaCanvas(canvas, atlas))
+            {
+                screen.Draw(ctx, 0.6);
+            }
+
+            canvas.Restore();
+            using var image = surface.Snapshot();
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            string path = Path.Combine(root, name + ".png");
+            File.WriteAllBytes(path, data.ToArray());
+            Console.WriteLine($"  steam shot: {path}  {width}x{height}");
+        }
+
+        Console.WriteLine($"steam shots: {screens.Length} -> {root}");
+        return 0;
+    }
+
+
     private static void RenderScreenToPng(string path, string screenName)
     {
         using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
@@ -4430,6 +4495,13 @@ internal static class DevCommands
             RenderScreenToPng(args[1], args.Length >= 3 ? args[2] : "table");
             return 0;
         }
+
+        // Steam 商店截图：1920×1080，黑底等比居中，输出到 artifacts/steam。
+        if (args.Length >= 1 && args[0] == "--export-steam-shots")
+        {
+            return ExportSteamShots(args.Length >= 2 ? args[1] : "artifacts/steam");
+        }
+
 
         // 暗杠展示自检：--render-ankan <png 基名 | 目录> → 出「对局中 / 和牌后」两张图
         if (args.Length >= 2 && args[0] == "--render-ankan")

@@ -46,7 +46,10 @@ dotnet run --project tools/Tiisu.DevTools -- --check-publish dist/publish
 可用出图命令：
 
 ```powershell
-# 在 DevTools 任务中心「出图」分类运行，或直接：
+# 一次导出 6 张 1920×1080 商店截图
+dotnet run --project tools/Tiisu.DevTools -- --export-steam-shots artifacts/steam
+
+# 单张出图
 dotnet run --project tools/Tiisu.DevTools -- --render-screen artifacts/steam/table.png table
 dotnet run --project tools/Tiisu.DevTools -- --render-screen artifacts/steam/menu.png menu
 dotnet run --project tools/Tiisu.DevTools -- --render-screen artifacts/steam/stats.png stats

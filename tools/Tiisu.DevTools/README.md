@@ -47,6 +47,7 @@ dotnet build tools/Tiisu.AudioGen -c Release
 | 按钮三态图 | `--render-actions` |
 | 导出合并 SVG | `--export-ui-svg` |
 | 牌桌样式：平面 | `--render-25d --variant flat` |
+| Steam 商店截图 | `--export-steam-shots`，输出 1920×1080 到 artifacts/steam |
 | 打开出图目录 | 定位本次输出 |
 
 出图完成自动在右侧显示缩略图；目录可输入或浏览选择。

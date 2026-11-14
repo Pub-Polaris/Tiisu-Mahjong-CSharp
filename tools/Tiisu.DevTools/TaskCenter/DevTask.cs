@@ -23,6 +23,8 @@ internal sealed record RenderTaskActions(
     Func<string, Task> RenderActions,
     Func<string, Task> ExportUiSvg,
     Func<string, Task> RenderTableStyle,
+    Func<Task> ExportSteamShots,
+    Func<string?> SteamShotsPath,
     Func<Task> OpenOutput);
 
 internal sealed record AuditTaskActions(
@@ -147,6 +149,9 @@ internal static class DevTaskRegistry
             new DevTask("render.style", "出图", "牌桌样式：平面",
                 "当前唯一的 Flat 牌桌出图。", "style-flat.png",
                 () => actions.RenderTableStyle(PathFor("style-flat.png")), OutputPath: Output("style-flat.png")),
+            new DevTask("render.steam", "出图", "Steam 商店截图",
+                "1920×1080 牌桌/菜单/设置/战绩/成就/回牌谱，输出到 artifacts/steam。", "artifacts/steam/*.png",
+                actions.ExportSteamShots, OutputPath: actions.SteamShotsPath),
             new DevTask("render.open-output", "出图", "打开出图目录",
                 "定位本次出图的输出目录。", "资源管理器",
                 actions.OpenOutput),

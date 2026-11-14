@@ -41,6 +41,8 @@ public sealed class DevTaskRegistryTests
             _ => Task.CompletedTask,
             _ => Task.CompletedTask,
             _ => Task.CompletedTask,
+            () => Task.CompletedTask,
+            () => "artifacts/steam/01-table.png",
             () => Task.CompletedTask);
 
         var tasks = DevTaskRegistry.Render(actions);
