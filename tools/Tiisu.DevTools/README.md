@@ -93,6 +93,7 @@ dotnet build tools/Tiisu.AudioGen -c Release
 | 发布 | 发布自检 | `Tiisu.DevTools.exe --check-publish dist/publish` |
 | 发布 | 生成安装包 | `installer/build_installer.ps1 -CopyToDesktop` |
 | 发布 | 生成规则库 | `tools/build_rules_lib.ps1` |
+| Steam Depot | `tools/steam_package.ps1`，输出 `dist/steam/depot` + manifest |
 
 生成成功后自动在资源管理器里定位输出文件；`全部生成并打开目录` 依次跑四档再开目录。
 状态栏显示每条的 exit code 与耗时，找不到命令时给出构建提示。

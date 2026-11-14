@@ -19,6 +19,9 @@
 ```powershell
 dotnet test Tiisu.slnx
 dotnet run --project tools/Tiisu.DevTools -- --check-publish dist/publish
+
+# 生成 Steam depot 内容、manifest 与 VDF 模板
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/steam_package.ps1
 ```
 
 ## 2. Steamworks 接入点（待做）

@@ -13,15 +13,16 @@ public sealed class DevTaskRegistryTests
         () => Task.CompletedTask,
         () => Task.CompletedTask,
         () => Task.CompletedTask,
+        () => Task.CompletedTask,
         () => Task.CompletedTask);
 
     [Fact]
-    public void Publish_RegistersSixUniqueTasks()
+    public void Publish_RegistersSevenUniqueTasks()
     {
         var tasks = DevTaskRegistry.Publish(DummyActions());
 
-        Assert.Equal(6, tasks.Count);
-        Assert.Equal(6, tasks.Select(t => t.Id).Distinct().Count());
+        Assert.Equal(7, tasks.Count);
+        Assert.Equal(7, tasks.Select(t => t.Id).Distinct().Count());
         Assert.All(tasks, task =>
         {
             Assert.Equal(DevTaskRegistry.PublishCategory, task.Category);

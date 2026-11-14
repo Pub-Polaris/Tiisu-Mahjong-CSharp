@@ -114,6 +114,7 @@ internal sealed class DevToolsForm : Form
         var publishTasks = DevTaskRegistry.Publish(new PublishTaskActions(
             CheckPublishAsync,
             BuildInstallerAsync,
+            BuildSteamDepotAsync,
             BuildRulesAsync,
             CopyArtifactHashesAsync,
             OpenDistAsync,
@@ -367,6 +368,24 @@ internal sealed class DevToolsForm : Form
             new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-CopyToDesktop" },
             _tools.WorkingDirectory,
             File.Exists(desktopSetup) ? desktopSetup : null);
+    }
+
+    private async Task BuildSteamDepotAsync()
+    {
+        string script = Path.Combine(_tools.WorkingDirectory, "tools", "steam_package.ps1");
+        if (!File.Exists(script))
+        {
+            AppendLog("  ! 找不到 Steam 打包脚本：" + script);
+            SetStatus("找不到 tools/steam_package.ps1", string.Empty);
+            return;
+        }
+
+        await ExecuteAsync(
+            "Steam Depot",
+            "powershell",
+            new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script },
+            _tools.WorkingDirectory,
+            Path.Combine(_tools.WorkingDirectory, "dist", "steam", "depot-manifest.json"));
     }
 
     private async Task BuildRulesAsync()

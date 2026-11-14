@@ -51,6 +51,7 @@ internal sealed record AiTaskActions(
 internal sealed record PublishTaskActions(
     Func<Task> Check,
     Func<Task> BuildInstaller,
+    Func<Task> BuildSteamDepot,
     Func<Task> BuildRules,
     Func<Task> CopyHashes,
     Func<Task> OpenDist,
@@ -86,6 +87,13 @@ internal static class DevTaskRegistry
             "TiisuMahjong-Setup.exe",
             actions.BuildInstaller,
             Confirm: true),
+        new DevTask(
+            "publish.steam",
+            PublishCategory,
+            "Steam Depot",
+            "从 dist/publish 生成 Steam depot 内容、清单与 VDF 模板。",
+            "dist/steam/depot + depot-manifest.json",
+            actions.BuildSteamDepot),
         new DevTask(
             "publish.rules",
             PublishCategory,
