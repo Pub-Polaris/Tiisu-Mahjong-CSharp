@@ -26,7 +26,18 @@ public sealed class SettingsScreen : Screen
         new[] { 0, 0, 0, 100 },
     };
 
-    private const float RowTop = 100f;
+    private const float RowTop = 136f;
+    private const float TabTop = 84f;
+    private const float TabHeight = 30f;
+
+    private enum SettingsGroup { Basic, Rules, Ai }
+
+    private static readonly (SettingsGroup Group, string Label)[] Groups =
+    {
+        (SettingsGroup.Basic, "基础"),
+        (SettingsGroup.Rules, "规则"),
+        (SettingsGroup.Ai, "AI / 对局"),
+    };
     private const float RowStep = 32f;
     private const float RowHeight = 30f;
 
@@ -55,6 +66,8 @@ public sealed class SettingsScreen : Screen
     private bool _backHover;
     private int _selected;
     private int _hover = -1;
+      private SettingsGroup _group = SettingsGroup.Basic;
+      private int _tabHover = -1;
       private Slider? _activeSlider;
       private bool _sliderHit;
 
@@ -83,14 +96,27 @@ public sealed class SettingsScreen : Screen
         c.StrokeRoundRect(BackButton, 10, Gold, 1.2f);
         c.DrawText("← 返回", BackButton, TextColor, new TextStyle(18, Bold: false, Center: true));
 
-        float panelH = Math.Min(600, 40 + (_rows.Count * RowStep));
-        var panel = new RectF(330, 92, 620, panelH);
+        for (int t = 0; t < Groups.Length; t++)
+        {
+            var tab = new RectF(350 + t * 150, TabTop, 138, TabHeight);
+            bool active = Groups[t].Group == _group;
+            c.FillRoundRect(tab, 8, active ? Color.Rgb(44, 66, 60) : Color.Rgb(22, 32, 28));
+            c.StrokeRoundRect(tab, 8, active ? Gold : Color.Rgb(70, 88, 80), 1.2f);
+            c.DrawText(Groups[t].Label, tab, active ? Color.Rgb(255, 244, 214) : Muted,
+                new TextStyle(15, Bold: active, Center: true));
+        }
+
+        ClassifyGroups();
+        var visible = VisibleRows();
+        _selected = Math.Clamp(_selected, 0, Math.Max(0, visible.Count - 1));
+        float panelH = 40 + (visible.Count * RowStep);
+        var panel = new RectF(330, 118, 620, panelH);
         c.FillRoundRect(panel, 16, Color.Rgb(16, 24, 22).WithAlpha(232));
         c.StrokeRoundRect(panel, 16, Color.Rgb(60, 78, 70), 1.4f);
 
-        for (int i = 0; i < _rows.Count; i++)
+        for (int i = 0; i < visible.Count; i++)
         {
-            var row = _rows[i];
+            var row = visible[i];
             var rect = new RectF(350, RowTop + (i * RowStep), 580, RowHeight);
             bool selected = i == _selected;
             bool hover = i == _hover;
@@ -122,7 +148,7 @@ public sealed class SettingsScreen : Screen
             }
         }
 
-        c.DrawText("↑↓ 选择 · ←→ 切换 · Esc 返回 · 座位锁定下一场生效", new RectF(0, 684, Width, 28), Muted,
+        c.DrawText("↑↓ 选择 · ←→ 改值 · Tab 切换分组 · Esc 返回", new RectF(0, 684, Width, 28), Muted,
             new TextStyle(16, Center: true));
     }
 
@@ -134,8 +160,9 @@ public sealed class SettingsScreen : Screen
             return active.OnPointerMove(x, y);
         }
         _backHover = BackButton.Contains(x, y);
+        _tabHover = TabAt(x, y);
         _hover = RowAt(x, y);
-        return _backHover || _hover >= 0;
+        return _backHover || _tabHover >= 0 || _hover >= 0;
     }
 
     public override bool OnClick(float x, float y)
@@ -146,21 +173,31 @@ public sealed class SettingsScreen : Screen
             return true;
         }
 
+        int tab = TabAt(x, y);
+        if (tab >= 0)
+        {
+            _group = Groups[tab].Group;
+            _selected = 0;
+            return true;
+        }
+
         int index = RowAt(x, y);
         if (index < 0)
         {
             return false;
         }
 
+        var visible = VisibleRows();
         _selected = index;
-        _rows[index].Change(1);
+        visible[index].Change(1);
         return true;
     }
 
       public override bool OnPointerDown(float x, float y)
       {
           int index = RowAt(x, y);
-          if (index >= 0 && _rows[index].Slider is { } slider && slider.OnPointerDown(x, y))
+          var visible = VisibleRows();
+          if (index >= 0 && index < visible.Count && visible[index].Slider is { } slider && slider.OnPointerDown(x, y))
           {
               _activeSlider = slider;
               _sliderHit = true;
@@ -187,28 +224,82 @@ public sealed class SettingsScreen : Screen
                 _back();
                 return true;
 
-            case Keys.Up:
-                _selected = (_selected - 1 + _rows.Count) % _rows.Count;
+            case Keys.Tab:
+            case Keys.OemCloseBrackets:
+                _group = Groups[(Array.IndexOf(Groups, Groups.First(g => g.Group == _group)) + 1) % Groups.Length].Group;
+                _selected = 0;
                 return true;
+
+            case Keys.OemOpenBrackets:
+                _group = Groups[(Array.IndexOf(Groups, Groups.First(g => g.Group == _group)) - 1 + Groups.Length) % Groups.Length].Group;
+                _selected = 0;
+                return true;
+
+            case Keys.Up:
+            {
+                var visible = VisibleRows();
+                _selected = (_selected - 1 + visible.Count) % visible.Count;
+                return true;
+            }
 
             case Keys.Down:
-                _selected = (_selected + 1) % _rows.Count;
+            {
+                var visible = VisibleRows();
+                _selected = (_selected + 1) % visible.Count;
                 return true;
+            }
 
             case Keys.Left:
-                _rows[_selected].Change(-1);
+            {
+                var visible = VisibleRows();
+                visible[_selected].Change(-1);
                 return true;
+            }
 
             case Keys.Right:
             case Keys.Enter:
             case Keys.Space:
-                _rows[_selected].Change(1);
+            {
+                var visible = VisibleRows();
+                visible[_selected].Change(1);
                 return true;
+            }
 
             default:
                 return false;
         }
     }
+
+      private void ClassifyGroups()
+      {
+          var optionalNames = OptionalYakuOptions.Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
+          foreach (var row in _rows)
+          {
+              row.Group = optionalNames.Contains(row.Label) || row.Label.StartsWith("规则集", StringComparison.Ordinal)
+                  ? SettingsGroup.Rules
+                  : row.Label.StartsWith("AI", StringComparison.Ordinal)
+                    || row.Label.StartsWith("修罗", StringComparison.Ordinal)
+                    || row.Label.StartsWith("锁定", StringComparison.Ordinal)
+                      ? SettingsGroup.Ai
+                      : SettingsGroup.Basic;
+          }
+      }
+
+      private List<Row> VisibleRows() => _rows.Where(r => r.Group == _group).ToList();
+
+      private int TabAt(float x, float y)
+      {
+          for (int i = 0; i < Groups.Length; i++)
+          {
+              if (new RectF(350 + i * 150, TabTop, 138, TabHeight).Contains(x, y))
+              {
+                  return i;
+              }
+          }
+
+          return -1;
+      }
+
 
     private int RowAt(float x, float y)
     {
@@ -477,6 +568,7 @@ public sealed class SettingsScreen : Screen
                   _sound?.Play(SoundEffects.Cue.Call);
               }
           }
+
       }
 
     private void SetVolume(bool bgm, int direction)
@@ -536,14 +628,15 @@ public sealed class SettingsScreen : Screen
     private sealed class Row
     {
         public Row(string label, Func<string> value, Func<bool> isOn, Action<int> change,
-            Func<int>? percent = null, Slider? slider = null)
+            Func<int>? percent = null, Slider? slider = null, SettingsGroup group = SettingsGroup.Basic)
         {
             Label = label;
             Value = value;
             IsOn = isOn;
             Change = change;
             Percent = percent;
-              Slider = slider;
+            Slider = slider;
+            Group = group;
         }
 
         public string Label { get; }
@@ -559,5 +652,7 @@ public sealed class SettingsScreen : Screen
 
           /// <summary>非 null 时该行绘制并可拖动独立滑条。</summary>
           public Slider? Slider { get; }
+
+      public SettingsGroup Group { get; set; }
     }
 }

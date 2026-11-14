@@ -1154,6 +1154,9 @@ internal static class DevCommands
             UiLayout.Load(Path.Combine(Tiisu.App.Program.AssetsDir, "layout", "menu.json")),
             _ => false),
         "settings" => new SettingsScreen(Settings.Load(), _ => { }, () => { }),
+        "tutorial" => new TutorialScreen(() => { }, () => { }),
+        "rules" => new RulesScreen(() => { }),
+        "licenses" => new LicensesScreen(() => { }),
         _ => new TableScreen(atlas),
     };
 

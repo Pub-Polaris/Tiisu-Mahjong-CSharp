@@ -32,6 +32,7 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly SettingsScreen _settingsScreen;
     private readonly RulesScreen _rules;
     private readonly LicensesScreen _licenses;
+    private readonly TutorialScreen _tutorial;
     private Screen? _settingsReturn;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly System.Windows.Forms.Timer _frameTimer;
@@ -64,6 +65,11 @@ internal sealed class ScreenHostCore : IDisposable
         _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _licenses = new LicensesScreen(() => SwitchTo(_menu));
+        _tutorial = new TutorialScreen(() => SwitchTo(_menu), () =>
+        {
+            _session.Post(GameCommand.StartMatch(1));
+            SwitchTo(_table);
+        });
         _menu = new MenuScreen(menuLayout, OnMenuAction, HandleLink);
         _rules = new RulesScreen(() => SwitchTo(_menu));
         _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () =>
@@ -184,7 +190,7 @@ internal sealed class ScreenHostCore : IDisposable
 
     private void SwitchTo(Screen next)
     {
-        bool lobby = next is MenuScreen or SettingsScreen or RulesScreen or LicensesScreen;
+        bool lobby = next is MenuScreen or SettingsScreen or RulesScreen or LicensesScreen or TutorialScreen;
         if (lobby)
         {
             _sound.PlayBgm();
