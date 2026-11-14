@@ -52,7 +52,14 @@ public sealed class MainForm : Form
         Controls.Add(_host);
 
         // 启动/激活时把焦点交给画布，否则键盘事件没有落点。
-        Shown += (_, _) => _host.Focus();
+        Shown += (_, _) =>
+        {
+            _host.Focus();
+            if (startFullscreen)
+            {
+                BeginInvoke(ToggleFullscreen);
+            }
+        };
         Activated += (_, _) => _host.Focus();
     }
 
