@@ -1,7 +1,10 @@
 # Tiisu.DevTools
 
-四个分区的小启动器：美工 / 音效 / 布局 / 牌桌样式。按钮直接调用仓库里已构建的
+任务中心 + 旧版四分区启动器。第一轮迁移「发布 / 合规」，其余分类留入口；
+旧版页保留美工 / 音效 / 布局 / 牌桌样式。按钮直接调用仓库里已构建的
 `Tiisu.Mahjong.exe` 与 `Tiisu.AudioGen.exe`，不引用 App 的代码，也不改 `Tiisu.App/Program.cs`。
+
+任务中心与旧版页共享底部运行日志；发布任务不需要记 CLI。
 
 ## 启动
 
@@ -24,6 +27,19 @@ dotnet build tools/Tiisu.AudioGen -c Release
    `src/Tiisu.App/bin/Release/net10.0-windows10.0.19041/Tiisu.Mahjong.exe`，
    再试 Debug / 其它配置，最后在 `bin/` 下递归找最新的。
 
+## 任务中心（发布）
+
+| 任务 | 说明 |
+|---|---|
+| 发布自检 | 检查 `dist/publish` 的许可、字体、资源哈希与禁带项 |
+| 生成安装包 | 重新 publish、打包 Setup 并复制到桌面（会确认覆盖） |
+| 生成规则库 | 生成规则库独立 zip |
+| 复制产物哈希 | 把 `dist` 下文件的 SHA256 写进日志 |
+| 打开 dist | 定位产物目录 |
+| 打开桌面安装包 | 定位 `TiisuMahjong-Setup.exe` |
+
+后续分类（出图 / 审局 / AI 数据 / 资源）按轮次迁移，未迁移时只显示占位说明。
+
 ## 命令
 
 | 分区 | 按钮 | 命令 |
@@ -37,6 +53,8 @@ dotnet build tools/Tiisu.AudioGen -c Release
 | 布局 | 删除自定义布局（恢复默认） | 删除上面的 json（先确认） |
 | 牌桌样式 | Flat / Light25D / Medium25D / Mixed | `Tiisu.DevTools.exe --render-25d artifacts/uitools/style-<x>.png --variant <x>` |
 | 发布 | 发布自检 | `Tiisu.DevTools.exe --check-publish dist/publish` |
+| 发布 | 生成安装包 | `installer/build_installer.ps1 -CopyToDesktop` |
+| 发布 | 生成规则库 | `tools/build_rules_lib.ps1` |
 
 生成成功后自动在资源管理器里定位输出文件；`全部生成并打开目录` 依次跑四档再开目录。
 状态栏显示每条的 exit code 与耗时，找不到命令时给出构建提示。

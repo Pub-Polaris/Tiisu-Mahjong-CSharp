@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using Tiisu.DevTools.TaskCenter;
 
 namespace Tiisu.DevTools;
 
@@ -64,7 +65,7 @@ internal sealed class DevToolsForm : Form
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 46));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 32));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
 
         var sections = new TableLayoutPanel
@@ -105,7 +106,28 @@ internal sealed class DevToolsForm : Form
         statusStrip.Items.Add(new ToolStripSeparator());
         statusStrip.Items.Add(_timing);
 
-        layout.Controls.Add(sections, 0, 0);
+        var publishTasks = DevTaskRegistry.Publish(new PublishTaskActions(
+            CheckPublishAsync,
+            BuildInstallerAsync,
+            BuildRulesAsync,
+            CopyArtifactHashesAsync,
+            OpenDistAsync,
+            OpenDesktopSetupAsync));
+        var taskCenter = new TaskCenterView(
+            publishTasks,
+            AppendLog,
+            (text, timing) => SetStatus(text, timing),
+            task => RunGuardedAsync(task.Title, task.Run));
+
+        var tabs = new TabControl { Dock = DockStyle.Fill };
+        var taskPage = new TabPage("任务中心");
+        taskPage.Controls.Add(taskCenter);
+        var oldPage = new TabPage("旧版工具");
+        oldPage.Controls.Add(sections);
+        tabs.TabPages.Add(taskPage);
+        tabs.TabPages.Add(oldPage);
+
+        layout.Controls.Add(tabs, 0, 0);
         layout.Controls.Add(logBox, 0, 1);
         layout.Controls.Add(statusStrip, 0, 2);
         Controls.Add(layout);

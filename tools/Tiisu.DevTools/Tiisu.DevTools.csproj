@@ -15,4 +15,8 @@
     <ProjectReference Include="..\..\src\Tiisu.App\Tiisu.App.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tiisu.DevTools.Tests" />
+  </ItemGroup>
+
 </Project>
