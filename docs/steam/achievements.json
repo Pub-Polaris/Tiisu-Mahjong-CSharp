@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "notes": "Steam achievement mapping draft; local IDs are stable. See docs/STEAM_ACHIEVEMENTS.md.",
+  "achievements": [
+    { "steamId": "ACH_FIRST_ROUND", "localId": "first-round", "name": "初战", "hidden": false },
+    { "steamId": "ACH_TEN_ROUNDS", "localId": "ten-rounds", "name": "十局", "hidden": false },
+    { "steamId": "ACH_HUNDRED_ROUNDS", "localId": "hundred-rounds", "name": "百局", "hidden": false },
+    { "steamId": "ACH_FIRST_WIN", "localId": "first-win", "name": "首胜", "hidden": false },
+    { "steamId": "ACH_TEN_WINS", "localId": "ten-wins", "name": "十胜", "hidden": false },
+    { "steamId": "ACH_HUNDRED_WINS", "localId": "hundred-wins", "name": "百胜", "hidden": false },
+    { "steamId": "ACH_FIRST_TSUMO", "localId": "first-tsumo", "name": "自摸", "hidden": false },
+    { "steamId": "ACH_TEN_TSUMO", "localId": "ten-tsumo", "name": "自摸十次", "hidden": false },
+    { "steamId": "ACH_TIISUIN", "localId": "tiisuin", "name": "大七星", "hidden": true },
+    { "steamId": "ACH_WITNESS", "localId": "witness", "name": "见证", "hidden": true }
+  ]
+}

@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json.Nodes;
 using Tiisu.App.Runtime;
 using Xunit;
@@ -6,6 +7,19 @@ namespace Tiisu.App.Tests;
 
 public sealed class AchievementsTests
 {
+    [Fact]
+    public void Ids_AreStableForSteamMapping()
+    {
+        var items = Achievements.From(StatsSummary.From(new JsonObject()));
+        string[] expected =
+        {
+            "first-round", "ten-rounds", "hundred-rounds", "first-win", "ten-wins",
+            "hundred-wins", "first-tsumo", "ten-tsumo", "tiisuin", "witness",
+        };
+
+        Assert.Equal(expected, items.Select(a => a.Id));
+    }
+
     [Fact]
     public void From_UnlocksByStatsThresholds()
     {
