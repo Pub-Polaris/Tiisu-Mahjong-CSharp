@@ -11,7 +11,7 @@ namespace Tiisu.App.Ui;
 public sealed class AchievementsScreen : Screen
 {
     private readonly Action _back;
-    private readonly IReadOnlyList<Achievement> _items;
+    private IReadOnlyList<Achievement> _items;
     private RectF _backButton;
     private bool _backHover;
 
@@ -22,8 +22,11 @@ public sealed class AchievementsScreen : Screen
     public AchievementsScreen(Action back) : base("achievements")
     {
         _back = back;
-        _items = Achievements.From(StatsSummary.Load(new StatsStore()));
+        Reload();
     }
+
+    /// <summary>重新读取统计并重算成就；进入成就页时调用。</summary>
+    public void Reload() => _items = Achievements.From(StatsSummary.Load(new StatsStore()));
 
     public override void Draw(ICanvas c, double time)
     {

@@ -12,7 +12,7 @@ namespace Tiisu.App.Ui;
 public sealed class ReplayScreen : Screen
 {
     private readonly Action _back;
-    private readonly IReadOnlyList<ReplayRound> _rounds;
+    private IReadOnlyList<ReplayRound> _rounds;
     private ReplayRound? _round;
     private int _roundIndex;
     private int _index;
@@ -34,10 +34,17 @@ public sealed class ReplayScreen : Screen
     public ReplayScreen(Action back) : base("replay")
     {
         _back = back;
+        Reload();
+    }
+
+    /// <summary>重新读取最新牌谱；进入回放页时调用，避免显示启动时缓存。</summary>
+    public void Reload()
+    {
         var loaded = RoundLogReader.LoadLatestRounds();
         _rounds = loaded?.Rounds ?? Array.Empty<ReplayRound>();
         _roundIndex = Math.Max(0, _rounds.Count - 1);
         _round = _rounds.Count > 0 ? _rounds[_roundIndex] : null;
+        _index = 0;
     }
 
     public override void Draw(ICanvas c, double time)

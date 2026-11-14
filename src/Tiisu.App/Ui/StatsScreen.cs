@@ -12,7 +12,7 @@ public sealed class StatsScreen : Screen
 {
     private readonly Action _back;
     private readonly Action? _openAchievements;
-    private readonly StatsSummary _stats;
+    private StatsSummary _stats;
     private RectF _backButton;
     private RectF _achievementsButton;
     private bool _backHover;
@@ -26,8 +26,11 @@ public sealed class StatsScreen : Screen
     {
         _back = back;
         _openAchievements = openAchievements;
-        _stats = StatsSummary.Load(new StatsStore());
+        Reload();
     }
+
+    /// <summary>重新读取本机统计；进入战绩页时调用，避免显示启动时缓存。</summary>
+    public void Reload() => _stats = StatsSummary.Load(new StatsStore());
 
     public override void Draw(ICanvas c, double time)
     {

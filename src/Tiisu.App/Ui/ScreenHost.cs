@@ -88,7 +88,11 @@ internal sealed class ScreenHostCore : IDisposable
             SwitchTo(_table);
         }, () => SwitchTo(_rules));
         _achievements = new AchievementsScreen(() => SwitchTo(_stats));
-        _stats = new StatsScreen(() => SwitchTo(_menu), () => SwitchTo(_achievements));
+        _stats = new StatsScreen(() => SwitchTo(_menu), () =>
+        {
+            _achievements.Reload();
+            SwitchTo(_achievements);
+        });
         _replay = new ReplayScreen(() => SwitchTo(_menu));
         _menu = new MenuScreen(menuLayout, OnMenuAction, HandleLink);
         _rules = new RulesScreen(() => SwitchTo(_menu));
@@ -183,10 +187,12 @@ internal sealed class ScreenHostCore : IDisposable
                 return true;
 
             case "stats":
+                _stats.Reload();
                 SwitchTo(_stats);
                 return true;
 
             case "replay":
+                _replay.Reload();
                 SwitchTo(_replay);
                 return true;
 
