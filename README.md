@@ -13,7 +13,7 @@
 
 ## 当前状态
 
-- 规则、判役、引擎与桌面玩法已可完整对局；全量测试 **293** 条。
+- 规则、判役、引擎与桌面玩法已可完整对局；全量测试 **295** 条。
 - 已支持：报听/错和/场供、鼠标「下一局」、新手引导、战绩统计、成就、牌谱回看、和牌/报听二次确认、报牌语音独立开关、大字号界面、中英核心导航/对局动作/结算/文档入口切换、全桌 AI 难度快捷入口、F11 全屏、规则速查、开源许可与参考鸣谢页。
 - UI 已嵌入文渊圆体子集（重命名为 `Tiisu Rounded SC`，遵守 OFL 保留字体名）。
 - 报牌语音不随包分发，首次使用时用本机 Windows SAPI 生成。
@@ -109,6 +109,7 @@ golden 语料在 `tests/fixtures/`（`yaku-golden*.json`、`engine-golden.json`�
 - [docs/STEAM_ACHIEVEMENTS.md](docs/STEAM_ACHIEVEMENTS.md)：Steam 成就映射（草案）
 - [docs/STEAM_STORE_COPY.md](docs/STEAM_STORE_COPY.md)：商店文案草案
 - [docs/LOCALIZATION.md](docs/LOCALIZATION.md)：UI 文案盘点与英文本地化方案
+- [docs/STEAM_INTEGRATION.md](docs/STEAM_INTEGRATION.md)：Steamworks 接入预研
 - 游戏内「开源信息」：逐页列出全部组件 + 闭源参考鸣谢，可查看许可全文
 
 ### v4 权重声明
