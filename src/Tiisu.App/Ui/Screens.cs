@@ -43,6 +43,9 @@ public sealed class TableScreen : Screen
 
     /// <summary>报听待弃状态：点「报听」后，下一张手牌 = 打出并完成报听。</summary>
     private bool _callArmed;
+    private Action? _confirmAction;
+    private string _confirmLabel = string.Empty;
+    private DateTime _confirmUntil;
     private bool _nextRoundRequested;
 
     /// <summary>长考秒数（0 = 关闭）；到点自动摸切 / 自动过吃碰杠。</summary>
@@ -126,6 +129,11 @@ public sealed class TableScreen : Screen
         }
         var vm = _snapshot();
         bool human = vm.Phase is "human_discard" or "human_meld" or "human_ron";
+        if (_confirmAction is not null && (!human || DateTime.UtcNow > _confirmUntil))
+        {
+            _confirmAction = null;
+        }
+
         if (!human)
         {
             _humanPhaseTracked = false;
@@ -324,6 +332,16 @@ public sealed class TableScreen : Screen
             var bar = _layout.ActionBarRect;
             var hint = new RectF(bar.CenterX - 260, bar.Y - 30, 520, 24);
             c.DrawText(vm.WinHint, hint, Color.Rgb(255, 176, 64), new TextStyle(16, Bold: true, Center: true));
+        }
+
+        if (_confirmAction is not null)
+        {
+            var bar = _layout.ActionBarRect;
+            var rect = new RectF(bar.CenterX - 210, bar.Y - 70, 420, 34);
+            c.FillRoundRect(rect, 10, Color.Rgb(60, 38, 24).WithAlpha(238));
+            c.StrokeRoundRect(rect, 10, Color.Rgb(255, 176, 64), 1.4f);
+            c.DrawText("再点一次「" + _confirmLabel + "」确认", rect,
+                Color.Rgb(255, 220, 160), new TextStyle(16, Bold: true, Center: true));
         }
 
         PlayCues(vm);
@@ -695,7 +713,7 @@ public sealed class TableScreen : Screen
     {
         if (b.Kind == ActionBar.Kind.DeclareCall)
         {
-            BeginDeclareCall(vm);
+            RequestDeclareCall(vm);
             return;
         }
 
@@ -718,10 +736,10 @@ public sealed class TableScreen : Screen
 
                 break;
             case ActionBar.Kind.Tsumo:
-                _commands(GameCommand.Tsumo());
+                RequestConfirm("和牌", () => _commands(GameCommand.Tsumo()));
                 break;
             case ActionBar.Kind.Ron:
-                _commands(GameCommand.Ron());
+                RequestConfirm("荣和", () => _commands(GameCommand.Ron()));
                 break;
             case ActionBar.Kind.Pon:
                 _commands(GameCommand.Pon());
@@ -736,6 +754,34 @@ public sealed class TableScreen : Screen
                 _commands(GameCommand.Flow());
                 break;
         }
+    }
+
+    /// <summary>报听确认：第一次点只亮提示，3 秒内再点同一动作才提交。</summary>
+    private void RequestDeclareCall(TableViewModel vm)
+    {
+        RequestConfirm("报听", () => BeginDeclareCall(vm));
+    }
+
+    /// <summary>危险动作二次确认；同一个动作在 3 秒内再点一次才执行。</summary>
+    private void RequestConfirm(string label, Action action)
+    {
+        if (_confirmAction is not null)
+        {
+            if (string.Equals(_confirmLabel, label, StringComparison.Ordinal))
+            {
+                Action pending = _confirmAction;
+                _confirmAction = null;
+                _confirmLabel = string.Empty;
+                pending();
+                return;
+            }
+
+            _confirmAction = null;
+        }
+
+        _confirmAction = action;
+        _confirmLabel = label;
+        _confirmUntil = DateTime.UtcNow.AddSeconds(3);
     }
 
     /// <summary>
