@@ -46,6 +46,11 @@ public sealed class TableScreen : Screen
     private Action? _confirmAction;
     private string _confirmLabel = string.Empty;
     private DateTime _confirmUntil;
+    private bool _pauseMenu;
+    private int _pauseFocus;
+    private RectF _pauseResume;
+    private RectF _pauseSettings;
+    private RectF _pauseMainMenu;
     private bool _nextRoundRequested;
 
     /// <summary>长考秒数（0 = 关闭）；到点自动摸切 / 自动过吃碰杠。</summary>
@@ -366,6 +371,10 @@ public sealed class TableScreen : Screen
 
         DrawDiceViewer(c, vm);
         _editor.Draw(c);
+        if (_pauseMenu)
+        {
+            DrawPauseMenu(c);
+        }
     }
 
     /// <summary>左上角「菜单」按钮（点击即回菜单，不必依赖 ESC）。</summary>
@@ -556,10 +565,16 @@ public sealed class TableScreen : Screen
             return true;
         }
 
-        // 左上角「菜单」按钮：点击回菜单（不必依赖 ESC）。
-        if (_backToMenu is not null && MenuButtonRect.Contains(x, y))
+        if (_pauseMenu)
         {
-            _backToMenu();
+            return HandlePauseClick(x, y);
+        }
+
+        // 左上角「菜单」按钮：打开局内暂停菜单。
+        if (MenuButtonRect.Contains(x, y))
+        {
+            _pauseMenu = true;
+            _pauseFocus = 0;
             return true;
         }
 
@@ -810,6 +825,11 @@ public sealed class TableScreen : Screen
 
     private bool HandleKey(Keys key, bool shift)
     {
+        if (_pauseMenu)
+        {
+            return HandlePauseKey(key);
+        }
+
         if (key == Keys.F2)
         {
             if (_editor.Active)
@@ -843,6 +863,8 @@ public sealed class TableScreen : Screen
 
         if (key == Keys.M)
         {
+            _pauseMenu = true;
+            _pauseFocus = 0;
             return true;
         }
 
@@ -1002,12 +1024,6 @@ public sealed class TableScreen : Screen
     /// </summary>
     private bool HandleEscape()
     {
-        if (_openSettings is not null)
-        {
-            _openSettings();
-            return true;
-        }
-
         var vm = _snapshot();
         bool settled = (vm.Phase is "round_end" or "match_over") && _settlement is not null;
         if (settled && !_settlementHidden)
@@ -1017,8 +1033,96 @@ public sealed class TableScreen : Screen
         }
 
         _settlementHidden = false;
-        _backToMenu?.Invoke();
+        _pauseMenu = true;
+        _pauseFocus = 0;
         return true;
+    }
+
+    private bool HandlePauseKey(Keys key)
+    {
+        if (key is Keys.Escape or Keys.M)
+        {
+            _pauseMenu = false;
+            return true;
+        }
+
+        if (key is Keys.Up or Keys.Down)
+        {
+            _pauseFocus = (_pauseFocus + (key == Keys.Up ? 2 : 1)) % 3;
+            return true;
+        }
+
+        if (key is Keys.Enter or Keys.Space)
+        {
+            ActivatePause(_pauseFocus);
+            return true;
+        }
+
+        return true;
+    }
+
+    private bool HandlePauseClick(float x, float y)
+    {
+        if (_pauseResume.Contains(x, y))
+        {
+            ActivatePause(0);
+            return true;
+        }
+
+        if (_pauseSettings.Contains(x, y))
+        {
+            ActivatePause(1);
+            return true;
+        }
+
+        if (_pauseMainMenu.Contains(x, y))
+        {
+            ActivatePause(2);
+            return true;
+        }
+
+        return true;
+    }
+
+    private void ActivatePause(int index)
+    {
+        _pauseMenu = false;
+        switch (index)
+        {
+            case 0:
+                break;
+            case 1:
+                _openSettings?.Invoke();
+                break;
+            case 2:
+                _backToMenu?.Invoke();
+                break;
+        }
+    }
+
+    private void DrawPauseMenu(ICanvas c)
+    {
+        float w = CanvasWidth;
+        float h = CanvasHeight;
+        c.FillRect(new RectF(0, 0, w, h), Color.Black.WithAlpha(150));
+        var panel = new RectF(w / 2f - 210, h / 2f - 170, 420, 330);
+        c.FillRoundRect(panel, 16, Color.Rgb(22, 32, 29).WithAlpha(250));
+        c.StrokeRoundRect(panel, 16, Color.Rgb(120, 148, 128), 1.5f);
+        c.DrawText(UiText.Tr("暂停"), new RectF(panel.X + 24, panel.Y + 18, panel.W - 48, 42),
+            Color.Rgb(242, 230, 190), new TextStyle(28, Bold: true, Center: true));
+
+        string[] labels = { "继续", "设置", "主菜单" };
+        _pauseResume = new RectF(panel.X + 70, panel.Y + 86, panel.W - 140, 52);
+        _pauseSettings = new RectF(panel.X + 70, panel.Y + 156, panel.W - 140, 52);
+        _pauseMainMenu = new RectF(panel.X + 70, panel.Y + 226, panel.W - 140, 52);
+        RectF[] rects = { _pauseResume, _pauseSettings, _pauseMainMenu };
+        for (int i = 0; i < rects.Length; i++)
+        {
+            bool focused = i == _pauseFocus;
+            c.FillRoundRect(rects[i], 10, focused ? Color.Rgb(52, 86, 78) : Color.Rgb(34, 52, 56));
+            c.StrokeRoundRect(rects[i], 10, focused ? Color.Rgb(242, 201, 76) : Color.Rgb(150, 170, 160), focused ? 2.4f : 1.2f);
+            c.DrawText(UiText.Tr(labels[i]), rects[i], Color.Rgb(242, 230, 190), new TextStyle(18, Bold: true, Center: true));
+        }
     }
 
     /// <summary>手牌命中：与绘制共用同一份矩形算式。</summary>

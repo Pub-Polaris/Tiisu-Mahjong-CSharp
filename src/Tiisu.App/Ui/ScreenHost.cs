@@ -182,6 +182,14 @@ internal sealed class ScreenHostCore : IDisposable
                 SwitchTo(_rules);
                 return true;
 
+            case "stats":
+                SwitchTo(_stats);
+                return true;
+
+            case "replay":
+                SwitchTo(_replay);
+                return true;
+
             case "tutorial":
                 SwitchTo(_tutorial);
                 return true;
