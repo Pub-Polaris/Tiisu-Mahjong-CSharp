@@ -27,7 +27,7 @@ f9c200fac374da23267d2c5b67ba2e880d97715659177be5a24690d11e334e2a  bgm/lobby.wav
 ## 字体子集（由文渊圆体 v1.110 提取并重命名）
 
 ```
-78c46e594bc45604a395d31eb429a32be003aaf7dc16d0584279bf5ebc002212  fonts/TiisuRoundedSC-subset.ttf
+5dbb5403781917c87fba38dde60cb82cf566283c78ff1fb0d1ccb16f907476fa  fonts/TiisuRoundedSC-subset.ttf
 ```
 
 ## 重建与核对
