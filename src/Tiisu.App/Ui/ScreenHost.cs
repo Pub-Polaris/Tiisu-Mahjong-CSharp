@@ -131,6 +131,10 @@ internal sealed class ScreenHostCore : IDisposable
                 SwitchTo(_rules);
                 return true;
 
+            case "tutorial":
+                SwitchTo(_tutorial);
+                return true;
+
             case "quit":
                 // 菜单「退出」= 关主窗口（退出程序）；ESC 仍只做返回。
                 _close();
