@@ -34,6 +34,7 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly LicensesScreen _licenses;
     private readonly TutorialScreen _tutorial;
     private readonly StatsScreen _stats;
+    private readonly ReplayScreen _replay;
     private Screen? _settingsReturn;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly System.Windows.Forms.Timer _frameTimer;
@@ -72,6 +73,7 @@ internal sealed class ScreenHostCore : IDisposable
             SwitchTo(_table);
         }, () => SwitchTo(_rules));
         _stats = new StatsScreen(() => SwitchTo(_menu));
+        _replay = new ReplayScreen(() => SwitchTo(_menu));
         _menu = new MenuScreen(menuLayout, OnMenuAction, HandleLink);
         _rules = new RulesScreen(() => SwitchTo(_menu));
         _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () =>
@@ -222,7 +224,7 @@ internal sealed class ScreenHostCore : IDisposable
 
     private void SwitchTo(Screen next)
     {
-        bool lobby = next is MenuScreen or SettingsScreen or RulesScreen or LicensesScreen or TutorialScreen or StatsScreen or MarkdownScreen;
+        bool lobby = next is MenuScreen or SettingsScreen or RulesScreen or LicensesScreen or TutorialScreen or StatsScreen or ReplayScreen or MarkdownScreen;
         if (lobby)
         {
             _sound.PlayBgm();
