@@ -280,6 +280,7 @@ public sealed class SettingsScreen : Screen
                   : row.Label.StartsWith("AI", StringComparison.Ordinal)
                     || row.Label.StartsWith("修罗", StringComparison.Ordinal)
                     || row.Label.StartsWith("锁定", StringComparison.Ordinal)
+                    || row.Label.StartsWith("全桌", StringComparison.Ordinal)
                       ? SettingsGroup.Ai
                       : SettingsGroup.Basic;
           }
@@ -389,6 +390,12 @@ public sealed class SettingsScreen : Screen
             () => _settings.AiMctsEnabled,
             _ => Toggle(() => _settings.AiMctsEnabled, value => _settings.AiMctsEnabled = value)));
 
+        _rows.Add(new Row(
+            "全桌 AI 难度（快捷）",
+            TableDifficultyName,
+            () => TableDifficultyTier() >= 0,
+            _ => CycleTableDifficulty()));
+
         // 按座位锁定：-1 = 随机（∅），0..3 = 简 / 普 / 难 / 修；人类座位只标注「你」。
         for (int seat = 0; seat < 4; seat++)
         {
@@ -406,6 +413,59 @@ public sealed class SettingsScreen : Screen
                     }
                 }));
         }
+    }
+
+    /// <summary>全桌统一难度：四家锁定值一致时显示档位；否则为自定义。</summary>
+    private int TableDifficultyTier()
+    {
+        var locks = _settings.AiSeatLocks;
+        if (locks is not { Length: 4 })
+        {
+            return -2;
+        }
+
+        int tier = locks[HumanSeat == 0 ? 1 : 0];
+        for (int i = 0; i < 4; i++)
+        {
+            if (i == HumanSeat)
+            {
+                continue;
+            }
+
+            if (locks[i] != tier)
+            {
+                return -2;
+            }
+        }
+
+        return tier;
+    }
+
+    private string TableDifficultyName() => TableDifficultyTier() switch
+    {
+        -2 => "自定义",
+        -1 => "随机",
+        0 => "简单",
+        1 => "普通",
+        2 => "困难",
+        3 => "修罗",
+        4 => "7Neuu",
+        _ => "随机",
+    };
+
+    private void CycleTableDifficulty()
+    {
+        int[] tiers = { -1, 0, 1, 2, 3 };
+        int current = TableDifficultyTier();
+        int index = Array.IndexOf(tiers, current);
+        int next = tiers[(index + 1 + tiers.Length) % tiers.Length];
+        _settings.AiSeatLocks = new[] { HumanSeat == 0 ? -1 : next, next, next, next };
+        if (HumanSeat != 0)
+        {
+            _settings.AiSeatLocks[HumanSeat] = -1;
+        }
+
+        Save();
     }
 
     /// <summary>权重展示：<c>30/45/20/5</c>（简单/普通/困难/修罗）。</summary>
