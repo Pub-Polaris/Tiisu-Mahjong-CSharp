@@ -21,16 +21,18 @@
     { "id": "btnMode16", "type": "button", "x": 870, "y": 420, "w": 200, "h": 64, "radius": 14,
       "text": "全庄", "action": "mode:16", "fontSize": 24 },
 
-      { "id": "btnRules", "type": "button", "x": 870, "y": 520, "w": 200, "h": 56, "radius": 12,
-        "text": "规则速查", "action": "rules", "fontSize": 20 },
+      { "id": "btnRules", "type": "button", "x": 745, "y": 520, "w": 190, "h": 56, "radius": 12,
+          "text": "规则速查", "action": "rules", "fontSize": 20 },
 
-      { "id": "btnTutorial", "type": "button", "x": 210, "y": 520, "w": 200, "h": 56, "radius": 12,
-        "text": "新手引导", "action": "tutorial", "fontSize": 20 },
+        { "id": "btnTutorial", "type": "button", "x": 115, "y": 520, "w": 190, "h": 56, "radius": 12,
+          "text": "新手引导", "action": "tutorial", "fontSize": 20 },
 
-    { "id": "btnQuit", "type": "button", "x": 430, "y": 520, "w": 200, "h": 56, "radius": 12,
-      "text": "退出", "action": "quit", "fontSize": 20 },
-    { "id": "btnSettings", "type": "button", "x": 650, "y": 520, "w": 200, "h": 56, "radius": 12,
-      "text": "设置", "action": "settings", "fontSize": 20 },
+      { "id": "btnQuit", "type": "button", "x": 325, "y": 520, "w": 190, "h": 56, "radius": 12,
+        "text": "退出", "action": "quit", "fontSize": 20 },
+      { "id": "btnSettings", "type": "button", "x": 535, "y": 520, "w": 190, "h": 56, "radius": 12,
+        "text": "设置", "action": "settings", "fontSize": 20 },
+      { "id": "btnStats", "type": "button", "x": 955, "y": 520, "w": 190, "h": 56, "radius": 12,
+        "text": "战绩统计", "action": "stats", "fontSize": 20 },
 
     { "id": "buildInfo", "type": "text", "x": 24, "y": 670, "w": 1232, "h": 24,
       "text": "", "fontSize": 16, "fontColor": "#7f9189", "align": "right" },

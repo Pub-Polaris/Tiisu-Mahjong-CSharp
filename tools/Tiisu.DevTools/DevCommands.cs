@@ -198,7 +198,7 @@ internal static class DevCommands
         }
 
         using var font = new SKFont(typeface);
-        var chars = new HashSet<char>("北斗开源信息许可参考新手引导设置下一局和牌荣和报听");
+        var chars = new HashSet<char>("北斗开源信息许可参考新手引导设置下一局和牌荣和报听战绩统计");
 
         string buildInfo = Path.Combine(root, "src", "Tiisu.App", "Generated", "BuildInfo.g.cs");
         if (File.Exists(buildInfo))
@@ -1256,6 +1256,7 @@ internal static class DevCommands
             _ => false),
         "settings" => new SettingsScreen(Settings.Load(), _ => { }, () => { }),
         "tutorial" => new TutorialScreen(() => { }, () => { }),
+      "stats" => new StatsScreen(() => { }),
         "rules" => new RulesScreen(() => { }),
         "licenses" => new LicensesScreen(() => { }),
         "markdown" => new MarkdownScreen("参考与合规说明", System.IO.File.ReadAllText(Path.Combine(Tiisu.App.Program.AssetsDir, "docs", "REFERENCES.md")), () => { }),

@@ -17,7 +17,7 @@ public sealed class FontCoverageTests
         using var font = new SKFont(typeface);
 
         // 版本号里的代号（北斗）也必须在字体里，否则主菜单版本行会缺字。
-        string required = "北斗" + BuildInfo.Version + "开源信息许可参考新手引导设置下一局和牌荣和报听";
+        string required = "北斗" + BuildInfo.Version + "开源信息许可参考新手引导设置下一局和牌荣和报听战绩统计";
         foreach (char ch in required)
         {
             if (char.IsWhiteSpace(ch))
