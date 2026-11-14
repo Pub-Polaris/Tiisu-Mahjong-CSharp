@@ -1104,23 +1104,26 @@ public sealed class TableScreen : Screen
     {
         float w = CanvasWidth;
         float h = CanvasHeight;
-        c.FillRect(new RectF(0, 0, w, h), Color.Black.WithAlpha(150));
-        var panel = new RectF(w / 2f - 210, h / 2f - 170, 420, 330);
-        c.FillRoundRect(panel, 16, Color.Rgb(22, 32, 29).WithAlpha(250));
-        c.StrokeRoundRect(panel, 16, Color.Rgb(120, 148, 128), 1.5f);
-        c.DrawText(UiText.Tr("暂停"), new RectF(panel.X + 24, panel.Y + 18, panel.W - 48, 42),
-            Color.Rgb(242, 230, 190), new TextStyle(28, Bold: true, Center: true));
+        float panelW = 196f;
+        float panelH = 268f;
+        float panelX = w - panelW - 18f;
+        float panelY = Math.Max(72f, h * 0.20f);
+        var panel = new RectF(panelX, panelY, panelW, panelH);
+        c.FillRoundRect(panel, 12, Color.Rgb(20, 34, 39).WithAlpha(242));
+        c.StrokeRoundRect(panel, 12, Color.Rgb(132, 194, 222), 1.6f);
+        c.DrawText(UiText.Tr("菜单"), new RectF(panel.X + 14, panel.Y + 8, panel.W - 28, 34),
+            Color.Rgb(242, 230, 190), new TextStyle(21, Bold: true, Center: true));
 
         string[] labels = { "继续", "设置", "主菜单" };
-        _pauseResume = new RectF(panel.X + 70, panel.Y + 86, panel.W - 140, 52);
-        _pauseSettings = new RectF(panel.X + 70, panel.Y + 156, panel.W - 140, 52);
-        _pauseMainMenu = new RectF(panel.X + 70, panel.Y + 226, panel.W - 140, 52);
+        _pauseResume = new RectF(panel.X + 14, panel.Y + 52, panel.W - 28, 54);
+        _pauseSettings = new RectF(panel.X + 14, panel.Y + 116, panel.W - 28, 54);
+        _pauseMainMenu = new RectF(panel.X + 14, panel.Y + 180, panel.W - 28, 54);
         RectF[] rects = { _pauseResume, _pauseSettings, _pauseMainMenu };
         for (int i = 0; i < rects.Length; i++)
         {
             bool focused = i == _pauseFocus;
-            c.FillRoundRect(rects[i], 10, focused ? Color.Rgb(52, 86, 78) : Color.Rgb(34, 52, 56));
-            c.StrokeRoundRect(rects[i], 10, focused ? Color.Rgb(242, 201, 76) : Color.Rgb(150, 170, 160), focused ? 2.4f : 1.2f);
+            c.FillRoundRect(rects[i], 9, focused ? Color.Rgb(56, 100, 122) : Color.Rgb(34, 56, 64));
+            c.StrokeRoundRect(rects[i], 9, focused ? Color.Rgb(242, 201, 76) : Color.Rgb(132, 194, 222), focused ? 2.4f : 1.2f);
             c.DrawText(UiText.Tr(labels[i]), rects[i], Color.Rgb(242, 230, 190), new TextStyle(18, Bold: true, Center: true));
         }
     }
