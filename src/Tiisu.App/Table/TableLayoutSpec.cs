@@ -233,7 +233,7 @@ public sealed class TableLayoutSpec
 }
 
 /// <summary>牌桌渲染：按 Yoga 算出的矩形绘制。</summary>
-public sealed class TableSceneSkia
+public sealed class TableSceneSkia : ITableScene
 {
     /// <summary>
     /// 观感。默认 <see cref="TableRenderStyle.Flat"/>（Light 牌身 + 真透视桌面）；

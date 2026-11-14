@@ -11,6 +11,10 @@ public sealed class MainForm : Form
     private readonly TileAtlas _atlas;
     private readonly Control _host;
     private readonly bool _logKeys = Tiisu.Core.TiisuConfig.Current.LogKeys;
+    private bool _fullscreen;
+    private System.Drawing.Rectangle _restoreBounds;
+    private FormWindowState _restoreState = FormWindowState.Normal;
+    private FormBorderStyle _restoreStyle = FormBorderStyle.Sizable;
 
     public MainForm(TileAtlas atlas, bool forceCpuRender = false)
     {
@@ -74,8 +78,41 @@ public sealed class MainForm : Form
         }
     }
 
+/// <summary>F11 全屏：保存当前尺寸/样式，按显示器工作区铺满；再按恢复。</summary>
+      private void ToggleFullscreen()
+      {
+          if (!_fullscreen)
+          {
+              _restoreBounds = Bounds;
+              _restoreState = WindowState;
+              _restoreStyle = FormBorderStyle;
+              MinimumSize = Size.Empty;
+              FormBorderStyle = FormBorderStyle.None;
+              WindowState = FormWindowState.Normal;
+              Bounds = System.Windows.Forms.Screen.FromControl(this).Bounds;
+              _fullscreen = true;
+          }
+          else
+          {
+              FormBorderStyle = _restoreStyle;
+              Bounds = _restoreBounds;
+              WindowState = _restoreState;
+              MinimumSize = new Size(640, 640);
+              _fullscreen = false;
+          }
+      }
+
+
     private void RouteKeyCore(KeyEventArgs e)
     {
+        if (e.KeyCode == Keys.F11 && !e.Shift)
+        {
+            ToggleFullscreen();
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            return;
+        }
+
         base.OnKeyDown(e);
         if (e.Handled)
         {

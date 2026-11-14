@@ -19,7 +19,8 @@ namespace Tiisu.App.Ui;
 public sealed class TableScreen : Screen
 {
     private readonly TableLayoutSpec _layout = new() { CanvasW = 1200f, CanvasH = 1200f };
-    private readonly TableSceneSkia _scene = new();
+    private readonly TableSceneSkia _scene2d = new();
+    private ITableScene _scene;
     private readonly SettlementOverlay _overlay = new();
     private readonly ActionBar _actionBar = new();
     private readonly LayoutEditor _editor;
@@ -104,7 +105,8 @@ public sealed class TableScreen : Screen
         _sound = sound;
         _thinkSeconds = Math.Max(0, settings?.ThinkSeconds ?? 0);
         _showWallButton = settings?.ShowWallViewer ?? false;
-        _scene.Style = renderStyle;
+        _scene2d.Style = renderStyle;
+    _scene = _scene2d;
 
         YogaTableLayout.Apply(_layout);
 
