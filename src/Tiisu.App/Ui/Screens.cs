@@ -51,6 +51,12 @@ public sealed class TableScreen : Screen
     private RectF _pauseResume;
     private RectF _pauseSettings;
     private RectF _pauseMainMenu;
+    private RectF _pausePanel;
+    private float _pauseX = float.NaN;
+    private float _pauseY = float.NaN;
+    private bool _pauseDragging;
+    private float _pauseDragOffsetX;
+    private float _pauseDragOffsetY;
     private bool _nextRoundRequested;
 
     /// <summary>长考秒数（0 = 关闭）；到点自动摸切 / 自动过吃碰杠。</summary>
@@ -479,6 +485,19 @@ public sealed class TableScreen : Screen
 
     public override bool OnPointerMove(float x, float y)
     {
+        if (_pauseMenu)
+        {
+            if (_pauseDragging)
+            {
+                float w = CanvasWidth;
+                float h = CanvasHeight;
+                _pauseX = Math.Clamp(x - _pauseDragOffsetX, 0, Math.Max(0, w - _pausePanel.W));
+                _pauseY = Math.Clamp(y - _pauseDragOffsetY, 0, Math.Max(0, h - _pausePanel.H));
+            }
+
+            return true;
+        }
+
         if (_editor.Active)
         {
             _editor.PointerMove(x, y);
@@ -515,6 +534,21 @@ public sealed class TableScreen : Screen
 
     public override bool OnPointerDown(float x, float y)
     {
+        if (_pauseMenu)
+        {
+            if (_pausePanel.Contains(x, y)
+                && !_pauseResume.Contains(x, y)
+                && !_pauseSettings.Contains(x, y)
+                && !_pauseMainMenu.Contains(x, y))
+            {
+                _pauseDragging = true;
+                _pauseDragOffsetX = x - _pausePanel.X;
+                _pauseDragOffsetY = y - _pausePanel.Y;
+            }
+
+            return true;
+        }
+
         if (_editor.Active)
         {
             return _editor.PointerDown(x, y);
@@ -531,6 +565,12 @@ public sealed class TableScreen : Screen
 
     public override bool OnPointerUp(float x, float y)
     {
+        if (_pauseDragging)
+        {
+            _pauseDragging = false;
+            return true;
+        }
+
         if (_wallHeld)
         {
             _wallHeld = false;
@@ -567,6 +607,12 @@ public sealed class TableScreen : Screen
 
         if (_pauseMenu)
         {
+            if (MenuButtonRect.Contains(x, y))
+            {
+                _pauseMenu = false;
+                return true;
+            }
+
             return HandlePauseClick(x, y);
         }
 
@@ -1106,9 +1152,12 @@ public sealed class TableScreen : Screen
         float h = CanvasHeight;
         float panelW = 196f;
         float panelH = 268f;
-        float panelX = w - panelW - 18f;
-        float panelY = Math.Max(72f, h * 0.20f);
+        float panelX = float.IsNaN(_pauseX) ? w - panelW - 18f : _pauseX;
+        float panelY = float.IsNaN(_pauseY) ? Math.Max(72f, h * 0.20f) : _pauseY;
+        panelX = Math.Clamp(panelX, 0, Math.Max(0, w - panelW));
+        panelY = Math.Clamp(panelY, 0, Math.Max(0, h - panelH));
         var panel = new RectF(panelX, panelY, panelW, panelH);
+        _pausePanel = panel;
         c.FillRoundRect(panel, 12, Color.Rgb(20, 34, 39).WithAlpha(242));
         c.StrokeRoundRect(panel, 12, Color.Rgb(132, 194, 222), 1.6f);
         c.DrawText(UiText.Tr("菜单"), new RectF(panel.X + 14, panel.Y + 8, panel.W - 28, 34),
