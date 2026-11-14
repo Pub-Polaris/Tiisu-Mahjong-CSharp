@@ -38,7 +38,20 @@ dotnet build tools/Tiisu.AudioGen -c Release
 | 打开 dist | 定位产物目录 |
 | 打开桌面安装包 | 定位 `TiisuMahjong-Setup.exe` |
 
-后续分类（出图 / 审局 / AI 数据 / 资源）按轮次迁移，未迁移时只显示占位说明。
+## 任务中心（出图）
+
+| 任务 | 说明 |
+|---|---|
+| 牌桌/菜单/设置/新手引导/参考文档截图 | `--render-screen`，输出到上方目录 |
+| 结算页截图 | `--render-roundend` |
+| 按钮三态图 | `--render-actions` |
+| 导出合并 SVG | `--export-ui-svg` |
+| 牌桌样式：平面 | `--render-25d --variant flat` |
+| 打开出图目录 | 定位本次输出 |
+
+出图完成自动在右侧显示缩略图；目录可输入或浏览选择。
+
+后续分类（审局 / AI 数据 / 资源）按轮次迁移，未迁移时只显示占位说明。
 
 ## 命令
 

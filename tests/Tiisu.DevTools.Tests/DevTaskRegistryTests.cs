@@ -32,6 +32,26 @@ public sealed class DevTaskRegistryTests
     }
 
     [Fact]
+    public void Render_RegistersOutputsAndOpenTask()
+    {
+        var actions = new RenderTaskActions(
+            () => "artifacts/uitools",
+            (_, _) => Task.CompletedTask,
+            _ => Task.CompletedTask,
+            _ => Task.CompletedTask,
+            _ => Task.CompletedTask,
+            _ => Task.CompletedTask,
+            () => Task.CompletedTask);
+
+        var tasks = DevTaskRegistry.Render(actions);
+
+        Assert.Contains(tasks, t => t.Id == "render.table" && t.OutputPath is not null);
+        Assert.Contains(tasks, t => t.Id == "render.actions");
+        Assert.Contains(tasks, t => t.Id == "render.open-output");
+        Assert.Equal(tasks.Count, tasks.Select(t => t.Id).Distinct().Count());
+    }
+
+    [Fact]
     public void Categories_IncludePublishAndFuture()
     {
         Assert.Contains(DevTaskRegistry.PublishCategory, DevTaskRegistry.Categories);

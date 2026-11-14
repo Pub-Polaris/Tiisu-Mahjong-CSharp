@@ -12,9 +12,19 @@ internal sealed record DevTask(
     string Summary,
     string OutputHint,
     Func<Task> Run,
-    bool Confirm = false);
+    bool Confirm = false,
+    Func<string?>? OutputPath = null);
 
 /// <summary>发布任务的实际动作，由 DevToolsForm 注入，方便测试注册表。</summary>
+internal sealed record RenderTaskActions(
+    Func<string> OutputDirectory,
+    Func<string, string, Task> RenderScreen,
+    Func<string, Task> RenderRoundEnd,
+    Func<string, Task> RenderActions,
+    Func<string, Task> ExportUiSvg,
+    Func<string, Task> RenderTableStyle,
+    Func<Task> OpenOutput);
+
 internal sealed record PublishTaskActions(
     Func<Task> Check,
     Func<Task> BuildInstaller,
@@ -82,4 +92,45 @@ internal static class DevTaskRegistry
             "资源管理器",
             actions.OpenSetup),
     };
+
+    public static IReadOnlyList<DevTask> Render(RenderTaskActions actions)
+    {
+        string PathFor(string name) => System.IO.Path.Combine(actions.OutputDirectory(), name);
+        Func<string?> Output(string name) => () => PathFor(name);
+
+        return new[]
+        {
+            new DevTask("render.table", "出图", "牌桌截图",
+                "当前牌桌布局与手牌，用于检查视觉回归。", "screen-table.png",
+                () => actions.RenderScreen("table", PathFor("screen-table.png")), OutputPath: Output("screen-table.png")),
+            new DevTask("render.menu", "出图", "主菜单截图",
+                "菜单标题、模式按钮与底部署名。", "screen-menu.png",
+                () => actions.RenderScreen("menu", PathFor("screen-menu.png")), OutputPath: Output("screen-menu.png")),
+            new DevTask("render.settings", "出图", "设置页截图",
+                "设置页分组与滑条，检查文字是否溢出。", "screen-settings.png",
+                () => actions.RenderScreen("settings", PathFor("screen-settings.png")), OutputPath: Output("screen-settings.png")),
+            new DevTask("render.tutorial", "出图", "新手引导截图",
+                "新手引导三页的第一页。", "screen-tutorial.png",
+                () => actions.RenderScreen("tutorial", PathFor("screen-tutorial.png")), OutputPath: Output("screen-tutorial.png")),
+            new DevTask("render.markdown", "出图", "参考文档截图",
+                "Markdown 渲染器的参考文献页。", "screen-markdown.png",
+                () => actions.RenderScreen("markdown", PathFor("screen-markdown.png")), OutputPath: Output("screen-markdown.png")),
+            new DevTask("render.roundend", "出图", "结算页截图",
+                "单家和牌结算布局；不跑游戏。", "roundend.png",
+                () => actions.RenderRoundEnd(PathFor("roundend.png")), OutputPath: Output("roundend.png")),
+            new DevTask("render.actions", "出图", "按钮三态图",
+                "动作按钮 normal / hover / pressed 对照。", "btn-colors.png",
+                () => actions.RenderActions(PathFor("btn-colors.png")), OutputPath: Output("btn-colors.png")),
+            new DevTask("render.ui-svg", "出图", "导出合并 SVG",
+                "UI 图形合并为可编辑 SVG。", "ui-merged.svg",
+                () => actions.ExportUiSvg(PathFor("ui-merged.svg")), OutputPath: Output("ui-merged.svg")),
+            new DevTask("render.style", "出图", "牌桌样式：平面",
+                "当前唯一的 Flat 牌桌出图。", "style-flat.png",
+                () => actions.RenderTableStyle(PathFor("style-flat.png")), OutputPath: Output("style-flat.png")),
+            new DevTask("render.open-output", "出图", "打开出图目录",
+                "定位本次出图的输出目录。", "资源管理器",
+                actions.OpenOutput),
+        };
+    }
+
 }

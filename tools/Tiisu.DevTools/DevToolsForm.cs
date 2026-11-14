@@ -17,10 +17,12 @@ internal sealed class DevToolsForm : Form
     private readonly ToolStripStatusLabel _status;
     private readonly ToolStripStatusLabel _timing;
     private bool _busy;
+    private string _renderOutputDir = string.Empty;
 
     public DevToolsForm(Toolchain tools)
     {
         _tools = tools;
+        _renderOutputDir = tools.OutputDir;
 
         SuspendLayout();
 
@@ -113,8 +115,20 @@ internal sealed class DevToolsForm : Form
             CopyArtifactHashesAsync,
             OpenDistAsync,
             OpenDesktopSetupAsync));
+        var renderTasks = DevTaskRegistry.Render(new RenderTaskActions(
+            () => _renderOutputDir,
+            RenderScreenTaskAsync,
+            RenderRoundEndTaskAsync,
+            RenderActionsTaskAsync,
+            ExportUiSvgTaskAsync,
+            RenderTableStyleTaskAsync,
+            OpenRenderOutputAsync));
+        var allTasks = publishTasks.Concat(renderTasks).ToArray();
+
         var taskCenter = new TaskCenterView(
-            publishTasks,
+            allTasks,
+            _renderOutputDir,
+            path => _renderOutputDir = path,
             AppendLog,
             (text, timing) => SetStatus(text, timing),
             task => RunGuardedAsync(task.Title, task.Run));
@@ -399,6 +413,70 @@ internal sealed class DevToolsForm : Form
 
         CommandRunner.OpenInExplorer(setup, selectFile: true);
         SetStatus("已定位桌面安装包", string.Empty);
+        return Task.CompletedTask;
+    }
+
+
+    private string RenderPath(string file)
+    {
+        Directory.CreateDirectory(_renderOutputDir);
+        return Path.Combine(_renderOutputDir, file);
+    }
+
+    private async Task RenderScreenTaskAsync(string screen, string outputPath)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? _renderOutputDir);
+        await ExecuteAsync(
+            "出图：" + screen,
+            Application.ExecutablePath,
+            new[] { "--render-screen", outputPath, screen },
+            _tools.WorkingDirectory,
+            outputPath);
+    }
+
+    private async Task RenderRoundEndTaskAsync(string outputPath)
+    {
+        await ExecuteAsync(
+            "出图：结算页",
+            Application.ExecutablePath,
+            new[] { "--render-roundend", outputPath },
+            _tools.WorkingDirectory,
+            outputPath);
+    }
+
+    private async Task RenderActionsTaskAsync(string outputPath)
+    {
+        await ExecuteAsync(
+            "出图：按钮三态",
+            Application.ExecutablePath,
+            new[] { "--render-actions", outputPath },
+            _tools.WorkingDirectory,
+            outputPath);
+    }
+
+    private async Task ExportUiSvgTaskAsync(string outputPath)
+    {
+        await ExecuteAsync(
+            "导出合并 SVG",
+            Application.ExecutablePath,
+            new[] { "--export-ui-svg", outputPath },
+            _tools.WorkingDirectory,
+            outputPath);
+    }
+
+    private async Task RenderTableStyleTaskAsync(string outputPath)
+    {
+        await ExecuteAsync(
+            "出图：牌桌样式",
+            Application.ExecutablePath,
+            StyleArguments(outputPath, "flat"),
+            _tools.WorkingDirectory,
+            outputPath);
+    }
+
+    private Task OpenRenderOutputAsync()
+    {
+        OpenDirectory(_renderOutputDir, "出图目录");
         return Task.CompletedTask;
     }
 
