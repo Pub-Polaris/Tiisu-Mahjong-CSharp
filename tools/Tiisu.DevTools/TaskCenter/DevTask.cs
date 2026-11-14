@@ -25,6 +25,19 @@ internal sealed record RenderTaskActions(
     Func<string, Task> RenderTableStyle,
     Func<Task> OpenOutput);
 
+internal sealed record AuditTaskActions(
+    Func<Task> AuditWithDialog,
+    Func<Task> AuditUi,
+    Func<Task> AuditCall,
+    Func<Task> SmokeRun);
+
+internal sealed record ResourceTaskActions(
+    Func<Task> CheckFont,
+    Func<Task> ExportAtlas,
+    Func<string?> AtlasPath,
+    Func<Task> OpenAssets,
+    Func<Task> OpenDocs);
+
 internal sealed record AiTaskActions(
     Func<Task> ExportSelfplay,
     Func<Task> SmokeNeural,
@@ -158,6 +171,39 @@ internal static class DevTaskRegistry
         new DevTask("ai.open-data", "AI 数据", "打开数据目录",
             "定位自博弈 JSONL 的输出目录。", "资源管理器",
             actions.OpenDataDir),
+    };
+
+
+    public static IReadOnlyList<DevTask> Audit(AuditTaskActions actions) => new[]
+    {
+        new DevTask("audit.games", "审局", "批量审局",
+            "弹窗选局数/模式/jobs/种子，可开 UI 不变量与报听分支。", "日志：完成数 / 问题数",
+            actions.AuditWithDialog),
+        new DevTask("audit.ui", "审局", "UI 不变量审计",
+            "固定 50 局，启用 --ui 检查快照/按钮/提示不变量。", "日志：UI 问题数",
+            actions.AuditUi),
+        new DevTask("audit.call", "审局", "报听分支审计",
+            "固定 50 局，--call --passive 覆盖报听与过牌分支。", "日志：问题数",
+            actions.AuditCall),
+        new DevTask("audit.smoke", "审局", "整场冒烟",
+            "无窗口跑一整场，输出事件流哈希。", "日志：事件流 SHA256",
+            actions.SmokeRun),
+    };
+
+    public static IReadOnlyList<DevTask> Resource(ResourceTaskActions actions) => new[]
+    {
+        new DevTask("resource.font", "资源", "字体缺字检查",
+            "检查字体子集是否覆盖版本代号、UI 文案与 docs。", "日志：缺字列表 / PASS",
+            actions.CheckFont),
+        new DevTask("resource.atlas", "资源", "导出 UI 图集",
+            "把 UI 图元导出为图集 PNG。", "ui-atlas.png",
+            actions.ExportAtlas, OutputPath: () => actions.AtlasPath()),
+        new DevTask("resource.open-assets", "资源", "打开 Assets",
+            "定位牌面、字体、音频与许可目录。", "资源管理器",
+            actions.OpenAssets),
+        new DevTask("resource.open-docs", "资源", "打开 docs",
+            "定位参考/合规/ML 文档目录。", "资源管理器",
+            actions.OpenDocs),
     };
 
 }

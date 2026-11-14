@@ -170,6 +170,8 @@ public static class MarkdownDocument
     private static string Inline(string text)
     {
         string s = text.Replace("**", string.Empty).Replace("__", string.Empty).Replace("`", string.Empty);
+        // 圆体子集没有 emoji 字形；用文字标记代替，避免 Markdown 页出现空框。
+        s = s.Replace("✅", "[OK]").Replace("❌", "[X]").Replace("⚠️", "[!]").Replace("⚠", "[!]").Replace("\uFE0F", string.Empty);
         s = Regex.Replace(s, @"!\[([^\]]*)\]\(([^)]*)\)", "$1");
         s = Regex.Replace(s, @"\[([^\]]+)\]\(([^)]+)\)", "$1 ($2)");
         s = Regex.Replace(s, @"<[^>]+>", string.Empty);

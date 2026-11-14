@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using SkiaSharp;
 using Tiisu.App.Assets;
@@ -167,6 +168,100 @@ internal static class DevCommands
     /// <c>--check-publish [publishDir]</c>：发布前自检——许可全文、字体、素材哈希、
     /// 禁止项（语音/测试依赖/FFmpeg/espeak）是否干净。
     /// </summary>
+    /// <summary>
+    /// <c>--check-font</c>：检查字体子集是否覆盖当前版本代号、UI 常用字与 docs。
+    /// 对应线上曾出现的「北斗」缺字；有缺失返回 1。
+    /// </summary>
+    private static int CheckFont(string[] args)
+    {
+        Tiisu.App.Program.TryUseUtf8Console();
+        string root = args.Length >= 2 && Directory.Exists(args[1])
+            ? Path.GetFullPath(args[1])
+            : Directory.GetCurrentDirectory();
+        string fontPath = Path.Combine(root, "src", "Tiisu.App", "Assets", "fonts", "TiisuRoundedSC-subset.ttf");
+        if (!File.Exists(fontPath))
+        {
+            fontPath = Path.Combine(Tiisu.App.Program.AssetsDir, "fonts", "TiisuRoundedSC-subset.ttf");
+        }
+
+        if (!File.Exists(fontPath))
+        {
+            Console.WriteLine("check-font: FAIL 字体不存在 " + fontPath);
+            return 1;
+        }
+
+        using var typeface = SKTypeface.FromFile(fontPath);
+        if (typeface is null)
+        {
+            Console.WriteLine("check-font: FAIL 字体无法加载 " + fontPath);
+            return 1;
+        }
+
+        using var font = new SKFont(typeface);
+        var chars = new HashSet<char>("北斗开源信息许可参考新手引导设置下一局和牌荣和报听");
+
+        string buildInfo = Path.Combine(root, "src", "Tiisu.App", "Generated", "BuildInfo.g.cs");
+        if (File.Exists(buildInfo))
+        {
+            string buildText = File.ReadAllText(buildInfo);
+            const string marker = "Version = \"";
+            int start = buildText.IndexOf(marker, StringComparison.Ordinal);
+            if (start >= 0)
+            {
+                int valueStart = start + marker.Length;
+                int valueEnd = buildText.IndexOf('"', valueStart);
+                if (valueEnd > valueStart)
+                {
+                    foreach (char ch in buildText[valueStart..valueEnd])
+                    {
+                        chars.Add(ch);
+                    }
+                }
+            }
+        }
+
+        string docs = Path.Combine(root, "docs");
+        if (Directory.Exists(docs))
+        {
+            foreach (string file in Directory.EnumerateFiles(docs, "*.md", SearchOption.AllDirectories))
+            {
+                foreach (char ch in File.ReadAllText(file))
+                {
+                    chars.Add(ch);
+                }
+            }
+        }
+
+        foreach (string extra in new[] { Path.Combine(root, "README.md"), Path.Combine(root, "THIRD-PARTY-NOTICES.md") })
+        {
+            if (File.Exists(extra))
+            {
+                foreach (char ch in File.ReadAllText(extra))
+                {
+                    chars.Add(ch);
+                }
+            }
+        }
+
+        // 圆体子集没有 emoji；Markdown 渲染器会把它们替换成 [OK]/[X]/[!]。
+        chars.RemoveWhere(ch => ch is '✅' or '❌' or '⚠' or '\uFE0F');
+        var missing = chars.Where(ch => !char.IsWhiteSpace(ch) && !font.ContainsGlyph(ch))
+            .Distinct()
+            .OrderBy(ch => ch)
+            .ToArray();
+        Console.WriteLine($"check-font: {fontPath}");
+        Console.WriteLine($"  字符集 {chars.Count}；缺字 {missing.Length}");
+        if (missing.Length > 0)
+        {
+            Console.WriteLine("  缺字：" + string.Join(" ", missing));
+            return 1;
+        }
+
+        Console.WriteLine("  PASS");
+        return 0;
+    }
+
+
     private static int CheckPublish(string[] args)
     {
         string dir = args.Length > 1 ? args[1] : Path.Combine(Directory.GetCurrentDirectory(), "dist", "publish");
@@ -4149,6 +4244,9 @@ internal static class DevCommands
 
             case "--check-publish":
                 return CheckPublish(args);
+
+            case "--check-font":
+                return CheckFont(args);
 
             case "--bench-snapshot":
                 return BenchSnapshot(args);

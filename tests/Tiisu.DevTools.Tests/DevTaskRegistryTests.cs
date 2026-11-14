@@ -70,6 +70,29 @@ public sealed class DevTaskRegistryTests
     }
 
     [Fact]
+    public void AuditAndResource_RegisterTasks()
+    {
+        var audit = DevTaskRegistry.Audit(new AuditTaskActions(
+            () => Task.CompletedTask,
+            () => Task.CompletedTask,
+            () => Task.CompletedTask,
+            () => Task.CompletedTask));
+        var resources = DevTaskRegistry.Resource(new ResourceTaskActions(
+            () => Task.CompletedTask,
+            () => Task.CompletedTask,
+            () => "artifacts/uitools/ui-atlas.png",
+            () => Task.CompletedTask,
+            () => Task.CompletedTask));
+
+        Assert.Equal(4, audit.Count);
+        Assert.All(audit, t => Assert.Equal("审局", t.Category));
+        Assert.Contains(audit, t => t.Id == "audit.games");
+        Assert.Equal(4, resources.Count);
+        Assert.Contains(resources, t => t.Id == "resource.font");
+        Assert.Contains(resources, t => t.Id == "resource.atlas" && t.OutputPath is not null);
+    }
+
+    [Fact]
     public void Categories_IncludePublishAndFuture()
     {
         Assert.Contains(DevTaskRegistry.PublishCategory, DevTaskRegistry.Categories);

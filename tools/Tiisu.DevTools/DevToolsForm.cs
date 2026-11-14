@@ -19,6 +19,7 @@ internal sealed class DevToolsForm : Form
     private bool _busy;
     private string _renderOutputDir = string.Empty;
     private string _aiOutputDir = string.Empty;
+    private string? _lastAtlasPath;
 
     public DevToolsForm(Toolchain tools)
     {
@@ -131,7 +132,18 @@ internal sealed class DevToolsForm : Form
             Smoke7NeuuTaskAsync,
             BenchSnapshotTaskAsync,
             OpenAiDataAsync));
-        var allTasks = publishTasks.Concat(renderTasks).Concat(aiTasks).ToArray();
+        var auditTasks = DevTaskRegistry.Audit(new AuditTaskActions(
+            AuditGamesTaskAsync,
+            AuditUiTaskAsync,
+            AuditCallTaskAsync,
+            SmokeRunTaskAsync));
+        var resourceTasks = DevTaskRegistry.Resource(new ResourceTaskActions(
+            CheckFontTaskAsync,
+            ExportAtlasTaskAsync,
+            () => _lastAtlasPath,
+            OpenAssetsAsync,
+            OpenDocsAsync));
+        var allTasks = publishTasks.Concat(renderTasks).Concat(aiTasks).Concat(auditTasks).Concat(resourceTasks).ToArray();
 
         var taskCenter = new TaskCenterView(
             allTasks,
@@ -560,6 +572,88 @@ internal sealed class DevToolsForm : Form
     {
         Directory.CreateDirectory(_aiOutputDir);
         OpenDirectory(_aiOutputDir, "自博弈数据");
+        return Task.CompletedTask;
+    }
+
+    private async Task AuditGamesTaskAsync()
+    {
+        using var dialog = new AuditGamesDialog();
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            AppendLog("  已取消：批量审局");
+            return;
+        }
+
+        await ExecuteAsync(
+            "批量审局",
+            Application.ExecutablePath,
+            dialog.Arguments(),
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private async Task AuditUiTaskAsync()
+    {
+        await ExecuteAsync(
+            "UI 不变量审计",
+            Application.ExecutablePath,
+            new[] { "--audit-games", "50", "4", "1", "--jobs", "4", "--ui" },
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private async Task AuditCallTaskAsync()
+    {
+        await ExecuteAsync(
+            "报听分支审计",
+            Application.ExecutablePath,
+            new[] { "--audit-games", "50", "4", "1", "--jobs", "4", "--passive", "--call" },
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private async Task SmokeRunTaskAsync()
+    {
+        await ExecuteAsync(
+            "整场冒烟",
+            Application.ExecutablePath,
+            new[] { "--smoke-run", "1", "4" },
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private async Task CheckFontTaskAsync()
+    {
+        await ExecuteAsync(
+            "字体缺字检查",
+            Application.ExecutablePath,
+            new[] { "--check-font", _tools.WorkingDirectory },
+            _tools.WorkingDirectory,
+            revealPath: null);
+    }
+
+    private async Task ExportAtlasTaskAsync()
+    {
+        Directory.CreateDirectory(_tools.OutputDir);
+        string path = Path.Combine(_tools.OutputDir, "ui-atlas.png");
+        _lastAtlasPath = path;
+        await ExecuteAsync(
+            "导出 UI 图集",
+            Application.ExecutablePath,
+            new[] { "--export-ui-atlas", _tools.OutputDir },
+            _tools.WorkingDirectory,
+            path);
+    }
+
+    private Task OpenAssetsAsync()
+    {
+        OpenDirectory(_tools.AssetsDir, "Assets");
+        return Task.CompletedTask;
+    }
+
+    private Task OpenDocsAsync()
+    {
+        OpenDirectory(Path.Combine(_tools.WorkingDirectory, "docs"), "docs");
         return Task.CompletedTask;
     }
 

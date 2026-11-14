@@ -61,7 +61,19 @@ dotnet build tools/Tiisu.AudioGen -c Release
 | UI 快照性能 | `--bench-snapshot 20000` |
 | 打开数据目录 | 定位 `artifacts/selfplay` |
 
-后续分类（审局 / 资源）按轮次迁移，未迁移时只显示占位说明。
+## 任务中心（审局 / 资源）
+
+| 分类 | 任务 | 说明 |
+|---|---|---|
+| 审局 | 批量审局 | 弹窗选局数/模式/jobs/种子，可开 UI 不变量与报听分支 |
+| 审局 | UI 不变量审计 | 固定 50 局 `--ui` |
+| 审局 | 报听分支审计 | 固定 50 局 `--call --passive` |
+| 审局 | 整场冒烟 | `--smoke-run 1 4` |
+| 资源 | 字体缺字检查 | `--check-font`，覆盖版本号/UI/docs，有缺字退出 1 |
+| 资源 | 导出 UI 图集 | `--export-ui-atlas <dir>`，完成后右侧预览 |
+| 资源 | 打开 Assets / docs | 定位资源与文档目录 |
+
+所有分类均已迁移；旧版工具页保留，后续决定是否移除。
 
 ## 命令
 
