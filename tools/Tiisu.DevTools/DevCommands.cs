@@ -180,6 +180,52 @@ internal static class DevCommands
     /// <summary>
     /// <c>--check-steam [root]</c>：Steam 接入就绪检查。没有 AppID 时只报告阻塞项，不报错退出。
     /// </summary>
+    /// <summary><c>--check-i18n [root]</c>：检查 UiText.Tr 字面量是否都有英文映射。</summary>
+    private static int CheckI18n(string[] args)
+    {
+        Tiisu.App.Program.TryUseUtf8Console();
+        string root = args.Length >= 2 && Directory.Exists(args[1])
+            ? Path.GetFullPath(args[1])
+            : Directory.GetCurrentDirectory();
+        string mapPath = Path.Combine(root, "src", "Tiisu.App", "Assets", "i18n", "en-US.json");
+        string app = Path.Combine(root, "src", "Tiisu.App");
+        if (!File.Exists(mapPath))
+        {
+            Console.WriteLine("check-i18n: FAIL 找不到 " + mapPath);
+            return 1;
+        }
+
+        using var doc = JsonDocument.Parse(File.ReadAllText(mapPath));
+        var translated = new HashSet<string>(doc.RootElement.EnumerateObject().Select(p => p.Name), StringComparer.Ordinal);
+        var pattern = new Regex("UiText\\.Tr\\(\"((?:[^\"\\\\]|\\\\.)*)\"\\)");
+        var missing = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (string file in Directory.EnumerateFiles(app, "*.cs", SearchOption.AllDirectories))
+        {
+            if (file.Contains(Path.Combine("bin", string.Empty), StringComparison.Ordinal)
+                || file.Contains(Path.Combine("obj", string.Empty), StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (Match match in pattern.Matches(File.ReadAllText(file)))
+            {
+                string key = Regex.Unescape(match.Groups[1].Value);
+                if (key.Any(c => c >= 0x4e00 && c <= 0x9fff) && !translated.Contains(key))
+                {
+                    missing.Add(key);
+                }
+            }
+        }
+
+        Console.WriteLine($"check-i18n: {missing.Count} 个 UiText.Tr 中文键缺英文映射");
+        foreach (string key in missing.Take(40))
+        {
+            Console.WriteLine("  缺：" + key);
+        }
+
+        return missing.Count == 0 ? 0 : 1;
+    }
+
     private static int CheckSteam(string[] args)
     {
         Tiisu.App.Program.TryUseUtf8Console();
@@ -4540,6 +4586,9 @@ internal static class DevCommands
 
             case "--check-steam":
                 return CheckSteam(args);
+
+            case "--check-i18n":
+                return CheckI18n(args);
 
             case "--bench-snapshot":
                 return BenchSnapshot(args);
