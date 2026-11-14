@@ -359,7 +359,7 @@ public sealed class TableScreen : Screen
         if (_thinkLeft >= 0 && _thinkSeconds > 0)
         {
             var bar = _layout.ActionBarRect;
-            c.DrawText("长考 " + ((int)Math.Ceiling(_thinkLeft)).ToString(CultureInfo.InvariantCulture) + "s",
+            c.DrawText(UiText.Tr("长考") + " " + ((int)Math.Ceiling(_thinkLeft)).ToString(CultureInfo.InvariantCulture) + "s",
                 new RectF(bar.Right - 170, bar.Y - 30, 170, 24), Color.Rgb(200, 214, 202),
                 new TextStyle(15, Center: false, Right: true));
         }
@@ -377,7 +377,7 @@ public sealed class TableScreen : Screen
         var btn = MenuButtonRect;
         c.FillRoundRect(btn, 9, Color.Rgb(28, 40, 36).WithAlpha(235));
         c.StrokeRoundRect(btn, 9, Color.Rgb(96, 122, 108), 1.3f);
-        c.DrawText("菜单", btn, Color.Rgb(236, 242, 232), new TextStyle(18, Bold: true, Center: true));
+        c.DrawText(UiText.Tr("菜单"), btn, Color.Rgb(236, 242, 232), new TextStyle(18, Bold: true, Center: true));
         c.DrawText("M / ESC",
             new RectF(btn.Right + 10, btn.Y + 8, 90, 20),
             Color.Rgb(170, 186, 172), new TextStyle(14, Center: false));

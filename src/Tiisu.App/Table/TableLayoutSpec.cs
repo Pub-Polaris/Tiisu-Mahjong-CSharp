@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Tiisu.App.Rendering;
+using Tiisu.App.Ui;
 using Color = Tiisu.App.Rendering.Color;
 
 namespace Tiisu.App.Table;
@@ -740,11 +741,11 @@ public sealed class TableSceneSkia : ITableScene
         c.FillRoundRect(p, 16, Color.Rgb(52, 62, 74));
         c.StrokeRoundRect(p, 16, Color.Rgb(22, 28, 34), 2f);
 
-        c.DrawText(vm.RoundLabel, new RectF(p.X, p.CenterY - 62, p.W, 34),
+        c.DrawText(UiText.Tr(vm.RoundLabel), new RectF(p.X, p.CenterY - 62, p.W, 34),
             Color.Rgb(140, 246, 236), new TextStyle(26, Bold: true, Center: true));
-        c.DrawText("余 " + vm.WallCount, new RectF(p.X, p.CenterY - 18, p.W, 30),
+        c.DrawText(UiText.Tr("余") + " " + vm.WallCount, new RectF(p.X, p.CenterY - 18, p.W, 30),
             Color.Rgb(150, 236, 226), new TextStyle(21, Center: true));
-        c.DrawText("本场 " + vm.Honba + " · 场赏 " + vm.Kyotaku, new RectF(p.X, p.CenterY + 20, p.W, 24),
+        c.DrawText(UiText.Tr("本场") + " " + vm.Honba + " · " + UiText.Tr("场赏") + " " + vm.Kyotaku, new RectF(p.X, p.CenterY + 20, p.W, 24),
             Color.Rgb(180, 214, 208), new TextStyle(15, Center: true));
         // 实时点数与顺位：2×2 排在中央面板下半部。
         var ordered = Enumerable.Range(0, 4)
@@ -765,7 +766,7 @@ public sealed class TableSceneSkia : ITableScene
             bool first = rank[i] == 1;
             bool human = seat.IsHuman;
             string text = rank[i].ToString(System.Globalization.CultureInfo.InvariantCulture)
-                          + "  " + seat.Wind + (human ? "(你)" : string.Empty) + "  " + seat.Score;
+                          + "  " + UiText.Tr(seat.Wind) + (human ? UiText.Tr("(你)") : string.Empty) + "  " + seat.Score;
             c.DrawText(text, new RectF(x, y, 188, 24),
                 first ? Color.Rgb(255, 226, 140) : human ? Color.Rgb(210, 236, 220) : Color.Rgb(176, 200, 188),
                 new TextStyle(14, Bold: first || human, Center: false));
@@ -774,11 +775,22 @@ public sealed class TableSceneSkia : ITableScene
 
         const float s = 38f, m = 14f;
         var winds = new[] { Seat(vm, 0).Wind, Seat(vm, 1).Wind, Seat(vm, 2).Wind, Seat(vm, 3).Wind };
-        Wind(c, winds[0], new RectF(p.X + m, p.Bottom - m - s, s, s));
-        Wind(c, winds[1], new RectF(p.Right - m - s, p.Bottom - m - s, s, s));
-        Wind(c, winds[2], new RectF(p.Right - m - s, p.Y + m, s, s));
-        Wind(c, winds[3], new RectF(p.X + m, p.Y + m, s, s));
+        Wind(c, WindShort(winds[0]), new RectF(p.X + m, p.Bottom - m - s, s, s));
+        Wind(c, WindShort(winds[1]), new RectF(p.Right - m - s, p.Bottom - m - s, s, s));
+        Wind(c, WindShort(winds[2]), new RectF(p.Right - m - s, p.Y + m, s, s));
+        Wind(c, WindShort(winds[3]), new RectF(p.X + m, p.Y + m, s, s));
     }
+
+    private static string WindShort(string wind) => UiText.IsEnglish
+        ? wind switch
+        {
+            "东" => "E",
+            "南" => "S",
+            "西" => "W",
+            "北" => "N",
+            _ => wind,
+        }
+        : wind;
 
     private static void Wind(ICanvas c, string w, RectF r)
     {

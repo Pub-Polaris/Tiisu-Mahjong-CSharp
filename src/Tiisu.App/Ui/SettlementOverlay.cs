@@ -265,7 +265,7 @@ public sealed class SettlementOverlay
         float left = panel.X + 32f;
         float right = panel.Right - 32f;
 
-        c.DrawText(matchOver ? "终局" : "本局结算",
+        c.DrawText(UiText.Tr(matchOver ? "终局" : "本局结算"),
             new RectF(left, panel.Y + 14f, 420, 46), Gold,
             new TextStyle(30, Bold: true, Center: false));
 
@@ -297,7 +297,7 @@ public sealed class SettlementOverlay
             c.StrokeRoundRect(button, 10, Gold, 1.4f);
 
             // 「▶」在 Microsoft YaHei 里缺字（渲染成方框），三角改成矢量画。
-            c.DrawText("下一个", new RectF(button.X + 6f, button.Y, button.W - 30f, button.H), GoldBright,
+            c.DrawText(UiText.Tr("下一个"), new RectF(button.X + 6f, button.Y, button.W - 30f, button.H), GoldBright,
                 new TextStyle(15, Bold: true, Center: true));
             float tx = button.Right - 30f;
             float ty = button.CenterY;
@@ -329,11 +329,11 @@ public sealed class SettlementOverlay
             _nextRoundButton = button;
             c.FillRoundRect(button, 10f, _nextRoundHover ? Color.Rgb(60, 82, 68) : Color.Rgb(42, 58, 48));
             c.StrokeRoundRect(button, 10f, _nextRoundHover ? GoldBright : Gold, 1.5f);
-            c.DrawText("下一局", button, _nextRoundHover ? GoldBright : Gold,
+            c.DrawText(UiText.Tr("下一局"), button, _nextRoundHover ? GoldBright : Gold,
                 new TextStyle(17, Bold: true, Center: true));
         }
 
-        c.DrawText(footer, new RectF(panel.X + 32f, panel.Bottom - 52f, panel.W - 64f, 28), Muted,
+        c.DrawText(UiText.Tr(footer), new RectF(panel.X + 32f, panel.Bottom - 52f, panel.W - 64f, 28), Muted,
             new TextStyle(15, Center: true));
     }
 
@@ -510,7 +510,7 @@ public sealed class SettlementOverlay
         int rows = Math.Min(4, vm.Seats.Count);
         float y = zone.Y + 12f;
 
-        c.DrawText("四家手牌", new RectF(zone.X + 22, y, zone.W - 44, 24), Muted,
+        c.DrawText(UiText.Tr("四家手牌"), new RectF(zone.X + 22, y, zone.W - 44, 24), Muted,
             new TextStyle(14, Center: false));
         y += 30f;
 
@@ -576,14 +576,14 @@ public sealed class SettlementOverlay
         y += 30f;
 
         // 役种：名称 + 赋数。表外赋只给最终赋，不展开 ×700；赐马单独放下面「马赏」。
-        c.DrawText("役种", new RectF(x, y, width - 70, 22), Muted, new TextStyle(14, Center: false));
-        c.DrawText("赋", new RectF(right - 70, y, 70, 22), Muted,
+        c.DrawText(UiText.Tr("役种"), new RectF(x, y, width - 70, 22), Muted, new TextStyle(14, Center: false));
+        c.DrawText(UiText.Tr("赋"), new RectF(right - 70, y, 70, 22), Muted,
             new TextStyle(14, Center: false, Right: true));
         y += 24f;
 
         if (yaku.Count == 0)
         {
-            c.DrawText("无役", new RectF(x + 2, y, width - 80, 26), Muted, new TextStyle(16, Center: false));
+            c.DrawText(UiText.Tr("无役"), new RectF(x + 2, y, width - 80, 26), Muted, new TextStyle(16, Center: false));
             y += 28f;
         }
 
@@ -627,7 +627,7 @@ public sealed class SettlementOverlay
         y += 14f;
 
         // 最终点数：这一手实际拿到的点数，唯一的大数字。
-        c.DrawText("最终点数", new RectF(x, y, width, 22), Muted, new TextStyle(14, Center: false));
+        c.DrawText(UiText.Tr("最终点数"), new RectF(x, y, width, 22), Muted, new TextStyle(14, Center: false));
         y += 22f;
         c.DrawText(detail.FinalPoints.ToString(CultureInfo.InvariantCulture),
             new RectF(x, y, width, 60), GoldBright, new TextStyle(44, Bold: true, Center: false));
@@ -704,7 +704,7 @@ public sealed class SettlementOverlay
         y += 48f;
 
         // 流局也走听牌精算（未听罚符 / 场赏），所以只陈述结果，不写「不扣分」。
-        c.DrawText("本局无人和牌", new RectF(x, y, width, 26), TextColor,
+        c.DrawText(UiText.Tr("本局无人和牌"), new RectF(x, y, width, 26), TextColor,
             new TextStyle(15, Center: false));
         y += 34f;
 
@@ -735,15 +735,15 @@ public sealed class SettlementOverlay
             shape = details[0].Yaku[0].Name;
         }
 
-        c.DrawText(flow ? "流局" : "和牌", new RectF(x, y, width, 44), GoldBright,
+        c.DrawText(UiText.Tr(flow ? "流局" : "和牌"), new RectF(x, y, width, 44), GoldBright,
             new TextStyle(28, Bold: true, Center: false));
         y += 52f;
 
-        c.DrawText("推倒胡 · " + (flow ? "无人和牌" : shape), new RectF(x, y, width, 26), TextColor,
+        c.DrawText(UiText.Tr("推倒胡") + " · " + UiText.Tr(flow ? "无人和牌" : shape), new RectF(x, y, width, 26), TextColor,
             new TextStyle(17, Center: false));
         y += 34f;
 
-        c.DrawText("只记胜负，不计点数", new RectF(x, y, width, 24), Muted,
+        c.DrawText(UiText.Tr("只记胜负，不计点数"), new RectF(x, y, width, 24), Muted,
             new TextStyle(14, Center: false));
         y += 30f;
 
@@ -771,7 +771,7 @@ public sealed class SettlementOverlay
         float width = zone.W - 40f;
         float y = zone.Y + 12f;
 
-        c.DrawText("惩罚结算", new RectF(x, y, width, 44), GoldBright,
+        c.DrawText(UiText.Tr("惩罚结算"), new RectF(x, y, width, 44), GoldBright,
             new TextStyle(28, Bold: true, Center: false));
         y += 48f;
 
@@ -840,7 +840,7 @@ public sealed class SettlementOverlay
         float width, float y)
     {
         float right = x + width;
-        c.DrawText("分数变化", new RectF(x, y, width, 24), Muted, new TextStyle(14, Center: false));
+        c.DrawText(UiText.Tr("分数变化"), new RectF(x, y, width, 24), Muted, new TextStyle(14, Center: false));
         y += 26f;
 
         for (int i = 0; i < vm.Seats.Count && i < result.Scores.Length; i++)
@@ -851,7 +851,7 @@ public sealed class SettlementOverlay
                 ? scoresBefore[i]
                 : after;
 
-            c.DrawText(SeatName(vm, seat.Index), new RectF(x, y, 100, 26), TextColor, new TextStyle(16, Center: false));
+            c.DrawText(UiText.Tr(SeatName(vm, seat.Index)), new RectF(x, y, 100, 26), TextColor, new TextStyle(16, Center: false));
             c.DrawText(before.ToString(CultureInfo.InvariantCulture) + " → " +
                        after.ToString(CultureInfo.InvariantCulture),
                 new RectF(x + 104, y, 200, 26), TextColor, new TextStyle(16, Center: false));
@@ -870,7 +870,7 @@ public sealed class SettlementOverlay
     private static void DrawRanking(ICanvas c, TableViewModel vm, float x, float width, float y)
     {
         float right = x + width;
-        c.DrawText("最终排名", new RectF(x, y, width, 24), Muted, new TextStyle(14, Center: false));
+        c.DrawText(UiText.Tr("最终排名"), new RectF(x, y, width, 24), Muted, new TextStyle(14, Center: false));
         y += 26f;
 
         var ranked = vm.Seats.OrderByDescending(s => s.Score).ToList();

@@ -85,6 +85,25 @@ public static class UiText
             return chinese[..^2] + " s";
         }
 
+        if (chinese.StartsWith("东", StringComparison.Ordinal)
+            || chinese.StartsWith("南", StringComparison.Ordinal)
+            || chinese.StartsWith("西", StringComparison.Ordinal)
+            || chinese.StartsWith("北", StringComparison.Ordinal))
+        {
+            string round = chinese
+                .Replace("东", "East", StringComparison.Ordinal)
+                .Replace("南", "South", StringComparison.Ordinal)
+                .Replace("西", "West", StringComparison.Ordinal)
+                .Replace("北", "North", StringComparison.Ordinal)
+                .Replace("局", "round", StringComparison.Ordinal)
+                .Replace("本场", "honba", StringComparison.Ordinal)
+                .Replace("场赏", "bonus", StringComparison.Ordinal);
+            if (round.Contains("round", StringComparison.Ordinal))
+            {
+                return round;
+            }
+        }
+
         return chinese;
     }
 }

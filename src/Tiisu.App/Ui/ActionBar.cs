@@ -233,7 +233,8 @@ public sealed class ActionBar
         var colors = ColorsFor(kind, hover, enabled);
         c.FillRoundRect(rect, 10, colors.Fill.WithAlpha((byte)(enabled ? (hover ? 245 : 230) : 200)));
         c.StrokeRoundRect(rect, 10, colors.Border, hover ? 2.2f : 1.5f);
-        c.DrawText(label, rect, colors.Text, new TextStyle(label.Length > 4 ? 15 : 18, Bold: true));
+        string text = UiText.Tr(label);
+            c.DrawText(text, rect, colors.Text, new TextStyle(text.Length > 4 ? 15 : 18, Bold: true));
 
         if (!enabled || !hover)
         {
@@ -282,14 +283,14 @@ public sealed class ActionBar
 
         if (!string.IsNullOrEmpty(vm.TenpaiSummary))
         {
-            c.DrawText(vm.TenpaiSummary,
+            c.DrawText(UiText.Tr(vm.TenpaiSummary),
                 new RectF(x, y - 30, Math.Max(totalW, 360f), 22),
                 Color.Rgb(255, 226, 140), new TextStyle(14, Bold: true, Center: false));
         }
 
         var box = new RectF(x - 8, y - 6, totalW + 8, th + 12);
         c.FillRoundRect(box, 8, Color.Rgb(0, 0, 0).WithAlpha(150));
-        c.DrawText("听牌", new RectF(x, y + th / 2f - 10, labelW, 20),
+        c.DrawText(UiText.Tr("听牌"), new RectF(x, y + th / 2f - 10, labelW, 20),
             Color.Rgb(255, 226, 140), new TextStyle(16, Bold: true, Center: false));
 
         float tx = x + labelW;
