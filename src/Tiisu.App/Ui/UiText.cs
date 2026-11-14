@@ -82,12 +82,12 @@ public static class UiText
 
         if (chinese.StartsWith("荣和机会：别人打出 ", StringComparison.Ordinal))
         {
-            return "Ron chance: discarded " + chinese["荣和机会：别人打出 ".Length..].Replace("赋可和", " fu", StringComparison.Ordinal);
+            return EnglishTiles("Ron chance: discarded " + chinese["荣和机会：别人打出 ".Length..].Replace("赋可和", " fu", StringComparison.Ordinal));
         }
 
         if (chinese.StartsWith("副露机会：别人打出 ", StringComparison.Ordinal))
         {
-            return "Meld chance: discarded " + chinese["副露机会：别人打出 ".Length..];
+            return EnglishTiles("Meld chance: discarded " + chinese["副露机会：别人打出 ".Length..]);
         }
 
         if (chinese.StartsWith("报听错和风险：这手只有 ", StringComparison.Ordinal))
@@ -140,6 +140,19 @@ public static class UiText
             }
         }
 
-        return chinese;
+        return EnglishTiles(chinese);
+    }
+
+    private static string EnglishTiles(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return text;
+        }
+
+        text = System.Text.RegularExpressions.Regex.Replace(text, "([1-9])万", "$1m");
+        text = System.Text.RegularExpressions.Regex.Replace(text, "([1-9])筒", "$1p");
+        text = System.Text.RegularExpressions.Regex.Replace(text, "([1-9])索", "$1s");
+        return text;
     }
 }
