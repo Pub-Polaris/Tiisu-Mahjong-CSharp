@@ -59,12 +59,12 @@ public sealed class RulesScreen : Screen
             var box = new RectF(150, y, Width - 300, boxH);
             c.FillRoundRect(box, 14, Color.Rgb(26, 38, 34));
             c.StrokeRoundRect(box, 14, Color.Rgb(96, 122, 108), 1.2f);
-            c.DrawText(title, new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
+            c.DrawText(UiText.Tr(title), new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
                 Color.Rgb(242, 201, 76), new TextStyle(20, Bold: true, Center: false, Family: Rounded));
             float ly = box.Y + 42;
             foreach (string line in lines)
             {
-                c.DrawText("· " + line, new RectF(box.X + 26, ly, box.W - 52, lineH),
+                c.DrawText("· " + UiText.Tr(line), new RectF(box.X + 26, ly, box.W - 52, lineH),
                     Color.Rgb(220, 228, 220), new TextStyle(16, Center: false, Family: Rounded));
                 ly += lineH;
             }

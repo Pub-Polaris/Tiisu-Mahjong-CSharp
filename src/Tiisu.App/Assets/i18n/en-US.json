@@ -192,5 +192,17 @@
   "第三方声明": "Third-party Notices",
   "音乐 Parisian · Kevin MacLeod · ": "Music: Parisian · Kevin MacLeod · ",
   " ｜ ": " | ",
-  "开源信息": "Licenses"
+  "开源信息": "Licenses",
+  "起和与报听": "Minimum Fu & Call",
+  "错和惩罚": "Misfire Penalty",
+  "场供与蓝筹": "Table Bonus & Blue Chips",
+  "手牌够 7 赋才能和；赋不够不能和。": "A hand needs at least 7 fu to win.",
+  "报听本身不加赋，也不给额外收益。": "Calling adds no fu and no extra payout.",
+  "听牌即可报听；报听后锁手，不破坏听牌形的暗杠除外。": "Call when tenpai; your hand locks, except a concealed kan that keeps the wait.",
+  "报听后主动报和，实际赋 < 7 = 错和。": "Declaring a win after Call with actual fu < 7 is a misfire.",
+  "向三家赔 Z = 赋 × 700。": "Pay the other three: Z = fu × 700.",
+  "Z > 2100 重罚：禁和本局 + 下局。": "Z > 2100: banned from winning this round and the next.",
+  "结算按 350 点蓝筹取整。": "Settlement rounds to 350-point blue chips.",
+  "自摸除不尽的尾数进场供池。": "Self-draw remainders go to the table bonus pool.",
+  "场供由下一手和牌者拿走；本场连庄有加成。": "The next winner takes the table bonus; dealer repeats add extra."
 }
