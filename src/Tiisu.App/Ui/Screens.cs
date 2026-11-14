@@ -1062,12 +1062,22 @@ public sealed class MenuScreen : Screen
     private readonly HashSet<string> _hover = new();
     private string _hoverLinkId = string.Empty;
     private int _hoverLinkIndex = -1;
+    private readonly List<LayoutElement> _buttons = new();
+    private int _focusButton = -1;
 
     public MenuScreen(UiLayout layout, Func<string, bool> onAction, Action<string>? openUrl = null) : base("menu")
     {
         _layout = layout;
         _onAction = onAction;
         _openUrl = openUrl;
+
+        foreach (var el in _layout.Elements)
+        {
+            if (el.Type == "button" && !string.IsNullOrEmpty(el.Action))
+            {
+                _buttons.Add(el);
+            }
+        }
 
         // 版本行：布局 JSON 只负责位置，文案在构建时由 git 生成。
         foreach (var el in _layout.Elements)
@@ -1113,13 +1123,21 @@ public sealed class MenuScreen : Screen
                     bool isHover = _hover.Contains(el.Id);
                     var fill = isHover ? Color.Rgb(52, 86, 78) : ParseColor(el.Fill, Color.Rgb(34, 52, 56));
                     c.FillRoundRect(el.Rect, el.Radius <= 0 ? 10 : el.Radius, fill);
+                    bool focused = _focusButton >= 0 && _focusButton < _buttons.Count && ReferenceEquals(_buttons[_focusButton], el);
                     c.StrokeRoundRect(el.Rect, el.Radius <= 0 ? 10 : el.Radius,
-                        ParseColor(el.Border, Color.Rgb(196, 168, 96)), 1.5f);
+                        focused ? Color.Rgb(242, 201, 76) : ParseColor(el.Border, Color.Rgb(196, 168, 96)),
+                        focused ? 2.5f : 1.5f);
                     c.DrawText(UiText.Tr(el.Text ?? el.Id), el.Rect,
                         ParseColor(el.FontColor, Color.Rgb(240, 236, 220)),
                         new TextStyle(el.FontSize, Bold: true, Center: true));
                     break;
             }
+        }
+
+        if (_focusButton >= 0)
+        {
+            c.DrawText(UiText.Tr("↑↓←→ 选择 · Enter 确认"), new RectF(0, Height - 34, Width, 22),
+                Color.Rgb(159, 180, 170), new TextStyle(14, Center: true));
         }
     }
 
@@ -1243,7 +1261,82 @@ public sealed class MenuScreen : Screen
         return false;
     }
 
-    public override bool OnKey(Keys key) => key == Keys.M || key == Keys.Escape;
+    public override bool OnKey(Keys key)
+    {
+        if (key is Keys.M or Keys.Escape)
+        {
+            return true;
+        }
+
+        if (key is Keys.Enter or Keys.Space)
+        {
+            if (_focusButton >= 0 && _focusButton < _buttons.Count)
+            {
+                return _onAction(_buttons[_focusButton].Action!);
+            }
+            return false;
+        }
+
+        int dx = key switch { Keys.Left => -1, Keys.Right => 1, _ => 0 };
+        int dy = key switch { Keys.Up => -1, Keys.Down => 1, _ => 0 };
+        if (dx != 0 || dy != 0)
+        {
+            MoveFocus(dx, dy);
+            return true;
+        }
+
+        return false;
+    }
+
+    public override bool OnKey(Keys key, bool shift)
+    {
+        if (key == Keys.Tab && _buttons.Count > 0)
+        {
+            MoveFocus(shift ? -1 : 1, 0, cycle: true);
+            return true;
+        }
+        return OnKey(key);
+    }
+
+    private void MoveFocus(int dx, int dy, bool cycle = false)
+    {
+        if (_buttons.Count == 0) return;
+        if (_focusButton < 0)
+        {
+            _focusButton = 0;
+            return;
+        }
+
+        var current = _buttons[_focusButton];
+        LayoutElement? best = null;
+        float bestScore = float.MaxValue;
+        float rowTolerance = Math.Max(current.Rect.H, _buttons[0].Rect.H) * 0.7f;
+        foreach (var candidate in _buttons)
+        {
+            if (ReferenceEquals(candidate, current)) continue;
+            float cx = candidate.Rect.CenterX - current.Rect.CenterX;
+            float cy = candidate.Rect.CenterY - current.Rect.CenterY;
+            if (dy != 0 && MathF.Abs(cy) < rowTolerance) continue;
+            if (dx != 0 && MathF.Abs(cy) > rowTolerance) continue;
+            if (dy != 0 && MathF.Sign(cy) != dy) continue;
+            if (dx != 0 && MathF.Sign(cx) != dx) continue;
+            float score = MathF.Abs(dy != 0 ? cx : cy) + MathF.Abs(dy != 0 ? cy : cx) * 0.1f;
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = candidate;
+            }
+        }
+
+        if (best is not null)
+        {
+            _focusButton = _buttons.IndexOf(best);
+        }
+        else if (cycle)
+        {
+            _focusButton = (_focusButton + (dx >= 0 ? 1 : _buttons.Count - 1)) % _buttons.Count;
+        }
+    }
 
     private static Color ParseColor(string? hex, Color fallback)
     {

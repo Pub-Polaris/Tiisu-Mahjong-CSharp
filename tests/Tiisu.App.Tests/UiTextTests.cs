@@ -14,7 +14,8 @@ public sealed class UiTextTests
             Assert.Equal("Settings", UiText.Tr("设置"));
             Assert.Equal("Back to Menu", UiText.Tr("返回菜单"));
             Assert.Equal("Not translated", UiText.Tr("Not translated"));
-            Assert.Equal("Page 2 / 3", UiText.Tr("第 2 / 3 页"));
+            Assert.Equal("East 1 round / 4 round", UiText.Tr("东1局 / 4局"));
+        Assert.Equal("Page 2 / 3", UiText.Tr("第 2 / 3 页"));
             Assert.Equal("20 s", UiText.Tr("20 秒"));
         }
         finally

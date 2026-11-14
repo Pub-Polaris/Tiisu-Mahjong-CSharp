@@ -98,6 +98,9 @@ public static class UiText
                 .Replace("局", "round", StringComparison.Ordinal)
                 .Replace("本场", "honba", StringComparison.Ordinal)
                 .Replace("场赏", "bonus", StringComparison.Ordinal);
+            round = System.Text.RegularExpressions.Regex.Replace(round, @"(?<=[A-Za-z])(?=\d)", " ");
+            round = System.Text.RegularExpressions.Regex.Replace(round, @"(?<=\d)(?=[A-Za-z])", " ");
+            round = System.Text.RegularExpressions.Regex.Replace(round, @"\s+", " ");
             if (round.Contains("round", StringComparison.Ordinal))
             {
                 return round;
