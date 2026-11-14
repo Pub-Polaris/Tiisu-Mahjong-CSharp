@@ -356,6 +356,7 @@ public sealed class SettingsScreen : Screen
         _rows.Add(new Row("报牌语音", () => OnOff(_settings.VoiceEnabled), () => _settings.VoiceEnabled, _ => Toggle(
             () => _settings.VoiceEnabled,
             value => _settings.VoiceEnabled = value)));
+        _rows.Add(new Row("大字号界面", TextScaleName, () => _settings.UiTextScale > 1.01, _ => CycleTextScale()));
         _rows.Add(new Row("显示岭上指示牌", () => OnOff(_settings.ShowMa), () => _settings.ShowMa, _ => Toggle(
             () => _settings.ShowMa,
             value => _settings.ShowMa = value)));
@@ -544,6 +545,21 @@ public sealed class SettingsScreen : Screen
             _settings.OptionalYaku.Add(id);
         }
 
+        Save();
+    }
+
+    private string TextScaleName() => _settings.UiTextScale switch
+    {
+        >= 1.29 => "130%",
+        >= 1.14 => "115%",
+        _ => "100%",
+    };
+
+    private void CycleTextScale()
+    {
+        double[] choices = { 1.0, 1.15, 1.3 };
+        int index = Array.FindIndex(choices, x => Math.Abs(x - _settings.UiTextScale) < 0.01);
+        _settings.UiTextScale = choices[(index + 1 + choices.Length) % choices.Length];
         Save();
     }
 

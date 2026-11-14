@@ -44,6 +44,21 @@ public sealed class SettingsTests
     }
 
     [Fact]
+    public void Save再Load_大字号倍率保持()
+    {
+        string dir = TempDir();
+        try
+        {
+            new Settings { UiTextScale = 1.15 }.Save(dir);
+            Assert.Equal(1.15, Settings.Load(dir).UiTextScale, 3);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Save再Load_语音开关保持()
     {
         string dir = TempDir();

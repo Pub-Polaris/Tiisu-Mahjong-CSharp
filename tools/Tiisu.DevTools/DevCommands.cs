@@ -1255,6 +1255,7 @@ internal static class DevCommands
             UiLayout.Load(Path.Combine(Tiisu.App.Program.AssetsDir, "layout", "menu.json")),
             _ => false),
         "settings" => new SettingsScreen(Settings.Load(), _ => { }, () => { }),
+      "settings-large" => new SettingsScreen(new Settings { UiTextScale = 1.15 }, _ => { }, () => { }),
         "tutorial" => new TutorialScreen(() => { }, () => { }),
       "stats" => new StatsScreen(() => { }),
       "replay" => new ReplayScreen(() => { }),

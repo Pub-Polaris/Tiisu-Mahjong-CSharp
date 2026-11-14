@@ -16,6 +16,9 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
 
     // 每帧复用：字体按 (粗体, 字号) 缓存；透视矩阵只在相机参数变化时重建（P2-5）。
     private readonly Dictionary<(bool Bold, float Size, string Family), SKFont> _fonts = new();
+
+    /// <summary>非牌桌页面的大字号倍率；1 = 默认。</summary>
+    public float TextScale { get; set; } = 1f;
     private SKMatrix44 _perspective;
     private PerspectiveCamera _perspectiveCamera;
     private bool _perspectiveSet;
@@ -246,7 +249,7 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
             Color = ToSk(c),
             MaskFilter = null,
         };
-        var font = GetFont(style.Bold, BoostSize(style.Size), style.Family);
+        var font = GetFont(style.Bold, BoostSize(style.Size) * Math.Clamp(TextScale, 0.8f, 1.5f), style.Family);
         var align = style.Right ? SKTextAlign.Right : style.Center ? SKTextAlign.Center : SKTextAlign.Left;
 
         var metrics = font.Metrics;
@@ -268,7 +271,13 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     }
 
     /// <summary>量文字宽度：与 DrawText 共用同一 typeface / 字号（含 BoostSize），保证点击区与字形对齐。</summary>
-    public float MeasureText(string text, TextStyle style) => Measure(text, style);
+    public float MeasureText(string text, TextStyle style) => MeasureScaled(text, style);
+
+    private float MeasureScaled(string text, TextStyle style)
+    {
+        using var font = new SKFont(GetTypeface(style.Bold, style.Family), BoostSize(style.Size) * Math.Clamp(TextScale, 0.8f, 1.5f));
+        return font.MeasureText(text);
+    }
 
     /// <summary>无 canvas 的静态测量（命中测试、署名片段排版用）。</summary>
     public static float Measure(string text, TextStyle style)

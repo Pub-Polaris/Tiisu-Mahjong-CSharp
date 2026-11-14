@@ -68,6 +68,9 @@ public sealed class Settings
     /// <summary>报牌语音开关（默认开；与音效独立）。</summary>
     public bool VoiceEnabled { get; set; } = true;
 
+    /// <summary>界面字号倍率：1.0 / 1.15 / 1.3（仅非牌桌页面）。</summary>
+    public double UiTextScale { get; set; } = 1.0;
+
     /// <summary>开启后写牌型日志（ASCII JSONL）。</summary>
     public bool RecordTiles { get; set; }
 
@@ -108,6 +111,7 @@ public sealed class Settings
             loaded.OptionalYaku ??= new List<string>();
             loaded.AiWeights = NormalizeWeights(loaded.AiWeights);
             loaded.AiSeatLocks = NormalizeLocks(loaded.AiSeatLocks);
+            loaded.UiTextScale = Math.Clamp(loaded.UiTextScale, 1.0, 1.3);
             return loaded;
         }
         catch

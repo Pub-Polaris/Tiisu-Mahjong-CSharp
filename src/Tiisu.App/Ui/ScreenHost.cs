@@ -26,6 +26,7 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly GameSession _session;
     private Tiisu.Core.Ruleset _appliedRuleset;
     private readonly Settings _settings;
+    private float _uiTextScale = 1f;
     private readonly SoundEffects _sound = new();
     private readonly TableScreen _table;
     private readonly MenuScreen _menu;
@@ -65,7 +66,7 @@ internal sealed class ScreenHostCore : IDisposable
         _sound.BgmVolume = _settings.BgmVolume;
         _sound.SfxVolume = _settings.SfxVolume;
         _sound.VoiceEnabled = _settings.VoiceEnabled;
-        _sound.VoiceEnabled = _settings.VoiceEnabled;
+        _uiTextScale = (float)_settings.UiTextScale;
         _session = new GameSession(_settings);
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _licenses = new LicensesScreen(() => SwitchTo(_menu), OpenMarkdown);
@@ -213,7 +214,7 @@ internal sealed class ScreenHostCore : IDisposable
         _sound.BgmVolume = settings.BgmVolume;
         _sound.SfxVolume = settings.SfxVolume;
         _sound.VoiceEnabled = settings.VoiceEnabled;
-        _sound.VoiceEnabled = settings.VoiceEnabled;
+        _uiTextScale = (float)settings.UiTextScale;
         bool rulesetChanged = _appliedRuleset != settings.Ruleset;
         _appliedRuleset = settings.Ruleset;
         _session.Post(GameCommand.ApplySettings(settings));
@@ -295,7 +296,7 @@ internal sealed class ScreenHostCore : IDisposable
         canvas.Translate(_offsetX, _offsetY);
         canvas.Scale(_scale);
 
-        using (var ctx = new SkiaCanvas(canvas, _atlas))
+        using (var ctx = new SkiaCanvas(canvas, _atlas) { TextScale = _current is TableScreen or MarkdownScreen ? 1f : _uiTextScale })
         {
             if (_previous is not null && _transition < 1)
             {
