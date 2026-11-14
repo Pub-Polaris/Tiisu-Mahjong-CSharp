@@ -15,15 +15,22 @@ public static class UiText
     private static string _language = "zh-CN";
 
     public static string Language => _language;
+    public static event Action? LanguageChanged;
     public static bool IsEnglish => _language == "en-US";
     public static bool IsJapanese => _language == "ja-JP";
 
     public static void SetLanguage(string? language)
     {
-        _language = Normalize(language);
+        string next = Normalize(language);
+        bool changed = next != _language;
+        _language = next;
         Translations.Clear();
         if (_language == "zh-CN")
         {
+            if (changed)
+            {
+                LanguageChanged?.Invoke();
+            }
             return;
         }
 
@@ -48,6 +55,11 @@ public static class UiText
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             // 翻译文件损坏时回退中文，不影响游戏。
+        }
+
+        if (changed)
+        {
+            LanguageChanged?.Invoke();
         }
     }
 

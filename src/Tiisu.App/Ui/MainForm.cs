@@ -53,6 +53,9 @@ public sealed class MainForm : Form
         Text = UiText.IsEnglish ? "Tiisu Mahjong" : UiText.IsJapanese ? "七子麻雀" : "七子麻将 · Tiisu Mahjong";
 
         // 启动/激活时把焦点交给画布，否则键盘事件没有落点。
+        UiText.LanguageChanged += OnLanguageChanged;
+        FormClosed += (_, _) => UiText.LanguageChanged -= OnLanguageChanged;
+
         Shown += (_, _) =>
         {
             _host.Focus();
@@ -62,6 +65,12 @@ public sealed class MainForm : Form
             }
         };
         Activated += (_, _) => _host.Focus();
+    }
+
+    private void OnLanguageChanged()
+    {
+        Text = UiText.IsEnglish ? "Tiisu Mahjong" : UiText.IsJapanese ? "七子麻雀" : "七子麻将 · Tiisu Mahjong";
+        Invalidate(true);
     }
 
     /// <summary>Tab 会被 WinForms 焦点遍历吞掉；显式转给画布，菜单/设置才能用 Tab 切换。</summary>

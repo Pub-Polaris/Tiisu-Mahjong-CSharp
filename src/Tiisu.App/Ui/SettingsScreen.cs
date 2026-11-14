@@ -457,7 +457,7 @@ public sealed class SettingsScreen : Screen
 
     private void CycleTableDifficulty()
     {
-        int[] tiers = { -1, 0, 1, 2, 3 };
+        int[] tiers = { -1, 0, 1, 2, 3, 4 };
         int current = TableDifficultyTier();
         int index = Array.IndexOf(tiers, current);
         int next = tiers[(index + 1 + tiers.Length) % tiers.Length];
