@@ -16,7 +16,7 @@ public sealed class MainForm : Form
     private FormWindowState _restoreState = FormWindowState.Normal;
     private FormBorderStyle _restoreStyle = FormBorderStyle.Sizable;
 
-    public MainForm(TileAtlas atlas, bool forceCpuRender = false)
+    public MainForm(TileAtlas atlas, bool forceCpuRender = false, bool startFullscreen = false)
     {
         _atlas = atlas;
 

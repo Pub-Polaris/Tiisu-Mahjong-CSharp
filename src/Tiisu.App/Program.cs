@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Tiisu.App.Assets;
+using Tiisu.App.Runtime;
 using Tiisu.App.Ui;
 
 namespace Tiisu.App;
@@ -28,18 +29,25 @@ internal static class Program
                 return;
             }
 
-            if (args[0] != "--cpu-render")
+            var known = new[] { "--cpu-render", "--fullscreen", "--lang" };
+            if (args[0] != "--cpu-render" && !known.Contains(args[0]))
             {
                 Console.WriteLine($"未知参数：{args[0]}");
                 Console.WriteLine("开发/自检命令请用 tools/Tiisu.DevTools（同一批参数）。");
+                Console.WriteLine("启动项：--cpu-render --fullscreen --lang zh-CN|en-US");
                 return;
             }
         }
 
         ApplicationConfiguration.Initialize();
-        bool forceCpuRender = args.Contains("--cpu-render", StringComparer.Ordinal);
+        LaunchOptions options = LaunchOptions.Parse(args);
+        if (options.Language is not null)
+        {
+            Environment.SetEnvironmentVariable("TIISU_LANG", options.Language);
+        }
+
         var atlas = new TileAtlas(AssetsDir);   // 所有权交给 MainForm
-        Application.Run(new MainForm(atlas, forceCpuRender));
+        Application.Run(new MainForm(atlas, options.ForceCpuRender, options.Fullscreen));
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]

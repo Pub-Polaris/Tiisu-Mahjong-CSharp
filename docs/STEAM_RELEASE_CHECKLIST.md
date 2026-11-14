@@ -9,7 +9,7 @@
 | 可执行文件 | `Tiisu.Mahjong.exe` |
 | 构建产物 | `dist/publish`（自包含或依赖 .NET 10 Desktop Runtime） |
 | 目标平台 | Windows 10/11 x64 |
-| 启动参数 | 无必填参数；`--cpu-render` 仅排障 |
+| 启动参数 | 无必填参数；`--fullscreen`、`--lang en-US`、`--cpu-render`（排障） |
 | Depot | 单个 Windows content depot，根目录 = `dist/publish` |
 | 安装后数据 | `%APPDATA%\TiisuMahjong`（settings/stats/logs/voices） |
 | 框架依赖 | 若不做 self-contained，需要在商店页声明 .NET 10 Desktop Runtime |

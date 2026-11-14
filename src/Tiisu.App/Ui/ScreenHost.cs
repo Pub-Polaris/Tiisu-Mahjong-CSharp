@@ -66,6 +66,11 @@ internal sealed class ScreenHostCore : IDisposable
 
         // 会话必须在 UI 线程构造：它捕获当前 SynchronizationContext 把事件回投到 UI。
         _settings = Settings.Load();
+        string? launchLanguage = Environment.GetEnvironmentVariable("TIISU_LANG");
+        if (!string.IsNullOrWhiteSpace(launchLanguage))
+        {
+            _settings.Language = UiText.Normalize(launchLanguage);
+        }
         _appliedRuleset = _settings.Ruleset;
         _sound.BgmVolume = _settings.BgmVolume;
         _sound.SfxVolume = _settings.SfxVolume;
