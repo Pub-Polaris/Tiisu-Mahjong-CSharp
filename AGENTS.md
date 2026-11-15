@@ -33,6 +33,7 @@
 - `ReplayScreen.Reload()` 在菜单进入时调用
 - `TableScreen` 的 `openSettings`/`backToMenu` 回调确实非 null
 - `Settings.CopyFrom` 与 `Clone` 必须带上全部字段，尤其是 Language / UiTextScale / VoiceEnabled
+- 牌桌规则：吃/碰/明杠后是「无摸牌出牌回合」，不得出现和牌/杠/流局动作；必须打出一张
 - 语言切换必须：重载 `UiText` 翻译、重载战绩/成就/回放、清除许可全文缓存、`ApplySettings` 刷新快照，并实际切一次看当前屏
 - 语言切换走 `UiText.LanguageChanged` 并触发界面重绘
 - 全桌 AI 快捷档能到达 `7Neuu`

@@ -691,8 +691,9 @@ public sealed class MatchRuntime
         }
 
         var observation = SelfPlayDriver.BuildObservation(_engine, pi);
+        bool canSelfDraw = player.LastDraw is not null || isDealerFirst;
         var tsumo = AiPlayer.CheckTsumo(observation, _checker);
-        if (tsumo.Success && !_engine.IsWinBanned(player))
+        if (tsumo.Success && !_engine.IsWinBanned(player) && canSelfDraw)
         {
             DeclareTsumo(pi, tsumo);
             return;
@@ -712,7 +713,7 @@ public sealed class MatchRuntime
             {
                 var afterKan = SelfPlayDriver.BuildObservation(_engine, pi);
                 var tsumo2 = AiPlayer.CheckTsumo(afterKan, _checker);
-                if (tsumo2.Success && !_engine.IsWinBanned(player))
+                if (tsumo2.Success && !_engine.IsWinBanned(player) && CanSelfDrawAtStartOfTurn(pi))
                 {
                     DeclareTsumo(pi, tsumo2);
                     return;
@@ -1061,6 +1062,13 @@ public sealed class MatchRuntime
             return;
         }
 
+        if (!CanSelfDrawAtStartOfTurn(HumanIndex))
+        {
+            Notify("吃/碰后必须先打出一张牌", false);
+            EmitState();
+            return;
+        }
+
         KanSelfCore(type);
         RunLoop();
     }
@@ -1069,6 +1077,14 @@ public sealed class MatchRuntime
     {
         if (!RequireHumanDiscard())
         {
+            return;
+        }
+
+        // 碰/吃/明杠之后没有摸牌动作：必须先打出一张，不能直接和牌。
+        if (!CanSelfDrawAtStartOfTurn(HumanIndex))
+        {
+            Notify("吃/碰后必须先打出一张牌", false);
+            EmitState();
             return;
         }
 
@@ -2377,6 +2393,22 @@ public sealed class MatchRuntime
     };
 
     /// <summary>当前可用动作（按钮出现条件与优先级：杠 &gt; 和 &gt; 碰 &gt; 吃 &gt; 过）。</summary>
+    /// <summary>
+    /// 当前人类回合是否具备「自己摸到的第 14 张」：普通摸牌、明杠/暗杠/加杠的岭上补摸，
+    /// 或庄家起手 14 张。只有吃/碰后的出牌回合没有摸牌，不能直接和牌。
+    /// </summary>
+    private bool CanSelfDrawAtStartOfTurn(int human)
+    {
+        if (human < 0 || human >= MahjongEngine.PlayerCount)
+        {
+            return false;
+        }
+
+        var player = _engine.Players[human];
+        return player.LastDraw is not null
+            || (player.IsDealer && player.Hand.Count == 14 && !player.SkipDraw);
+    }
+
     public HumanAction AvailableActions()
     {
         var actions = HumanAction.None;
@@ -2393,7 +2425,8 @@ public sealed class MatchRuntime
                 actions |= HumanAction.Discard;
                 var player = _engine.Players[human];
                 bool banned = _engine.IsWinBanned(player);
-                if (player.TotalTiles() == 14 + player.KongCount())
+                bool canSelfDraw = CanSelfDrawAtStartOfTurn(human);
+                if (canSelfDraw && player.TotalTiles() == 14 + player.KongCount())
                 {
                     var observation = SelfPlayDriver.BuildObservation(_engine, human);
                     var tsumo = AiPlayer.CheckTsumo(observation, _checker);
@@ -2411,23 +2444,28 @@ public sealed class MatchRuntime
                     }
                 }
 
-                var ankan = AiPlayer.CanAnkan(player.Hand);
-                if (ankan is not null)
+                // 吃/碰之后手牌里没有新摸牌，必须先打出一张；
+                // 明杠/暗杠/加杠都有岭上补摸，庄家起手 14 张也不受此限制。
+                if (canSelfDraw)
                 {
-                    // 报听：只有听牌形不变的暗杠可点。
-                    if (!player.IsCalled || _engine.CallAllowsAnkan(player, ankan.Value, out _))
+                    var ankan = AiPlayer.CanAnkan(player.Hand);
+                    if (ankan is not null)
+                    {
+                        // 报听：只有听牌形不变的暗杠可点。
+                        if (!player.IsCalled || _engine.CallAllowsAnkan(player, ankan.Value, out _))
+                        {
+                            actions |= HumanAction.Kan;
+                        }
+                    }
+                    else if (!player.IsCalled && AiPlayer.CanKakan(ViewOf(player)) is not null)
                     {
                         actions |= HumanAction.Kan;
                     }
-                }
-                else if (!player.IsCalled && AiPlayer.CanKakan(ViewOf(player)) is not null)
-                {
-                    actions |= HumanAction.Kan;
-                }
 
-                if (_engine.FlowOptions(player.Hand).Count > 0)
-                {
-                    actions |= HumanAction.Flow;
+                    if (_engine.FlowOptions(player.Hand).Count > 0)
+                    {
+                        actions |= HumanAction.Flow;
+                    }
                 }
 
                 // 报听可用性统一由引擎判定：13 张=真听牌；14 张=存在「打出后成听牌形」的弃牌。
