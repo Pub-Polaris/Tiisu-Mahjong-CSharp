@@ -5,13 +5,10 @@
 - 规则主仓（含完整规则书）：[Pub-Polaris/Tiisu-Mahjong-main](https://github.com/Pub-Polaris/Tiisu-Mahjong-main)
 - 本仓是**桌面客户端**：把 Web 版的判役/引擎/AI 等价迁移到 C#，并重做成原生窗口程序
 
-![牌桌](<img width="1400" height="1400" alt="yoga-4melds-1400" src="https://github.com/user-attachments/assets/fd0f7134-6a58-4357-b0f6-38ef8ce36daf" />)
+[牌桌](<img width="1400" height="1400" alt="yoga-4melds-1400" src="https://github.com/user-attachments/assets/fd0f7134-6a58-4357-b0f6-38ef8ce36daf" />)
+[动作](<img width="1200" height="1200" alt="ui-merged-preview" src="https://github.com/user-attachments/assets/6810ef81-e049-4bcf-838e-6ceb9714c9e0" />)
+[结算](<img width="1400" height="1400" alt="settle-win-1400-big" src="https://github.com/user-attachments/assets/18451daa-4fcc-4af6-b088-e5ba6450d1ac" />)
 
-| 动作按钮 | 局末结算 |
-|---|---|
-| ![动作](<img width="1200" height="1200" alt="ui-merged-preview" src="https://github.com/user-attachments/assets/6810ef81-e049-4bcf-838e-6ceb9714c9e0" />
-) | ![结算](<img width="1400" height="1400" alt="settle-win-1400-big" src="https://github.com/user-attachments/assets/18451daa-4fcc-4af6-b088-e5ba6450d1ac" />
-) |
 
 ## 当前状态
 
