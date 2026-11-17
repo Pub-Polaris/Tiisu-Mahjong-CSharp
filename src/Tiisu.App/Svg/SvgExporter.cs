@@ -9,7 +9,7 @@ using Tiisu.App.Ui;
 namespace Tiisu.App.Svg;
 
 /// <summary>
-/// 把当前牌桌导出成可编辑 SVG（画布尺寸取自 <see cref="TableLayoutSpec"/>，现为 1200×1200）。
+/// 把当前牌桌导出成可编辑 SVG（画布尺寸取自 <see cref="TableLayoutSpec"/>，现为 1400×1400）。
 ///   · 牌面以 <see cref="Web/mj_tiles/*.svg"/> 的内联矢量内嵌，单文件即可在 Illustrator / Inkscape 编辑
 ///   · 每个区域一个 &lt;g id&gt;，几何全部来自 Yoga 算出的布局，不手写坐标
 ///   · <see cref="BuildUi"/> 额外合并动作按钮条（五个语义色按钮）与 HUD，供 Illustrator 一次改完

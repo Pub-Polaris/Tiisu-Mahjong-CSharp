@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -7,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using SkiaSharp;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
@@ -1171,8 +1173,8 @@ internal static class DevCommands
         using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
         var screen = new TableScreen(session, atlas);
 
-        // 与 TableScreen 内部同一份布局参数（1200×1200 + Mixed 安全区 + Yoga）。
-        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        // 与 TableScreen 内部同一份布局参数（1400×1400 + 牌河 7×5 + Yoga）。
+        var layout = new TableLayoutSpec();
         YogaTableLayout.Apply(layout);
 
         session.Post(GameCommand.StartMatch(mode));
@@ -2554,7 +2556,7 @@ internal static class DevCommands
     }
 
     /// <summary>
-    /// <c>--render-table-png &lt;png&gt; --variant mixed|flat|light|medium</c>：按指定观感出 1200×1200 牌桌图。
+    /// <c>--render-table-png &lt;png&gt; --variant mixed|flat|light|medium</c>：按指定观感出 1400×1400 牌桌图。
     /// 与游戏内同一条 TableScreen 绘制路径（含手牌、牌河、动作条、HUD），便于对照可读性。
     /// </summary>
     private static void Render25DToPng(string[] args)
@@ -2609,10 +2611,10 @@ internal static class DevCommands
         Console.WriteLine("rendered table -> " + path);
     }
 
-    /// <summary>1200×1200 的新布局（Yoga 计算，Mixed 档安全区）。</summary>
+    /// <summary>1400×1400 的新布局（Yoga 计算，Central 400×400 + 牌河 7×5）。</summary>
     private static TableLayoutSpec NewLayout()
     {
-        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        var layout = new TableLayoutSpec();
         YogaTableLayout.Apply(layout);
         return layout;
     }
@@ -2635,7 +2637,6 @@ internal static class DevCommands
 
         var layout = new TableLayoutSpec { CanvasW = canvas, CanvasH = canvas };
         YogaTableLayout.Apply(layout);
-
         var info = new SKImageInfo((int)layout.CanvasW, (int)layout.CanvasH);
         using var surface = SKSurface.Create(info);
         var canvasSk = surface.Canvas;
@@ -2678,7 +2679,7 @@ internal static class DevCommands
     }
 
     /// <summary>
-    /// <c>--export-ui-svg &lt;file&gt;</c>：合并导出一张 1200×1200 SVG ——
+    /// <c>--export-ui-svg &lt;file&gt;</c>：合并导出一张 1400×1400 SVG ——
     /// 牌桌底板 + 四家手牌/副露/牌河 + 五个语义色动作按钮 + HUD。
     /// 每个图层带 <c>id</c>/<c>data-name</c>，便于在 Illustrator 里定位修改。
     /// </summary>
@@ -2934,13 +2935,13 @@ internal static class DevCommands
 
     /// <summary>
     /// <c>--render-call &lt;png 基名&gt;</c>：报听三态出图 ——
-    /// <c>_callable</c>（真听牌，按钮可点 + 待牌提示）/ <c>_disabled</c>（不听牌，按钮灰显）/
+    /// <c>_callable</c>（真听牌，报听按钮出现 + 待牌提示）/ <c>_disabled</c>（不听牌，不出报听按钮）/
     /// <c>_noten</c>（荒牌流局：四家翻牌 + 未听牌灰显 + 已报听标记）。
     /// </summary>
     private static void RenderCallToPng(string basePath)
     {
         using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
-        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        var layout = new TableLayoutSpec();
         YogaTableLayout.Apply(layout);
 
         RenderCallShot(basePath + "_callable.png", TableDemoModel.CreateWithCall(true), layout, atlas);
@@ -3425,7 +3426,7 @@ internal static class DevCommands
                     bool hasPassFlag = (ronVm.Actions & HumanAction.Pass) != 0;
                     lastPassFlag = hasPassFlag;
                     var bar = new ActionBar();
-                    var barLayout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+                    var barLayout = new TableLayoutSpec();
                     YogaTableLayout.Apply(barLayout);
                     bar.Build(ronVm, barLayout);
                     var passBtn = bar.Buttons.FirstOrDefault(b => b.Kind == ActionBar.Kind.Pass);
@@ -3884,7 +3885,7 @@ internal static class DevCommands
             saveStore: null, stats: null, roundLog: null, matchSeed: 3);
         runtime.StartMatch(4);
 
-        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        var layout = new TableLayoutSpec();
         YogaTableLayout.Apply(layout);
 
         var clock = Stopwatch.StartNew();
@@ -4081,7 +4082,7 @@ internal static class DevCommands
     /// <list type="bullet">
     /// <item>点「报听」但还没出牌时只改 UI 状态、不发命令、不卡死；</item>
     /// <item>报听并弃牌后牌局立刻推进（不停在 idle，回合交给下一家）；</item>
-    /// <item>报听后按钮变成「已报听」灰显，且锁手仍允许出牌；</item>
+    /// <item>报听后报听按钮消失（已报听不需要该入口），锁手仍允许出牌；</item>
     /// <item>整场在时限内终局（真卡住时这里的耗时会先耗尽）。</item>
     /// </list>
     /// </summary>
@@ -4109,7 +4110,7 @@ internal static class DevCommands
 
         using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
         var screen = new TableScreen(() => runtime.Snapshot, runtime.Execute, null, atlas);
-        var layout = new TableLayoutSpec { CanvasW = 1200f, CanvasH = 1200f };
+        var layout = new TableLayoutSpec();
         YogaTableLayout.Apply(layout);
 
         int failures = 0;
@@ -4237,13 +4238,13 @@ internal static class DevCommands
                     break;
                 }
 
-                // 3. 三态：报听后按钮必须是「已报听」灰显（本局已结束则按钮不可见，跳过）。
+                // 3. 报听后报听按钮必须消失（已报听不再需要入口；本局已结束则同样不可见）。
                 if (runtime.Phase == MatchPhase.HumanDiscard)
                 {
                     var bar = new ActionBar();
                     bar.Build(runtime.Snapshot, layout);
                     var callButton = bar.Buttons.FirstOrDefault(b => b.Kind == ActionBar.Kind.DeclareCall);
-                    callButtonOk = callButton is not null && callButton.Label == "已报听" && !callButton.Enabled;
+                    callButtonOk = callButton is null;
                     callButtonChecked = true;
                 }
 
@@ -4291,8 +4292,8 @@ internal static class DevCommands
         Check("点报听未出牌不卡", armOk, "待弃态只改 UI，不发命令；取消后仍可正常出牌");
         Check("报听并弃牌", declared, "人类 isCalled=true");
         Check("报听后牌局推进", advanceOk, stuck.Length > 0 ? stuck : advanceDetail);
-        Check("报听按钮三态", !callButtonChecked || callButtonOk,
-            callButtonChecked ? "报听后为「已报听」灰显" : "本局已结束，跳过按钮检查");
+        Check("报听后按钮消失", !callButtonChecked || callButtonOk,
+            callButtonChecked ? "已报听不再显示报听按钮" : "本局已结束，跳过按钮检查");
         Check("报听后仍能出牌", postCallTurns == 0 || postCallDiscardOk,
             postCallTurns == 0 ? "本局未再轮到出牌" : "锁手允许的弃牌被接受");
         Check("整场在时限内终局", completed && inTime,
@@ -4513,8 +4514,8 @@ internal static class DevCommands
                 Directory.CreateDirectory(Settings.DefaultDirectory);
                 File.WriteAllText(realPath, "{ \"version\": 1, \"regions\": ]", new System.Text.UTF8Encoding(false));
                 var screen = new TableScreen((Func<TableViewModel>)(() => TableDemoModel.Create(1)), null, null, (TileAtlas?)null);
-                startupOk = Math.Abs(screen.CanvasWidth - 1200f) < 0.01f
-                            && Math.Abs(screen.CanvasHeight - 1200f) < 0.01f;
+                startupOk = Math.Abs(screen.CanvasWidth - 1400f) < 0.01f
+                            && Math.Abs(screen.CanvasHeight - 1400f) < 0.01f;
             }
             catch (Exception ex)
             {
@@ -4585,6 +4586,234 @@ internal static class DevCommands
         File.WriteAllBytes(path, data.ToArray());
         Console.WriteLine($"rendered layout-edit -> {path}  regions={editor.Regions.Count} selected={editor.Selected + 1}");
     }
+    /// <summary>
+    /// <c>--yaku-stats N [--jobs K] [--mode 4] [--start-seed S] [--out file]</c>：
+    /// 批量自对弈，统计每种役的和出次数、占和牌手数比例、占总局数比例。
+    /// 默认启用 ike.json 里全部可选役，四家全 AI，无 UI。
+    /// </summary>
+    private static int YakuStats(string[] args)
+    {
+        int games = 1_000_000;
+        int jobs = Math.Clamp(Environment.ProcessorCount, 1, 32);
+        int mode = 4;
+        long roundLimit = 0;
+        uint startSeed = 1;
+        string outPath = Path.Combine("dist", "yaku-stats-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + ".json");
+        for (int i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--jobs":
+                    if (i + 1 < args.Length && int.TryParse(args[++i], out int j)) jobs = Math.Clamp(j, 1, 64);
+                    break;
+                case "--mode":
+                    if (i + 1 < args.Length && int.TryParse(args[++i], out int m)) mode = Math.Max(1, m);
+                    break;
+                case "--start-seed":
+                    if (i + 1 < args.Length && uint.TryParse(args[++i], out uint seed)) startSeed = seed;
+                    break;
+                case "--rounds":
+                    if (i + 1 < args.Length && long.TryParse(args[++i], out long rounds)) roundLimit = Math.Max(0, rounds);
+                    break;
+                case "--out":
+                    if (i + 1 < args.Length) outPath = args[++i];
+                    break;
+                default:
+                    if (int.TryParse(args[i], out int n)) games = Math.Max(1, n);
+                    break;
+            }
+        }
+
+        var yakuData = YakuData.LoadDefault();
+        var optional = yakuData.Yaku.Concat(yakuData.HighYaku)
+            .Where(y => y.Optional)
+            .Select(y => y.Id)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var allYakuNames = yakuData.Yaku.Concat(yakuData.HighYaku)
+            .Select(y => y.Name)
+            .Append("大七星")
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var total = new YakuAgg();
+        var roundCounter = new RoundCounter();
+        int done = 0;
+        var sw = Stopwatch.StartNew();
+        var options = new ParallelOptions { MaxDegreeOfParallelism = jobs };
+        Console.WriteLine($"yaku-stats: games={games} jobs={jobs} mode={mode} roundsLimit={roundLimit} optional={optional.Count}");
+
+        Parallel.For(0, games, options,
+            () => new YakuAgg(),
+            (index, _, local) =>
+            {
+                var settings = new Settings
+                {
+                    RecordTiles = false,
+                    OptionalYaku = new List<string>(optional),
+                };
+                RunYakuGame(startSeed + (uint)index, settings, mode, local, roundCounter, roundLimit);
+                int n = Interlocked.Increment(ref done);
+                if (n % 10000 == 0 || n == games)
+                {
+                    Console.WriteLine($"  {n}/{games}  {sw.Elapsed.TotalSeconds:F0}s");
+                }
+                return local;
+            },
+            local =>
+            {
+                lock (total)
+                {
+                    total.Merge(local);
+                }
+            });
+
+        if (!Directory.Exists(Path.GetDirectoryName(Path.GetFullPath(outPath))))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath))!);
+        }
+
+        var rows = allYakuNames
+            .Select(name => new
+            {
+                yaku = name,
+                count = total.Yaku.TryGetValue(name, out long count) ? count : 0,
+                shareOfWinningHands = total.WinningHands == 0 ? 0 : (double)(total.Yaku.TryGetValue(name, out count) ? count : 0) / total.WinningHands,
+                shareOfRounds = total.Rounds == 0 ? 0 : (double)(total.Yaku.TryGetValue(name, out count) ? count : 0) / total.Rounds,
+            })
+            .OrderByDescending(x => x.count)
+            .ThenBy(x => x.yaku, StringComparer.Ordinal)
+            .ToList();
+        var report = new
+        {
+            generatedAt = DateTimeOffset.Now,
+            games,
+            rounds = total.Rounds,
+            winningHands = total.WinningHands,
+            tsumoWins = total.TsumoWins,
+            ronWins = total.RonWins,
+            settings = new
+            {
+                optionalYaku = "all",
+                optionalCount = optional.Count,
+                mode,
+                jobs,
+            },
+            yaku = rows,
+            elapsedSeconds = sw.Elapsed.TotalSeconds,
+        };
+        var jsonOptions = new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+        File.WriteAllText(outPath, JsonSerializer.Serialize(report, jsonOptions) + "\n", new System.Text.UTF8Encoding(false));
+        string csvPath = Path.ChangeExtension(outPath, ".csv");
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("yaku,count,shareOfWinningHands,shareOfRounds");
+        foreach (var row in rows)
+        {
+            csv.Append('"').Append(row.yaku.Replace("\"", "\"\"")).Append("\",")
+                .Append(row.count).Append(',')
+                .Append(row.shareOfWinningHands.ToString("F8", CultureInfo.InvariantCulture)).Append(',')
+                .Append(row.shareOfRounds.ToString("F8", CultureInfo.InvariantCulture)).AppendLine();
+        }
+        File.WriteAllText(csvPath, csv.ToString(), new System.Text.UTF8Encoding(false));
+        Console.WriteLine($"yaku-stats: {total.Rounds} 局 / {total.WinningHands} 和牌 -> {outPath}");
+        Console.WriteLine($"csv -> {csvPath}");
+        return 0;
+    }
+
+    private sealed class RoundCounter
+    {
+        public long Value;
+    }
+
+    private sealed class YakuAgg
+    {
+        public long Rounds;
+        public long WinningHands;
+        public long TsumoWins;
+        public long RonWins;
+        public Dictionary<string, long> Yaku { get; } = new(StringComparer.Ordinal);
+
+        public void Merge(YakuAgg other)
+        {
+            Rounds += other.Rounds;
+            WinningHands += other.WinningHands;
+            TsumoWins += other.TsumoWins;
+            RonWins += other.RonWins;
+            foreach (var kv in other.Yaku)
+            {
+                Yaku[kv.Key] = Yaku.TryGetValue(kv.Key, out long v) ? v + kv.Value : kv.Value;
+            }
+        }
+    }
+
+    private static void RunYakuGame(uint seed, Settings settings, int mode, YakuAgg agg, RoundCounter roundCounter, long roundLimit)
+    {
+        if (roundLimit > 0 && Volatile.Read(ref roundCounter.Value) >= roundLimit)
+        {
+            return;
+        }
+
+        var runtime = new MatchRuntime(settings, new Mulberry32Random(seed), _ => { },
+            saveStore: null, stats: null, roundLog: null, matchSeed: seed);
+        runtime.AllSeatsAi = true;
+        runtime.AiStepDelayMilliseconds = 0;
+        runtime.StartMatch(mode);
+        int guard = 0;
+        while (guard++ < 1000)
+        {
+            if (runtime.Phase == MatchPhase.MatchOver)
+            {
+                break;
+            }
+
+            if (runtime.Phase != MatchPhase.RoundEnded)
+            {
+                Thread.Yield();
+                continue;
+            }
+
+            agg.Rounds++;
+            long seen = Interlocked.Increment(ref roundCounter.Value);
+            var details = runtime.LastSettlementDetails;
+            int handWins = details.Count;
+            if (handWins == 0 && runtime.LastWinKind == "tiisuin")
+            {
+                handWins = 1;
+                AddYaku(agg, "大七星");
+            }
+            agg.WinningHands += handWins;
+            foreach (var detail in details)
+            {
+                if (detail.SelfDraw)
+                {
+                    agg.TsumoWins++;
+                }
+                else
+                {
+                    agg.RonWins++;
+                }
+                foreach (var yaku in detail.Yaku)
+                {
+                    AddYaku(agg, yaku.Name);
+                }
+            }
+            if (roundLimit > 0 && seen >= roundLimit)
+            {
+                return;
+            }
+
+            runtime.NextRound();
+        }
+    }
+
+    private static void AddYaku(YakuAgg agg, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+        agg.Yaku[name] = agg.Yaku.TryGetValue(name, out long value) ? value + 1 : 1;
+    }
+
     /// <summary>开发/自检命令分发；返回 null 表示不是开发命令，交给 GUI。</summary>
     public static int? Run(string[] args)
     {
@@ -4654,6 +4883,8 @@ internal static class DevCommands
                 return Smoke7Neuu();
             case "--selfplay":
                 return SelfPlay(args);
+            case "--yaku-stats":
+                return YakuStats(args);
             case "--smoke-ab":
                 return SmokeAb(args);
             case "--smoke-ruleset-switch":
@@ -4819,7 +5050,7 @@ internal static class DevCommands
         // Yoga 布局预览：--render-yoga <png> [画布边长] [副露组数 0..4]
         if (args.Length >= 2 && args[0] == "--render-yoga")
         {
-            float canvasY = args.Length >= 3 ? float.Parse(args[2], CultureInfo.InvariantCulture) : 1200f;
+            float canvasY = args.Length >= 3 ? float.Parse(args[2], CultureInfo.InvariantCulture) : 1400f;
             int meldsY = args.Length >= 4 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 1;
             RenderYogaToPng(args[1], canvasY, meldsY);
             return 0;

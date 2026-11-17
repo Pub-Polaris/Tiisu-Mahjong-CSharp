@@ -19,7 +19,7 @@ public enum TableRenderStyle
 }
 
 /// <summary>
-/// 一种观感对应的绘制参数。所有数值都是逻辑画布像素（1200×1200）。
+/// 一种观感对应的绘制参数。所有数值都是逻辑画布像素（牌桌 1400×1400）。
 /// 牌身厚度/投影会按牌的实际尺寸缩放（副露的小牌不会顶着一圈 8px 边）。
 /// </summary>
 public sealed class TableRenderMetrics
@@ -70,7 +70,7 @@ public sealed class TableRenderMetrics
     public RectF? TableQuad { get; init; }
 
     // 真透视参数：桌面平面绕 X 轴后倾 rotateX，距相机 distance，再按 fov 投影。
-    // aspect 用画布真实宽高比（1200×1200 为 1.0）；near/far 只影响深度映射，不影响平面上的 x/y。
+    // aspect 用画布真实宽高比（1400×1400 为 1.0）；near/far 只影响深度映射，不影响平面上的 x/y。
     public float PerspectiveFov { get; init; } = 55f;
     public float PerspectiveAspect { get; init; } = 1f;
     public float PerspectiveNear { get; init; } = 1f;

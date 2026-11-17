@@ -17,7 +17,11 @@ namespace Tiisu.App.Runtime;
 /// </summary>
 public static class CustomLayoutStore
 {
-    public const int CurrentVersion = 1;
+    /// <summary>
+    /// 布局文件版本。v4 = 画布 1400×1400 + 手牌 60×82 / 副露两行（v3 是 1360、v2 是 1600、v1 是 1200 画布）；
+    /// 旧版本坐标在新画布下会错位，读到版本不符直接忽略、回默认布局。
+    /// </summary>
+    public const int CurrentVersion = 4;
 
     public const string FileName = "layout-custom.json";
 

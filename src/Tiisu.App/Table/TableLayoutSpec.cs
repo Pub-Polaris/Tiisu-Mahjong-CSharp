@@ -15,32 +15,38 @@ namespace Tiisu.App.Table;
 ///   · 牌河几何（沿该家左手边对齐中央框，行向远离中央框生长）
 ///   · 各家的旋转角与右手方向
 ///
-/// 四家手牌框恒为 739×68，手牌在框内居中；副露按手牌框边缘 + 该家右手方向摆，
+/// 四家手牌框恒为 823×82，手牌在框内居中；副露按手牌框边缘 + 该家右手方向摆，2 行堆叠，
 /// 所以副露永远不参与手牌定位，也就不会「推开手牌」。
+/// 画布 1400×1400：中央板 400×400，四家牌河 7 列 × 5 行（单格 50×68）。
 /// </summary>
 public sealed class TableLayoutSpec
 {
     // ── 牌尺寸：唯一真源，改这里整桌重排 ──
-    public float HandW = 50f;
-    public float HandH = 68f;
-    public float HandGap = 3f;
-    public float DrawnGap = 12f;
+    public float HandW = 60f;
+    public float HandH = 82f;
+    public float HandGap = 3.6f;
+    public float DrawnGap = 14.4f;
 
     /// <summary>手牌框按几张牌定长。七子是 13 张（摸牌时的第 14 张会临时外溢）。</summary>
     public int HandTiles = 13;
 
-    public float MeldW = 24f;
-    public float MeldH = 33f;
-    public float MeldGap = 1f;
-    public float MeldGroupGap = 6f;
-    public float MeldPad = 2f;
-    public float HandMeldGap = 10f;
+    public float MeldW = 28.8f;
+    public float MeldH = 39.6f;
+    public float MeldGap = 1.2f;
+    public float MeldGroupGap = 7.2f;
+    public float MeldPad = 2.4f;
+    public float HandMeldGap = 12f;
+
+    /// <summary>副露按「2 行 × 每行 2 组」堆叠：4 组副露时正好两行各两组，不往画布外拉长。</summary>
+    public int MeldRows = 2;
+    public int MeldGroupsPerRow = 2;
+    public float MeldRowGap = 3f;
 
     public float RiverW = 50f;
     public float RiverH = 68f;
     public float RiverGap = 3f;
-    public int RiverCols = 6;
-    public int RiverRows = 3;
+    public int RiverCols = 7;
+    public int RiverRows = 5;
 
     /// <summary>
     /// 手牌矩形是纯函数结果：按输入缓存，避免每帧重新分配（审计 P2-6）。
@@ -54,8 +60,8 @@ public sealed class TableLayoutSpec
     public float PlateGap = 14f;
     public float Margin = 16f;
 
-    public float CanvasW = 1200f;
-    public float CanvasH = 1200f;
+    public float CanvasW = 1400f;
+    public float CanvasH = 1400f;
 
     public float FrameLen => HandTiles * HandW + (HandTiles - 1) * HandGap;
     public float FrameDepth => HandH;
@@ -78,11 +84,11 @@ public sealed class TableLayoutSpec
     /// <summary>动作按钮条锚框：按钮纵向顶边与水平中心取自这里（见 <see cref="Ui.ActionBar.Build"/>）。</summary>
     public RectF ActionBarRect { get; set; }
 
-    /// <summary>结算面板默认外框（编辑器参考框；绘制未自定义时仍按内容动态居中）。</summary>
-    public static readonly RectF DefaultSettlementRect = new(436, 46, 748, 660);
+    /// <summary>结算面板默认外框（编辑器参考框；绘制未自定义时仍按内容动态居中）。1400 画布下居中：x = (1400−1120)/2。</summary>
+    public static readonly RectF DefaultSettlementRect = new(140, 46, 1120, 660);
 
     /// <summary>结算左侧「和牌者手牌」区默认外框（原牌桌缩略图的位置，改为直接画牌面）。</summary>
-    public static readonly RectF DefaultSettlementHandRect = new(64, 190, 636, 900);
+    public static readonly RectF DefaultSettlementHandRect = new(164, 190, 636, 900);
 
     /// <summary>结算面板框；与 <see cref="DefaultSettlementRect"/> 相同表示未自定义（自动居中）。</summary>
     public RectF SettlementRect { get; set; } = DefaultSettlementRect;
@@ -390,7 +396,7 @@ public sealed class TableSceneSkia : ITableScene
 
     /// <summary>
     /// 真透视桌面层：Save → ConcatPerspective → 画整块桌面（底板/渐变/暗角/桌沿/远边高光）
-    /// + 中央信息板 → Restore。输入仍是 1200×1200 逻辑坐标，透视只发生在这一层。
+    /// + 中央信息板 → Restore。输入仍是 1400×1400 逻辑坐标，透视只发生在这一层。
     /// </summary>
     private static void DrawPerspectiveSurface(ICanvas c, TableViewModel vm, TableLayoutSpec l, TableRenderMetrics m)
     {
@@ -683,7 +689,11 @@ public sealed class TableSceneSkia : ITableScene
     /// <summary>副露的一张牌：槽位 + 所属组 + 组内牌位（绘制时要按暗杠规则决定牌面 / 牌背）。</summary>
     public readonly record struct MeldTilePlacement(RectF Slot, MeldView Meld, int TileIndex);
 
-    /// <summary>某家副露的逐张槽位与所属副露组（与 <see cref="MeldTileSlots"/> 同一套几何）。</summary>
+    /// <summary>
+    /// 某家副露的逐张槽位与所属副露组（与 <see cref="MeldTileSlots"/> 同一套几何）。
+    /// 副露按 2 行堆叠：每行最多 <see cref="MeldGroupsPerRow"/> 组，行沿跨轴方向排在牌面上，
+    /// 4 组副露也只占两行、不往画布外拉长。
+    /// </summary>
     public static MeldTilePlacement[] MeldTilePlacements(TableLayoutSpec l, SeatView seat, int index)
     {
         var melds = (seat.Melds ?? Array.Empty<MeldView>()).Where(m => m.Tiles is { Count: > 0 }).ToArray();
@@ -707,33 +717,71 @@ public sealed class TableSceneSkia : ITableScene
                       + (self && n > l.HandTiles ? l.DrawnGap - l.HandGap : 0f);
         float start = horizontal ? tiles[0].X : tiles[0].Y;
 
-        float meldLen = MeldLength(seat, l);
-        float cursor = rightDir > 0
-            ? start + total + l.HandMeldGap
-            : start - l.HandMeldGap - meldLen;
+        float slotAlong = l.MeldW;
+        float slotCross = l.MeldH;
+        int rows = Math.Max(1, l.MeldRows);
+        int perRow = Math.Max(1, l.MeldGroupsPerRow);
+        float blockDepth = rows * slotCross + (rows - 1) * l.MeldRowGap;
+        float crossBase = (horizontal ? frame.CenterY : frame.CenterX) - blockDepth / 2f + slotCross / 2f;
+
+        var byRow = new List<MeldView>[rows];
+        for (int r = 0; r < rows; r++)
+        {
+            byRow[r] = new List<MeldView>();
+        }
+
+        for (int g = 0; g < melds.Length; g++)
+        {
+            byRow[Math.Min(g / perRow, rows - 1)].Add(melds[g]);
+        }
 
         var list = new List<MeldTilePlacement>();
-        float slotW = horizontal ? l.MeldW : l.MeldH;
-        float slotH = horizontal ? l.MeldH : l.MeldW;
-
-        foreach (var m in melds)
+        for (int r = 0; r < rows; r++)
         {
-            cursor += l.MeldPad;
-            for (int t = 0; t < m.Tiles.Count; t++)
+            var rowMelds = byRow[r];
+            if (rowMelds.Count == 0)
             {
-                var slot = horizontal
-                    ? new RectF(cursor, frame.CenterY - slotH / 2f, slotW, slotH)
-                    : new RectF(frame.CenterX - slotW / 2f, cursor, slotW, slotH);
-
-                list.Add(new MeldTilePlacement(slot, m, t));
-                cursor += l.MeldW + l.MeldGap;
+                continue;
             }
 
-            cursor -= l.MeldGap;
-            cursor += l.MeldPad + l.MeldGroupGap;
+            float rowLen = RowLength(rowMelds, l);
+            float cross = crossBase + r * (slotCross + l.MeldRowGap);
+            float cursor = rightDir > 0
+                ? start + total + l.HandMeldGap
+                : start - l.HandMeldGap - rowLen;
+
+            foreach (var m in rowMelds)
+            {
+                cursor += l.MeldPad;
+                for (int t = 0; t < m.Tiles.Count; t++)
+                {
+                    var slot = horizontal
+                        ? new RectF(cursor, cross - slotCross / 2f, slotAlong, slotCross)
+                        : new RectF(cross - slotCross / 2f, cursor, slotCross, slotAlong);
+
+                    list.Add(new MeldTilePlacement(slot, m, t));
+                    cursor += l.MeldW + l.MeldGap;
+                }
+
+                cursor -= l.MeldGap;
+                cursor += l.MeldPad + l.MeldGroupGap;
+            }
         }
 
         return list.ToArray();
+    }
+
+    /// <summary>一行副露组沿主轴的占长（与绘制同一套数）。</summary>
+    private static float RowLength(IReadOnlyList<MeldView> row, TableLayoutSpec l)
+    {
+        float sum = 0f;
+        foreach (var m in row)
+        {
+            sum += l.MeldPad * 2f + m.Tiles.Count * l.MeldW
+                   + (m.Tiles.Count - 1) * l.MeldGap + l.MeldGroupGap;
+        }
+
+        return sum - l.MeldGroupGap;
     }
 
     private static void DrawCenter(ICanvas c, TableViewModel vm, RectF p)
@@ -945,23 +993,6 @@ public sealed class TableSceneSkia : ITableScene
                 c.FillRoundRect(rect.Inflate(1f), 4, Color.Black.WithAlpha(AnkanMaskAlpha));
             }
         }
-    }
-    private static float MeldLength(SeatView seat, TableLayoutSpec l)
-    {
-        var melds = (seat.Melds ?? Array.Empty<MeldView>()).Where(m => m.Tiles is { Count: > 0 }).ToArray();
-        if (melds.Length == 0)
-        {
-            return 0f;
-        }
-
-        float sum = 0f;
-        foreach (var m in melds)
-        {
-            sum += l.MeldPad * 2f + m.Tiles.Count * l.MeldW
-                   + (m.Tiles.Count - 1) * l.MeldGap + l.MeldGroupGap;
-        }
-
-        return sum - l.MeldGroupGap;
     }
 
     /// <summary>

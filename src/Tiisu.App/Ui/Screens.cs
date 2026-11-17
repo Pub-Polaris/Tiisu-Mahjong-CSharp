@@ -12,13 +12,14 @@ using Color = Tiisu.App.Rendering.Color;
 namespace Tiisu.App.Ui;
 
 /// <summary>
-/// 牌桌屏：1200×1200 方形画布，布局由 Yoga 计算，绘制走 TableSceneSkia。
+/// 牌桌屏：1400×1400 方形画布，布局由 Yoga 计算，绘制走 TableSceneSkia。
+/// 中央板 400×400，四家牌河 7 列 × 5 行（单格 50×68）。
 /// 数据来自 <see cref="GameSession.LatestSnapshot"/>（不可变快照）；点击手牌投递 <see cref="GameCommand.Discard"/>。
 /// 不带会话时（<c>--render-*</c> 预览）退回演示快照。
 /// </summary>
 public sealed class TableScreen : Screen
 {
-    private readonly TableLayoutSpec _layout = new() { CanvasW = 1200f, CanvasH = 1200f };
+    private readonly TableLayoutSpec _layout = new();
     private readonly TableSceneSkia _scene2d = new();
     private ITableScene _scene;
     private readonly SettlementOverlay _overlay = new();
@@ -847,7 +848,7 @@ public sealed class TableScreen : Screen
 
     /// <summary>
     /// 报听入口：出牌阶段先进入「待弃」态（下一张手牌打出即报听，再点一次取消）；
-    /// 副露 / 荣和窗口立即宣言。真听牌之外（按钮灰显）不发命令。
+    /// 副露 / 荣和窗口立即宣言。不可报听时按钮不出现，这里也不发命令。
     /// </summary>
     private void BeginDeclareCall(TableViewModel vm)
     {

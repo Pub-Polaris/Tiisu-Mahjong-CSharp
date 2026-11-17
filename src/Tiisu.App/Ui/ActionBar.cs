@@ -9,8 +9,8 @@ namespace Tiisu.App.Ui;
 /// <summary>
 /// 手牌上方的动作按钮条：杠 / 和 / 碰 / 吃（多组各一颗）/ 过 / 流局 + 报听（叫胡）。
 /// 点击返回对应命令；键盘快捷键仍可用（H/P/C/K/Space/F/T）。
-/// <para>报听按钮三态：见 <see cref="TableViewModel.IsCalled"/>（已报听）/ <see cref="HumanAction.DeclareCall"/>
-/// （真听牌，可点）/ 其余（灰显不可点）。</para>
+/// <para>报听按钮只在「真的可以报听」时出现（<see cref="HumanAction.DeclareCall"/> 置位、尚未报听）；
+/// 已报听 / 不可报听时不出按钮，「已报听」状态由手牌框上的小标表达。</para>
 /// </summary>
 public sealed class ActionBar
 {
@@ -184,11 +184,13 @@ public sealed class ActionBar
             items.Add((Kind.Flow, "流局", 0, true));
         }
 
-        // 报听：只在自己回合（human_discard）显示；荣和 / 副露窗口里它没有意义，还会挤走「过」。
-        if (vm.Phase == "human_discard" && vm.Seats.Count > 0 && vm.Seats[0].Hand.Count > 0)
+        // 报听：只在真的可以报听时出现（真听牌 / 摸牌后能打出成听牌形）。
+        // 已报听或不可报听时不出按钮；「已报听」状态由手牌框上的小标表达。
+        if (vm.Phase == "human_discard" && !vm.IsCalled
+            && vm.Seats.Count > 0 && vm.Seats[0].Hand.Count > 0
+            && (vm.Actions & HumanAction.DeclareCall) != 0)
         {
-            bool callable = (vm.Actions & HumanAction.DeclareCall) != 0;
-            items.Add((Kind.DeclareCall, vm.IsCalled ? "已报听" : "报听", 0, callable));
+            items.Add((Kind.DeclareCall, "报听", 0, true));
         }
 
         if (items.Count == 0)

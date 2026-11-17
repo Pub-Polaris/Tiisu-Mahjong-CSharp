@@ -10,7 +10,7 @@ using Color = Tiisu.App.Rendering.Color;
 namespace Tiisu.App.Ui;
 
 /// <summary>
-/// 局末结算覆盖层：深色遮罩 + 金边面板，1200×1200 画布居中。
+/// 局末结算覆盖层：深色遮罩 + 金边面板，在牌桌画布内居中（画布尺寸取自 <see cref="TableLayoutSpec"/>，当前 1400×1400）。
 /// 左边直接画和牌者的手牌（14 张 + 副露），右边只给结论：
 /// 和牌者 / 和牌方式 / 役种（名称 + 赋）/ 马赏 / 最终点数 / 四家分数变化。
 /// 不显示任何中间计算值（总赋、查表赋、子表点数、庄家 ×1.5、本场加项等）。
@@ -19,19 +19,24 @@ namespace Tiisu.App.Ui;
 /// </summary>
 public sealed class SettlementOverlay
 {
-    public const float CanvasW = 1200f;
-    public const float CanvasH = 1200f;
+    /// <summary>调用方没传布局时的兜底画布尺寸。</summary>
+    public const float DefaultCanvasW = 1400f;
+    public const float DefaultCanvasH = 1400f;
 
     // 外框：宽度固定，高度按内容算；布局编辑器改过 settlement 区域时以自定义矩形为准。
-    private const float PanelX = 40f;
     private const float PanelW = 1120f;
     private const float HeaderH = 160f;
     private const float FooterH = 78f;
     private const float MinPanelH = 600f;
+    private const float MaxPanelH = 1104f;
 
-    private const float HandX = 64f;
+    /// <summary>面板贴画布短边时留的空隙。</summary>
+    private const float PanelInset = 8f;
+
+    /// <summary>手牌区相对面板左边的偏移（面板在画布里居中，内容区跟着走）。</summary>
+    private const float HandDX = 24f;
     private const float HandW = 636f;
-    private const float InfoX = 728f;
+    private const float InfoDX = 688f;
     private const float InfoW = 408f;
 
     // 手牌：一行 7 张，14 张两行；副露小牌另排。
@@ -187,7 +192,10 @@ public sealed class SettlementOverlay
         float contentH = Math.Max(handContent, infoContent);
 
         bool custom = layout is not null && layout.SettlementRect != TableLayoutSpec.DefaultSettlementRect;
+        float canvasW = layout?.CanvasW ?? DefaultCanvasW;
+        float canvasH = layout?.CanvasH ?? DefaultCanvasH;
         RectF panel;
+        float scale = 1f, offsetX = 0f, offsetY = 0f;
         if (custom)
         {
             panel = layout!.SettlementRect;
@@ -195,23 +203,37 @@ public sealed class SettlementOverlay
         }
         else
         {
-            float panelH = Math.Clamp(HeaderH + contentH + 24f + FooterH, MinPanelH, 1104f);
-            panel = new RectF(PanelX, (CanvasH - panelH) / 2f, PanelW, panelH);
+            float panelH = Math.Clamp(HeaderH + contentH + 24f + FooterH, MinPanelH, MaxPanelH);
+
+            // 面板贴画布短边（留 PanelInset 边距），内部整块等比放大：设计坐标不变，
+            // 绘制时套一层 Scale + Translate；命中矩形在 Restore 后换算回画布坐标。
+            panel = new RectF(0, 0, PanelW, panelH);
+            float availW = Math.Max(1f, canvasW - PanelInset * 2f);
+            float availH = Math.Max(1f, canvasH - PanelInset * 2f);
+            scale = Math.Max(0.1f, Math.Min(availW / PanelW, availH / panelH));
+            offsetX = (canvasW - PanelW * scale) / 2f;
+            offsetY = (canvasH - panelH * scale) / 2f;
         }
 
         // 手牌区：与信息区同高，内容在框内垂直居中；编辑器改过 thumbnail 区域时就按自定义矩形画。
-        var handZone = new RectF(HandX, panel.Y + HeaderH, HandW, contentH + 24f);
+        var handZone = new RectF(panel.X + HandDX, panel.Y + HeaderH, HandW, contentH + 24f);
         if (layout is not null && layout.SettlementHandRect != TableLayoutSpec.DefaultSettlementHandRect)
         {
             handZone = layout.SettlementHandRect;
         }
 
-        var infoZone = new RectF(InfoX, panel.Y + HeaderH, InfoW, contentH + 24f);
+        var infoZone = new RectF(panel.X + InfoDX, panel.Y + HeaderH, InfoW, contentH + 24f);
 
         // 全屏遮罩：牌桌透出一点，读作覆盖层而不是另一屏。
-        c.FillRect(new RectF(0, 0, CanvasW, CanvasH), Color.Black.WithAlpha(194));
+        c.FillRect(new RectF(0, 0, canvasW, canvasH), Color.Black.WithAlpha(194));
 
         c.Save();
+        if (scale != 1f || offsetX != 0f || offsetY != 0f)
+        {
+            c.Translate(offsetX, offsetY);
+            c.Scale(scale);
+        }
+
         c.FillRoundRect(panel, 18, PanelFill);
         c.StrokeRoundRect(panel, 18, Gold, 2f);
 
@@ -251,7 +273,20 @@ public sealed class SettlementOverlay
 
         DrawFooter(c, details.Count, matchOver, panel);
         c.Restore();
+
+        // 命中矩形原本按设计坐标算出；整块放大过就换算回画布坐标，指针命中才对得上。
+        if (scale != 1f || offsetX != 0f || offsetY != 0f)
+        {
+            _nextButton = ToCanvas(_nextButton, scale, offsetX, offsetY);
+            _nextRoundButton = ToCanvas(_nextRoundButton, scale, offsetX, offsetY);
+        }
     }
+
+    /// <summary>设计坐标 → 画布坐标（面板整体缩放后用）。</summary>
+    private static RectF ToCanvas(RectF r, float scale, float dx, float dy) =>
+        r.W <= 0f || r.H <= 0f
+            ? r
+            : new RectF(dx + r.X * scale, dy + r.Y * scale, r.W * scale, r.H * scale);
 
     private static void DrawZone(ICanvas c, RectF zone)
     {

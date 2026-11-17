@@ -9,7 +9,7 @@ public abstract class Screen
 
     public string Id { get; }
 
-    /// <summary>默认逻辑坐标尺寸（菜单屏使用）。牌桌屏会覆盖成 1200×1200。</summary>
+    /// <summary>默认逻辑坐标尺寸（菜单屏使用）。牌桌屏会覆盖成 1400×1400。</summary>
     public const float Width = 1280f;
     public const float Height = 720f;
 

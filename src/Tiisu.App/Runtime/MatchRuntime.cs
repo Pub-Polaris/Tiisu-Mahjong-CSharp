@@ -205,6 +205,12 @@ public sealed class MatchRuntime
 
     public TableViewModel Snapshot => _snapshot;
 
+    /// <summary>最近一局结算明细；局末统计/回放用。流局为空。</summary>
+    public IReadOnlyList<SettlementDetail> LastSettlementDetails => _lastDetails;
+
+    /// <summary>最近一局结果种类（tsumo / ron / tiisuin / flow 等）。</summary>
+    public string? LastWinKind => _lastOutcome?.Kind;
+
     public string Session => _session;
 
     public int ModeTarget => _modeTarget;

@@ -1,0 +1,61 @@
+七子麻将 · 交接提示（2026-11-18）
+================================================
+
+一句话：牌桌 UI 已放大重排（画布 1400、牌河 7×5、手牌 60×82、副露两行），报听按钮改为仅可报听时出现，结算面板放大到画布短边留 8px；测试全绿、安装包已构建并安装启动过，可直接发布。
+
+一、本次改动
+1) 牌桌布局（TableLayoutSpec.cs / YogaTableLayout.cs / Ui/Screens.cs）
+   - 画布 1200 → 1400（方形），中央计分板 400×400 不变
+   - 牌河：每家 7 列 × 5 行（35 格），单格 50×68，间距 3
+   - 手牌：60×82（比原来 +20%），间距 3.6，摸牌间距 14.4；手牌框 824×82
+   - 副露：28.8×39.6，2 行 × 每行 2 组（4 组正好两行，不再单行往外拉长），参考框 270×82
+   - 副露放置改为按行分配（MeldRows / MeldGroupsPerRow / MeldRowGap）
+
+2) 报听按钮（Ui/ActionBar.cs）
+   - 只在 HumanAction.DeclareCall 置位时出现（真听牌 / 摸牌后能打出成听牌形）
+   - 不可报听、已报听时不出按钮；「已报听」状态仍由手牌框上的小标表达
+   - 配套断言/文案：smoke-call-flow 改成「报听后按钮消失」，TableDemoModel.CreateWithCall 文案更新
+
+3) 结算面板（Ui/SettlementOverlay.cs）
+   - 面板改为贴画布短边（留 8px）：1384 宽，内部整块等比放大约 1.24 倍，排版不变
+   - 命中矩形（下一家 / 下一局）在还原变换后换算回画布坐标
+   - 现状：面板约 1384×816，上下各留约 290px 黑带（两栏内容宽扁，等比放大受宽度限制）
+
+4) 配套
+   - layout-custom.json 版本 v3 → v4：旧布局坐标自动忽略、回默认
+   - README 与 docs/images/table.png、settlement.png 已换成 1400 版
+   - DevTools 里写死的 1200/1360/1600 画布常量与注释同步为 1400
+
+二、验证（本机已完成）
+- dotnet test Tiisu.slnx：7 + 62 + 5 + 72 + 163 = 309 条全通过，0 失败
+- --smoke-call-flow 1 4：6 项全 PASS（含「报听后按钮消失」）
+- 安装包：NET\dist\TiisuMahjong-Setup.exe；已静默安装到 %LOCALAPPDATA%\Programs\TiisuMahjong，
+  安装版 exe 时间戳 2026-11-18 04:28:46，启动正常
+- 出图（NET\artifacts\）：table-1400.png、screen-table-1400.png、call-1400_callable/disabled.png、
+  settle-win-1400-big.png、layout-edit-1400.png、app-table-1400.png
+
+三、发布步骤
+1. powershell -ExecutionPolicy Bypass -File NET\installer\build_installer.ps1 -CopyToDesktop
+2. 静默安装 /S 到 %LOCALAPPDATA%\Programs\TiisuMahjong
+3. 启动「已安装」的 exe（不是 Debug 进程），按 AGENTS.md 第 4 节走鼠标路径并截图
+
+四、注意
+- 工作区里 MatchRuntime.cs（6 行）与 DevCommands.cs 还有本次任务之前就存在的改动，
+  提交时别把它们算进本次改动描述
+- 改动文件被编辑器写成 LF 行尾；仓库无 .gitattributes，git autocrlf 会统一处理，不影响构建
+- 结算面板若要连上下也贴 8px，需要把内部两栏改成上下两段（未做，等确认）
+
+五、文件清单（git status）
+README.md
+docs/images/{table,settlement}.png
+src/Tiisu.App/Rendering/{ICanvas,TableRenderStyle}.cs
+src/Tiisu.App/Runtime/CustomLayoutStore.cs
+src/Tiisu.App/Svg/SvgExporter.cs
+src/Tiisu.App/Table/{TableLayoutSpec,YogaTableLayout,TableDemoModel}.cs
+src/Tiisu.App/Ui/{ActionBar,Screen,Screens,SettlementOverlay}.cs
+tools/Tiisu.DevTools/DevCommands.cs
+
+另：Blender 低模属于另一条线，不进 NET 发布物：
+C:\Users\rksk1\.dsh\blender-output\mahjong-table-1794946048618.blend
+
+By DSH

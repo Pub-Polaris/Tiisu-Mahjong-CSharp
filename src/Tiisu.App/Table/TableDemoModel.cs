@@ -214,8 +214,8 @@ public static class TableDemoModel
     }
 
     /// <summary>
-    /// 报听按钮演示：<paramref name="callable"/> = 真听牌（按钮可点 + 待牌提示）/
-    /// false = 不听牌（按钮灰显、无提示）。
+    /// 报听按钮演示：<paramref name="callable"/> = 真听牌（按钮出现 + 待牌提示）/
+    /// false = 不听牌（不出报听按钮、无待牌提示）。
     /// </summary>
     public static TableViewModel CreateWithCall(bool callable)
     {
@@ -233,7 +233,7 @@ public static class TableDemoModel
             Phase = "human_discard",
             Actions = HumanAction.Discard | (callable ? HumanAction.DeclareCall : HumanAction.None),
             TenpaiTiles = callable ? new[] { "2m", "5p", "8s", "3z" } : Array.Empty<string>(),
-            Message = callable ? "真听牌：报听按钮可点" : "不听牌：报听按钮灰显",
+            Message = callable ? "真听牌：显示报听按钮" : "不听牌：不显示报听按钮",
             AiLevels = vm.AiLevels,
         };
     }

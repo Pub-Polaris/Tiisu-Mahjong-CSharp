@@ -10,16 +10,16 @@ namespace Tiisu.App.Table;
 ///
 /// 树结构与 V4 完全相同：
 ///   root(pad 16, column, align center)
-///     ├─ 纵向列 739 × (H-32)，上下 pad 24
-///     │    ├─ 手牌框 739×68
+///     ├─ 纵向列 823 × (H-32)，上下 pad 24
+///     │    ├─ 手牌框 823×82
 ///     │    ├─ 弹性间隙 flexGrow 1
-///     │    ├─ 牌河区 380×260
+///     │    ├─ 牌河区 368×352（7 列 × 5 行）
 ///     │    ├─ 间隔 14
 ///     │    ├─ 中央板 400×400
 ///     │    ├─ 间隔 14
-///     │    ├─ 牌河区 380×260
+///     │    ├─ 牌河区 368×352（7 列 × 5 行）
 ///     │    ├─ 弹性间隙 flexGrow 1
-///     │    └─ 手牌框 739×68
+///     │    └─ 手牌框 823×82
 ///     ├─ 左家手牌框（绝对定位，左中）
 ///     └─ 右家手牌框（绝对定位，右中）
 ///
@@ -136,8 +136,8 @@ public static class YogaTableLayout
             l.RiverRects[seat] = l.River(seat).Bounds;
         }
 
-        // 副露区参考框：手牌框右手侧（与绘制同一套轴向规则）。
-        const float meldBand = 210f;
+        // 副露区参考框：手牌框右手侧（与绘制同一套轴向规则），2 行堆叠 ≈ 270×82。
+        const float meldBand = 270f;
         for (int seat = 0; seat < 4; seat++)
         {
             var f = l.HandRects[seat];
