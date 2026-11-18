@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Windows.Forms;
 using Tiisu.App.Rendering;
+using Tiisu.Localization;
 using Tiisu.App.Runtime;
 using Color = Tiisu.App.Rendering.Color;
 
@@ -55,7 +56,7 @@ public sealed class LayoutEditor
             Selected = 0;
         }
 
-        Status = "编辑中";
+        Status = L.T("app.table.editor.editing");
     }
 
     public void Exit()
@@ -206,11 +207,11 @@ public sealed class LayoutEditor
         try
         {
             CustomLayoutStore.Save(_layout, _directory);
-            Status = "已保存 → " + CustomLayoutStore.PathFor(_directory);
+            Status = L.T("app.table.editor.saved", ("path", CustomLayoutStore.PathFor(_directory)));
         }
         catch (Exception ex)
         {
-            Status = "保存失败：" + ex.Message;
+            Status = L.T("app.table.editor.saveFailed", ("message", ex.Message));
         }
     }
 
@@ -220,7 +221,7 @@ public sealed class LayoutEditor
         if (_restoreArmed == 0)
         {
             _restoreArmed = 1;
-            Status = "再按一次 R 确认恢复默认";
+            Status = L.T("app.table.editor.confirmRestore");
             return;
         }
 
@@ -231,11 +232,11 @@ public sealed class LayoutEditor
             YogaTableLayout.Apply(_layout);
             _layout.OverridesActive = false;
             Selected = Math.Min(Selected, Math.Max(0, Regions.Count - 1));
-            Status = "已恢复默认";
+            Status = L.T("app.table.editor.restored");
         }
         catch (Exception ex)
         {
-            Status = "恢复失败：" + ex.Message;
+            Status = L.T("app.table.editor.restoreFailed", ("message", ex.Message));
         }
     }
 
@@ -335,7 +336,7 @@ public sealed class LayoutEditor
 
     private void DrawBanner(ICanvas c)
     {
-        const string hint = "布局编辑 F2 退出 · Tab 切换 · 拖拽移动 · 滚轮缩放（Shift 只改高） · 方向键 1px（Shift 10px） · S 保存 · R 恢复默认";
+        string hint = L.T("app.table.editor.bannerHint");
         var hintStyle = new TextStyle(14, Center: false);
         float hintW = Math.Min(_layout.CanvasW - 32f, c.MeasureText(hint, hintStyle) + 24f);
         var hintBox = new RectF(16f, 60f, hintW, 26f);
@@ -347,12 +348,14 @@ public sealed class LayoutEditor
         if (Current is { } region)
         {
             var r = region.Rect;
-            selection = string.Create(CultureInfo.InvariantCulture,
-                $"选中 {Selected + 1}/{Regions.Count}  {region.Id} · {region.Note}  x={r.X:0} y={r.Y:0} w={r.W:0} h={r.H:0}");
+            selection = L.T("app.table.editor.selected",
+                ("index", Selected + 1), ("total", Regions.Count), ("id", region.Id), ("note", region.Note),
+                ("x", r.X.ToString("0", CultureInfo.InvariantCulture)), ("y", r.Y.ToString("0", CultureInfo.InvariantCulture)),
+                ("w", r.W.ToString("0", CultureInfo.InvariantCulture)), ("h", r.H.ToString("0", CultureInfo.InvariantCulture)));
         }
         else
         {
-            selection = "选中 0/0";
+            selection = L.T("app.table.editor.selectedNone");
         }
 
         if (Status.Length > 0)

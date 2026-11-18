@@ -1,0 +1,1845 @@
+{
+  "七子麻将": "{七子麻雀|てぃーつまーじゃん}",
+  "一局": "{一局|いっきょく}",
+  "东风场": "{東風戦|とんぷうせん}",
+  "南风场": "{南風戦|なんぷうせん}",
+  "全庄": "{全荘|ぜんしょう}",
+  "新手引导": "{チュートリアル|ちゅーとりある}",
+  "退出": "終了",
+  "设置": "{設定|せってい}",
+  "语言 / Language": "言語 / Language",
+  "中文": "中国語",
+  "← 返回": "← 戻る",
+  "规则速查": "ルール",
+  "战绩统计": "{戦績|せんせき}",
+  "牌谱回看": "牌譜再生",
+  "返回": "戻る",
+  "返回菜单": "メニューへ戻る",
+  "返回战绩": "戦績へ戻る",
+  "上一步": "前へ",
+  "下一步": "次へ",
+  "上一手": "前の手",
+  "下一手": "次の手",
+  "上一局": "前の局",
+  "下一局": "次の局",
+  "← 上一局": "← 前の局",
+  "下一局 →": "次の局 →",
+  "试打一局": "一局試す",
+  "查看规则速查": "ルールを見る",
+  "开始一局": "一局開始",
+  "三步上手 · 第 1 / 3 页": "3ステップ · 1 / 3 ページ",
+  "三步上手 · 第 2 / 3 页": "3ステップ · 2 / 3 ページ",
+  "三步上手 · 第 3 / 3 页": "3ステップ · 3 / 3 ページ",
+  "第一步 · 出牌": "ステップ1 · 打牌",
+  "第二步 · 报听": "ステップ2 · 宣言",
+  "第三步 · 和牌与结算": "ステップ3 · 和了と精算",
+  "轮到你时，点最下面一排手牌中的一张。": "自分の番は一番下の手牌をクリック。",
+  "刚摸到的牌会单独放在最右，点它或点其他牌都可以。": "ツモ牌は右端にあります。それでも他の牌でも構いません。",
+  "不确定打哪张时，先看上方「听牌」提示和剩余张数。": "迷ったら上の「待ち」表示と残り枚数を確認。",
+  "手牌进入听牌后，可以点「报听」。": "聴牌したら「宣言」をクリック。",
+  "报听后锁手：之后不能改变听牌形，只有不破坏听牌形的暗杠例外。": "宣言後は手牌固定。待ちを崩さない暗槓のみ例外。",
+  "报听本身不加赋；报和时赋不足 7 会被判错和。": "宣言自体に賦なし。7賦未満で和了すると誤宣言。",
+  "能自摸时点「和牌」，别人打出铳张时点「荣和」。": "ツモなら「和了」、他家の打牌なら「ロン」。",
+  "结算页会列出役种、点数变化和局内调整。": "精算画面に役・点数の変化・局内調整を表示。",
+  "点「下一局」继续；整场结束后回菜单。": "「次の局」で続行。終局後はメニューへ。",
+  "基础": "基本",
+  "规则": "ルール",
+  "AI / 对局": "AI / 対局",
+  "长考秒数": "長考秒数",
+  "音乐音量": "音楽音量",
+  "音效音量": "効果音音量",
+  "报牌语音": "読み上げ音声",
+  "大字号界面": "大きい文字UI",
+  "显示岭上指示牌": "嶺上表示牌を表示",
+  "记录牌型日志": "牌譜ログを記録",
+  "骰子查看器（右下角按钮）": "賽子ビューア（右下ボタン）",
+  "规则集（推倒胡=无役/无点数）": "ルールセット（推倒胡＝役なし／点数なし）",
+  "七子": "七子",
+  "推倒胡": "推倒胡",
+  "AI 难度权重": "AI難易度の重み",
+  "修罗 MCTS": "修羅 MCTS",
+  "全桌 AI 难度（快捷）": "全卓AI難易度（クイック）",
+  "全桌 AI 难度": "全卓AI難易度",
+  "随机": "ランダム",
+  "简单": "簡単",
+  "普通": "普通",
+  "困难": "難しい",
+  "修罗": "修羅",
+  "你": "あなた",
+  "AI 东": "AI 東",
+  "AI 南": "AI 南",
+  "AI 西": "AI 西",
+  "AI 北": "AI 北",
+  "自定义": "カスタム",
+  "开": "オン",
+  "关": "オフ",
+  "锁定 · 东座": "固定 · 東",
+  "锁定 · 南座": "固定 · 南",
+  "锁定 · 西座": "固定 · 西",
+  "锁定 · 北座": "固定 · 北",
+  "锁定 · 东座（你）": "固定 · 東（あなた）",
+  "↑↓ 选择 · ←→ 改值 · Tab 切换分组 · Esc 返回": "↑↓ 選択 · ←→ 変更 · Tab グループ · Esc 戻る",
+  "总局数": "総局数",
+  "和牌率": "和了率",
+  "自摸 / 荣和": "ツモ / ロン",
+  "流局率": "流局率",
+  "大七星": "大七星",
+  "见证": "目撃",
+  "累计点数": "累計点数",
+  "特殊流局": "特殊流局",
+  "玩家": "プレイヤー",
+  "和牌": "和了",
+  "成就": "実績",
+  "已解锁": "解除済み",
+  "还没有对局记录，先打一局。": "対局記録がありません。まず一局打ちましょう。",
+  "还没有玩家统计。": "プレイヤー統計がありません。",
+  "初战": "初戦",
+  "十局": "十局",
+  "百局": "百局",
+  "首胜": "初勝利",
+  "十胜": "十勝",
+  "百胜": "百勝",
+  "自摸": "ツモ",
+  "自摸十次": "ツモ十回",
+  "完成 1 个小局": "1局を完了",
+  "完成 10 个小局": "10局を完了",
+  "完成 100 个小局": "100局を完了",
+  "和牌 1 次": "1回和了",
+  "和牌 10 次": "10回和了",
+  "和牌 100 次": "100回和了",
+  "自摸 1 次": "1回ツモ",
+  "自摸 10 次": "10回ツモ",
+  "打出一次大七星": "大七星で和了",
+  "见证一次大七星": "大七星を目撃",
+  "没有可回看的牌谱。": "再生できる牌譜がありません。",
+  "本机 logs 里还没有牌谱；在设置中开启「记录牌型日志」后打一局。": "牌譜ログがありません。設定で「牌譜ログを記録」をオンにして一局打ってください。",
+  "手牌：": "手牌：",
+  "余牌：": "残り牌：",
+  "牌河：": "河：",
+  "摸牌": "ツモ",
+  "打出": "打牌",
+  "碰": "ポン",
+  "吃": "チー",
+  "明杠": "明槓",
+  "暗杠": "暗槓",
+  "加杠": "加槓",
+  "岭上摸": "嶺上ツモ",
+  "荣和": "ロン",
+  "观察": "見送り",
+  "流局": "流局",
+  "报听": "宣言",
+  "错和": "誤宣言",
+  "听牌": "聴牌",
+  "余": "残り",
+  "本场": "本場",
+  "场赏": "場賞",
+  "菜单": "メニュー",
+  "↑↓←→ 选择 · Enter 确认": "↑↓←→ 選択 · Enter 決定",
+  "Tiisu Mahjong": "七子麻雀 · シングルプレイ",
+  "东": "東",
+  "南": "南",
+  "西": "西",
+  "北": "北",
+  "(你)": "(あなた)",
+  "长考": "長考",
+  "已报听": "宣言済み",
+  "终局": "終局",
+  "本局结算": "本局精算",
+  "下一个": "次へ",
+  "四家手牌": "四家の手牌",
+  "役种": "役",
+  "赋": "賦",
+  "无役": "役なし",
+  "最终点数": "最終点数",
+  "本局无人和牌": "本局は和了者なし",
+  "无人和牌": "和了者なし",
+  "只记胜负，不计点数": "勝敗のみ・点数なし",
+  "惩罚结算": "罰則精算",
+  "分数变化": "点数変化",
+  "最终排名": "最終順位",
+  "点「下一局」继续 · Esc 设置": "「次の局」で続行 · Esc 設定",
+  "← / → 或点「下一个」切换和牌者 · 点「下一局」继续 · Esc 设置": "← / → または「次へ」で和了者切替 · 「次の局」で続行 · Esc 設定",
+  "Esc 进入设置": "Esc 設定",
+  "九种九牌": "九種九牌",
+  "十三不靠": "十三不靠",
+  "四风连打": "四風連打",
+  "三家和牌": "三家和了",
+  "三家和牌（抢杠）": "三家和了（搶槓）",
+  "荒牌流局": "荒牌流局",
+  "七子麻将 · 和「标准日麻」不同的地方": "七子麻雀 · 標準リーチ麻雀との違い",
+  "开源许可与参考鸣谢": "ライセンスと謝辞",
+  "参考": "参考",
+  "按 ← / → 翻页 · Esc 返回菜单": "← / → ページ · Esc メニュー",
+  "← / → 翻页 · 滚轮翻页 · Esc 返回": "← / → ページ · ホイール · Esc 戻る",
+  "查看本页许可全文": "このページの全文を見る",
+  "参考与合规说明": "参考・コンプライアンス",
+  "上一页": "前ページ",
+  "下一页": "次ページ",
+  "参考与合规说明（Markdown）": "参考・コンプライアンス（Markdown）",
+  "素材来源": "素材の出典",
+  "ML 权重来源": "ML重みの出典",
+  "自博弈训练": "自己対戦学習",
+  "发布合规清单": "リリース確認リスト",
+  "第三方声明": "第三者声明",
+  "音乐 Parisian · Kevin MacLeod · ": "音楽 Parisian · Kevin MacLeod · ",
+  " ｜ ": " | ",
+  "开源信息": "ライセンス",
+  "起和与报听": "起和と宣言",
+  "错和惩罚": "誤宣言の罰則",
+  "场供与蓝筹": "場供と青チップ",
+  "手牌够 7 赋才能和；赋不够不能和。": "手牌は7賦以上で和了可。不足なら和了不可。",
+  "报听本身不加赋，也不给额外收益。": "宣言自体は賦も追加報酬もなし。",
+  "听牌即可报听；报听后锁手，不破坏听牌形的暗杠除外。": "聴牌で宣言可。宣言後は手牌固定、待ちを崩さない暗槓のみ例外。",
+  "报听后主动报和，实际赋 < 7 = 错和。": "宣言後に和了して実賦が7未満なら誤宣言。",
+  "向三家赔 Z = 赋 × 700。": "三家へ Z = 賦 × 700 を支払う。",
+  "Z > 2100 重罚：禁和本局 + 下局。": "Z > 2100 は重罰：本局と次局の和了禁止。",
+  "结算按 350 点蓝筹取整。": "精算は350点の青チップ単位で丸め。",
+  "自摸除不尽的尾数进场供池。": "ツモの端数は場供プールへ。",
+  "场供由下一手和牌者拿走；本场连庄有加成。": "場供は次の和了者が取得。本場連荘は加算。",
+  "Tiisu Rounded SC（文渊圆体子集）": "七子 Rounded SC（文淵丸ゴシックのサブセット）",
+  "lietxia/mahjong_graphic（牌面素材）": "lietxia/mahjong_graphic（牌画像）",
+  "音效与语音素材": "効果音・音声素材",
+  "Tiisu Mahjong 本项目代码": "七子 Mahjong プロジェクトコード",
+  "明星三缺一 2002": "明星三缺一 2002",
+  "自定义自由许可": "独自の自由ライセンス",
+  "随 SkiaSharp.HarfBuzz 分发": "SkiaSharp.HarfBuzz と同梱",
+  "随 YogaSharp 分发": "YogaSharp と同梱",
+  "随项目 MIT": "プロジェクトMIT",
+  "闭源商业作品": "クローズドソース商用作品",
+  "在线服务": "オンラインサービス",
+  "服务条款（仅参考）": "利用規約（参考のみ）",
+  "EULA（仅参考）": "EULA（参考のみ）",
+  "本仓合成/本机生成": "本リポジトリで合成／ローカル生成",
+  "见版本行": "バージョン行を参照",
+  "界面圆体；子集化后重命名，避免 OFL 保留字体名": "UI用丸ゴシック。OFL予約名を避けるためサブセット化して改名",
+  "牌面矢量素材来源；允许商用/修改/再分发，无署名要求；本项目重排为 tiles.png": "牌画像ベクター素材。商用・改変・再配布可、著作表示不要。本プロジェクトで tiles.png に再配置",
+  "2D 绘制、牌面渲染、文字排版": "2D描画・牌画像レンダリング・文字組版",
+  "SkiaSharp 的 Windows 原生库": "SkiaSharp の Windows ネイティブライブラリ",
+  "WinForms 上的 Skia 画布控件": "WinForms 用 Skia キャンバスコントロール",
+  "文字整形（HarfBuzz 绑定）": "文字整形（HarfBuzzバインディング）",
+  "复杂文字整形引擎（随包原生库）": "複雑な文字整形エンジン（同梱ネイティブライブラリ）",
+  "BGM / 音效混音与播放": "BGM／効果音のミックスと再生",
+  "NAudio 的传递依赖模块": "NAudio の推移的依存モジュール",
+  "SkiaSharp.HarfBuzz 的传递依赖": "SkiaSharp.HarfBuzz の推移的依存",
+  "OpenGL 窗口与图形绑定（OpenTK.* 传递依赖）": "OpenGL ウィンドウ／描画バインディング（OpenTK.* の推移的依存）",
+  "WinForms GL 控件": "WinForms GL コントロール",
+  "窗口/输入原生库": "ウィンドウ／入力のネイティブライブラリ",
+  "布局与 Skia 桌面控件的传递依赖": "レイアウトと Skia デスクトップコントロールの推移的依存",
+  "牌桌 Flex 布局绑定": "牌卓の Flex レイアウトバインディング",
+  "Facebook 的 Flexbox 布局引擎（随包 yoga.dll）": "Facebook の Flexbox レイアウトエンジン（yoga.dll 同梱）",
+  "运行时、WinForms 与基础库": "ランタイム・WinForms・基盤ライブラリ",
+  "本机 Windows SAPI 报牌语音生成": "ローカル Windows SAPI による読み上げ生成",
+  "单元测试（仅开发构建）": "ユニットテスト（開発ビルドのみ）",
+  "测试运行器（仅开发构建）": "テストランナー（開発ビルドのみ）",
+  "测试宿主（仅开发构建）": "テストホスト（開発ビルドのみ）",
+  "代码覆盖率（仅开发构建）": "コードカバレッジ（開発ビルドのみ）",
+  "菜单 BGM（lobby.wav，已做音量调整）": "メニューBGM（lobby.wav、音量調整済み）",
+  "音效由 AudioGen 合成；语音本机 SAPI 生成，不随包分发": "効果音は AudioGen で合成、音声はローカルSAPI生成。パッケージには含まない",
+  "仓库内自有代码与文档": "リポジトリ内の自前コードとドキュメント",
+  "空间音频架构调研；未使用代码、中间件、素材或衍生产物": "空間オーディオ構成の調査のみ。コード・ミドルウェア・素材・派生物は未使用",
+  "音效包络/时长/密度特征分析；未使用原音频、代码或美术": "効果音の包絡／長さ／密度の特徴分析のみ。原音声・コード・美術は未使用",
+  "人类听牌形参考；未使用代码、数据或素材": "人間の聴牌形を参考。コード・データ・素材は未使用",
+  "性质：闭源/EULA 参考鸣谢，未使用其代码或素材": "性質：クローズドソース／EULA 参考謝辞。コード・素材は未使用",
+  "七对子": "七対子",
+  "四子七对": "四子七対",
+  "门前自摸": "門前ツモ",
+  "断幺九": "断幺九",
+  "对对和": "対々和",
+  "混一色": "混一色",
+  "清一色": "清一色",
+  "混老头": "混老頭",
+  "五门齐": "五門斉",
+  "同高（一般高）": "一盃口",
+  "二同高": "二盃口",
+  "四归一": "四帰一",
+  "二色同顺": "二色同順",
+  "一色三节高": "一色三節高",
+  "两暗刻": "二暗刻",
+  "缺门": "欠門",
+  "二色同刻": "二色同刻",
+  "三色同顺": "三色同順",
+  "一色三步高": "一色三歩高",
+  "一通（一条龙）": "一気通貫",
+  "三色同刻": "三色同刻",
+  "纯全带幺": "純全帯幺九",
+  "混全带幺": "混全帯幺九",
+  "三暗刻": "三暗刻",
+  "小三元": "小三元",
+  "缺七": "欠七",
+  "卡七": "嵌七",
+  "全数": "全数",
+  "全数筋和": "全数筋和",
+  "海上月": "海上月",
+  "河中鱼": "河中魚",
+  "和绝张": "和絶張",
+  "海底月": "海底月",
+  "同色老少": "同色老少",
+  "同色双老少": "同色双老少",
+  "双色双老少": "双色双老少",
+  "双双逢": "双双逢",
+  "三双逢": "三双逢",
+  "一暗杠（暗根）": "一暗槓（暗根）",
+  "加杠/明杠（明根）": "加槓／明槓（明根）",
+  "两杠子": "二槓子",
+  "三杠子": "三槓子",
+  "全带赤": "全帯赤",
+  "水滴石破": "水滴石破",
+  "全食顺": "全食順",
+  "全碰刻": "全碰刻",
+  "岭上炮": "嶺上炮",
+  "岭上花": "嶺上花",
+  "杠立": "槓立",
+  "人和": "人和",
+  "赐马": "{卯先|うさき}",
+  "多家和牌": "複数和了",
+  "副露": "副露",
+  "南家": "南家",
+  "西家": "西家",
+  "北家": "北家",
+  "东家": "東家",
+  "和牌者的手牌": "和了者の手牌",
+  "门清": "門前清",
+  "门清自摸": "門前ツモ",
+  "画面还没跟上（快照版本不一致），刚才的操作已忽略，请再按一次": "画面が追いついていません（スナップショット不一致）。直前の操作は無視されました。もう一度押してください",
+  "没有可恢复的存档": "復元できるセーブがありません",
+  "整场已结束": "試合は終了しました",
+  "本局尚未结束": "本局はまだ終了していません",
+  "现在没有可副露的机会": "現在、副露できる機会はありません",
+  "现在没有可荣和的牌": "現在、ロンできる牌はありません",
+  "已经报听，不能重复宣言": "すでに宣言済みです。再宣言はできません",
+  "手牌没有听牌，不能报听": "手牌が聴牌していないため宣言できません",
+  "现在不能报听": "現在は宣言できません",
+  "请选择要打出的那张牌完成报听": "宣言するには打牌する牌を選んでください",
+  "打出这张后不听牌，不能报听": "この牌を打つと聴牌しないため宣言できません",
+  "当前没有待决动作": "保留中のアクションはありません",
+  "现在不是你的出牌阶段": "今はあなたの打牌番ではありません",
+  "出牌下标越界": "打牌インデックスが範囲外です",
+  "这张牌不在手里": "その牌は手牌にありません",
+  "手牌不是 14 张，不能自摸": "手牌が14枚ではないためツモ和了できません",
+  "手牌不能和": "手牌は和了できません",
+  "本局禁和（或本巡禁和），不能宣布和牌": "本局／本巡は和了禁止のため宣言できません",
+  "这个副露不可用": "その副露は使用できません",
+  "当前手牌不满足推牌流局条件": "現在の手牌は押し流局の条件を満たしていません",
+  "等待其他玩家确认": "他のプレイヤーの確認待ち",
+  "已重置": "リセット済み",
+  "南 AI": "南 AI",
+  "西 AI": "西 AI",
+  "北 AI": "北 AI",
+  "东 AI": "東 AI",
+  "过": "パス",
+  "杠": "槓",
+  "骰子": "賽子",
+  "按住查看": "押して表示",
+  "推倒胡：无役 · 无点数 · 只记胜负": "推倒胡：役なし・点数なし・勝敗のみ",
+  "K 杠": "K 槓",
+  "H 和牌": "H 和了",
+  "H 荣和": "H ロン",
+  "P 碰": "P ポン",
+  "C 吃(多组)": "C チー（複数）",
+  "C 吃": "C チー",
+  "Space 过": "Space パス",
+  "F 流局": "F 流局",
+  "点手牌出牌": "手牌をクリックして打牌",
+  "和牌次数": "和了回数",
+  "驷马越岭": "駟卯越嶺",
+  "马赏": "{卯先|うさき}",
+  "马牌": "{卯先|うさき}",
+  "馬": "卯",
+  "马": "卯",
+  "本局禁和，不能和牌": "本局は和了禁止です",
+  "暂停": "一時停止",
+  "继续": "再開",
+  "主菜单": "メインメニュー",
+  "起和": "起和",
+  "updater": {
+    "cli": {
+      "usage": "Tiisu.Updater --apply <ディレクトリまたは zip> [--install <インストール先>] [--sha256 <hex>] [--restart]"
+    },
+    "err": {
+      "applyRequired": "--apply <ディレクトリまたは zip> がありません",
+      "sourceNotFound": "ソースが見つかりません: {path}",
+      "installDirNotFound": "インストール先が見つかりません: {path}",
+      "sha256FileOnly": "--sha256 はファイル（zip）のみ対応です",
+      "sha256Mismatch": "SHA256 不一致：期待 {expected}、実際 {actual}",
+      "updateFailed": "更新失敗: {message}",
+      "rollbackFailed": "ロールバック失敗。バックアップは {backup} に保持: {message}",
+      "appStillRunning": "本体が 60 秒待っても終了しません"
+    },
+    "log": {
+      "backup": "バックアップ: {path}",
+      "updated": "更新完了: {path}",
+      "restarted": "再起動しました: {path}",
+      "rollbackStart": "ロールバック開始: {path}",
+      "rollbackDone": "ロールバック完了"
+    }
+  },
+  "tools": {
+    "cli": {
+      "audio": {
+        "sfxHeader": "効果音：",
+        "voiceHeader": "ボイス：",
+        "outputDir": "出力先：{path}",
+        "skipExists": "skip（既に存在）",
+        "voiceSkip": "skip（voices は既に存在。--force で再生成）",
+        "noChineseSapi": "（中国語 SAPI ボイスが無いため espeak-ng に切替）",
+        "voiceFailed": "ボイス生成に失敗（--espeak で espeak-ng のパスを指定できます）",
+        "bgmHeader": "BGM：",
+        "bgmSkip": "skip（{path} は既に存在）",
+        "done": "完了。",
+        "espeakNotFound": "espeak-ng が見つかりません：{path}",
+        "espeakStartFailed": "espeak-ng の起動に失敗",
+        "espeakSynthFailed": "espeak-ng の合成に失敗：{text}（exit {code}）",
+        "notWav": "WAV ではありません：{path}",
+        "wavNoData": "WAV に data チャンクがありません：{path}",
+        "noSapiVoice": "使用可能な中国語 SAPI ボイスがありません",
+        "engineLine": "音声エンジン：SAPI · {voice}",
+        "notRiff": "RIFF/WAV ではありません：{path}",
+        "wavNoDataChunk": "WAV に data チャンクがありません：{path}",
+        "bgmSourceMissing": "BGM のソースが見つかりません：{path}",
+        "unsupportedBits": "未対応のビット深度：{bits} bit",
+        "bgmConverted": "BGM {gain} dB → {path}（{kb} KB）"
+      },
+      "fixtures": {
+        "usage": {
+          "regenYaku": "  --regen-yaku-fixtures  現在の C# 実装で yaku golden コーパスの期待値を再計算（その場で上書き）",
+          "regenEngine": "  --regen-engine-fixtures 現在のエンジンで engine-golden.json の各イベントのスナップショットを再計算（その場で上書き）",
+          "probeLastTile": "  --probe-last-tile      和絶張のエンジン可視枚数の基準を検証（河＋副露、手牌は除外）"
+        },
+        "corpusParseFailed": "コーパスの解析に失敗: {path}",
+        "recordNotObject": "{file}[{index}] はオブジェクトではありません",
+        "resultSerializeEmpty": "result のシリアライズ結果が空です",
+        "changeHeader": "  {file}[{index}] 変更:",
+        "regenSummary": "[{file}] 全 {count} 件、期待値の変更 {changed} 件",
+        "regenTotal": "合計: 全 {total} 件、期待値の変更 {changed} 件",
+        "meldNotObject": "melds の要素がオブジェクトではありません",
+        "meldTypeMissing": "melds[].type がありません",
+        "fixtureNotFound": "見つかりません: {path}",
+        "engineEventsMissing": "engine-golden.json に events がありません",
+        "eventCountMismatch": "イベント数が一致しません：{actual} 対 {expected}",
+        "eventChangeHeader": "  events[{index}] ({type}) スナップショット変更:",
+        "engineSummary": "[engine-golden.json] 全 {count} イベント、スナップショット変更 {changed} 件；スナップショット以外の予期しない変更 {other} 件",
+        "writtenBack": "書き戻し完了: {path}",
+        "verifyClean": "[verify] コーパス再読込後、差分 0",
+        "verifyDirty": "[verify] 差分が残っています:",
+        "aiDecisionsMissing": "ai-golden.json に decisions がありません",
+        "decisionNotObject": "decisions[{index}] はオブジェクトではありません",
+        "decisionKindMissing": "decisions[{index}].kind がありません",
+        "decisionInMissing": "decisions[{index}].in がありません",
+        "aiSummary": "[ai-golden.json] 全 {count} 件の意思決定、out の変更 {changed} 件",
+        "unknownDecisionKind": "不明な意思決定種別: {kind}",
+        "unknownWind": "不明な門風: {wire}",
+        "probePass": "[probe] すべて合格",
+        "probeFail": "[probe] {count} 件失敗",
+        "probeNoRon": "[probe] {label}: ロンが発生せず（和絶張を検証できません）",
+        "probeResult": "[probe] {label}: success={success}, totalFu={fu}, 和絶張={lastTile}",
+        "probeMismatch": "[probe] {label}: 期待する和絶張={expected}、実際={actual}",
+        "caseLabel": {
+          "meld": "河2+副露1",
+          "hand": "河2+手牌1"
+        }
+      },
+      "report": {
+        "usage": "使い方：--analyze-discards <dataset.jsonl> [--out report.md]",
+        "datasetNotFound": "データセットが見つかりません：{path}",
+        "title": "# 打牌偏好レポート（人間 vs AI）",
+        "source": "データ：`{file}`",
+        "samples": "## サンプル数",
+        "sourceTableHead": "| 出所 | サンプル | 平均巡目 |",
+        "humanRow": "| 人間 | {total} | {avg} |",
+        "aiRow": "| AI | {total} | {avg} |",
+        "categories": "## カテゴリ比率",
+        "categoryTableHead": "| カテゴリ | 人間 | AI | 差（人間 − AI） |",
+        "honors": "字牌（1z-7z）",
+        "terminals": "幺九（1/9 数牌）",
+        "middle": "中張（2-8 数牌）",
+        "humanTop": "## 人間がよく切る牌（上位 10、人間比率 − AI 比率）",
+        "aiTop": "## AI がよく切る牌（上位 10）",
+        "tileTableHead": "| 牌 | 人間 | AI | 差 |",
+        "turnImpact": "## 巡目別の影響（各サイドの打牌に占める字牌の比率）",
+        "turnTableHead": "| 巡目帯 | 人間 | AI |",
+        "distribution": "## 分布の差",
+        "tvLine": "- 総変動距離（0=完全一致、1=完全不一致）：**{value}**",
+        "jsLine": "- 人間と AI の JS ダイバージェンス：**{value}**",
+        "notes": "## 補足",
+        "noteSource": "- サンプルは `roundlog_*.jsonl` 由来。1 行 = 実際の打牌 1 回。",
+        "noteTurn": "- 巡目 = そのプレイヤーがその局で打った牌数。`0` は最初の打牌。",
+        "noteSampleSize": "- 人間のサンプルが AI より大幅に少ないとぶれる。5000+ まで貯めてから比較するのが望ましい。",
+        "summary": "  人間 {human} 件 · AI {ai} 件 · TV 距離 {tv}"
+      },
+      "dataset": {
+        "usage": "使い方：--export-dataset <out.jsonl> [logDir] [--human-only|--ai-only]",
+        "logDirNotFound": "ログディレクトリが見つかりません：{path}",
+        "noLogs": "ディレクトリに roundlog_*.jsonl がありません：{path}",
+        "summary": "  ログファイル {files} 個 · サンプル {total}（人間 {human} / AI {ai}）",
+        "labelHeader": "  label 分布（34 マス、0=1m…33=7z）：{values}"
+      },
+      "devtools": {
+        "CheckI18n": {
+          "1": "check-i18n: FAIL 見つかりません ",
+          "2": "check-i18n: zh/en/ja カタログに無いキーが {p1} 件",
+          "3": "  不足："
+        },
+        "CheckSteam": {
+          "1": "連携ドキュメント",
+          "2": "実績マッピング文書",
+          "3": "リリースチェックリスト",
+          "4": "achievements.json を解析できません",
+          "5": "実績マッピング 10 件",
+          "6": "実績マッピングが 10 件ではありません",
+          "7": "AppID（steam_appid.txt）",
+          "8": "VDF テンプレート",
+          "9": "Steam 連携チェック",
+          "10": "  準備済み：",
+          "11": "  阻害項目：",
+          "12": "  結果：実 SDK を接続可能",
+          "13": "  結果：未準備（AppID / SDK 待ち）"
+        },
+        "AuditUiStrings": {
+          "1": "audit-ui-strings: FAIL 見つかりません ",
+          "2": "audit-ui-strings: 中語 UI リテラル {p1} 件、{p2} ファイル"
+        },
+        "CheckFont": {
+          "1": "check-font: FAIL フォントが見つかりません ",
+          "2": "check-font: FAIL フォントを読み込めません ",
+          "3": "  文字集合 {p1}；欠字 {p2}",
+          "4": "  欠字："
+        },
+        "CheckPublish": {
+          "1": "publish ディレクトリがありません: ",
+          "2": "不足 ",
+          "3": "Assets/voices が残っています（ボイスは配布物に含めない）",
+          "4": "持ち込み禁止ファイル: ",
+          "5": "ASSET-HASHES.md が無いためハッシュ照合をスキップ",
+          "6": "ハッシュ一覧にあるファイルが欠落: ",
+          "7": "ハッシュ不一致: ",
+          "8": "アセットハッシュを照合 ",
+          "9": " 件",
+          "10": " 件失敗"
+        },
+        "BenchSnapshot": {
+          "1": "  （聴牌キャッシュ有効；同状態を繰り返し構築）"
+        },
+        "AuditGames": {
+          "1": "passive ドライバが不明なフェーズに到達: ",
+          "2": "  ... {p1}/{p2} 局、問題 {p3}、{p4}s",
+          "3": "  並列 {p1} 本（CPU {p2} スレッド）",
+          "4": "  完了 {p1}/{p2}（例外 {p3}）・総局数 {p4}（和了 {p5} / 流局 {p6}）",
+          "5": "  決算自己点検の問題: {p1}",
+          "6": "  UI/ヒント自己点検の問題: {p1}"
+        },
+        "SmokeRun": {
+          "1": "使い方：--smoke-run <seed> [mode] [--record]",
+          "2": "{p1} 回の進行以内に終局しません（phase={p2}）"
+        },
+        "SmokeAi": {
+          "1": "使い方：--smoke-ai <seed> [mode]",
+          "2": "  重み: ",
+          "3": "  修羅 MCTS: ",
+          "4": "オン",
+          "5": "オフ",
+          "6": "  四家レベル: ",
+          "7": "  打牌判断: ",
+          "8": " 回（",
+          "9": "）",
+          "10": "  完了: {0}  rounds={1} handsPlayed={2}  総時間={3:F0} ms  平均ステップ={4:F3} ms",
+          "11": "はい",
+          "12": "いいえ",
+          "13": "smoke-ai が終局しません（phase={p1}）"
+        },
+        "SmokeAiCall": {
+          "1": "使い方：--smoke-ai-call <seed> [mode]",
+          "2": "  報聴回数: 合計=",
+          "3": "（",
+          "4": " 回",
+          "5": "  完了: {0}  rounds={1} handsPlayed={2}  総時間={3:F0} ms",
+          "6": "smoke-ai-call が終局しません（phase={p1}）"
+        },
+        "SmokeSave": {
+          "1": "smoke-save（セーブが無効であることを検証）",
+          "2": "  SaveStore.Enabled={p1}  {p2} 局終了後: {p3}",
+          "3": "  セーブ先: {p1}",
+          "4": "  ファイル存在: {p1} → {p2}  内容: {p3}",
+          "5": "  結論: {p1}",
+          "unchanged": "変化なし",
+          "changed": "変化あり",
+          "saveNotWritten": "未書き込み",
+          "saveWritten": "書き込みあり（無効化が効いていない）",
+          "noResumeEntry": "再開入口なし",
+          "resumeEntryStill": "再開入口が残っている"
+        },
+        "SmokeResume": {
+          "1": "smoke-resume（再開が無効であることを検証）",
+          "2": "  メニュー action=resume の入口: {p1}",
+          "3": "  GameSession.PostResume: {p1}",
+          "4": "  SaveStore.Load（{p1}）: {p2}",
+          "hasEntry": "あり",
+          "noEntry": "なし",
+          "exists": "存在",
+          "missing": "不在",
+          "loadBlocked": "null（ロードしない）",
+          "loadRead": "セーブを読み込み"
+        },
+        "SmokeSession": {
+          "1": "無効な seed",
+          "2": "  終局スナップショット: phase={p1} roundLabel={p2} 人間コマンド={p3} イベント={p4}",
+          "3": "  四家スコア: ",
+          "4": "セッションが正常終局しません"
+        },
+        "SmokePointer": {
+          "1": "  終局スナップショット: phase={p1} roundLabel={p2} 入力操作={p3} 手牌タップ打牌={p4}",
+          "2": "入力層の自己点検が正常終局しません"
+        },
+        "CheckVoices": {
+          "1": "副露種別 → ボイス名"
+        },
+        "SmokeEscape": {
+          "1": "  牌卓 ESC（「パス」あり）: handled={p1} command={p2}",
+          "2": "  牌卓 ESC（決算ダイアログ）: handled={p1} ダイアログ閉={p2}",
+          "3": "  牌卓 ESC（ダイアログ閉後）: handled={p1} メニューへ={p2}",
+          "4": "  メニュー ESC: handled={p1} アクション=\"{p2}\"（終了せず、何もしない）",
+          "5": "  メニュー「終了」ボタン: handled={p1} action=\"{p2}\"",
+          "6": "  設定 ESC: handled={p1} メニューへ={p2}"
+        },
+        "SmokeCredits": {
+          "1": "オープンソース情報",
+          "2": "  署名行: \"{p1}\"  y={p2}  fontSize={p3}",
+          "3": "  [欠落] {p1} → {p2}",
+          "4": "  区切り（空 URL）が保持: {p1}",
+          "5": "  ESC: handled={p1} 無動作={p2}",
+          "6": "  「終了」ボタン: handled={p1} action=\"{p2}\"",
+          "7": "  ボタンと重複: {p1}"
+        },
+        "PrintSmoke": {
+          "1": "  局数: rounds={p1} handsPlayed={p2} mode={p3}",
+          "2": "  和了/流局: 和了 {p1} 局（自摸 {p2} / 栄和 {p3}）・流局 {p4} 局（特殊 {p5}）"
+        },
+        "CreateScreen": {
+          "1": "参考とコンプライアンス"
+        },
+        "RenderHandsToPng": {
+          "1": "{p1} 家（{p2}）：{p3}",
+          "2": "システム時刻 {p1}",
+          "3": "第 {p1} · 残り {p2} 枚 · seed={p3} mode={p4}",
+          "4": "rendered hands -> {p1}  {p2} 残り{p3} 人間打牌={p4} フェーズ={p5}"
+        },
+        "RenderTileRotate": {
+          "1": "牌面アトラスが利用不可（Assets/tiles.png / tiles.json）"
+        },
+        "RenderRoundEndToPng": {
+          "1": "最初の局末で停止しません（phase={p1}）",
+          "2": "  結果: kind={p1} winners=[{p2}] ",
+          "3": "  スコア: ",
+          "4": "  明細: {p1} 件",
+          "5": "自摸",
+          "6": "栄和",
+          "7": "      役: "
+        },
+        "BenchGl": {
+          "1": "GL が利用不可のためスキップ：{p1}",
+          "2": "GL が利用不可のためスキップ：オフスクリーン GPU surface の作成に失敗",
+          "unknownReason": "不明な理由"
+        },
+        "Render25DToPng": {
+          "1": "不明な --variant：{p1}（mixed | flat | light | medium）"
+        },
+        "ExportSvg": {
+          "1": "exported svg -> {p1}（牌面 {p2} 枚を埋め込み）/ table-regions.svg / layout.json / layout.md"
+        },
+        "SmokeCall": {
+          "1": "13 枚の手牌が聴牌",
+          "2": "報聴宣言",
+          "3": "重複宣言を拒否",
+          "4": "非聴牌は宣言不可",
+          "5": "ロック手は待ちを変える打牌を拒否",
+          "6": "聴牌形を壊す打牌が見つからない",
+          "7": "範囲外の打牌をエンジンが拒否",
+          "8": "チー・ポン・明槓・加槓が禁止",
+          "9": "エンジンが副露を強制拒否",
+          "10": "暗槓の例外（形は不変）",
+          "11": "4 枚未満の暗槓を拒否",
+          "12": "加槓を拒否",
+          "13": "報聴後の加槓",
+          "14": "通常の誤和了 Z=賦×700",
+          "15": "誤和了で報聴を解除",
+          "16": "この巡の和了禁止フラグ",
+          "17": "重罰の誤和了（子家の違反）",
+          "18": "重罰：本局＋次局で和了禁止",
+          "19": "流局時、報聴者は聴牌として扱う",
+          "20": "流局時、非聴牌家をグレー表示",
+          "21": "流局で手牌を公開"
+        },
+        "PlayReal": {
+          "1": "使い方：--play-real <seed> [mode] [games]",
+          "2": "操作数が 200000 を超えました",
+          "3": "{p1} で停止（ターン={p2}、手牌={p3}、操作={p4}）",
+          "4": "パス後の手牌枚数が異常：{p1} -> {p2}",
+          "5": "（{p1}..{p2} のはず）",
+          "timeoutNotFinished": "45 秒以内に終局しません（フェーズ={phase}）",
+          "10": "所要={p1}s ステップ={p2} 栄和窓={p3} パス={p4} ",
+          "11": "報聴={p1} フェーズ={p2} 結果={p3}",
+          "noPlayableTile": "打てる牌がありません（手牌={count}：{hand}、報聴={called}）"
+        },
+        "SmokeCalledRonPass": {
+          "1": "報聴栄和が発生せず",
+          "2": "打てる牌が見つかりません",
+          "3": "  栄和窓: actions={p1} passFlag={p2} ",
+          "4": "passBtn={p1} clickable={p2} overlap={p3}",
+          "5": "報聴栄和→パス：フェーズ={p1} 手牌 {p2}->{p3}",
+          "6": "  副露={p1} 取り牌インデックスあり={p2}",
+          "7": "smoke-called-ron-pass: seed={p1} 報聴={p2} 報聴栄和={p3} ",
+          "8": "{p1} ロック手グレー={p2} {p3}",
+          "noPassButton": "なし"
+        },
+        "ListLocks": {
+          "1": "ランダム",
+          "2": "簡単",
+          "3": "普通",
+          "4": "難しい",
+          "5": "修羅",
+          "6": "  席 {p1}: {p2}"
+        },
+        "Smoke7Neuu": {
+          "1": "smoke-7neuu: ニューラル判断 {p1} 回（難しいと {p2} 回相違）{p3}"
+        },
+        "SelfPlay": {
+          "1": "  {p1}/{p2}  平均順位 {p3}  1 位率 {p4}",
+          "2": "selfplay: {p1} 局 → {p2}",
+          "3": "  平均順位 {p1}、1 位率 {p2}、{p3}s"
+        },
+        "SmokeAb": {
+          "1": "  ニューラル席の平均順位 {p1}（1 位率 {p2}）",
+          "2": "  ベースライン席の平均順位 {p1}（1 位率 {p2}）",
+          "3": "  ニューラル判断 {p1} 回、TieredAi と相違 {p2} 回（AI 判断合計 {p3}）",
+          "4": "  ニューラル順位: {p1} / ベースライン: {p2}"
+        },
+        "SmokeRulesetSwitch": {
+          "1": "smoke-ruleset-switch: 初期七子={p1} 切替後推倒胡={p2} {p3}"
+        },
+        "SmokeNeural": {
+          "1": "  手牌={p1}",
+          "2": "  選択={p1} {p2}",
+          "none": "なし"
+        },
+        "SmokeOptional": {
+          "1": "smoke-optional: 既定オフ={p1} 適用後は全数={p2} {p3}"
+        },
+        "SmokeTuidaoHu": {
+          "1": "smoke-tuidaohu: seed={p1} フェーズ={p2} 簡易決算={p3} ",
+          "2": "ゼロ点={p1} 報聴={p2} {p3}"
+        },
+        "SmokeDice": {
+          "1": "smoke-dice: パネル画素変化={p1} 親決めサイコロ={p2} 切りサイコロ={p3} ",
+          "2": "切り飛ばし={p1} {p2}"
+        },
+        "SmokeThink": {
+          "1": "smoke-think: 人間打牌={p1} 手牌={p2} 自動操作={p3} 終了フェーズ={p4} "
+        },
+        "SmokeCallFlow": {
+          "1": "使い方：--smoke-call-flow <seed> [mode]",
+          "2": "報聴の機会が発生せず",
+          "3": "操作数が 50000 を超えました",
+          "6": "報聴ボタンは有効だが聴牌を保つ打牌が見つからない",
+          "7": "  報聴: 打牌={0} isCalled={1} フェーズ={2} ターン={3}->{4} 山={5}->{6} 所要={7:F0}ms",
+          "14": "打てる手牌がありません",
+          "20": "  報聴機会={p1} 人間操作={p2} {p3}s",
+          "21": "打牌前に報聴を押しても止まらない",
+          "22": "捨牌待ち状態は UI のみ変更しコマンドを送らない。キャンセル後も通常どおり打牌可能",
+          "23": "報聴して打牌",
+          "24": "人間 isCalled=true",
+          "25": "宣言後に牌局が進行",
+          "26": "宣言後に報聴ボタンが消える",
+          "27": "宣言済みなら報聴ボタンを表示しない",
+          "28": "本局は終了済み。ボタン検査をスキップ",
+          "29": "宣言後も打牌できる",
+          "30": "本局では打牌の番が回ってこない",
+          "31": "ロック手で許可された打牌を受理",
+          "32": "試合が制限時間内に終局",
+          "33": "フェーズ={p1} {p2}s / 上限 {p3}s",
+          "34": "  停止: ",
+          "declared": "宣言済み",
+          "notSeen": "発生せず",
+          "advanceDetail": "宣言後のフェーズ={phase}、ターン {turnBefore}->{turnAfter}、山 {wallBefore}->{wallAfter}",
+          "stuckAt": "牌局が {phase} で停止、誰も進めない",
+          "noAdvance": "報聴して打牌した後に牌局が進みません（フェーズ={phase}、ターンは {turn}、山は {wall} のまま）",
+          "discardRejected": "打牌が受理されません（手牌={count}、フェーズ={phase}、操作={actions}、インデックス={pick}、牌={tile}）"
+        },
+        "SmokeLayoutEditor": {
+          "1": "領域を列挙可能（{p1} 件、≥16）",
+          "2": "必須領域を網羅",
+          "3": "  既定 hand-self = {p1},{p2} {p3}×{p4}",
+          "4": "編集モードに入る",
+          "5": "  ドラッグ後 hand-self = {p1},{p2} {p3}×{p4}",
+          "6": "ドラッグ +10,+10 が有効",
+          "7": "S でファイル保存",
+          "8": "JSON に version と領域 x/y/w/h を含む",
+          "9": "  再読み込み hand-self = {p1},{p2}",
+          "10": "再読み込みが有効",
+          "11": "1 回目の R は警告のみ（ファイル保持）",
+          "12": "2 回目の R でカスタムファイルを削除",
+          "13": "  既定に復帰 hand-self = {p1},{p2}",
+          "14": "既定に戻すと元の値に戻る",
+          "15": "不正 JSON：クラッシュせず、適用されない",
+          "16": "項目欠落 / 不明な領域：無視して既定を使用",
+          "17": "  起動時の例外: ",
+          "18": "起動時にレイアウトファイルが破損 → 正常起動"
+        },
+        "YakuStats": {
+          "1": "yaku-stats: {p1} 局 / {p2} 和了 -> {p3}"
+        }
+      }
+    },
+    "devtools": {
+      "tableStyle": {
+        "flat": "平面"
+      },
+      "title": "Tiisu 開発ツール",
+      "status": {
+        "ready": "準備完了",
+        "gameExeMissing": "Tiisu.Mahjong.exe が見つかりません：先に dotnet build src/Tiisu.App -c Release",
+        "publishMissing": "dist/publish がまだありません",
+        "installerScriptMissing": "installer/build_installer.ps1 が見つかりません",
+        "steamScriptMissing": "tools/steam_package.ps1 が見つかりません",
+        "rulesScriptMissing": "tools/build_rules_lib.ps1 が見つかりません",
+        "hashesWritten": "dist 成果物のハッシュをログに書き込みました",
+        "desktopSetupMissing": "デスクトップにインストーラーがありません",
+        "desktopSetupFound": "デスクトップのインストーラーを特定しました",
+        "layoutLocated": "layout-custom.json を特定しました",
+        "layoutOpenFailed": "レイアウトファイルを開けませんでした",
+        "noCustomLayout": "カスタムレイアウトはありません（既定を使用中）",
+        "noCustomLayoutDelete": "カスタムレイアウトはありません（既に既定）",
+        "deleteCancelled": "削除をキャンセルしました",
+        "deleted": "カスタムレイアウトを削除しました（既定に復帰）",
+        "busy": "前のコマンドがまだ実行中です。お待ちください",
+        "gameStarted": "ゲーム起動済み · 牌卓で F2 を押すとレイアウト編集",
+        "launchFailed": "ゲームの起動に失敗：{message}",
+        "deleteFailed": "削除に失敗：{message}",
+        "taskFailed": "{title} 失敗：{message}",
+        "commandNotStartable": "{title}：コマンドを起動できません",
+        "dirMissing": "{label} ディレクトリがありません。先に一度生成してください",
+        "opened": "{label} を開きました",
+        "openFailedLabel": "{label} を開けませんでした",
+        "taskResult": "{title}：{summary}",
+        "toolMissing": "{name} が見つかりません：先に {build}"
+      },
+      "log": {
+        "group": "実行ログ",
+        "cancelledSelfplay": "  キャンセル：自己対戦データの書き出し",
+        "cancelledAudit": "  キャンセル：対局の一括監査",
+        "cancelled": "  キャンセル",
+        "explorerLocated": "  エクスプローラーで特定しました",
+        "noCustomLayout": "  ! カスタムレイアウトはまだありません。既定のレイアウトを使用中",
+        "noCustomLayoutDelete": "  ! カスタムレイアウトはありません。既に既定です",
+        "deleted": "  削除しました。次回起動から既定のレイアウトを使用",
+        "artifactHashes": "成果物 SHA256",
+        "launchGame": "ゲーム起動（レイアウト編集）",
+        "viewLayout": "現在のカスタムレイアウトを見る",
+        "deleteLayout": "カスタムレイアウトを削除",
+        "outputDir": "  出力先：{path}",
+        "started": "  起動しました（PID {pid}）",
+        "launchFailed": "  ! 起動失敗：{message}",
+        "openFailed": "  ! オープン失敗：{path}",
+        "deleteFailed": "  ! 削除失敗：{message}",
+        "unhandled": "  ! 未処理の例外：{message}",
+        "startFailed": "  ! 起動失敗：{message}",
+        "outputFileMissing": "  ! コマンドは成功しましたが出力ファイルが見つかりません：{path}",
+        "output": "  出力：{path}",
+        "dirMissing": "  ! {label} ディレクトリがありません：{path}",
+        "opened": "  {label} を開きました：{path}",
+        "openFailedLabel": "  ! {label} を開けませんでした：{path}",
+        "tailTruncated": "…（末尾 {limit} 文字のみ表示）",
+        "cannotLocate": "  ! エクスプローラーで該当ファイルを特定できません",
+        "publishMissing": "  ! dist/publish がまだありません：先にインストーラーを生成",
+        "installerScriptMissing": "  ! インストーラースクリプトが見つかりません：{path}",
+        "steamScriptMissing": "  ! Steam パッケージスクリプトが見つかりません：{path}",
+        "rulesScriptMissing": "  ! ルールライブラリのスクリプトが見つかりません：{path}",
+        "distMissing": "  ! dist がありません：先にインストーラー / ルールライブラリを生成",
+        "desktopSetupMissing": "  ! デスクトップに TiisuMahjong-Setup.exe がありません：先にインストーラーを生成"
+      },
+      "tab": {
+        "taskCenter": "タスクセンター",
+        "legacy": "旧ツール"
+      },
+      "startup": {
+        "banner": "Tiisu 開発ツール — アート / 効果音 / レイアウト / 牌卓スタイル"
+      },
+      "section": {
+        "art": "アート",
+        "audio": "効果音",
+        "layout": "レイアウト",
+        "style": "牌卓スタイル",
+        "publish": "リリース / コンプライアンス"
+      },
+      "action": {
+        "exportUiSvg": "統合 SVG を書き出す",
+        "renderActions": "ボタン三態図",
+        "openOutput": "出力先を開く",
+        "generateAudio": "効果音＋ボイス生成",
+        "generateSfx": "効果音のみ生成",
+        "openSounds": "sounds を開く",
+        "openVoices": "voices を開く",
+        "launchGame": "ゲーム起動（レイアウト編集）",
+        "viewLayout": "現在のカスタムレイアウトを見る",
+        "deleteLayout": "カスタムレイアウトを削除（既定に戻す）",
+        "renderAllStyles": "すべて生成して開く",
+        "checkPublish": "リリース自己点検",
+        "buildInstaller": "インストーラー生成",
+        "buildRules": "ルールライブラリ生成",
+        "copyHashes": "成果物ハッシュをコピー",
+        "openDist": "dist を開く",
+        "openDesktopSetup": "デスクトップのインストーラーを開く",
+        "checkSteam": "Steam 準備チェック",
+        "buildSteamDepot": "Steam Depot",
+        "exportSelfplay": "自己対戦データを書き出す",
+        "smokeNeural": "7Neuu 重みを検証",
+        "smoke7neuu": "7Neuu 判断を検証",
+        "benchSnapshot": "UI スナップショット性能",
+        "auditGames": "対局を一括監査",
+        "auditUi": "UI 不変条件監査",
+        "auditCall": "報聴分岐監査",
+        "smokeRun": "通しスモーク",
+        "checkFont": "フォント欠字チェック",
+        "auditUiStrings": "UI 文言を棚卸し",
+        "exportAtlas": "UI アトラスを書き出す"
+      },
+      "task": {
+        "renderRoundEnd": "描画：決算ページ",
+        "renderActions": "描画：ボタン三態",
+        "renderTableStyle": "描画：牌卓スタイル",
+        "renderScreen": "描画：{screen}",
+        "tableStyleWithLabel": "牌卓スタイル {style}",
+        "exportSteamShots": "Steam ストア画像",
+        "exportSteamCapsules": "Steam カプセル画像"
+      },
+      "open": {
+        "label": {
+          "renderDir": "描画出力",
+          "aiData": "自己対戦データ",
+          "outputDir": "出力先"
+        }
+      },
+      "summary": {
+        "allStylesOk": "すべて生成：{total}/{total} 成功",
+        "allStylesPartial": "すべて生成：{ok}/{total} 成功、{failed} 件失敗",
+        "exitFailed": "exit {code}（失敗）"
+      },
+      "dialog": {
+        "viewLayout": {
+          "title": "カスタムレイアウトを見る",
+          "text": "カスタムレイアウトはまだありません。ゲームは既定のレイアウトを使用しています。\n\nゲーム内の牌卓で F2 を押して編集し、S で保存すると次が生成されます：\n{path}"
+        },
+        "deleteLayout": {
+          "title": "カスタムレイアウトを削除",
+          "text": "削除すると既定のレイアウトに戻り、元に戻せません。\n\n{path}"
+        },
+        "layoutEdit": {
+          "title": "レイアウト編集",
+          "text": "Tiisu.Mahjong.exe を起動しました。\n\n牌卓で F2 を押すとレイアウト編集に入ります（S で保存、R を 2 回で既定に復帰）。"
+        },
+        "commandFailed": {
+          "title": "{title} — コマンドを起動できません"
+        },
+        "toolMissing": {
+          "title": "コマンドが見つかりません",
+          "text": "{name} が見つかりません。\n\n先にビルド：{build}\nまたは config.toml の [dev] root でリポジトリルートを指定してください。"
+        },
+        "selfplay": {
+          "title": "自己対戦データを書き出す",
+          "browse": "参照…",
+          "saveTitle": "自己対戦データの保存",
+          "filter": "JSONL (*.jsonl)|*.jsonl|すべてのファイル (*.*)|*.*",
+          "field": {
+            "games": "局数",
+            "jobs": "並列 jobs",
+            "sampleEvery": "N ステップごとにサンプリング",
+            "explore": "探索率 0–0.9",
+            "output": "出力ファイル"
+          },
+          "hint": "1000 局で数分程度。大量に回す場合は jobs ≤ CPU コア数を推奨。出力は JSONL で再開可能。",
+          "start": "書き出し開始",
+          "cancel": "キャンセル",
+          "emptyOutput": "出力ファイルは空にできません。",
+          "paramError": "パラメータエラー"
+        },
+        "audit": {
+          "title": "対局を一括監査",
+          "field": {
+            "count": "局数",
+            "mode": "モード局数",
+            "jobs": "並列 jobs",
+            "seed": "開始シード"
+          },
+          "checkbox": {
+            "ui": "UI 不変条件監査（--ui）",
+            "passive": "受動的な人間：和了可能でも和了しない（--passive）",
+            "call": "報聴分岐を網羅（--call）"
+          },
+          "start": "監査開始",
+          "cancel": "キャンセル"
+        }
+      },
+      "toolchain": {
+        "rootFromConfig": "リポジトリルートは config.toml [dev] root から：{path}",
+        "rootNotFound": "リポジトリルートが見つかりません。%APPDATA%\\TiisuMahjong\\config.toml の [dev] root で指定できます。",
+        "gameMissing": "{name}：見つかりません（先に dotnet build src/Tiisu.App）",
+        "audioMissing": "{name}：見つかりません（先に dotnet build tools/Tiisu.AudioGen）",
+        "found": "{name}：{path}",
+        "configRootMissing": "config.toml [dev] root のディレクトリが存在しません：{path}",
+        "configRootIncomplete": "config.toml [dev] root に src/Tiisu.App と Tiisu.slnx がありません。そのまま使用：{path}"
+      },
+      "command": {
+        "startNull": "Process.Start が null を返しました",
+        "startNullPath": "Process.Start が null を返しました：{path}",
+        "exeNotFound": "実行ファイルが見つかりません：{path}",
+        "notFound": "システムはそのコマンドを見つけられません：{path}",
+        "accessDenied": "実行権限がありません：{path}（{message}）"
+      },
+      "category": {
+        "publish": "リリース",
+        "render": "描画",
+        "audit": "監査",
+        "ai": "AI データ",
+        "resource": "リソース"
+      },
+      "taskc": {
+        "title": "タスクセンター",
+        "browse": "参照…",
+        "chooseOutput": "描画出力ディレクトリを選択",
+        "preview": "最近の成果物",
+        "noPreview": "まだ描画がありません。描画タスクを実行するとここにサムネイルが表示されます。",
+        "categoryEmpty": "このカテゴリはまだ移行していません。まず「リリース」か「描画」を見てください。",
+        "outputPrefix": "成果物：{hint}",
+        "run": "実行",
+        "confirmOverwrite": "既存の成果物を上書きします。続行しますか？\n\n{title}",
+        "confirmTitle": "実行確認",
+        "cancelled": "  キャンセル：{title}",
+        "running": "実行中…",
+        "done": "完了",
+        "failed": "失敗：{message}",
+        "logFailed": "  ! {title}：{message}",
+        "noImage": "このタスクには画像の成果物がありません。",
+        "previewFailed": "プレビュー失敗：{message}",
+        "publish.check": {
+          "title": "リリース自己点検",
+          "summary": "dist/publish のライセンス・フォント・アセットハッシュ・持ち込み禁止項目を確認。"
+        },
+        "publish.steam-check": {
+          "title": "Steam 準備チェック",
+          "summary": "AppID・Steamworks SDK・実績マッピング・Depot を確認。AppID が無くてもエラーにはせず報告のみ。"
+        },
+        "publish.installer": {
+          "title": "インストーラー生成",
+          "summary": "再 publish して Setup をパッケージし、デスクトップへコピー。"
+        },
+        "publish.steam": {
+          "title": "Steam Depot",
+          "summary": "dist/publish から Steam depot の内容・マニフェスト・VDF テンプレートを生成。"
+        },
+        "publish.rules": {
+          "title": "ルールライブラリ生成",
+          "summary": "外部から参照できるルールライブラリの単体 zip を生成。"
+        },
+        "publish.hashes": {
+          "title": "成果物ハッシュをコピー",
+          "summary": "dist 下のファイルの SHA256 をログに書き、リリースノートに使えるようにする。"
+        },
+        "publish.open-dist": {
+          "title": "dist を開く",
+          "summary": "インストーラーとルールライブラリの出力先を開く。"
+        },
+        "publish.open-setup": {
+          "title": "デスクトップのインストーラーを開く",
+          "summary": "デスクトップの TiisuMahjong-Setup.exe を特定。"
+        },
+        "render.table": {
+          "title": "牌卓スクリーンショット",
+          "summary": "現在の牌卓レイアウトと手牌。視覚リグレッション確認用。"
+        },
+        "render.menu": {
+          "title": "メインメニューのスクリーンショット",
+          "summary": "メニューのタイトル・モードボタン・下部クレジット。"
+        },
+        "render.settings": {
+          "title": "設定画面のスクリーンショット",
+          "summary": "設定画面のグループとスライダー。文字のはみ出しを確認。"
+        },
+        "render.tutorial": {
+          "title": "チュートリアルのスクリーンショット",
+          "summary": "チュートリアル 3 ページの 1 ページ目。"
+        },
+        "render.markdown": {
+          "title": "参考文書のスクリーンショット",
+          "summary": "Markdown レンダラーの参考文献ページ。"
+        },
+        "render.roundend": {
+          "title": "決算ページのスクリーンショット",
+          "summary": "単家和了の決算レイアウト。ゲームは実行しない。"
+        },
+        "render.actions": {
+          "title": "ボタン三態図",
+          "summary": "動作ボタンの normal / hover / pressed 比較。"
+        },
+        "render.ui-svg": {
+          "title": "統合 SVG を書き出す",
+          "summary": "UI グラフィックを編集可能な SVG に統合。"
+        },
+        "render.style": {
+          "title": "牌卓スタイル：平面",
+          "summary": "現在唯一の Flat 牌卓の描画。"
+        },
+        "render.steam": {
+          "title": "Steam ストア画像",
+          "summary": "1920×1080 の牌卓・メニュー・設定・戦績・実績・牌譜を artifacts/steam に出力。"
+        },
+        "render.steam-capsules": {
+          "title": "Steam カプセル画像",
+          "summary": "メイン・ヘッダー・小・ライブラリ・ライブラリヘッダーのカプセルを artifacts/steam/capsules に生成。"
+        },
+        "render.open-output": {
+          "title": "描画出力先を開く",
+          "summary": "今回の描画出力ディレクトリを開く。"
+        },
+        "ai.export-selfplay": {
+          "title": "自己対戦データを書き出す",
+          "summary": "自己対戦を実行して打牌サンプルを JSONL に書き出す。パラメータはダイアログで指定。"
+        },
+        "ai.smoke-neural": {
+          "title": "7Neuu 重みを検証",
+          "summary": "v4 の重みが読み込め、合法な打牌を返すか確認。"
+        },
+        "ai.smoke-7neuu": {
+          "title": "7Neuu 判断を検証",
+          "summary": "1 局通して、7Neuu の席が本当に方策ネットを使うか確認。"
+        },
+        "ai.bench-snapshot": {
+          "title": "UI スナップショット性能",
+          "summary": "実エンジン状態から UI スナップショットを繰り返し構築し、時間と割当を出力。"
+        },
+        "ai.open-data": {
+          "title": "データディレクトリを開く",
+          "summary": "自己対戦 JSONL の出力先を開く。"
+        },
+        "audit.games": {
+          "title": "対局を一括監査",
+          "summary": "ダイアログで局数・モード・jobs・シードを指定。UI 不変条件と報聴分岐も有効化可能。"
+        },
+        "audit.ui": {
+          "title": "UI 不変条件監査",
+          "summary": "50 局固定で --ui を有効にし、スナップショット・ボタン・ヒントの不変条件を確認。"
+        },
+        "audit.call": {
+          "title": "報聴分岐監査",
+          "summary": "50 局固定で --call --passive により報聴とパスの分岐を網羅。"
+        },
+        "audit.smoke": {
+          "title": "通しスモーク",
+          "summary": "ウィンドウ無しで 1 試合を通し、イベント列のハッシュを出力。"
+        },
+        "resource.font": {
+          "title": "フォント欠字チェック",
+          "summary": "フォントサブセットが版番号・UI 文言・docs を網羅するか確認。"
+        },
+        "resource.i18n": {
+          "title": "UI 文言を棚卸し",
+          "summary": "App 内の中語 UI リテラルを走査し、英語化の範囲として CSV を出力。"
+        },
+        "resource.atlas": {
+          "title": "UI アトラスを書き出す",
+          "summary": "UI 図形をアトラス PNG に書き出す。"
+        },
+        "resource.open-assets": {
+          "title": "Assets を開く",
+          "summary": "牌面・フォント・音声・ライセンスのディレクトリを開く。"
+        },
+        "resource.open-docs": {
+          "title": "docs を開く",
+          "summary": "参考・コンプライアンス・ML 文書のディレクトリを開く。"
+        },
+        "hint": "カテゴリを選ぶと、成果物と説明がカードに表示されます。"
+      },
+      "hint": {
+        "none": "ファイル成果物なし。結果はログ参照",
+        "logReadyBlocked": "ログ：準備項目 / 阻害項目",
+        "sha256Log": "ログ内の SHA256",
+        "explorer": "エクスプローラー",
+        "passFail": "ログ：PASS / FAIL",
+        "bench": "ログ：us/iter",
+        "auditCount": "ログ：完了数 / 問題数",
+        "auditUi": "ログ：UI 問題数",
+        "auditCall": "ログ：問題数",
+        "smoke": "ログ：イベント列 SHA256",
+        "font": "ログ：欠字一覧 / PASS",
+        "capsules": "メイン 616×353 など 5 枚"
+      }
+    }
+  },
+  "app": {
+    "achievement": {
+      "first-round": {
+        "title": "初戦",
+        "desc": "1局を完了"
+      },
+      "ten-rounds": {
+        "title": "十局",
+        "desc": "10局を完了"
+      },
+      "hundred-rounds": {
+        "title": "百局",
+        "desc": "100局を完了"
+      },
+      "first-win": {
+        "title": "初勝利",
+        "desc": "1回和了"
+      },
+      "ten-wins": {
+        "title": "十勝",
+        "desc": "10回和了"
+      },
+      "hundred-wins": {
+        "title": "百勝",
+        "desc": "100回和了"
+      },
+      "first-tsumo": {
+        "title": "ツモ",
+        "desc": "1回ツモ"
+      },
+      "ten-tsumo": {
+        "title": "ツモ十回",
+        "desc": "10回ツモ"
+      },
+      "tiisuin": {
+        "title": "大七星",
+        "desc": "大七星で和了"
+      },
+      "witness": {
+        "title": "目撃",
+        "desc": "大七星を目撃"
+      }
+    },
+    "ui": {
+      "rules": {
+        "title": "ルール",
+        "subtitle": "七子麻雀 · 標準リーチ麻雀との違い",
+        "section1": {
+          "title": "起和と宣言",
+          "line1": "手牌は7賦以上で和了可。不足なら和了不可。",
+          "line2": "宣言自体は賦も追加報酬もなし。",
+          "line3": "聴牌で宣言可。宣言後は手牌固定、待ちを崩さない暗槓のみ例外。"
+        },
+        "section2": {
+          "title": "誤宣言の罰則",
+          "line1": "宣言後に和了して実賦が7未満なら誤宣言。",
+          "line2": "三家へ Z = 賦 × 700 を支払う。",
+          "line3": "Z > 2100 は重罰：本局と次局の和了禁止。"
+        },
+        "section3": {
+          "title": "場供と青チップ",
+          "line1": "精算は350点の青チップ単位で丸め。",
+          "line2": "ツモの端数は場供プールへ。",
+          "line3": "場供は次の和了者が取得。本場連荘は加算。"
+        },
+        "back": "メニューへ戻る"
+      },
+      "tutorial": {
+        "title": "{チュートリアル|ちゅーとりある}",
+        "pageIndicator": "3ステップ · {current} / {total} ページ",
+        "page1": {
+          "title": "ステップ1 · 打牌",
+          "line1": "自分の番は一番下の手牌をクリック。",
+          "line2": "ツモ牌は右端にあります。それでも他の牌でも構いません。",
+          "line3": "迷ったら上の「待ち」表示と残り枚数を確認。"
+        },
+        "page2": {
+          "title": "ステップ2 · 宣言",
+          "line1": "聴牌したら「宣言」をクリック。",
+          "line2": "宣言後は手牌固定：待ちを崩さない暗槓を除き、待ちを変えられません。",
+          "line3": "宣言自体に賦なし。7賦未満で和了すると誤宣言。"
+        },
+        "page3": {
+          "title": "ステップ3 · 和了と精算",
+          "line1": "ツモなら「和了」、他家の打牌なら「ロン」。",
+          "line2": "精算画面に役・点数の変化・局内調整を表示。",
+          "line3": "「次の局」で続行。終局後はメニューへ。"
+        },
+        "prev": "前へ",
+        "next": "次へ",
+        "back": "メニューへ戻る",
+        "tryRound": "一局試す",
+        "viewRules": "ルールを見る",
+        "startRound": "一局開始"
+      },
+      "achievements": {
+        "title": "実績",
+        "unlockedCount": "解除済み {count} / {total}",
+        "unlocked": "解除済み",
+        "back": "戦績へ戻る"
+      },
+      "stats": {
+        "title": "{戦績|せんせき}",
+        "totalRounds": "本機累計 · {rounds}局",
+        "card": {
+          "rounds": "総局数",
+          "winRate": "和了率",
+          "tsumoRon": "ツモ / ロン",
+          "drawRate": "流局率",
+          "tiisuin": "大七星",
+          "witness": "目撃",
+          "points": "累計点数",
+          "specialDraw": "特殊流局"
+        },
+        "empty": {
+          "noRounds": "対局記録がありません。まず一局打ちましょう。",
+          "noPlayers": "プレイヤー統計がありません。"
+        },
+        "table": {
+          "player": "プレイヤー",
+          "wins": "和了回数",
+          "tiisuin": "大七星",
+          "witness": "目撃",
+          "points": "累計点数"
+        },
+        "back": "メニューへ戻る",
+        "achievements": "実績"
+      },
+      "actionBar": {
+        "kan": "槓",
+        "win": "和了",
+        "ron": "ロン",
+        "pon": "ポン",
+        "chi": "チー",
+        "pass": "パス",
+        "draw": "流局",
+        "call": "宣言",
+        "tenpai": "聴牌"
+      },
+      "replay": {
+        "title": "牌譜再生",
+        "emptyLog": "牌譜ログがありません。設定で「牌譜ログを記録」をオンにして一局打ってください。",
+        "noSteps": "再生できる牌譜がありません。",
+        "roundPrefix": "{current}/{total} 局 · ",
+        "roundMeta": "{file} · {round} 局 · {honba} 本場",
+        "hand": "手牌：",
+        "wall": "余牌：",
+        "rivers": "牌河：",
+        "prev": "前の手",
+        "back": "メニューへ戻る",
+        "next": "次の手",
+        "prevRound": "← 前の局",
+        "nextRound": "次の局 →",
+        "wallAnnotation": "（残り {wall}）"
+      },
+      "markdown": {
+        "defaultTitle": "ドキュメント",
+        "pageIndicator": "{current} / {total} ページ",
+        "footer": "← / → ページ · ホイール · Esc 戻る",
+        "prev": "前ページ",
+        "back": "戻る",
+        "next": "次ページ"
+      },
+      "docs": {
+        "notFound": "文書が見つかりません：{file}",
+        "readFailed": "読み込み失敗：{message}",
+        "title": {
+          "references": "参考・コンプライアンス",
+          "assets": "素材の出典",
+          "ml": "ML重みの出典",
+          "selfplay": "自己対戦学習",
+          "release": "リリース確認リスト",
+          "thirdParty": "第三者声明"
+        }
+      },
+      "window": {
+        "title": "七子麻雀"
+      },
+      "gl": {
+        "hiddenNoPaint": "隠しウィンドウで GL 描画が完了しませんでした",
+        "noGrContext": "SKGLControl が GRContext を作成できませんでした"
+      },
+      "svg": {
+        "hudMenuHint": "M / ESC：メニュー",
+        "wallLeft": "残り {count}",
+        "roundInfo": "本場 {honba} · 場賞 {kyotaku}",
+        "called": "宣言済み",
+        "winBanned": "本局は和了禁止"
+      },
+      "table": {
+        "tuidaohuHint": "推倒胡：役なし・点数なし・勝敗のみ",
+        "dice": "賽子",
+        "holdToView": "押して表示",
+        "dicePanelTitle": "本局の開始",
+        "diceDealerFallback": "親決めサイコロ：（初局以降は前局の親を継続、振り直しなし）",
+        "diceCutFallback": "切りサイコロ：—",
+        "diceReleaseHint": "離すと牌卓に戻る",
+        "confirmAgain": "「{label}」をもう一度クリックで確認",
+        "think": "長考",
+        "menu": "メニュー",
+        "fuProgress": "賦 {fu} / {threshold}",
+        "baseFu": "起和 {fu} 賦",
+        "callArmed": "宣言：手牌をクリックして打牌（もう一度「宣言」で取消）",
+        "called": "宣言済み",
+        "winBanned": "本局は和了禁止",
+        "matchOverHint": "試合終了・R / Enter でメニューへ",
+        "roundEndHint": "本局終了・「次の局」で続行・Esc で設定",
+        "hint": {
+          "kan": "K 槓",
+          "win": "H 和了",
+          "ron": "H ロン",
+          "pon": "P ポン",
+          "chiMultiple": "C チー（複数）",
+          "chi": "C チー",
+          "pass": "Space パス",
+          "draw": "F 流局",
+          "discard": "手牌をクリックして打牌"
+        },
+        "pause": {
+          "title": "メニュー",
+          "resume": "再開",
+          "settings": "{設定|せってい}",
+          "mainMenu": "メインメニュー"
+        },
+        "pattern": "牌型"
+      },
+      "menu": {
+        "navHint": "↑↓←→ 選択 · Enter 決定"
+      },
+      "settings": {
+        "title": "{設定|せってい}",
+        "back": "← 戻る",
+        "footer": "↑↓ 選択 · ←→ 変更 · Tab グループ · Esc 戻る",
+        "group": {
+          "basic": "基本",
+          "rules": "ルール",
+          "ai": "AI / 対局"
+        },
+        "seat": {
+          "east": "東家",
+          "south": "南家",
+          "west": "西家",
+          "north": "北家"
+        },
+        "seatLock": {
+          "locked": "ロック · {seat}",
+          "lockedYou": "ロック · {seat}（あなた）"
+        },
+        "you": "あなた",
+        "seconds": "{value} 秒",
+        "on": "オン",
+        "off": "オフ",
+        "row": {
+          "think": "長考秒数",
+          "bgm": "音楽音量",
+          "sfx": "効果音音量",
+          "voice": "読み上げ音声",
+          "language": "言語 / Language",
+          "textScale": "大きい文字UI",
+          "showMa": "嶺上表示牌を表示",
+          "recordTiles": "牌譜ログを記録",
+          "diceViewer": "賽子ビューア（右下ボタン）",
+          "ruleset": "ルールセット（推倒胡＝役なし／点数なし）",
+          "aiWeights": "AI難易度の重み",
+          "mcts": "修羅 MCTS",
+          "tableDifficulty": "全卓AI難易度（クイック）"
+        },
+        "ruleset": {
+          "qizi": "七子",
+          "tuidaohu": "推倒胡"
+        },
+        "difficulty": {
+          "custom": "カスタム",
+          "random": "ランダム",
+          "easy": "簡単",
+          "normal": "普通",
+          "hard": "難しい",
+          "shura": "修羅"
+        }
+      },
+      "licenses": {
+        "name": {
+          "tiisuRoundedScWenyuanSubset": "七子 Rounded SC（文淵丸ゴシックのサブセット）",
+          "lietxiaMahjongGraphicTiles": "lietxia/mahjong_graphic（牌画像）",
+          "audioVoiceAssets": "効果音・音声素材",
+          "tiisuMahjongSource": "七子 Mahjong プロジェクトコード",
+          "starMahjong2002": "明星三缺一 2002",
+          "tenhou": "天鳳 Tenhou"
+        },
+        "usage": {
+          "tiisuRoundedScWenyuanSubset": "UI用丸ゴシック。OFL予約名を避けるためサブセット化して改名",
+          "lietxiaMahjongGraphicTiles": "牌画像ベクター素材。商用・改変・再配布可、著作表示不要。本プロジェクトで tiles.png に再配置",
+          "skiasharp": "2D描画・牌画像レンダリング・文字組版",
+          "skiasharpNativeassetsWin32": "SkiaSharp の Windows ネイティブライブラリ",
+          "skiasharpViewsWindowsforms": "WinForms 用 Skia キャンバスコントロール",
+          "skiasharpHarfbuzz": "文字整形（HarfBuzzバインディング）",
+          "harfbuzz": "複雑な文字整形エンジン（同梱ネイティブライブラリ）",
+          "naudio": "BGM／効果音のミックスと再生",
+          "naudioAsioCoreMidiWasapiWinformsWinmm": "NAudio の推移的依存モジュール",
+          "harfbuzzsharpNativeassetsWin32": "SkiaSharp.HarfBuzz の推移的依存",
+          "opentk": "OpenGL ウィンドウ／描画バインディング（OpenTK.* の推移的依存）",
+          "opentkGlcontrol": "WinForms GL コントロール",
+          "glfwOpentkRedistGlfw": "ウィンドウ／入力のネイティブライブラリ",
+          "yogasharpCoreSkiasharpViewsDesktopCommon": "レイアウトと Skia デスクトップコントロールの推移的依存",
+          "yogasharpLayout": "牌卓の Flex レイアウトバインディング",
+          "yoga": "Facebook の Flexbox レイアウトエンジン（yoga.dll 同梱）",
+          "netWindowsDesktopRuntime": "ランタイム・WinForms・基盤ライブラリ",
+          "systemSpeech": "ローカル Windows SAPI による読み上げ生成",
+          "xunit": "ユニットテスト（開発ビルドのみ）",
+          "xunitRunnerVisualstudio": "テストランナー（開発ビルドのみ）",
+          "microsoftNetTestSdk": "テストホスト（開発ビルドのみ）",
+          "coverletCollector": "コードカバレッジ（開発ビルドのみ）",
+          "parisian": "メニューBGM（lobby.wav、音量調整済み）",
+          "audioVoiceAssets": "効果音は AudioGen で合成、音声はローカルSAPI生成。パッケージには含まない",
+          "tiisuMahjongSource": "リポジトリ内の自前コードとドキュメント",
+          "aliceInCradle": "空間オーディオ構成の調査のみ。コード・ミドルウェア・素材・派生物は未使用",
+          "starMahjong2002": "効果音の包絡／長さ／密度の特徴分析のみ。原音声・コード・美術は未使用",
+          "tenhou": "人間の聴牌形を参考。コード・データ・素材は未使用"
+        },
+        "license": {
+          "lietxiaMahjongGraphicTiles": "独自の自由ライセンス",
+          "audioVoiceAssets": "プロジェクトMIT",
+          "aliceInCradle": "EULA（参考のみ）",
+          "starMahjong2002": "EULA（参考のみ）",
+          "tenhou": "利用規約（参考のみ）"
+        },
+        "version": {
+          "harfbuzz": "SkiaSharp.HarfBuzz と同梱",
+          "yoga": "YogaSharp と同梱",
+          "audioVoiceAssets": "本リポジトリで合成／ローカル生成",
+          "tiisuMahjongSource": "バージョン行を参照",
+          "aliceInCradle": "クローズドソース商用作品",
+          "starMahjong2002": "IGS 商業作品",
+          "tenhou": "オンラインサービス"
+        },
+        "title": "ライセンスと謝辞",
+        "pageIndicator": "オープンソース + クローズド参考 · {current} / {total} 項目",
+        "line": {
+          "version": "バージョン：{value}",
+          "license": "ライセンス：{value}",
+          "usage": "用途：{value}",
+          "link": "リンク：{value}"
+        },
+        "reference": "参考",
+        "referenceNote": "性質：クローズドソース／EULA 参考謝辞。コード・素材は未使用",
+        "footer": "← / → ページ · Esc メニュー",
+        "viewText": "このページの全文を見る",
+        "docs": "参考・コンプライアンス",
+        "prev": "前ページ",
+        "back": "メニューへ戻る",
+        "next": "次ページ",
+        "textPageIndicator": "ライセンス全文 · {current} / {total} ページ",
+        "textNotFound": "ライセンス全文が見つかりません：{file}"
+      },
+      "settlement": {
+        "title": {
+          "matchOver": "終局",
+          "round": "本局精算"
+        },
+        "outcome": {
+          "exhaustive": "荒牌流局",
+          "multi": "複数和了",
+          "tsumo": "ツモ",
+          "ron": "ロン",
+          "tiisuin": "大七星",
+          "flow": "流局"
+        },
+        "next": "次へ",
+        "nextRound": "次の局",
+        "winnerHand": {
+          "none": "和了者の手牌",
+          "yours": "あなたの手牌",
+          "named": "{name}の手牌"
+        },
+        "flowHandsTitle": "四家の手牌",
+        "yakuHeader": "役",
+        "fuHeader": "賦",
+        "noYaku": "役なし",
+        "finalPoints": "最終点数",
+        "flowNoWinner": "本局は和了者なし",
+        "simplified": {
+          "win": "和了",
+          "noWinner": "和了者なし"
+        },
+        "onlyResult": "勝敗のみ・点数なし",
+        "penaltyTitle": "罰則精算",
+        "scoreChanges": "点数変化",
+        "ranking": "最終順位",
+        "drawReason": {
+          "fourWind": "四風連打",
+          "nineOrphans": "九種九牌",
+          "thirteenUnrelated": "十三不靠",
+          "tripleRon": "三家和了",
+          "tripleRonChankan": "三家和了（搶槓）",
+          "special": "特殊流局"
+        },
+        "meld": {
+          "chi": "チー",
+          "pon": "ポン",
+          "minkan": "明槓",
+          "ankan": "暗槓",
+          "kakan": "加槓",
+          "other": "副露"
+        },
+        "meta": {
+          "round": "第 {round} 局",
+          "honba": "{honba} 本場"
+        },
+        "tuidaoHu": "推倒胡",
+        "pageIndicator": "{current} / {total} ページ",
+        "footer": {
+          "matchOver": "Esc で設定",
+          "multi": "← / → または「次へ」で和了者切替・「次の局」で続行・Esc で設定",
+          "single": "「次の局」で続行・Esc で設定"
+        },
+        "handSub": {
+          "tiles": "{count}枚",
+          "noMelds": "・副露なし",
+          "oneMeld": "・1副露",
+          "melds": "・{count}副露"
+        },
+        "flowMeldSuffix": "＋{count} 副露",
+        "dealerSuffix": "（親）",
+        "discarder": "・放銃者 {name}",
+        "moreYaku": "… 他 {count} 項目",
+        "maLine": "賜馬 {count}・合計 {total}",
+        "potBonus": "場供 +{points}",
+        "honbaLine": "本場 {count}・連荘ボーナス +{bonus}",
+        "transferLine": "{from} → {to}  {amount}（{reason}）",
+        "adjustmentLine": "局内調整 {from} → {to}  {amount}（{reason}）",
+        "auditMismatch": "台帳不一致：{line}",
+        "flag": {
+          "optional": "（任意）",
+          "tableless": "（表外）"
+        },
+        "playerFallback": "プレイヤー {index}",
+        "seatName": {
+          "you": "{wind}・あなた",
+          "seat": "{wind}家"
+        },
+        "wind": {
+          "east": "東",
+          "south": "南",
+          "west": "西",
+          "north": "北"
+        }
+      }
+    },
+    "runtime": {
+      "msg": {
+        "snapshotStale": "画面が追いついていません（スナップショット不一致）。直前の操作は無視されました。もう一度押してください",
+        "noSave": "復元できるセーブがありません",
+        "reset": "リセット済み",
+        "matchOver": "試合は終了しました",
+        "roundNotOver": "本局はまだ終了していません",
+        "waitingOthers": "他のプレイヤーの確認待ち",
+        "noMeldChance": "現在、副露できる機会はありません",
+        "noRonChance": "現在、ロンできる牌はありません",
+        "alreadyCalled": "すでに宣言済みです。再宣言はできません",
+        "handNotTenpai": "手牌が聴牌していないため宣言できません",
+        "cannotCallNow": "現在は宣言できません",
+        "pickTileToCall": "宣言するには打牌する牌を選んでください",
+        "breaksTenpai": "この牌を打つと聴牌しないため宣言できません",
+        "noPendingAction": "保留中のアクションはありません",
+        "notYourDiscard": "今はあなたの打牌番ではありません",
+        "discardIndexOutOfRange": "打牌インデックスが範囲外です",
+        "tileNotInHand": "その牌は手牌にありません",
+        "handNot14": "手牌が14枚ではないためツモ和了できません",
+        "handCannotWin": "手牌は和了できません",
+        "winBanned": "本局／本巡は和了禁止のため宣言できません",
+        "meldUnavailable": "その副露は使用できません",
+        "pushFlowUnavailable": "現在の手牌は押し流局の条件を満たしていません",
+        "unknownCommand": "不明なコマンド：{kind}",
+        "resumed": "セーブを復元・{label}",
+        "ronChance": "ロン可能：他家の打牌 {tile}・{fu} 賦で和了",
+        "misfireRisk": "誤宣言リスク：この手は {fu} 賦（{base} 未満）・ロンで誤宣言罰",
+        "meldChance": "鳴き可能：他家の打牌 {tile}",
+        "calledWait": "宣言済み・待ち：{wait}",
+        "misfireSevere": "宣言の誤和了（重罰）：{fu} 賦は起和線未満・本局と次局は和了禁止",
+        "misfireMinor": "宣言の誤和了：{fu} 賦は起和線未満・三家へ {z} ずつ支払い",
+        "tripleRonChankan": "三家和了（搶槓）→ 自動流局",
+        "mustDiscardAfterMeld": "チー・ポンの後はまず 1 枚打牌してください",
+        "callLocksWait": "宣言後は待ちを変えられません",
+        "noAnkan": "暗槓できる牌がありません",
+        "noKakan": "加槓できる牌がありません",
+        "callBlocksMeld": "宣言後はチー・ポン禁止"
+      },
+      "hud": {
+        "winBannedHint": "本局は和了禁止です",
+        "roundProgress": "{label} / {target}局"
+      },
+      "err": {
+        "deadloop": "対局操作数が 200000 を超えました。無限ループの疑い"
+      },
+      "payment": {
+        "tsumo": "ツモ・三家合計 {points}（端数 {remainder} を分担）",
+        "ron": "ロン・放銃者が {points} 支払い"
+      },
+      "audit": {
+        "scoreMismatch": "総点が不保存: before={before} after={after} 場供={pot}",
+        "playerLedger": "{name}：実際Δ{actual}、台帳Δ{expected}",
+        "playerDetail": "{name}：実際Δ{actual}、明細Δ{expected}",
+        "logPrefix": " 決算自己点検: ",
+        "flowPenaltyMismatch": " 流局罰則の台帳と点数が不一致：",
+        "noTsumoButton": "ツモ可能なのに和了ボタンがない",
+        "winButtonWithoutWin": "和了不可なのに和了ボタンがある",
+        "misfireNoHint": "誤宣言候補なのにヒントがない",
+        "winBannedNoHint": "和了禁止なのにヒントがない",
+        "winShapeNoHint": "和了形なのに和了不可でヒントもない",
+        "fuNoMisfireHint": "賦不足なのに誤宣言ヒントがない",
+        "ronWindowMissing": "ロン窓に Ron/Pass がない",
+        "tenpaiUnparsable": "待ちヒントを解析できない",
+        "tenpaiCannotWin": "待ちヒントの牌が実際には和了できない"
+      },
+      "dice": {
+        "dealerLine": "親決めサイコロ {a}+{b}={sum}（{dir}）→ {wind} 家が親",
+        "cutLine": "切りサイコロ {a}+{b}={sum}（{dir}）→ {skip} 枚飛ばす",
+        "cutSub": "（嶺上 4 / 王牌 {wang}）・起手：{wind} 家",
+        "self": "自数",
+        "clockwise": "時計回り",
+        "counterClockwise": "反時計回り",
+        "dealerSide": "親側"
+      },
+      "tenpai": {
+        "summary": "待ち {wait}・残り {left} 枚{points}",
+        "points": "・打点 {min}",
+        "pointsRange": "・打点 {min}–{max}"
+      },
+      "tile": {
+        "man": "{num}万",
+        "pin": "{num}筒",
+        "sou": "{num}索",
+        "honor": {
+          "east": "東",
+          "south": "南",
+          "west": "西",
+          "north": "北",
+          "white": "白",
+          "green": "發",
+          "red": "中"
+        }
+      },
+      "chiLabel": "チー {tiles}",
+      "cli": {
+        "unknownArg": "不明な引数：{arg}",
+        "devHint": "開発/自己点検コマンドは tools/Tiisu.DevTools を使ってください（同じ引数）。",
+        "launchItems": "起動オプション：--cpu-render --fullscreen --lang zh-CN|en-US|ja-JP"
+      },
+      "log": {
+        "engineThreadHang": "GameSession.Dispose: エンジンスレッドが 5 秒以内に終了せず、コマンドキューの解放を断念（P0-2 暫定）"
+      },
+      "wav": {
+        "notRiff": "RIFF/WAV ではありません",
+        "missingData": "WAV に data チャンクがありません"
+      }
+    },
+    "table": {
+      "hud": {
+        "calledBadge": "宣言済み",
+        "callBadge": "宣言",
+        "you": "（あなた）"
+      },
+      "center": {
+        "wall": "残り {count}",
+        "honbaKyotaku": "本場 {honba}・場賞 {kyotaku}"
+      },
+      "aiLevel": {
+        "simple": "簡単",
+        "normal": "普通",
+        "hard": "難しい",
+        "shura": "修羅"
+      },
+      "editor": {
+        "editing": "編集中",
+        "saved": "保存しました → {path}",
+        "saveFailed": "保存に失敗：{message}",
+        "confirmRestore": "もう一度 R で既定に復帰します",
+        "restored": "既定に復帰しました",
+        "restoreFailed": "復帰に失敗：{message}",
+        "bannerHint": "レイアウト編集 F2 終了・Tab 切替・ドラッグ移動・ホイール拡縮（Shift は高さのみ）・矢印 1px（Shift 10px）・S 保存・R 既定に復帰",
+        "selected": "選択 {index}/{total}  {id} · {note}  x={x} y={y} w={w} h={h}",
+        "selectedNone": "選択 0/0"
+      },
+      "skin": {
+        "pathInvalid": "{env} のパスが不正：{value}（{message}）",
+        "notExist": "{env} が指すスキンが存在しません：{path}",
+        "loadFailed": "スキンの読み込みに失敗。程序描画にフォールバック：{path}（{error}）",
+        "noManifest": "スキンマニフェストがありません",
+        "emptyManifest": "空のマニフェスト",
+        "versionTooNew": "マニフェストのバージョン {version} が対応済みの {supported} より新しい",
+        "regionsUnavailable": "マニフェスト内の領域がすべて使用不可（{skipped} 件スキップ）",
+        "noRegions": "マニフェストに regions がありません"
+      },
+      "layout": {
+        "emptyFile": "空ファイル",
+        "unsupportedVersion": "バージョン {version} は未対応",
+        "noRegions": "regions がありません",
+        "ignored": "[layout] カスタムレイアウトを無視 {path}: {message}"
+      }
+    }
+  },
+  "engine": {
+    "err": {
+      "meldCountRange": "副露数は 0..4 の範囲でなければなりません",
+      "unknownMeldType": "不明な副露種別",
+      "dealNeedsFourPlayers": "配牌は四家分必要です",
+      "dealerIndexOutOfRange": "親のインデックスが範囲外です",
+      "wallTooShortForDeal": "牌山が配牌枚数に足りません：{wall} < {need}（飛ばし枚数 {skip} が大きすぎます）",
+      "wallPlaceholderInReplay": "牌壁はリプレイ用プレースホルダ（null）のため実摸牌はできません。Draw(player, tile) か RoundDeal.WallOrder を渡してください",
+      "applyMeldType": "applyMeld は chi/pon/minkan のみ対応",
+      "minkanNeedsRinshan": "明槓には嶺上牌が必要（リプレイではコーパススナップショットから算出）",
+      "doKanType": "doKan は ankan/kakan のみ対応",
+      "kanNeedsRinshan": "槓後には嶺上牌が必要（リプレイではコーパススナップショットから算出）",
+      "wallTooShortForDeal2": "牌山が配牌枚数に足りません：{wall} < {need}",
+      "dealerDiceCount": "親決めはサイコロ 2 個で行います",
+      "deckSize": "牌順は {expected} 枚必要ですが、実際は {actual} 枚です",
+      "embeddedIkeMissing": "Tiisu.Core に埋め込まれた ike.json が見つかりません",
+      "ikeBaselineLength": "ike.json の points.baselines の長さは thresholds + 1 である必要があります",
+      "replayCorpusEmpty": "リプレイコーパスの解析結果が空です",
+      "replayCorpusNoEvents": "リプレイコーパスに events がありません"
+    },
+    "reason": {
+      "tileNotInHand": "その牌は手牌にありません",
+      "handCountWrong": "手牌枚数が不正で聴牌形を検証できません",
+      "callLocksWait": "宣言後は待ちを変えられません",
+      "callBlocksMeld": "宣言後はチー・ポン・明槓禁止",
+      "callBlocksKakan": "宣言後は加槓禁止",
+      "ankanNeeds14": "暗槓は摸牌後の 14 枚形で判定します",
+      "noFourSameTiles": "同じ牌 4 枚が手牌にありません",
+      "ankanChangesWait": "その暗槓は待ち形を変えてしまいます",
+      "callBlocksMeldShort": "宣言後はチー・ポン禁止"
+    },
+    "flow": {
+      "fourWind": "四風連打（{tile}）",
+      "tripleRon": "三家和了 → 自動流局"
+    },
+    "audit": {
+      "playerDelta": "{name}：実際Δ{actual}、台帳Δ{expected}、差{diff}"
+    },
+    "roundLabel": {
+      "normal": "{wind}{round}局",
+      "extensionNorth": "北増{round}局",
+      "extensionEnter": "{wind}入り{round}局"
+    },
+    "wind": {
+      "east": "東",
+      "south": "南",
+      "west": "西",
+      "north": "北"
+    },
+    "tile": {
+      "man": "{num}万",
+      "pin": "{num}筒",
+      "sou": "{num}索",
+      "honor": {
+        "east": "東",
+        "south": "南",
+        "west": "西",
+        "north": "北",
+        "white": "白",
+        "green": "發",
+        "red": "中"
+      }
+    }
+  },
+  "core": {
+    "err": {
+      "emptyYakuData": "ike.json の解析結果が空です"
+    }
+  }
+}

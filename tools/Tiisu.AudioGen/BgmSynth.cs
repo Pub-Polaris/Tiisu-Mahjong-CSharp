@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using Tiisu.Localization;
 
 namespace Tiisu.AudioGen;
 
@@ -14,7 +15,7 @@ internal static class BgmSynth
     {
         if (!File.Exists(src))
         {
-            Console.Error.WriteLine("BGM 源不存在: " + src);
+            Console.Error.WriteLine(L.T("tools.cli.audio.bgmSourceMissing", ("path", src)));
             return 6;
         }
 
@@ -22,7 +23,7 @@ internal static class BgmSynth
         if (bytes.Length < 44 || Encoding.ASCII.GetString(bytes, 0, 4) != "RIFF"
             || Encoding.ASCII.GetString(bytes, 8, 4) != "WAVE")
         {
-            Console.Error.WriteLine("不是 WAV: " + src);
+            Console.Error.WriteLine(L.T("tools.cli.audio.notWav", ("path", src)));
             return 6;
         }
 
@@ -64,7 +65,7 @@ internal static class BgmSynth
                 }
                 else
                 {
-                    Console.Error.WriteLine($"暂不支持 {bits} bit");
+                    Console.Error.WriteLine(L.T("tools.cli.audio.unsupportedBits", ("bits", bits)));
                     return 6;
                 }
 
@@ -76,7 +77,7 @@ internal static class BgmSynth
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(dest))!);
         File.WriteAllBytes(dest, bytes);
-        Console.WriteLine($"  BGM {Math.Round(gainDb, 1)} dB → {dest}（{bytes.Length / 1024} KB）");
+        Console.WriteLine("  " + L.T("tools.cli.audio.bgmConverted", ("gain", Math.Round(gainDb, 1)), ("path", dest), ("kb", bytes.Length / 1024)));
         return 0;
     }
 }

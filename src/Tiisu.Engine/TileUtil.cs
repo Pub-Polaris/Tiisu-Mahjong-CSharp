@@ -1,3 +1,5 @@
+using Tiisu.Localization;
+
 namespace Tiisu.Engine;
 
 /// <summary>牌工具（对应 tiles.js 的 sortHand / countTiles 与 engine.js 的牌面显示）。</summary>
@@ -26,18 +28,18 @@ internal static class TileUtil
     /// <summary>JS <c>tileDisplay</c>：只用于日志/流局理由文本。</summary>
     public static string Display(Tile tile) => tile.Suit switch
     {
-        Suit.Man => tile.Num + "万",
-        Suit.Pin => tile.Num + "饼",
-        Suit.Sou => tile.Num + "索",
+        Suit.Man => L.T("engine.tile.man", ("num", tile.Num)),
+        Suit.Pin => L.T("engine.tile.pin", ("num", tile.Num)),
+        Suit.Sou => L.T("engine.tile.sou", ("num", tile.Num)),
         _ => tile.Num switch
         {
-            1 => "东",
-            2 => "南",
-            3 => "西",
-            4 => "北",
-            5 => "白",
-            6 => "发",
-            7 => "中",
+            1 => L.T("engine.tile.honor.east"),
+            2 => L.T("engine.tile.honor.south"),
+            3 => L.T("engine.tile.honor.west"),
+            4 => L.T("engine.tile.honor.north"),
+            5 => L.T("engine.tile.honor.white"),
+            6 => L.T("engine.tile.honor.green"),
+            7 => L.T("engine.tile.honor.red"),
             _ => tile.Num.ToString(),
         },
     };

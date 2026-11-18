@@ -1,4 +1,5 @@
 using System;
+using Tiisu.Localization;
 using System.IO;
 using System.Linq;
 using Tiisu.App.Assets;
@@ -32,9 +33,9 @@ internal static class Program
             var known = new[] { "--cpu-render", "--fullscreen", "--lang" };
             if (args[0] != "--cpu-render" && !known.Contains(args[0]))
             {
-                Console.WriteLine($"未知参数：{args[0]}");
-                Console.WriteLine("开发/自检命令请用 tools/Tiisu.DevTools（同一批参数）。");
-                Console.WriteLine("启动项：--cpu-render --fullscreen --lang zh-CN|en-US|ja-JP");
+                Console.WriteLine(L.T("app.runtime.cli.unknownArg", ("arg", args[0])));
+                Console.WriteLine(L.T("app.runtime.cli.devHint"));
+                Console.WriteLine(L.T("app.runtime.cli.launchItems"));
                 return;
             }
         }

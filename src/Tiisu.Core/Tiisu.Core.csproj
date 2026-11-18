@@ -14,4 +14,8 @@
     <EmbeddedResource Include="Data\ike.json" LogicalName="Tiisu.Core.ike.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Tiisu.Localization\Tiisu.Localization.csproj" />
+  </ItemGroup>
+
 </Project>

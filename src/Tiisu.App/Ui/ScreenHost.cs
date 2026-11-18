@@ -6,6 +6,7 @@ using SkiaSharp;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
+using Tiisu.Localization;
 
 namespace Tiisu.App.Ui;
 
@@ -227,21 +228,21 @@ internal sealed class ScreenHostCore : IDisposable
         string text;
         try
         {
-            text = File.Exists(path) ? File.ReadAllText(path) : "未找到文档：" + file;
+            text = File.Exists(path) ? File.ReadAllText(path) : L.T("app.ui.docs.notFound", ("file", file));
         }
         catch (Exception ex)
         {
-            text = "读取失败：" + ex.Message;
+            text = L.T("app.ui.docs.readFailed", ("message", ex.Message));
         }
 
         string title = file switch
         {
-            "REFERENCES.md" => "参考与合规说明",
-            "ASSET-PROVENANCE.md" => "素材来源",
-            "ML-PROVENANCE.md" => "ML 权重来源",
-            "SELFPLAY_TRAINING.md" => "自博弈训练",
-            "RELEASE_COMPLIANCE.md" => "发布合规清单",
-            "THIRD-PARTY-NOTICES.md" => "第三方声明",
+            "REFERENCES.md" => L.T("app.ui.docs.title.references"),
+            "ASSET-PROVENANCE.md" => L.T("app.ui.docs.title.assets"),
+            "ML-PROVENANCE.md" => L.T("app.ui.docs.title.ml"),
+            "SELFPLAY_TRAINING.md" => L.T("app.ui.docs.title.selfplay"),
+            "RELEASE_COMPLIANCE.md" => L.T("app.ui.docs.title.release"),
+            "THIRD-PARTY-NOTICES.md" => L.T("app.ui.docs.title.thirdParty"),
             _ => Path.GetFileNameWithoutExtension(file),
         };
         SwitchTo(new MarkdownScreen(title, text, () => SwitchTo(_licenses)));

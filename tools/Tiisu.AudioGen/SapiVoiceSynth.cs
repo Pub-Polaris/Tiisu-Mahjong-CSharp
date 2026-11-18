@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Speech.Synthesis;
+using Tiisu.Localization;
 
 namespace Tiisu.AudioGen;
 
@@ -53,14 +54,14 @@ internal static class SapiVoiceSynth
         string? voiceName = FindChineseVoice();
         if (voiceName is null)
         {
-            Console.Error.WriteLine("没有可用的中文 SAPI 语音");
+            Console.Error.WriteLine(L.T("tools.cli.audio.noSapiVoice"));
             return 5;
         }
 
         Directory.CreateDirectory(outDir);
         string tmp = Path.Combine(Path.GetTempPath(), "tiisu-sapi-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmp);
-        Console.WriteLine($"语音引擎：SAPI · {voiceName}");
+        Console.WriteLine(L.T("tools.cli.audio.engineLine", ("voice", voiceName)));
 
         try
         {

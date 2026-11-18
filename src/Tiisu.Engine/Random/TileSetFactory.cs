@@ -1,3 +1,5 @@
+using Tiisu.Localization;
+
 namespace Tiisu.Engine.Random;
 
 /// <summary>
@@ -76,7 +78,7 @@ public static class TileSetFactory
     {
         if (dice.Count != 2)
         {
-            throw new ArgumentException("定庄必须是两颗骰子", nameof(dice));
+            throw new ArgumentException(L.T("engine.err.dealerDiceCount"), nameof(dice));
         }
 
         int sum = dice[0] + dice[1];
@@ -110,7 +112,7 @@ public static class TileSetFactory
         ArgumentNullException.ThrowIfNull(deck);
         if (deck.Count != DeckSize)
         {
-            throw new ArgumentException($"牌序必须是 {DeckSize} 张，实际 {deck.Count}", nameof(deck));
+            throw new ArgumentException(L.T("engine.err.deckSize", ("expected", DeckSize), ("actual", deck.Count)), nameof(deck));
         }
 
         int skip = Math.Clamp(skipTiles, 0, DeckSize);
@@ -162,7 +164,7 @@ public static class TileSetFactory
 
         if (wall.Count < DealTileCount)
         {
-            throw new InvalidOperationException($"牌山不足配牌张数：{wall.Count} < {DealTileCount}");
+            throw new InvalidOperationException(L.T("engine.err.wallTooShortForDeal2", ("wall", wall.Count), ("need", DealTileCount)));
         }
 
         var hands = new List<List<Tile>>(MahjongEngine.PlayerCount);

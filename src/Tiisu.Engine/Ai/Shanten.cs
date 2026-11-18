@@ -1,3 +1,5 @@
+using Tiisu.Localization;
+
 namespace Tiisu.Engine.Ai;
 
 /// <summary>向听数的牌型类别。</summary>
@@ -45,7 +47,7 @@ public static class Shanten
         ArgumentNullException.ThrowIfNull(hand);
         if (meldCount is < 0 or > 4)
         {
-            throw new ArgumentOutOfRangeException(nameof(meldCount), meldCount, "副露数必须在 0..4");
+            throw new ArgumentOutOfRangeException(nameof(meldCount), L.T("engine.err.meldCountRange"));
         }
 
         _ = kanCount;

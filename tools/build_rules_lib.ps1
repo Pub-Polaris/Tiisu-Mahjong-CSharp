@@ -33,6 +33,9 @@ Write-Host "== build rules lib ($versionTag) =="
 
 Push-Location $netRoot
 try {
+    dotnet build 'src\Tiisu.Localization\Tiisu.Localization.csproj' -c $Configuration -v q --nologo "/p:InformationalVersion=$versionTag" "/p:AssemblyVersion=$numeric" "/p:FileVersion=$numeric"
+    if ($LASTEXITCODE -ne 0) { throw "Localization build failed ($LASTEXITCODE)" }
+
     dotnet build 'src\Tiisu.Core\Tiisu.Core.csproj' -c $Configuration -v q --nologo "/p:InformationalVersion=$versionTag" "/p:AssemblyVersion=$numeric" "/p:FileVersion=$numeric"
     if ($LASTEXITCODE -ne 0) { throw "Core build failed ($LASTEXITCODE)" }
 
@@ -42,12 +45,16 @@ try {
 finally { Pop-Location }
 
 $coreOut = Join-Path $netRoot "src\Tiisu.Core\bin\$Configuration\net10.0"
+$locOut = Join-Path $netRoot "src\Tiisu.Localization\bin\$Configuration\net10.0"
 $engineOut = Join-Path $netRoot "src\Tiisu.Engine\bin\$Configuration\net10.0"
 
 if (Test-Path $lib) { Remove-Item $lib -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $lib | Out-Null
 
 $files = @(
+    @{ From = $locOut;    Name = 'Tiisu.Localization.dll' },
+    @{ From = $locOut;    Name = 'Tiisu.Localization.pdb' },
+    @{ From = $locOut;    Name = 'Tiisu.Localization.xml' },
     @{ From = $coreOut;   Name = 'Tiisu.Core.dll' },
     @{ From = $coreOut;   Name = 'Tiisu.Core.pdb' },
     @{ From = $coreOut;   Name = 'Tiisu.Core.xml' },
@@ -67,6 +74,7 @@ $manifest = @{
     version   = $versionTag
     buildTime = (Get-Date).ToString('s')
     assemblies = @(
+        @{ name = 'Tiisu.Localization'; file = 'Tiisu.Localization.dll' },
         @{ name = 'Tiisu.Core';   file = 'Tiisu.Core.dll' },
         @{ name = 'Tiisu.Engine'; file = 'Tiisu.Engine.dll' }
     )
@@ -89,4 +97,4 @@ if (-not $NoZip) {
 Write-Host ""
 Write-Host "OK  rules lib: $lib"
 Write-Host "    version: $versionTag"
-Write-Host "    usage: 引用 Tiisu.Core.dll + Tiisu.Engine.dll；契约见 docs/DSH/规则库API_261102.md"
+Write-Host "    usage: 引用 Tiisu.Localization.dll + Tiisu.Core.dll + Tiisu.Engine.dll；契约见 docs/DSH/规则库API_261102.md"

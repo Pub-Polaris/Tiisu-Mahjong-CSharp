@@ -1,3 +1,5 @@
+using Tiisu.Localization;
+
 namespace Tiisu.Engine;
 
 /// <summary>门风 / 场风。顺序与 JS 的 <c>['east','south','west','north']</c> 一致。</summary>
@@ -71,6 +73,6 @@ public static class EngineWire
         "minkan" => MeldType.Minkan,
         "ankan" => MeldType.Ankan,
         "kakan" => MeldType.Kakan,
-        _ => throw new ArgumentOutOfRangeException(nameof(value), value, "未知副露类型"),
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, L.T("engine.err.unknownMeldType")),
     };
 }

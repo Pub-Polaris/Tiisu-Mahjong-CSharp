@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using Tiisu.DevTools.TaskCenter;
+using Tiisu.Localization;
 
 namespace Tiisu.DevTools;
 
@@ -9,7 +10,7 @@ internal sealed class DevToolsForm : Form
 {
     private static readonly (string Label, string Variant, string FileName)[] TableStyles =
     {
-        ("平面", "flat", "style-flat.png"),
+        (L.T("tools.devtools.tableStyle.flat"), "flat", "style-flat.png"),
     };
 
     private readonly Toolchain _tools;
@@ -29,7 +30,7 @@ internal sealed class DevToolsForm : Form
 
         SuspendLayout();
 
-        Text = "Tiisu 开发者工具";
+        Text = L.T("tools.devtools.title");
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
         ClientSize = new Size(980, 720);
         MinimumSize = new Size(880, 640);
@@ -50,7 +51,7 @@ internal sealed class DevToolsForm : Form
 
         _status = new ToolStripStatusLabel
         {
-            Text = "就绪",
+            Text = L.T("tools.devtools.status.ready"),
             Spring = true,
             TextAlign = ContentAlignment.MiddleLeft,
         };
@@ -94,7 +95,7 @@ internal sealed class DevToolsForm : Form
 
         var logBox = new GroupBox
         {
-            Text = "运行日志",
+            Text = L.T("tools.devtools.log.group"),
             Dock = DockStyle.Fill,
             Padding = new Padding(10, 6, 10, 8),
             Margin = new Padding(4),
@@ -161,9 +162,9 @@ internal sealed class DevToolsForm : Form
             task => RunGuardedAsync(task.Title, task.Run));
 
         var tabs = new TabControl { Dock = DockStyle.Fill };
-        var taskPage = new TabPage("任务中心");
+        var taskPage = new TabPage(L.T("tools.devtools.tab.taskCenter"));
         taskPage.Controls.Add(taskCenter);
-        var oldPage = new TabPage("旧版工具");
+        var oldPage = new TabPage(L.T("tools.devtools.tab.legacy"));
         oldPage.Controls.Add(sections);
         tabs.TabPages.Add(taskPage);
         tabs.TabPages.Add(oldPage);
@@ -175,41 +176,41 @@ internal sealed class DevToolsForm : Form
 
         ResumeLayout(performLayout: true);
 
-        AppendLog("Tiisu 开发者工具 —— 美工 / 音效 / 布局 / 牌桌样式");
+        AppendLog(L.T("tools.devtools.startup.banner"));
         foreach (string note in _tools.Notes)
         {
             AppendLog("  " + note);
         }
 
-        AppendLog("  输出目录：" + _tools.OutputDir);
+        AppendLog(L.T("tools.devtools.log.outputDir", ("path", _tools.OutputDir)));
         AppendLog(string.Empty);
 
         if (_tools.GameExe is null)
         {
-            SetStatus("未找到 Tiisu.Mahjong.exe：先 dotnet build src/Tiisu.App -c Release", string.Empty);
+            SetStatus(L.T("tools.devtools.status.gameExeMissing"), string.Empty);
         }
     }
 
     // ── 分区 ───────────────────────────────────────────────────────
 
     private GroupBox BuildArtSection() => Section(
-        "美工",
-        CommandButton("导出合并 SVG", ExportUiSvgAsync),
-        CommandButton("按钮三态图", RenderActionsAsync),
-        CommandButton("打开输出目录", OpenOutputAsync));
+        L.T("tools.devtools.section.art"),
+        CommandButton(L.T("tools.devtools.action.exportUiSvg"), ExportUiSvgAsync),
+        CommandButton(L.T("tools.devtools.action.renderActions"), RenderActionsAsync),
+        CommandButton(L.T("tools.devtools.action.openOutput"), OpenOutputAsync));
 
     private GroupBox BuildAudioSection() => Section(
-        "音效",
-        CommandButton("生成音效+语音", GenerateAudioAsync),
-        CommandButton("只生成音效", GenerateSfxAsync),
-        CommandButton("打开 sounds 目录", () => OpenDirectoryAsync(_tools.SoundsDir, "sounds")),
-        CommandButton("打开 voices 目录", () => OpenDirectoryAsync(_tools.VoicesDir, "voices")));
+        L.T("tools.devtools.section.audio"),
+        CommandButton(L.T("tools.devtools.action.generateAudio"), GenerateAudioAsync),
+        CommandButton(L.T("tools.devtools.action.generateSfx"), GenerateSfxAsync),
+        CommandButton(L.T("tools.devtools.action.openSounds"), () => OpenDirectoryAsync(_tools.SoundsDir, "sounds")),
+        CommandButton(L.T("tools.devtools.action.openVoices"), () => OpenDirectoryAsync(_tools.VoicesDir, "voices")));
 
     private GroupBox BuildLayoutSection() => Section(
-        "布局",
-        CommandButton("启动游戏（布局编辑）", LaunchGameAsync),
-        CommandButton("查看当前自定义布局", ViewLayoutAsync),
-        CommandButton("删除自定义布局（恢复默认）", DeleteLayoutAsync));
+        L.T("tools.devtools.section.layout"),
+        CommandButton(L.T("tools.devtools.action.launchGame"), LaunchGameAsync),
+        CommandButton(L.T("tools.devtools.action.viewLayout"), ViewLayoutAsync),
+        CommandButton(L.T("tools.devtools.action.deleteLayout"), DeleteLayoutAsync));
 
     private GroupBox BuildStyleSection()
     {
@@ -232,15 +233,15 @@ internal sealed class DevToolsForm : Form
                 UseVisualStyleBackColor = true,
             };
             button.Click += async (_, _) => await RunGuardedAsync(
-                "牌桌样式 " + style.Label,
+                L.T("tools.devtools.task.tableStyleWithLabel", ("style", style.Label)),
                 () => RenderStyleAsync(style));
             row.Controls.Add(button, i, 0);
         }
 
         return Section(
-            "牌桌样式",
+            L.T("tools.devtools.section.style"),
             row,
-            CommandButton("全部生成并打开目录", RenderAllStylesAsync));
+            CommandButton(L.T("tools.devtools.action.renderAllStyles"), RenderAllStylesAsync));
     }
 
     private GroupBox BuildPublishSection()
@@ -265,12 +266,12 @@ internal sealed class DevToolsForm : Form
 
         var buttons = new (string Text, Func<Task> Action)[]
         {
-            ("发布自检", CheckPublishAsync),
-            ("生成安装包", BuildInstallerAsync),
-            ("生成规则库", BuildRulesAsync),
-            ("复制产物哈希", CopyArtifactHashesAsync),
-            ("打开 dist", OpenDistAsync),
-            ("打开桌面安装包", OpenDesktopSetupAsync),
+            (L.T("tools.devtools.action.checkPublish"), CheckPublishAsync),
+            (L.T("tools.devtools.action.buildInstaller"), BuildInstallerAsync),
+            (L.T("tools.devtools.action.buildRules"), BuildRulesAsync),
+            (L.T("tools.devtools.action.copyHashes"), CopyArtifactHashesAsync),
+            (L.T("tools.devtools.action.openDist"), OpenDistAsync),
+            (L.T("tools.devtools.action.openDesktopSetup"), OpenDesktopSetupAsync),
         };
 
         for (int i = 0; i < buttons.Length; i++)
@@ -286,7 +287,7 @@ internal sealed class DevToolsForm : Form
             grid.Controls.Add(button, i % 3, i / 3);
         }
 
-        return Section("发布 / 合规", grid);
+        return Section(L.T("tools.devtools.section.publish"), grid);
     }
 
 
@@ -339,13 +340,13 @@ internal sealed class DevToolsForm : Form
         string publish = Path.Combine(_tools.WorkingDirectory, "dist", "publish");
         if (!Directory.Exists(publish))
         {
-            AppendLog("  ! 还没有 dist/publish：先生成安装包");
-            SetStatus("还没有 dist/publish", string.Empty);
+            AppendLog(L.T("tools.devtools.log.publishMissing"));
+            SetStatus(L.T("tools.devtools.status.publishMissing"), string.Empty);
             return;
         }
 
         await ExecuteAsync(
-            "发布自检",
+            L.T("tools.devtools.action.checkPublish"),
             Application.ExecutablePath,
             new[] { "--check-publish", publish },
             _tools.WorkingDirectory,
@@ -355,7 +356,7 @@ internal sealed class DevToolsForm : Form
     private async Task CheckSteamTaskAsync()
     {
         await ExecuteAsync(
-            "Steam 就绪检查",
+            L.T("tools.devtools.action.checkSteam"),
             Application.ExecutablePath,
             new[] { "--check-steam", _tools.WorkingDirectory },
             _tools.WorkingDirectory,
@@ -367,8 +368,8 @@ internal sealed class DevToolsForm : Form
         string script = Path.Combine(_tools.WorkingDirectory, "installer", "build_installer.ps1");
         if (!File.Exists(script))
         {
-            AppendLog("  ! 找不到安装包脚本：" + script);
-            SetStatus("找不到 installer/build_installer.ps1", string.Empty);
+            AppendLog(L.T("tools.devtools.log.installerScriptMissing", ("path", script)));
+            SetStatus(L.T("tools.devtools.status.installerScriptMissing"), string.Empty);
             return;
         }
 
@@ -376,7 +377,7 @@ internal sealed class DevToolsForm : Form
             Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
             "TiisuMahjong-Setup.exe");
         await ExecuteAsync(
-            "生成安装包",
+            L.T("tools.devtools.action.buildInstaller"),
             "powershell",
             new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-CopyToDesktop" },
             _tools.WorkingDirectory,
@@ -388,13 +389,13 @@ internal sealed class DevToolsForm : Form
         string script = Path.Combine(_tools.WorkingDirectory, "tools", "steam_package.ps1");
         if (!File.Exists(script))
         {
-            AppendLog("  ! 找不到 Steam 打包脚本：" + script);
-            SetStatus("找不到 tools/steam_package.ps1", string.Empty);
+            AppendLog(L.T("tools.devtools.log.steamScriptMissing", ("path", script)));
+            SetStatus(L.T("tools.devtools.status.steamScriptMissing"), string.Empty);
             return;
         }
 
         await ExecuteAsync(
-            "Steam Depot",
+            L.T("tools.devtools.action.buildSteamDepot"),
             "powershell",
             new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script },
             _tools.WorkingDirectory,
@@ -406,13 +407,13 @@ internal sealed class DevToolsForm : Form
         string script = Path.Combine(_tools.WorkingDirectory, "tools", "build_rules_lib.ps1");
         if (!File.Exists(script))
         {
-            AppendLog("  ! 找不到规则库脚本：" + script);
-            SetStatus("找不到 tools/build_rules_lib.ps1", string.Empty);
+            AppendLog(L.T("tools.devtools.log.rulesScriptMissing", ("path", script)));
+            SetStatus(L.T("tools.devtools.status.rulesScriptMissing"), string.Empty);
             return;
         }
 
         await ExecuteAsync(
-            "生成规则库",
+            L.T("tools.devtools.action.buildRules"),
             "powershell",
             new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script },
             _tools.WorkingDirectory,
@@ -422,11 +423,11 @@ internal sealed class DevToolsForm : Form
     private Task CopyArtifactHashesAsync()
     {
         AppendLog(string.Empty);
-        AppendLog($"[{DateTime.Now:HH:mm:ss}] 产物 SHA256");
+        AppendLog($"[{DateTime.Now:HH:mm:ss}] " + L.T("tools.devtools.log.artifactHashes"));
         string dist = Path.Combine(_tools.WorkingDirectory, "dist");
         if (!Directory.Exists(dist))
         {
-            AppendLog("  ! dist 不存在，先生成安装包 / 规则库");
+            AppendLog(L.T("tools.devtools.log.distMissing"));
             return Task.CompletedTask;
         }
 
@@ -444,7 +445,7 @@ internal sealed class DevToolsForm : Form
             }
         }
 
-        SetStatus("已把 dist 产物哈希写入日志", string.Empty);
+        SetStatus(L.T("tools.devtools.status.hashesWritten"), string.Empty);
         return Task.CompletedTask;
     }
 
@@ -461,13 +462,13 @@ internal sealed class DevToolsForm : Form
             "TiisuMahjong-Setup.exe");
         if (!File.Exists(setup))
         {
-            AppendLog("  ! 桌面没有 TiisuMahjong-Setup.exe，先生成安装包");
-            SetStatus("桌面没有安装包", string.Empty);
+            AppendLog(L.T("tools.devtools.log.desktopSetupMissing"));
+            SetStatus(L.T("tools.devtools.status.desktopSetupMissing"), string.Empty);
             return Task.CompletedTask;
         }
 
         CommandRunner.OpenInExplorer(setup, selectFile: true);
-        SetStatus("已定位桌面安装包", string.Empty);
+        SetStatus(L.T("tools.devtools.status.desktopSetupFound"), string.Empty);
         return Task.CompletedTask;
     }
 
@@ -482,7 +483,7 @@ internal sealed class DevToolsForm : Form
     {
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? _renderOutputDir);
         await ExecuteAsync(
-            "出图：" + screen,
+            L.T("tools.devtools.task.renderScreen", ("screen", screen)),
             Application.ExecutablePath,
             new[] { "--render-screen", outputPath, screen },
             _tools.WorkingDirectory,
@@ -492,7 +493,7 @@ internal sealed class DevToolsForm : Form
     private async Task RenderRoundEndTaskAsync(string outputPath)
     {
         await ExecuteAsync(
-            "出图：结算页",
+            L.T("tools.devtools.task.renderRoundEnd"),
             Application.ExecutablePath,
             new[] { "--render-roundend", outputPath },
             _tools.WorkingDirectory,
@@ -502,7 +503,7 @@ internal sealed class DevToolsForm : Form
     private async Task RenderActionsTaskAsync(string outputPath)
     {
         await ExecuteAsync(
-            "出图：按钮三态",
+            L.T("tools.devtools.task.renderActions"),
             Application.ExecutablePath,
             new[] { "--render-actions", outputPath },
             _tools.WorkingDirectory,
@@ -512,7 +513,7 @@ internal sealed class DevToolsForm : Form
     private async Task ExportUiSvgTaskAsync(string outputPath)
     {
         await ExecuteAsync(
-            "导出合并 SVG",
+            L.T("tools.devtools.action.exportUiSvg"),
             Application.ExecutablePath,
             new[] { "--export-ui-svg", outputPath },
             _tools.WorkingDirectory,
@@ -522,7 +523,7 @@ internal sealed class DevToolsForm : Form
     private async Task RenderTableStyleTaskAsync(string outputPath)
     {
         await ExecuteAsync(
-            "出图：牌桌样式",
+            L.T("tools.devtools.task.renderTableStyle"),
             Application.ExecutablePath,
             StyleArguments(outputPath, "flat"),
             _tools.WorkingDirectory,
@@ -534,7 +535,7 @@ internal sealed class DevToolsForm : Form
         string dir = Path.Combine(_tools.WorkingDirectory, "artifacts", "steam");
         Directory.CreateDirectory(dir);
         await ExecuteAsync(
-            "Steam 商店截图",
+            L.T("tools.devtools.task.exportSteamShots"),
             Application.ExecutablePath,
             new[] { "--export-steam-shots", dir },
             _tools.WorkingDirectory,
@@ -546,7 +547,7 @@ internal sealed class DevToolsForm : Form
         string dir = Path.Combine(_tools.WorkingDirectory, "artifacts", "steam", "capsules");
         Directory.CreateDirectory(dir);
         await ExecuteAsync(
-            "Steam 胶囊图",
+            L.T("tools.devtools.task.exportSteamCapsules"),
             Application.ExecutablePath,
             new[] { "--export-steam-capsules", dir },
             _tools.WorkingDirectory,
@@ -555,7 +556,7 @@ internal sealed class DevToolsForm : Form
 
     private Task OpenRenderOutputAsync()
     {
-        OpenDirectory(_renderOutputDir, "出图目录");
+        OpenDirectory(_renderOutputDir, L.T("tools.devtools.open.label.renderDir"));
         return Task.CompletedTask;
     }
 
@@ -565,7 +566,7 @@ internal sealed class DevToolsForm : Form
         using var dialog = new SelfPlayDialog(_tools.WorkingDirectory);
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
-            AppendLog("  已取消：导出自博弈数据");
+            AppendLog(L.T("tools.devtools.log.cancelledSelfplay"));
             return;
         }
 
@@ -590,7 +591,7 @@ internal sealed class DevToolsForm : Form
             dialog.Explore.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture),
         };
         await ExecuteAsync(
-            "导出自博弈数据",
+            L.T("tools.devtools.action.exportSelfplay"),
             Application.ExecutablePath,
             args,
             _tools.WorkingDirectory,
@@ -600,7 +601,7 @@ internal sealed class DevToolsForm : Form
     private async Task SmokeNeuralTaskAsync()
     {
         await ExecuteAsync(
-            "验证 7Neuu 权重",
+            L.T("tools.devtools.action.smokeNeural"),
             Application.ExecutablePath,
             new[] { "--smoke-neural" },
             _tools.WorkingDirectory,
@@ -610,7 +611,7 @@ internal sealed class DevToolsForm : Form
     private async Task Smoke7NeuuTaskAsync()
     {
         await ExecuteAsync(
-            "验证 7Neuu 决策",
+            L.T("tools.devtools.action.smoke7neuu"),
             Application.ExecutablePath,
             new[] { "--smoke-7neuu" },
             _tools.WorkingDirectory,
@@ -620,7 +621,7 @@ internal sealed class DevToolsForm : Form
     private async Task BenchSnapshotTaskAsync()
     {
         await ExecuteAsync(
-            "UI 快照性能",
+            L.T("tools.devtools.action.benchSnapshot"),
             Application.ExecutablePath,
             new[] { "--bench-snapshot", "20000" },
             _tools.WorkingDirectory,
@@ -630,7 +631,7 @@ internal sealed class DevToolsForm : Form
     private Task OpenAiDataAsync()
     {
         Directory.CreateDirectory(_aiOutputDir);
-        OpenDirectory(_aiOutputDir, "自博弈数据");
+        OpenDirectory(_aiOutputDir, L.T("tools.devtools.open.label.aiData"));
         return Task.CompletedTask;
     }
 
@@ -639,12 +640,12 @@ internal sealed class DevToolsForm : Form
         using var dialog = new AuditGamesDialog();
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
-            AppendLog("  已取消：批量审局");
+            AppendLog(L.T("tools.devtools.log.cancelledAudit"));
             return;
         }
 
         await ExecuteAsync(
-            "批量审局",
+            L.T("tools.devtools.action.auditGames"),
             Application.ExecutablePath,
             dialog.Arguments(),
             _tools.WorkingDirectory,
@@ -654,7 +655,7 @@ internal sealed class DevToolsForm : Form
     private async Task AuditUiTaskAsync()
     {
         await ExecuteAsync(
-            "UI 不变量审计",
+            L.T("tools.devtools.action.auditUi"),
             Application.ExecutablePath,
             new[] { "--audit-games", "50", "4", "1", "--jobs", "4", "--ui" },
             _tools.WorkingDirectory,
@@ -664,7 +665,7 @@ internal sealed class DevToolsForm : Form
     private async Task AuditCallTaskAsync()
     {
         await ExecuteAsync(
-            "报听分支审计",
+            L.T("tools.devtools.action.auditCall"),
             Application.ExecutablePath,
             new[] { "--audit-games", "50", "4", "1", "--jobs", "4", "--passive", "--call" },
             _tools.WorkingDirectory,
@@ -674,7 +675,7 @@ internal sealed class DevToolsForm : Form
     private async Task SmokeRunTaskAsync()
     {
         await ExecuteAsync(
-            "整场冒烟",
+            L.T("tools.devtools.action.smokeRun"),
             Application.ExecutablePath,
             new[] { "--smoke-run", "1", "4" },
             _tools.WorkingDirectory,
@@ -684,7 +685,7 @@ internal sealed class DevToolsForm : Form
     private async Task CheckFontTaskAsync()
     {
         await ExecuteAsync(
-            "字体缺字检查",
+            L.T("tools.devtools.action.checkFont"),
             Application.ExecutablePath,
             new[] { "--check-font", _tools.WorkingDirectory },
             _tools.WorkingDirectory,
@@ -694,7 +695,7 @@ internal sealed class DevToolsForm : Form
     private async Task AuditUiStringsTaskAsync()
     {
         await ExecuteAsync(
-            "盘点 UI 文案",
+            L.T("tools.devtools.action.auditUiStrings"),
             Application.ExecutablePath,
             new[] { "--audit-ui-strings", _tools.WorkingDirectory },
             _tools.WorkingDirectory,
@@ -707,7 +708,7 @@ internal sealed class DevToolsForm : Form
         string path = Path.Combine(_tools.OutputDir, "ui-atlas.png");
         _lastAtlasPath = path;
         await ExecuteAsync(
-            "导出 UI 图集",
+            L.T("tools.devtools.action.exportAtlas"),
             Application.ExecutablePath,
             new[] { "--export-ui-atlas", _tools.OutputDir },
             _tools.WorkingDirectory,
@@ -738,7 +739,7 @@ internal sealed class DevToolsForm : Form
         Directory.CreateDirectory(_tools.OutputDir);
         const string relative = "artifacts/uitools/ui-merged.svg";
         await ExecuteAsync(
-            "导出合并 SVG",
+            L.T("tools.devtools.action.exportUiSvg"),
             game,
             new[] { "--export-ui-svg", relative },
             _tools.WorkingDirectory,
@@ -755,7 +756,7 @@ internal sealed class DevToolsForm : Form
         Directory.CreateDirectory(_tools.OutputDir);
         const string relative = "artifacts/uitools/btn-colors.png";
         await ExecuteAsync(
-            "按钮三态图",
+            L.T("tools.devtools.action.renderActions"),
             game,
             new[] { "--render-actions", relative },
             _tools.WorkingDirectory,
@@ -765,7 +766,7 @@ internal sealed class DevToolsForm : Form
     private Task OpenOutputAsync()
     {
         Directory.CreateDirectory(_tools.OutputDir);
-        OpenDirectory(_tools.OutputDir, "输出目录");
+        OpenDirectory(_tools.OutputDir, L.T("tools.devtools.open.label.outputDir"));
         return Task.CompletedTask;
     }
 
@@ -777,7 +778,7 @@ internal sealed class DevToolsForm : Form
         }
 
         int? code = await ExecuteAsync(
-            "生成音效+语音",
+            L.T("tools.devtools.action.generateAudio"),
             audioGen,
             Array.Empty<string>(),
             _tools.WorkingDirectory,
@@ -797,7 +798,7 @@ internal sealed class DevToolsForm : Form
         }
 
         int? code = await ExecuteAsync(
-            "只生成音效",
+            L.T("tools.devtools.action.generateSfx"),
             audioGen,
             new[] { "--sfx" },
             _tools.WorkingDirectory,
@@ -817,7 +818,7 @@ internal sealed class DevToolsForm : Form
         }
 
         AppendLog(string.Empty);
-        AppendLog($"[{DateTime.Now:HH:mm:ss}] 启动游戏（布局编辑）");
+        AppendLog($"[{DateTime.Now:HH:mm:ss}] " + L.T("tools.devtools.log.launchGame"));
         AppendLog("  " + game);
 
         try
@@ -825,19 +826,19 @@ internal sealed class DevToolsForm : Form
             using Process process = CommandRunner.Launch(
                 game,
                 Path.GetDirectoryName(game) ?? _tools.WorkingDirectory);
-            AppendLog($"  已启动（PID {process.Id}）");
-            SetStatus("游戏已启动 · 进入牌桌按 F2 编辑布局", string.Empty);
+            AppendLog(L.T("tools.devtools.log.started", ("pid", process.Id)));
+            SetStatus(L.T("tools.devtools.status.gameStarted"), string.Empty);
             MessageBox.Show(
                 this,
-                "已启动 Tiisu.Mahjong.exe。\n\n进入牌桌按 F2 进入布局编辑（S 保存，R 两次确认恢复默认）。",
-                "布局编辑",
+                L.T("tools.devtools.dialog.layoutEdit.text"),
+                L.T("tools.devtools.dialog.layoutEdit.title"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {
-            AppendLog("  ! 启动失败：" + ex.Message);
-            SetStatus("启动游戏失败：" + ex.Message, string.Empty);
+            AppendLog(L.T("tools.devtools.log.launchFailed", ("message", ex.Message)));
+            SetStatus(L.T("tools.devtools.status.launchFailed", ("message", ex.Message)), string.Empty);
         }
 
         return Task.CompletedTask;
@@ -847,19 +848,19 @@ internal sealed class DevToolsForm : Form
     {
         string path = _tools.LayoutFile;
         AppendLog(string.Empty);
-        AppendLog($"[{DateTime.Now:HH:mm:ss}] 查看当前自定义布局");
+        AppendLog($"[{DateTime.Now:HH:mm:ss}] " + L.T("tools.devtools.log.viewLayout"));
         AppendLog("  " + path);
 
         if (File.Exists(path))
         {
             bool opened = CommandRunner.OpenInExplorer(path, selectFile: true);
-            AppendLog(opened ? "  已在资源管理器中定位" : "  ! 打开失败：" + path);
-            SetStatus(opened ? "已定位 layout-custom.json" : "打开布局文件失败", string.Empty);
+            AppendLog(opened ? L.T("tools.devtools.log.explorerLocated") : L.T("tools.devtools.log.openFailed", ("path", path)));
+            SetStatus(opened ? L.T("tools.devtools.status.layoutLocated") : L.T("tools.devtools.status.layoutOpenFailed"), string.Empty);
             return Task.CompletedTask;
         }
 
-        AppendLog("  ! 还没有自定义布局，游戏当前使用默认布局");
-        SetStatus("还没有自定义布局（当前为默认布局）", string.Empty);
+        AppendLog(L.T("tools.devtools.log.noCustomLayout"));
+        SetStatus(L.T("tools.devtools.status.noCustomLayout"), string.Empty);
 
         string? directory = Path.GetDirectoryName(path);
         if (directory is not null && Directory.Exists(directory))
@@ -870,8 +871,8 @@ internal sealed class DevToolsForm : Form
         {
             MessageBox.Show(
                 this,
-                "还没有自定义布局，游戏当前使用默认布局。\n\n进入游戏牌桌按 F2 编辑，按 S 保存后会生成：\n" + path,
-                "查看自定义布局",
+                L.T("tools.devtools.dialog.viewLayout.text", ("path", path)),
+                L.T("tools.devtools.dialog.viewLayout.title"),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
         }
@@ -883,41 +884,41 @@ internal sealed class DevToolsForm : Form
     {
         string path = _tools.LayoutFile;
         AppendLog(string.Empty);
-        AppendLog($"[{DateTime.Now:HH:mm:ss}] 删除自定义布局");
+        AppendLog($"[{DateTime.Now:HH:mm:ss}] " + L.T("tools.devtools.log.deleteLayout"));
         AppendLog("  " + path);
 
         if (!File.Exists(path))
         {
-            AppendLog("  ! 没有自定义布局，已经是默认布局");
-            SetStatus("没有自定义布局，已是默认布局", string.Empty);
+            AppendLog(L.T("tools.devtools.log.noCustomLayoutDelete"));
+            SetStatus(L.T("tools.devtools.status.noCustomLayoutDelete"), string.Empty);
             return Task.CompletedTask;
         }
 
         DialogResult answer = MessageBox.Show(
             this,
-            "删除后游戏恢复默认布局，不能撤销。\n\n" + path,
-            "删除自定义布局",
+            L.T("tools.devtools.dialog.deleteLayout.text", ("path", path)),
+            L.T("tools.devtools.dialog.deleteLayout.title"),
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning,
             MessageBoxDefaultButton.Button2);
 
         if (answer != DialogResult.Yes)
         {
-            AppendLog("  已取消");
-            SetStatus("已取消删除", string.Empty);
+            AppendLog(L.T("tools.devtools.log.cancelled"));
+            SetStatus(L.T("tools.devtools.status.deleteCancelled"), string.Empty);
             return Task.CompletedTask;
         }
 
         try
         {
             File.Delete(path);
-            AppendLog("  已删除，下次启动游戏使用默认布局");
-            SetStatus("已删除自定义布局（恢复默认）", string.Empty);
+            AppendLog(L.T("tools.devtools.log.deleted"));
+            SetStatus(L.T("tools.devtools.status.deleted"), string.Empty);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            AppendLog("  ! 删除失败：" + ex.Message);
-            SetStatus("删除失败：" + ex.Message, string.Empty);
+            AppendLog(L.T("tools.devtools.log.deleteFailed", ("message", ex.Message)));
+            SetStatus(L.T("tools.devtools.status.deleteFailed", ("message", ex.Message)), string.Empty);
         }
 
         return Task.CompletedTask;
@@ -932,7 +933,7 @@ internal sealed class DevToolsForm : Form
 
         Directory.CreateDirectory(_tools.OutputDir);
         await ExecuteAsync(
-            "牌桌样式 " + style.Label,
+            L.T("tools.devtools.task.tableStyleWithLabel", ("style", style.Label)),
             game,
             StyleArguments(style.FileName, style.Variant),
             _tools.WorkingDirectory,
@@ -953,7 +954,7 @@ internal sealed class DevToolsForm : Form
         foreach (var style in TableStyles)
         {
             int? code = await ExecuteAsync(
-                "牌桌样式 " + style.Label,
+                L.T("tools.devtools.task.tableStyleWithLabel", ("style", style.Label)),
                 game,
                 StyleArguments(style.FileName, style.Variant),
                 _tools.WorkingDirectory,
@@ -966,11 +967,11 @@ internal sealed class DevToolsForm : Form
 
         total.Stop();
         string summary = failed == 0
-            ? $"全部生成：{TableStyles.Length}/{TableStyles.Length} 成功"
-            : $"全部生成：{TableStyles.Length - failed}/{TableStyles.Length} 成功，{failed} 个失败";
+            ? L.T("tools.devtools.summary.allStylesOk", ("total", TableStyles.Length))
+            : L.T("tools.devtools.summary.allStylesPartial", ("ok", TableStyles.Length - failed), ("total", TableStyles.Length), ("failed", failed));
         AppendLog($"  → {summary} · {CommandRunner.FormatElapsed(total.Elapsed)}");
         SetStatus(summary, CommandRunner.FormatElapsed(total.Elapsed));
-        OpenDirectory(_tools.OutputDir, "输出目录");
+        OpenDirectory(_tools.OutputDir, L.T("tools.devtools.open.label.outputDir"));
     }
 
     private static string[] StyleArguments(string fileName, string variant) => new[]
@@ -987,7 +988,7 @@ internal sealed class DevToolsForm : Form
     {
         if (_busy)
         {
-            SetStatus("上一条命令还在执行，请稍候", string.Empty);
+            SetStatus(L.T("tools.devtools.status.busy"), string.Empty);
             return;
         }
 
@@ -1001,8 +1002,8 @@ internal sealed class DevToolsForm : Form
         }
         catch (Exception ex)
         {
-            AppendLog("  ! 未处理的异常：" + ex.Message);
-            SetStatus(label + " 失败：" + ex.Message, string.Empty);
+            AppendLog(L.T("tools.devtools.log.unhandled", ("message", ex.Message)));
+            SetStatus(L.T("tools.devtools.status.taskFailed", ("title", label), ("message", ex.Message)), string.Empty);
         }
         finally
         {
@@ -1026,12 +1027,12 @@ internal sealed class DevToolsForm : Form
 
         if (!result.Started)
         {
-            AppendLog("  ! 启动失败：" + result.StartError);
-            SetStatus($"{title}：命令无法启动", CommandRunner.FormatElapsed(result.Elapsed));
+            AppendLog(L.T("tools.devtools.log.startFailed", ("message", result.StartError)));
+            SetStatus(L.T("tools.devtools.status.commandNotStartable", ("title", title)), CommandRunner.FormatElapsed(result.Elapsed));
             MessageBox.Show(
                 this,
                 result.StartError + "\n\n" + result.CommandLine,
-                title + " —— 命令无法启动",
+                L.T("tools.devtools.dialog.commandFailed.title", ("title", title)),
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
             return null;
@@ -1044,10 +1045,10 @@ internal sealed class DevToolsForm : Form
         }
 
         bool ok = result.ExitCode == 0;
-        string summary = ok ? "exit 0" : $"exit {result.ExitCode}（失败）";
+        string summary = ok ? "exit 0" : L.T("tools.devtools.summary.exitFailed", ("code", result.ExitCode));
         string elapsed = CommandRunner.FormatElapsed(result.Elapsed);
         AppendLog($"  → {summary} · {elapsed}");
-        SetStatus($"{title}：{summary}", elapsed);
+        SetStatus(L.T("tools.devtools.status.taskResult", ("title", title), ("summary", summary)), elapsed);
 
         if (ok && revealPath is not null)
         {
@@ -1061,14 +1062,14 @@ internal sealed class DevToolsForm : Form
     {
         if (!File.Exists(path))
         {
-            AppendLog("  ! 命令成功但没找到输出文件：" + path);
+            AppendLog(L.T("tools.devtools.log.outputFileMissing", ("path", path)));
             return;
         }
 
-        AppendLog("  输出：" + path);
+        AppendLog(L.T("tools.devtools.log.output", ("path", path)));
         if (!CommandRunner.OpenInExplorer(path, selectFile: true))
         {
-            AppendLog("  ! 无法在资源管理器中定位该文件");
+            AppendLog(L.T("tools.devtools.log.cannotLocate"));
         }
     }
 
@@ -1076,20 +1077,22 @@ internal sealed class DevToolsForm : Form
     {
         if (!Directory.Exists(path))
         {
-            AppendLog("  ! " + label + " 目录不存在：" + path);
-            SetStatus(label + " 目录不存在，先生成一次", string.Empty);
+            AppendLog(L.T("tools.devtools.log.dirMissing", ("label", label), ("path", path)));
+            SetStatus(L.T("tools.devtools.status.dirMissing", ("label", label)), string.Empty);
             return;
         }
 
         bool opened = CommandRunner.OpenInExplorer(path, selectFile: false);
-        AppendLog((opened ? "  已打开 " : "  ! 打开失败 ") + label + "：" + path);
+        AppendLog(opened
+            ? L.T("tools.devtools.log.opened", ("label", label), ("path", path))
+            : L.T("tools.devtools.log.openFailedLabel", ("label", label), ("path", path)));
         if (opened)
         {
-            SetStatus("已打开 " + label, string.Empty);
+            SetStatus(L.T("tools.devtools.status.opened", ("label", label)), string.Empty);
         }
         else
         {
-            SetStatus("打开 " + label + " 失败", string.Empty);
+            SetStatus(L.T("tools.devtools.status.openFailedLabel", ("label", label)), string.Empty);
         }
     }
 
@@ -1110,10 +1113,10 @@ internal sealed class DevToolsForm : Form
             return executable;
         }
 
-        string message = $"找不到 {name}。\n\n先构建：{buildCommand}\n或在 config.toml 的 [dev] root 指定仓库根目录。";
+        string message = L.T("tools.devtools.dialog.toolMissing.text", ("name", name), ("build", buildCommand));
         AppendLog("  ! " + message.Replace("\n\n", " ", StringComparison.Ordinal));
-        SetStatus("找不到 " + name + "：先 " + buildCommand, string.Empty);
-        MessageBox.Show(this, message, "找不到命令", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        SetStatus(L.T("tools.devtools.status.toolMissing", ("name", name), ("build", buildCommand)), string.Empty);
+        MessageBox.Show(this, message, L.T("tools.devtools.dialog.toolMissing.title"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
         return null;
     }
 
@@ -1136,5 +1139,5 @@ internal sealed class DevToolsForm : Form
     }
 
     private static string Tail(string text, int limit) =>
-        text.Length <= limit ? text : "…（仅显示末尾 " + limit + " 字符）" + text[^limit..];
+        text.Length <= limit ? text : L.T("tools.devtools.log.tailTruncated", ("limit", limit)) + text[^limit..];
 }

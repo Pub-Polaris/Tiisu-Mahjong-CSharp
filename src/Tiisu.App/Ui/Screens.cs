@@ -5,6 +5,7 @@ using System.IO;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
+using Tiisu.Localization;
 using Tiisu.Core;
 using Tiisu.App.Table;
 using Color = Tiisu.App.Rendering.Color;
@@ -219,7 +220,7 @@ public sealed class TableScreen : Screen
         // 推倒胡：右下角常驻规则提示（无役 / 无点数 / 只记胜负）。
         if (vm.Ruleset == Ruleset.TuidaoHu)
         {
-            c.DrawText(UiText.Tr("推倒胡：无役 · 无点数 · 只记胜负"),
+            c.DrawText(L.T("app.ui.table.tuidaohuHint"),
                 new RectF(CanvasWidth - 470, CanvasHeight - 140, 450, 22),
                 Color.Rgb(196, 168, 96), new TextStyle(13, Center: false, Right: true));
         }
@@ -232,9 +233,9 @@ public sealed class TableScreen : Screen
         var btn = WallButtonRect;
         c.FillRoundRect(btn, 10, Color.Rgb(28, 40, 36).WithAlpha((byte)(_wallHeld ? 245 : 200)));
         c.StrokeRoundRect(btn, 10, _wallHeld ? Color.Rgb(242, 201, 76) : Color.Rgb(90, 110, 98), 1.2f);
-        c.DrawText(UiText.Tr("骰子"), new RectF(btn.X, btn.Y + 4, btn.W, 22), Color.Rgb(226, 236, 228),
+        c.DrawText(L.T("app.ui.table.dice"), new RectF(btn.X, btn.Y + 4, btn.W, 22), Color.Rgb(226, 236, 228),
             new TextStyle(15, Bold: true, Center: true));
-        c.DrawText(UiText.Tr("按住查看"), new RectF(btn.X, btn.Y + 26, btn.W, 18), Color.Rgb(150, 168, 158),
+        c.DrawText(L.T("app.ui.table.holdToView"), new RectF(btn.X, btn.Y + 26, btn.W, 18), Color.Rgb(150, 168, 158),
             new TextStyle(11, Center: true));
 
         if (!_wallHeld)
@@ -249,16 +250,16 @@ public sealed class TableScreen : Screen
         float x = panel.X + 26;
         float width = panel.W - 52;
         float y = panel.Y + 22;
-        c.DrawText("本局开局", new RectF(x, y, width, 26), Color.Rgb(242, 201, 76),
+        c.DrawText(L.T("app.ui.table.dicePanelTitle"), new RectF(x, y, width, 26), Color.Rgb(242, 201, 76),
             new TextStyle(18, Bold: true, Center: false));
         y += 40;
-        c.DrawText(vm.DiceDealerText ?? "定庄骰：（首局之后沿用上局庄家，不再掷）",
+        c.DrawText(vm.DiceDealerText ?? L.T("app.ui.table.diceDealerFallback"),
             new RectF(x, y, width, 24), Color.Rgb(226, 236, 228), new TextStyle(16, Center: false));
         y += 34;
-        c.DrawText(vm.DiceCutText ?? "切牌骰：—",
+        c.DrawText(vm.DiceCutText ?? L.T("app.ui.table.diceCutFallback"),
             new RectF(x, y, width, 24), Color.Rgb(226, 236, 228), new TextStyle(16, Center: false));
         y += 34;
-        c.DrawText("松开恢复牌桌", new RectF(x, y, width, 22), Color.Rgb(150, 168, 158),
+        c.DrawText(L.T("app.ui.table.diceReleaseHint"), new RectF(x, y, width, 22), Color.Rgb(150, 168, 158),
             new TextStyle(12, Center: false));
     }
     /// <summary>布局编辑器（F2）。自检 / 出图直接驱动它。</summary>
@@ -352,7 +353,7 @@ public sealed class TableScreen : Screen
             var rect = new RectF(bar.CenterX - 210, bar.Y - 70, 420, 34);
             c.FillRoundRect(rect, 10, Color.Rgb(60, 38, 24).WithAlpha(238));
             c.StrokeRoundRect(rect, 10, Color.Rgb(255, 176, 64), 1.4f);
-            c.DrawText("再点一次「" + _confirmLabel + "」确认", rect,
+            c.DrawText(L.T("app.ui.table.confirmAgain", ("label", _confirmLabel)), rect,
                 Color.Rgb(255, 220, 160), new TextStyle(16, Bold: true, Center: true));
         }
 
@@ -371,7 +372,7 @@ public sealed class TableScreen : Screen
         if (_thinkLeft >= 0 && _thinkSeconds > 0)
         {
             var bar = _layout.ActionBarRect;
-            c.DrawText(UiText.Tr("长考") + " " + ((int)Math.Ceiling(_thinkLeft)).ToString(CultureInfo.InvariantCulture) + "s",
+            c.DrawText(L.T("app.ui.table.think") + " " + ((int)Math.Ceiling(_thinkLeft)).ToString(CultureInfo.InvariantCulture) + "s",
                 new RectF(bar.Right - 170, bar.Y - 30, 170, 24), Color.Rgb(200, 214, 202),
                 new TextStyle(15, Center: false, Right: true));
         }
@@ -393,7 +394,7 @@ public sealed class TableScreen : Screen
         var btn = MenuButtonRect;
         c.FillRoundRect(btn, 9, Color.Rgb(28, 40, 36).WithAlpha(235));
         c.StrokeRoundRect(btn, 9, Color.Rgb(96, 122, 108), 1.3f);
-        c.DrawText(UiText.Tr("菜单"), btn, Color.Rgb(236, 242, 232), new TextStyle(18, Bold: true, Center: true));
+        c.DrawText(L.T("app.ui.table.menu"), btn, Color.Rgb(236, 242, 232), new TextStyle(18, Bold: true, Center: true));
         c.DrawText("M / ESC",
             new RectF(btn.Right + 10, btn.Y + 8, 90, 20),
             Color.Rgb(170, 186, 172), new TextStyle(14, Center: false));
@@ -407,20 +408,27 @@ public sealed class TableScreen : Screen
             if (vm.WinShape)
             {
                 int fu = vm.WinFu ?? 0;
-                fuText = UiText.Tr("赋") + " " + fu.ToString(CultureInfo.InvariantCulture)
-                         + " / " + vm.WinThresholdFu.ToString(CultureInfo.InvariantCulture);
+                fuText = L.T("app.ui.table.fuProgress", ("fu", fu), ("threshold", vm.WinThresholdFu));
                 fuColor = fu >= vm.WinThresholdFu ? Color.Rgb(242, 201, 76) : Color.Rgb(240, 150, 140);
             }
             else
             {
-                fuText = UiText.Tr("起和") + " " + vm.BaseFu.ToString(CultureInfo.InvariantCulture)
-                         + " " + UiText.Tr("赋");
+                fuText = L.T("app.ui.table.baseFu", ("fu", vm.BaseFu));
                 fuColor = Color.Rgb(174, 198, 184);
             }
 
             c.FillRoundRect(fuBox, 9, Color.Black.WithAlpha(150));
             c.StrokeRoundRect(fuBox, 9, Color.Rgb(110, 144, 126).WithAlpha(150), 1.0f);
             c.DrawText(fuText, fuBox, fuColor, new TextStyle(15, Bold: vm.WinShape, Center: true));
+
+            // 和形时给出当前牌型；不是和形时只保留起和线，避免提前泄露。
+            if (vm.WinShape && vm.WinYakuNames.Count > 0)
+            {
+                string names = string.Join(" · ", vm.WinYakuNames.Take(3).Select(n => UiText.Tr(n)));
+                c.DrawText(L.T("app.ui.table.pattern") + " " + names,
+                    new RectF(_layout.CanvasW - 300, 96, 284, 22),
+                    Color.Rgb(190, 214, 202), new TextStyle(13, Center: false, Right: true));
+            }
         }
 
         // 顶部中央：提示消息（和牌 / 流局 / 窗口提示）
@@ -437,12 +445,12 @@ public sealed class TableScreen : Screen
             var box = new RectF(_layout.CanvasW / 2f - 300, 62, 600, 34);
             c.FillRoundRect(box, 10, Color.Rgb(96, 62, 12).WithAlpha(220));
             c.StrokeRoundRect(box, 10, Color.Rgb(255, 206, 120).WithAlpha(180), 1.2f);
-            c.DrawText("报听：点一张手牌打出（再点「报听」取消）", box,
+            c.DrawText(L.T("app.ui.table.callArmed"), box,
                 Color.Rgb(255, 240, 200), new TextStyle(16, Bold: true));
         }
 
         // 已报听 / 禁和状态
-        string status = vm.IsCalled ? "已报听" : vm.WinBanned ? "本局禁和" : string.Empty;
+        string status = vm.IsCalled ? L.T("app.ui.table.called") : vm.WinBanned ? L.T("app.ui.table.winBanned") : string.Empty;
         if (status.Length > 0)
         {
             var box = new RectF(_layout.CanvasW - 190, 18, 166, 34);
@@ -456,12 +464,12 @@ public sealed class TableScreen : Screen
     {
         if (vm.Phase == "match_over")
         {
-            return "整场结束 · R / Enter 返回菜单";
+            return L.T("app.ui.table.matchOverHint");
         }
 
         if (vm.Phase == "round_end")
         {
-            return "本局结束 · 点「下一局」继续 · Esc 设置";
+            return L.T("app.ui.table.roundEndHint");
         }
 
         var parts = new List<string>();
@@ -469,41 +477,41 @@ public sealed class TableScreen : Screen
         // 按钮优先级（与 Web 侧一致）：杠 > 和 > 碰 > 吃 > 过
         if ((vm.Actions & HumanAction.Kan) != 0)
         {
-            parts.Add("K 杠");
+            parts.Add(L.T("app.ui.table.hint.kan"));
         }
 
         if ((vm.Actions & HumanAction.Tsumo) != 0)
         {
-            parts.Add("H 和牌");
+            parts.Add(L.T("app.ui.table.hint.win"));
         }
         else if ((vm.Actions & HumanAction.Ron) != 0)
         {
-            parts.Add("H 荣和");
+            parts.Add(L.T("app.ui.table.hint.ron"));
         }
 
         if ((vm.Actions & HumanAction.Pon) != 0)
         {
-            parts.Add("P 碰");
+            parts.Add(L.T("app.ui.table.hint.pon"));
         }
 
         if ((vm.Actions & HumanAction.Chi) != 0)
         {
-            parts.Add(vm.ActionLabels.Count > 1 ? "C 吃(多组)" : "C 吃");
+            parts.Add(vm.ActionLabels.Count > 1 ? L.T("app.ui.table.hint.chiMultiple") : L.T("app.ui.table.hint.chi"));
         }
 
         if ((vm.Actions & HumanAction.Pass) != 0)
         {
-            parts.Add("Space 过");
+            parts.Add(L.T("app.ui.table.hint.pass"));
         }
 
         if ((vm.Actions & HumanAction.Flow) != 0)
         {
-            parts.Add("F 流局");
+            parts.Add(L.T("app.ui.table.hint.draw"));
         }
 
         if ((vm.Actions & HumanAction.Discard) != 0)
         {
-            parts.Add("点手牌出牌");
+            parts.Add(L.T("app.ui.table.hint.discard"));
         }
 
         return string.Join("   ", parts);
@@ -823,10 +831,10 @@ public sealed class TableScreen : Screen
 
                 break;
             case ActionBar.Kind.Tsumo:
-                RequestConfirm("和牌", () => _commands(GameCommand.Tsumo()));
+                RequestConfirm(L.T("app.ui.actionBar.win"), () => _commands(GameCommand.Tsumo()));
                 break;
             case ActionBar.Kind.Ron:
-                RequestConfirm("荣和", () => _commands(GameCommand.Ron()));
+                RequestConfirm(L.T("app.ui.actionBar.ron"), () => _commands(GameCommand.Ron()));
                 break;
             case ActionBar.Kind.Pon:
                 _commands(GameCommand.Pon());
@@ -846,7 +854,7 @@ public sealed class TableScreen : Screen
     /// <summary>报听确认：第一次点只亮提示，3 秒内再点同一动作才提交。</summary>
     private void RequestDeclareCall(TableViewModel vm)
     {
-        RequestConfirm("报听", () => BeginDeclareCall(vm));
+        RequestConfirm(L.T("app.ui.actionBar.call"), () => BeginDeclareCall(vm));
     }
 
     /// <summary>危险动作二次确认；同一个动作在 3 秒内再点一次才执行。</summary>
@@ -1186,10 +1194,10 @@ public sealed class TableScreen : Screen
         _pausePanel = panel;
         c.FillRoundRect(panel, 12, Color.Rgb(20, 34, 39).WithAlpha(242));
         c.StrokeRoundRect(panel, 12, Color.Rgb(132, 194, 222), 1.6f);
-        c.DrawText(UiText.Tr("菜单"), new RectF(panel.X + 14, panel.Y + 8, panel.W - 28, 34),
+        c.DrawText(L.T("app.ui.table.pause.title"), new RectF(panel.X + 14, panel.Y + 8, panel.W - 28, 34),
             Color.Rgb(242, 230, 190), new TextStyle(21, Bold: true, Center: true));
 
-        string[] labels = { "继续", "设置", "主菜单" };
+        string[] labels = { L.T("app.ui.table.pause.resume"), L.T("app.ui.table.pause.settings"), L.T("app.ui.table.pause.mainMenu") };
         _pauseResume = new RectF(panel.X + 14, panel.Y + 52, panel.W - 28, 54);
         _pauseSettings = new RectF(panel.X + 14, panel.Y + 116, panel.W - 28, 54);
         _pauseMainMenu = new RectF(panel.X + 14, panel.Y + 180, panel.W - 28, 54);
@@ -1199,7 +1207,7 @@ public sealed class TableScreen : Screen
             bool focused = i == _pauseFocus;
             c.FillRoundRect(rects[i], 9, focused ? Color.Rgb(56, 100, 122) : Color.Rgb(34, 56, 64));
             c.StrokeRoundRect(rects[i], 9, focused ? Color.Rgb(242, 201, 76) : Color.Rgb(132, 194, 222), focused ? 2.4f : 1.2f);
-            c.DrawText(UiText.Tr(labels[i]), rects[i], Color.Rgb(242, 230, 190), new TextStyle(18, Bold: true, Center: true));
+            c.DrawText(labels[i], rects[i], Color.Rgb(242, 230, 190), new TextStyle(18, Bold: true, Center: true));
         }
     }
 
@@ -1318,7 +1326,7 @@ public sealed class MenuScreen : Screen
 
         if (_focusButton >= 0)
         {
-            c.DrawText(UiText.Tr("↑↓←→ 选择 · Enter 确认"), new RectF(0, Height - 34, Width, 22),
+            c.DrawText(L.T("app.ui.menu.navHint"), new RectF(0, Height - 34, Width, 22),
                 Color.Rgb(159, 180, 170), new TextStyle(14, Center: true));
         }
     }

@@ -1,0 +1,1492 @@
+{
+  "updater": {
+    "cli": {
+      "usage": "Tiisu.Updater --apply <directory or zip> [--install <install dir>] [--sha256 <hex>] [--restart]"
+    },
+    "err": {
+      "applyRequired": "Missing --apply <directory or zip>",
+      "sourceNotFound": "Source not found: {path}",
+      "installDirNotFound": "Install directory not found: {path}",
+      "sha256FileOnly": "--sha256 only supports files (zip)",
+      "sha256Mismatch": "SHA256 mismatch: expected {expected}, got {actual}",
+      "updateFailed": "Update failed: {message}",
+      "rollbackFailed": "Rollback failed; backup kept at {backup}: {message}",
+      "appStillRunning": "App is still running after waiting 60 seconds"
+    },
+    "log": {
+      "backup": "Backup: {path}",
+      "updated": "Update complete: {path}",
+      "restarted": "Restarted: {path}",
+      "rollbackStart": "Rolling back: {path}",
+      "rollbackDone": "Rollback complete"
+    }
+  },
+  "tools": {
+    "cli": {
+      "audio": {
+        "sfxHeader": "Sound effects:",
+        "voiceHeader": "Voice lines:",
+        "outputDir": "Output directory: {path}",
+        "skipExists": "skip (already exists)",
+        "voiceSkip": "skip (voices already exist; --force regenerates)",
+        "noChineseSapi": "(no Chinese SAPI voice; falling back to espeak-ng)",
+        "voiceFailed": "Voice generation failed (pass --espeak to set the espeak-ng path)",
+        "bgmHeader": "BGM:",
+        "bgmSkip": "skip ({path} already exists)",
+        "done": "Done.",
+        "espeakNotFound": "espeak-ng not found: {path}",
+        "espeakStartFailed": "Failed to start espeak-ng",
+        "espeakSynthFailed": "espeak-ng synthesis failed: {text} (exit {code})",
+        "notWav": "Not a WAV file: {path}",
+        "wavNoData": "WAV is missing the data chunk: {path}",
+        "noSapiVoice": "No Chinese SAPI voice is available",
+        "engineLine": "Voice engine: SAPI · {voice}",
+        "notRiff": "Not a RIFF/WAV file: {path}",
+        "wavNoDataChunk": "WAV is missing the data chunk: {path}",
+        "bgmSourceMissing": "BGM source not found: {path}",
+        "unsupportedBits": "Unsupported bit depth: {bits} bit",
+        "bgmConverted": "BGM {gain} dB → {path} ({kb} KB)"
+      },
+      "fixtures": {
+        "usage": {
+          "regenYaku": "  --regen-yaku-fixtures  recompute the expected values in the yaku golden corpus with the current C# implementation (rewrites in place)",
+          "regenEngine": "  --regen-engine-fixtures recompute every event snapshot in engine-golden.json with the current engine (rewrites in place)",
+          "probeLastTile": "  --probe-last-tile      check the engine's visible-tile rule for the last-tile yaku (river + melds, closed hand excluded)"
+        },
+        "corpusParseFailed": "Failed to parse corpus: {path}",
+        "recordNotObject": "{file}[{index}] is not an object",
+        "resultSerializeEmpty": "result serialized to null",
+        "changeHeader": "  {file}[{index}] changed:",
+        "regenSummary": "[{file}] {count} records, {changed} expected values changed",
+        "regenTotal": "Total: {total} records, {changed} expected values changed",
+        "meldNotObject": "melds element is not an object",
+        "meldTypeMissing": "melds[].type is missing",
+        "fixtureNotFound": "Not found: {path}",
+        "engineEventsMissing": "engine-golden.json is missing events",
+        "eventCountMismatch": "Event count mismatch: {actual} vs {expected}",
+        "eventChangeHeader": "  events[{index}] ({type}) snapshot changed:",
+        "engineSummary": "[engine-golden.json] {count} events, {changed} snapshots changed; {other} unexpected non-snapshot changes",
+        "writtenBack": "Written back: {path}",
+        "verifyClean": "[verify] 0 differences after re-reading the corpus",
+        "verifyDirty": "[verify] differences remain:",
+        "aiDecisionsMissing": "ai-golden.json is missing decisions",
+        "decisionNotObject": "decisions[{index}] is not an object",
+        "decisionKindMissing": "decisions[{index}].kind is missing",
+        "decisionInMissing": "decisions[{index}].in is missing",
+        "aiSummary": "[ai-golden.json] {count} decisions, {changed} outputs changed",
+        "unknownDecisionKind": "Unknown decision kind: {kind}",
+        "unknownWind": "Unknown round wind: {wire}",
+        "probePass": "[probe] all checks passed",
+        "probeFail": "[probe] {count} checks failed",
+        "probeNoRon": "[probe] {label}: no ron produced (cannot verify the last-tile yaku)",
+        "probeResult": "[probe] {label}: success={success}, totalFu={fu}, lastTile={lastTile}",
+        "probeMismatch": "[probe] {label}: expected lastTile={expected}, got {actual}",
+        "caseLabel": {
+          "meld": "river2+meld1",
+          "hand": "river2+hand1"
+        }
+      },
+      "report": {
+        "usage": "Usage: --analyze-discards <dataset.jsonl> [--out report.md]",
+        "datasetNotFound": "Dataset not found: {path}",
+        "title": "# Discard preference report (human vs AI)",
+        "source": "Data: `{file}`",
+        "samples": "## Sample size",
+        "sourceTableHead": "| Source | Samples | Avg turn |",
+        "humanRow": "| Human | {total} | {avg} |",
+        "aiRow": "| AI | {total} | {avg} |",
+        "categories": "## Category share",
+        "categoryTableHead": "| Category | Human | AI | Diff (human − AI) |",
+        "honors": "Honors (1z-7z)",
+        "terminals": "Terminals (1/9 suited)",
+        "middle": "Middle tiles (2-8 suited)",
+        "humanTop": "## Tiles humans discard more (top 10, by human share − AI share)",
+        "aiTop": "## Tiles AI discards more (top 10)",
+        "tileTableHead": "| Tile | Human | AI | Diff |",
+        "turnImpact": "## Turn effect (share of honors among each side's discards)",
+        "turnTableHead": "| Turn range | Human | AI |",
+        "distribution": "## Distribution difference",
+        "tvLine": "- Total variation distance (0=identical, 1=completely different): **{value}**",
+        "jsLine": "- Jensen-Shannon divergence between human and AI: **{value}**",
+        "notes": "## Notes",
+        "noteSource": "- Samples come from `roundlog_*.jsonl`; each line is one actual discard.",
+        "noteTurn": "- Turn = number of tiles this player has discarded in the hand; `0` is the first discard.",
+        "noteSampleSize": "- Results wobble when human samples are far fewer than AI; aim for 5000+ before comparing.",
+        "summary": "  human {human} · AI {ai} · TV distance {tv}"
+      },
+      "dataset": {
+        "usage": "Usage: --export-dataset <out.jsonl> [logDir] [--human-only|--ai-only]",
+        "logDirNotFound": "Log directory not found: {path}",
+        "noLogs": "No roundlog_*.jsonl in directory: {path}",
+        "summary": "  {files} log files · {total} samples (human {human} / AI {ai})",
+        "labelHeader": "  label distribution (34 cells, 0=1m…33=7z): {values}"
+      },
+      "devtools": {
+        "CheckI18n": {
+          "1": "check-i18n: FAIL not found ",
+          "2": "check-i18n: {p1} keys missing from the zh/en/ja catalogs",
+          "3": "  Missing: "
+        },
+        "CheckSteam": {
+          "1": "integration doc",
+          "2": "achievement mapping doc",
+          "3": "release checklist",
+          "4": "achievements.json could not be parsed",
+          "5": "10 achievement mappings",
+          "6": "achievement mapping is not 10 items",
+          "7": "AppID (steam_appid.txt)",
+          "8": "VDF template",
+          "9": "Steam integration check",
+          "10": "  Ready: ",
+          "11": "  Blockers: ",
+          "12": "  Result: ready for the real SDK",
+          "13": "  Result: not ready (waiting for AppID / SDK)"
+        },
+        "AuditUiStrings": {
+          "1": "audit-ui-strings: FAIL not found ",
+          "2": "audit-ui-strings: {p1} Chinese UI literals in {p2} files"
+        },
+        "CheckFont": {
+          "1": "check-font: FAIL font not found ",
+          "2": "check-font: FAIL font could not be loaded ",
+          "3": "  charset {p1}; missing glyphs {p2}",
+          "4": "  Missing glyphs: "
+        },
+        "CheckPublish": {
+          "1": "publish directory does not exist: ",
+          "2": "Missing ",
+          "3": "Assets/voices still exists (voices must not ship in the package)",
+          "4": "Forbidden files: ",
+          "5": "ASSET-HASHES.md not found; skipping hash verification",
+          "6": "Files missing from the hash manifest: ",
+          "7": "Hash mismatch: ",
+          "8": "Verified asset hashes ",
+          "9": " items",
+          "10": " failures"
+        },
+        "BenchSnapshot": {
+          "1": "  (tenpai cache on; same state rebuilt repeatedly)"
+        },
+        "AuditGames": {
+          "1": "passive driver hit an unknown phase: ",
+          "2": "  ... {p1}/{p2} games, {p3} issues, {p4}s",
+          "3": "  {p1} parallel workers ({p2} CPU threads)",
+          "4": "  Done {p1}/{p2} ({p3} errors) · {p4} rounds (wins {p5} / draws {p6})",
+          "5": "  Settlement self-check issues: {p1}",
+          "6": "  UI/hint self-check issues: {p1}"
+        },
+        "SmokeRun": {
+          "1": "Usage: --smoke-run <seed> [mode] [--record]",
+          "2": "Match did not finish within {p1} steps (phase={p2})"
+        },
+        "SmokeAi": {
+          "1": "Usage: --smoke-ai <seed> [mode]",
+          "2": "  Weights: ",
+          "3": "  Shura MCTS: ",
+          "4": "on",
+          "5": "off",
+          "6": "  Seat tiers: ",
+          "7": "  Discard decisions: ",
+          "8": " times (",
+          "9": ")",
+          "10": "  Done: {0}  rounds={1} handsPlayed={2}  total={3:F0} ms  per step={4:F3} ms",
+          "11": "yes",
+          "12": "no",
+          "13": "smoke-ai did not finish (phase={p1})"
+        },
+        "SmokeAiCall": {
+          "1": "Usage: --smoke-ai-call <seed> [mode]",
+          "2": "  Call declarations: total=",
+          "3": " (",
+          "4": " times",
+          "5": "  Done: {0}  rounds={1} handsPlayed={2}  total={3:F0} ms",
+          "6": "smoke-ai-call did not finish (phase={p1})"
+        },
+        "SmokeSave": {
+          "1": "smoke-save (verifying saves are disabled)",
+          "2": "  SaveStore.Enabled={p1}  after {p2} rounds: {p3}",
+          "3": "  Save path: {p1}",
+          "4": "  File exists: {p1} → {p2}  content: {p3}",
+          "5": "  Conclusion: {p1}",
+          "unchanged": "unchanged",
+          "changed": "changed",
+          "saveNotWritten": "not written",
+          "saveWritten": "written (disable failed)",
+          "noResumeEntry": "no resume entry",
+          "resumeEntryStill": "resume entry still present"
+        },
+        "SmokeResume": {
+          "1": "smoke-resume (verifying resume is disabled)",
+          "2": "  Menu action=resume entry: {p1}",
+          "3": "  GameSession.PostResume: {p1}",
+          "4": "  SaveStore.Load ({p1}): {p2}",
+          "hasEntry": "yes",
+          "noEntry": "no",
+          "exists": "present",
+          "missing": "absent",
+          "loadBlocked": "null (save not loaded)",
+          "loadRead": "save loaded"
+        },
+        "SmokeSession": {
+          "1": "invalid seed",
+          "2": "  Final snapshot: phase={p1} roundLabel={p2} human commands={p3} events={p4}",
+          "3": "  Seat scores: ",
+          "4": "Session did not finish normally"
+        },
+        "SmokePointer": {
+          "1": "  Final snapshot: phase={p1} roundLabel={p2} input actions={p3} hand-tap discards={p4}",
+          "2": "Input-layer self-check did not finish normally"
+        },
+        "CheckVoices": {
+          "1": "Meld type → voice name"
+        },
+        "SmokeEscape": {
+          "1": "  Table ESC (with Pass): handled={p1} command={p2}",
+          "2": "  Table ESC (settlement dialog): handled={p1} dialog closed={p2}",
+          "3": "  Table ESC (dialog closed): handled={p1} back to menu={p2}",
+          "4": "  Menu ESC: handled={p1} action=\"{p2}\" (no quit, no action)",
+          "5": "  Menu Quit button: handled={p1} action=\"{p2}\"",
+          "6": "  Settings ESC: handled={p1} back to menu={p2}"
+        },
+        "SmokeCredits": {
+          "1": "open-source info",
+          "2": "  Credits line: \"{p1}\"  y={p2}  fontSize={p3}",
+          "3": "  [missing] {p1} → {p2}",
+          "4": "  Separator (empty URL) kept: {p1}",
+          "5": "  ESC: handled={p1} no action={p2}",
+          "6": "  Quit button: handled={p1} action=\"{p2}\"",
+          "7": "  Overlaps a button: {p1}"
+        },
+        "PrintSmoke": {
+          "1": "  Rounds: rounds={p1} handsPlayed={p2} mode={p3}",
+          "2": "  Wins/draws: {p1} wins (tsumo {p2} / ron {p3}) · {p4} draws (special {p5})"
+        },
+        "CreateScreen": {
+          "1": "references and compliance"
+        },
+        "RenderHandsToPng": {
+          "1": "{p1} player ({p2}): {p3}",
+          "2": "System time {p1}",
+          "3": "Round {p1} · {p2} left · seed={p3} mode={p4}",
+          "4": "rendered hands -> {p1}  {p2} left {p3} human discards={p4} phase={p5}"
+        },
+        "RenderTileRotate": {
+          "1": "tile atlas unavailable (Assets/tiles.png / tiles.json)"
+        },
+        "RenderRoundEndToPng": {
+          "1": "did not stop at the first round end (phase={p1})",
+          "2": "  Result: kind={p1} winners=[{p2}] ",
+          "3": "  Scores: ",
+          "4": "  Details: {p1}",
+          "5": "tsumo",
+          "6": "ron",
+          "7": "      Yaku: "
+        },
+        "BenchGl": {
+          "1": "GL unavailable; skipping: {p1}",
+          "2": "GL unavailable; skipping: offscreen GPU surface creation failed",
+          "unknownReason": "unknown reason"
+        },
+        "Render25DToPng": {
+          "1": "Unknown --variant: {p1} (mixed | flat | light | medium)"
+        },
+        "ExportSvg": {
+          "1": "exported svg -> {p1} (with {p2} embedded tiles) / table-regions.svg / layout.json / layout.md"
+        },
+        "SmokeCall": {
+          "1": "13-tile hand is tenpai",
+          "2": "call declaration",
+          "3": "duplicate declaration rejected",
+          "4": "non-tenpai cannot declare",
+          "5": "locked hand rejects wait-changing discard",
+          "6": "no discard breaks the tenpai shape",
+          "7": "out-of-range discard blocked by engine",
+          "8": "chi/pon/minkan/kakan are forbidden",
+          "9": "engine hard-rejects melds",
+          "10": "ankan exception (shape unchanged)",
+          "11": "ankan with fewer than 4 tiles rejected",
+          "12": "kakan rejected",
+          "13": "kakan after declaring call",
+          "14": "normal misfire Z=fu×700",
+          "15": "misfire clears the call declaration",
+          "16": "win-forbidden flag for this turn",
+          "17": "heavy misfire penalty (non-dealer violation)",
+          "18": "heavy penalty: no win this and next round",
+          "19": "call declarers count as tenpai on a draw",
+          "20": "draw: non-tenpai players are greyed out",
+          "21": "draw reveals all hands"
+        },
+        "PlayReal": {
+          "1": "Usage: --play-real <seed> [mode] [games]",
+          "2": "more than 200000 actions",
+          "3": "stuck at {p1} (turn={p2}, hand={p3}, actions={p4})",
+          "4": "unexpected hand size after passing: {p1} -> {p2}",
+          "5": "(expected {p1}..{p2})",
+          "timeoutNotFinished": "Did not finish within 45 seconds (phase={phase})",
+          "10": "elapsed={p1}s steps={p2} ron windows={p3} passes={p4} ",
+          "11": "called={p1} phase={p2} result={p3}",
+          "noPlayableTile": "No playable tile (hand={count}: {hand}, called={called})"
+        },
+        "SmokeCalledRonPass": {
+          "1": "no called-hand ron occurred",
+          "2": "no playable tile found",
+          "3": "  Ron window: actions={p1} passFlag={p2} ",
+          "4": "passBtn={p1} clickable={p2} overlap={p3}",
+          "5": "called ron→pass: phase={p1} hand {p2}->{p3}",
+          "6": "  Melds={p1} claim index present={p2}",
+          "7": "smoke-called-ron-pass: seed={p1} called={p2} calledRon={p3} ",
+          "8": "{p1} lock greyed={p2} {p3}",
+          "noPassButton": "none"
+        },
+        "ListLocks": {
+          "1": "Random",
+          "2": "Easy",
+          "3": "Normal",
+          "4": "Hard",
+          "5": "Shura",
+          "6": "  Seat {p1}: {p2}"
+        },
+        "Smoke7Neuu": {
+          "1": "smoke-7neuu: {p1} neural decisions ({p2} differ from Hard){p3}"
+        },
+        "SelfPlay": {
+          "1": "  {p1}/{p2}  avg rank {p3}  first-place rate {p4}",
+          "2": "selfplay: {p1} games → {p2}",
+          "3": "  avg rank {p1}, first-place rate {p2}, {p3}s"
+        },
+        "SmokeAb": {
+          "1": "  Neural seat avg rank {p1} (first-place rate {p2})",
+          "2": "  Baseline seat avg rank {p1} (first-place rate {p2})",
+          "3": "  {p1} neural decisions, {p2} differ from TieredAi ({p3} AI decisions)",
+          "4": "  Neural ranks: {p1} / baseline: {p2}"
+        },
+        "SmokeRulesetSwitch": {
+          "1": "smoke-ruleset-switch: initial Tiisu={p1} after switch Tuidaohu={p2} {p3}"
+        },
+        "SmokeNeural": {
+          "1": "  Hand={p1}",
+          "2": "  Choice={p1} {p2}",
+          "none": "none"
+        },
+        "SmokeOptional": {
+          "1": "smoke-optional: off by default={p1} all on after apply={p2} {p3}"
+        },
+        "SmokeTuidaoHu": {
+          "1": "smoke-tuidaohu: seed={p1} phase={p2} simplified scoring={p3} ",
+          "2": "zero scores={p1} called={p2} {p3}"
+        },
+        "SmokeDice": {
+          "1": "smoke-dice: panel pixel change={p1} dealer roll={p2} cut roll={p3} ",
+          "2": "cut-skip tiles={p1} {p2}"
+        },
+        "SmokeThink": {
+          "1": "smoke-think: human discard={p1} hand={p2} auto action={p3} final phase={p4} "
+        },
+        "SmokeCallFlow": {
+          "1": "Usage: --smoke-call-flow <seed> [mode]",
+          "2": "call window never appeared",
+          "3": "more than 50000 actions",
+          "6": "call button enabled but no tenpai-preserving discard found",
+          "7": "  Call: discard={0} isCalled={1} phase={2} turn={3}->{4} wall={5}->{6} {7:F0}ms",
+          "14": "no discardable tile in hand",
+          "20": "  Call window={p1} human actions={p2} {p3}s",
+          "21": "tapping call before discarding does not hang",
+          "22": "pending-discard state only changes the UI, sends no command; cancelling still allows normal discards",
+          "23": "declare and discard",
+          "24": "human isCalled=true",
+          "25": "game advances after the declaration",
+          "26": "call button disappears after declaring",
+          "27": "declared hands no longer show the call button",
+          "28": "round already over; skipping button check",
+          "29": "can still discard after declaring",
+          "30": "no further turn to discard in this round",
+          "31": "lock-allowed discard accepted",
+          "32": "match finished within the time limit",
+          "33": "phase={p1} {p2}s / limit {p3}s",
+          "34": "  Stuck: ",
+          "declared": "declared",
+          "notSeen": "not seen",
+          "advanceDetail": "phase after declaring={phase}, turn {turnBefore}->{turnAfter}, wall {wallBefore}->{wallAfter}",
+          "stuckAt": "Table stuck at {phase}; nobody advances",
+          "noAdvance": "game did not advance after declaring and discarding (phase={phase}, turn now {turn}, wall still {wall})",
+          "discardRejected": "discard not accepted (hand={count}, phase={phase}, actions={actions}, index={pick}, tile={tile})"
+        },
+        "SmokeLayoutEditor": {
+          "1": "regions enumerable ({p1}, ≥16)",
+          "2": "covers required regions",
+          "3": "  default hand-self = {p1},{p2} {p3}×{p4}",
+          "4": "enters edit mode",
+          "5": "  after drag hand-self = {p1},{p2} {p3}×{p4}",
+          "6": "drag +10,+10 applied",
+          "7": "S saves the file",
+          "8": "JSON has version and region x/y/w/h",
+          "9": "  reloaded hand-self = {p1},{p2}",
+          "10": "reload takes effect",
+          "11": "first R only warns (file kept)",
+          "12": "second R deletes the custom file",
+          "13": "  restored default hand-self = {p1},{p2}",
+          "14": "restore returns the original values",
+          "15": "invalid JSON: no crash, no effect",
+          "16": "missing fields / unknown regions: ignored, defaults kept",
+          "17": "  Startup exception: ",
+          "18": "corrupt layout file at startup → starts normally"
+        },
+        "YakuStats": {
+          "1": "yaku-stats: {p1} rounds / {p2} wins -> {p3}"
+        }
+      }
+    },
+    "devtools": {
+      "tableStyle": {
+        "flat": "Flat"
+      },
+      "title": "Tiisu Developer Tools",
+      "status": {
+        "ready": "Ready",
+        "gameExeMissing": "Tiisu.Mahjong.exe not found: run dotnet build src/Tiisu.App -c Release first",
+        "publishMissing": "No dist/publish yet",
+        "installerScriptMissing": "Missing installer/build_installer.ps1",
+        "steamScriptMissing": "Missing tools/steam_package.ps1",
+        "rulesScriptMissing": "Missing tools/build_rules_lib.ps1",
+        "hashesWritten": "Artifact hashes written to the log",
+        "desktopSetupMissing": "No installer on the desktop",
+        "desktopSetupFound": "Desktop installer located",
+        "layoutLocated": "layout-custom.json located",
+        "layoutOpenFailed": "Failed to open the layout file",
+        "noCustomLayout": "No custom layout (using the default layout)",
+        "noCustomLayoutDelete": "No custom layout; already using the default",
+        "deleteCancelled": "Deletion cancelled",
+        "deleted": "Custom layout deleted (default restored)",
+        "busy": "Another command is still running; please wait",
+        "gameStarted": "Game started · press F2 on the table to edit the layout",
+        "launchFailed": "Failed to launch the game: {message}",
+        "deleteFailed": "Delete failed: {message}",
+        "taskFailed": "{title} failed: {message}",
+        "commandNotStartable": "{title}: the command could not start",
+        "dirMissing": "{label} directory does not exist; generate it first",
+        "opened": "Opened {label}",
+        "openFailedLabel": "Failed to open {label}",
+        "taskResult": "{title}: {summary}",
+        "toolMissing": "{name} not found: run {build} first"
+      },
+      "log": {
+        "group": "Log",
+        "cancelledSelfplay": "  Cancelled: export self-play data",
+        "cancelledAudit": "  Cancelled: audit games",
+        "cancelled": "  Cancelled",
+        "explorerLocated": "  Located in Explorer",
+        "noCustomLayout": "  ! No custom layout yet; the game is using the default layout",
+        "noCustomLayoutDelete": "  ! No custom layout; already using the default",
+        "deleted": "  Deleted; the next launch uses the default layout",
+        "artifactHashes": "Artifact SHA256",
+        "launchGame": "Launch game (layout editing)",
+        "viewLayout": "View current custom layout",
+        "deleteLayout": "Delete custom layout",
+        "outputDir": "  Output directory: {path}",
+        "started": "  Started (PID {pid})",
+        "launchFailed": "  ! Launch failed: {message}",
+        "openFailed": "  ! Open failed: {path}",
+        "deleteFailed": "  ! Delete failed: {message}",
+        "unhandled": "  ! Unhandled exception: {message}",
+        "startFailed": "  ! Launch failed: {message}",
+        "outputFileMissing": "  ! Command succeeded but the output file was not found: {path}",
+        "output": "  Output: {path}",
+        "dirMissing": "  ! {label} directory does not exist: {path}",
+        "opened": "  Opened {label}: {path}",
+        "openFailedLabel": "  ! Failed to open {label}: {path}",
+        "tailTruncated": "… (showing the last {limit} characters only)",
+        "cannotLocate": "  ! Could not locate the file in Explorer",
+        "publishMissing": "  ! No dist/publish yet: build the installer first",
+        "installerScriptMissing": "  ! Installer script not found: {path}",
+        "steamScriptMissing": "  ! Steam packaging script not found: {path}",
+        "rulesScriptMissing": "  ! Rules library script not found: {path}",
+        "distMissing": "  ! dist does not exist: build the installer / rules library first",
+        "desktopSetupMissing": "  ! No TiisuMahjong-Setup.exe on the desktop: build the installer first"
+      },
+      "tab": {
+        "taskCenter": "Task Center",
+        "legacy": "Legacy Tools"
+      },
+      "startup": {
+        "banner": "Tiisu Developer Tools — art / audio / layout / table style"
+      },
+      "section": {
+        "art": "Art",
+        "audio": "Audio",
+        "layout": "Layout",
+        "style": "Table Style",
+        "publish": "Publish / Compliance"
+      },
+      "action": {
+        "exportUiSvg": "Export merged SVG",
+        "renderActions": "Button states",
+        "openOutput": "Open output directory",
+        "generateAudio": "Generate SFX + voices",
+        "generateSfx": "Generate SFX only",
+        "openSounds": "Open sounds directory",
+        "openVoices": "Open voices directory",
+        "launchGame": "Launch game (layout editing)",
+        "viewLayout": "View current custom layout",
+        "deleteLayout": "Delete custom layout (restore default)",
+        "renderAllStyles": "Generate all and open directory",
+        "checkPublish": "Publish self-check",
+        "buildInstaller": "Build installer",
+        "buildRules": "Build rules library",
+        "copyHashes": "Copy artifact hashes",
+        "openDist": "Open dist",
+        "openDesktopSetup": "Open desktop installer",
+        "checkSteam": "Steam readiness check",
+        "buildSteamDepot": "Steam Depot",
+        "exportSelfplay": "Export self-play data",
+        "smokeNeural": "Verify 7Neuu weights",
+        "smoke7neuu": "Verify 7Neuu decisions",
+        "benchSnapshot": "UI snapshot benchmark",
+        "auditGames": "Audit games",
+        "auditUi": "UI invariant audit",
+        "auditCall": "Call-branch audit",
+        "smokeRun": "Full-match smoke",
+        "checkFont": "Font glyph check",
+        "auditUiStrings": "Inventory UI strings",
+        "exportAtlas": "Export UI atlas"
+      },
+      "task": {
+        "renderRoundEnd": "Render: settlement page",
+        "renderActions": "Render: button states",
+        "renderTableStyle": "Render: table style",
+        "renderScreen": "Render: {screen}",
+        "tableStyleWithLabel": "Table style {style}",
+        "exportSteamShots": "Steam store screenshots",
+        "exportSteamCapsules": "Steam capsules"
+      },
+      "open": {
+        "label": {
+          "renderDir": "Render output",
+          "aiData": "Self-play data",
+          "outputDir": "Output directory"
+        }
+      },
+      "summary": {
+        "allStylesOk": "All generated: {total}/{total} succeeded",
+        "allStylesPartial": "All generated: {ok}/{total} succeeded, {failed} failed",
+        "exitFailed": "exit {code} (failed)"
+      },
+      "dialog": {
+        "viewLayout": {
+          "title": "View custom layout",
+          "text": "No custom layout yet; the game is using the default layout.\n\nPress F2 on the in-game table to edit, then S to save; it creates:\n{path}"
+        },
+        "deleteLayout": {
+          "title": "Delete custom layout",
+          "text": "Deleting restores the default layout and cannot be undone.\n\n{path}"
+        },
+        "layoutEdit": {
+          "title": "Layout editing",
+          "text": "Tiisu.Mahjong.exe has been started.\n\nPress F2 on the table to enter layout editing (S saves, press R twice to restore defaults)."
+        },
+        "commandFailed": {
+          "title": "{title} — the command could not start"
+        },
+        "toolMissing": {
+          "title": "Command not found",
+          "text": "{name} not found.\n\nBuild it first: {build}\nOr set the repository root in config.toml under [dev] root."
+        },
+        "selfplay": {
+          "title": "Export self-play data",
+          "browse": "Browse…",
+          "saveTitle": "Save self-play data",
+          "filter": "JSONL (*.jsonl)|*.jsonl|All files (*.*)|*.*",
+          "field": {
+            "games": "Games",
+            "jobs": "Parallel jobs",
+            "sampleEvery": "Sample every N steps",
+            "explore": "Exploration 0-0.9",
+            "output": "Output file"
+          },
+          "hint": "1000 games take a few minutes; for large runs keep jobs ≤ CPU cores. Output is JSONL and can be resumed.",
+          "start": "Start export",
+          "cancel": "Cancel",
+          "emptyOutput": "The output file cannot be empty.",
+          "paramError": "Invalid parameters"
+        },
+        "audit": {
+          "title": "Audit games",
+          "field": {
+            "count": "Games",
+            "mode": "Mode games",
+            "jobs": "Parallel jobs",
+            "seed": "Start seed"
+          },
+          "checkbox": {
+            "ui": "UI invariant audit (--ui)",
+            "passive": "Passive human: never wins even when possible (--passive)",
+            "call": "Cover call branches (--call)"
+          },
+          "start": "Start audit",
+          "cancel": "Cancel"
+        }
+      },
+      "toolchain": {
+        "rootFromConfig": "Repository root from config.toml [dev] root: {path}",
+        "rootNotFound": "Repository root not found; set it in %APPDATA%\\TiisuMahjong\\config.toml under [dev] root.",
+        "gameMissing": "{name}: not found (run dotnet build src/Tiisu.App first)",
+        "audioMissing": "{name}: not found (run dotnet build tools/Tiisu.AudioGen first)",
+        "found": "{name}: {path}",
+        "configRootMissing": "config.toml [dev] root points to a directory that does not exist: {path}",
+        "configRootIncomplete": "config.toml [dev] root has no src/Tiisu.App or Tiisu.slnx; using it as-is: {path}"
+      },
+      "command": {
+        "startNull": "Process.Start returned null",
+        "startNullPath": "Process.Start returned null: {path}",
+        "exeNotFound": "Executable not found: {path}",
+        "notFound": "System cannot find that command: {path}",
+        "accessDenied": "Access denied: {path} ({message})"
+      },
+      "category": {
+        "publish": "Publish",
+        "render": "Render",
+        "audit": "Audit",
+        "ai": "AI Data",
+        "resource": "Resources"
+      },
+      "taskc": {
+        "title": "Task Center",
+        "browse": "Browse…",
+        "chooseOutput": "Choose the render output directory",
+        "preview": "Latest output",
+        "noPreview": "No render yet. A thumbnail appears here after you run a render task.",
+        "categoryEmpty": "This category is not migrated yet; try Publish or Render first.",
+        "outputPrefix": "Output: {hint}",
+        "run": "Run",
+        "confirmOverwrite": "This overwrites existing output. Continue?\n\n{title}",
+        "confirmTitle": "Confirm",
+        "cancelled": "  Cancelled: {title}",
+        "running": "Running…",
+        "done": "Done",
+        "failed": "Failed: {message}",
+        "logFailed": "  ! {title}: {message}",
+        "noImage": "This task has no image output.",
+        "previewFailed": "Preview failed: {message}",
+        "publish.check": {
+          "title": "Publish self-check",
+          "summary": "Check licenses, fonts, asset hashes and forbidden files in dist/publish."
+        },
+        "publish.steam-check": {
+          "title": "Steam readiness check",
+          "summary": "Check AppID, Steamworks SDK, achievement mapping and Depot; a missing AppID is reported without failing."
+        },
+        "publish.installer": {
+          "title": "Build installer",
+          "summary": "Re-publish, package the Setup and copy it to the desktop."
+        },
+        "publish.steam": {
+          "title": "Steam Depot",
+          "summary": "Generate Steam depot content, manifest and VDF template from dist/publish."
+        },
+        "publish.rules": {
+          "title": "Build rules library",
+          "summary": "Build a standalone rules-library zip for external callers."
+        },
+        "publish.hashes": {
+          "title": "Copy artifact hashes",
+          "summary": "Write SHA256 of dist files to the log for release notes."
+        },
+        "publish.open-dist": {
+          "title": "Open dist",
+          "summary": "Locate the output directory for the installer and rules library."
+        },
+        "publish.open-setup": {
+          "title": "Open desktop installer",
+          "summary": "Locate TiisuMahjong-Setup.exe on the desktop."
+        },
+        "render.table": {
+          "title": "Table screenshot",
+          "summary": "Current table layout and hand, for visual regression checks."
+        },
+        "render.menu": {
+          "title": "Main menu screenshot",
+          "summary": "Menu title, mode buttons and the credits line."
+        },
+        "render.settings": {
+          "title": "Settings screenshot",
+          "summary": "Settings groups and sliders; check for text overflow."
+        },
+        "render.tutorial": {
+          "title": "Tutorial screenshot",
+          "summary": "First of the three tutorial pages."
+        },
+        "render.markdown": {
+          "title": "Reference docs screenshot",
+          "summary": "The references page rendered by the Markdown renderer."
+        },
+        "render.roundend": {
+          "title": "Settlement screenshot",
+          "summary": "Single-winner settlement layout; no game loop is run."
+        },
+        "render.actions": {
+          "title": "Button states image",
+          "summary": "Action buttons in normal / hover / pressed states."
+        },
+        "render.ui-svg": {
+          "title": "Export merged SVG",
+          "summary": "Merge UI artwork into an editable SVG."
+        },
+        "render.style": {
+          "title": "Table style: Flat",
+          "summary": "The only current table style (Flat) render."
+        },
+        "render.steam": {
+          "title": "Steam store screenshots",
+          "summary": "1920×1080 table/menu/settings/stats/achievements/replay, written to artifacts/steam."
+        },
+        "render.steam-capsules": {
+          "title": "Steam capsules",
+          "summary": "Generate main/header/small/library/library-header capsules into artifacts/steam/capsules."
+        },
+        "render.open-output": {
+          "title": "Open render output directory",
+          "summary": "Locate this run's render output directory."
+        },
+        "ai.export-selfplay": {
+          "title": "Export self-play data",
+          "summary": "Run self-play and export discard samples as JSONL; parameters are chosen in the dialog."
+        },
+        "ai.smoke-neural": {
+          "title": "Verify 7Neuu weights",
+          "summary": "Check that the v4 weights load and produce a legal discard."
+        },
+        "ai.smoke-7neuu": {
+          "title": "Verify 7Neuu decisions",
+          "summary": "Play a full hand to confirm the 7Neuu seat really uses the policy net."
+        },
+        "ai.bench-snapshot": {
+          "title": "UI snapshot benchmark",
+          "summary": "Rebuild UI snapshots from real engine states; report time and allocations."
+        },
+        "ai.open-data": {
+          "title": "Open data directory",
+          "summary": "Locate the self-play JSONL output directory."
+        },
+        "audit.games": {
+          "title": "Audit games",
+          "summary": "Choose games/mode/jobs/seed in a dialog; optionally enable UI invariants and call branches."
+        },
+        "audit.ui": {
+          "title": "UI invariant audit",
+          "summary": "Fixed 50 games with --ui to check snapshot/button/hint invariants."
+        },
+        "audit.call": {
+          "title": "Call-branch audit",
+          "summary": "Fixed 50 games with --call --passive covering call and pass branches."
+        },
+        "audit.smoke": {
+          "title": "Full-match smoke",
+          "summary": "Run a full match headless and output the event-stream hash."
+        },
+        "resource.font": {
+          "title": "Font glyph check",
+          "summary": "Check the font subset covers the version tag, UI text and docs."
+        },
+        "resource.i18n": {
+          "title": "Inventory UI strings",
+          "summary": "Scan App for Chinese UI literals and output a CSV as the English localization scope."
+        },
+        "resource.atlas": {
+          "title": "Export UI atlas",
+          "summary": "Export UI primitives as an atlas PNG."
+        },
+        "resource.open-assets": {
+          "title": "Open Assets",
+          "summary": "Locate the tiles, fonts, audio and license directories."
+        },
+        "resource.open-docs": {
+          "title": "Open docs",
+          "summary": "Locate the references/compliance/ML docs directory."
+        },
+        "hint": "Pick a category; outputs and notes are on each card."
+      },
+      "hint": {
+        "none": "No file output; see the log for results",
+        "logReadyBlocked": "Log: ready items / blockers",
+        "sha256Log": "SHA256 in the log",
+        "explorer": "Explorer",
+        "passFail": "Log: PASS / FAIL",
+        "bench": "Log: us/iter",
+        "auditCount": "Log: completed / issues",
+        "auditUi": "Log: UI issues",
+        "auditCall": "Log: issues",
+        "smoke": "Log: event-stream SHA256",
+        "font": "Log: missing glyphs / PASS",
+        "capsules": "5 images including 616×353 main"
+      }
+    }
+  },
+  "app": {
+    "achievement": {
+      "first-round": {
+        "title": "First Battle",
+        "desc": "Finish 1 round"
+      },
+      "ten-rounds": {
+        "title": "Ten Rounds",
+        "desc": "Finish 10 rounds"
+      },
+      "hundred-rounds": {
+        "title": "Hundred Rounds",
+        "desc": "Finish 100 rounds"
+      },
+      "first-win": {
+        "title": "First Win",
+        "desc": "Win once"
+      },
+      "ten-wins": {
+        "title": "Ten Wins",
+        "desc": "Win 10 times"
+      },
+      "hundred-wins": {
+        "title": "Hundred Wins",
+        "desc": "Win 100 times"
+      },
+      "first-tsumo": {
+        "title": "Tsumo",
+        "desc": "Tsumo once"
+      },
+      "ten-tsumo": {
+        "title": "Ten Tsumo",
+        "desc": "Tsumo 10 times"
+      },
+      "tiisuin": {
+        "title": "Great Seven Stars",
+        "desc": "Win with Great Seven Stars"
+      },
+      "witness": {
+        "title": "Witness",
+        "desc": "Witness Great Seven Stars"
+      }
+    },
+    "ui": {
+      "rules": {
+        "title": "Rules",
+        "subtitle": "Tiisu Mahjong · Differences from standard riichi",
+        "section1": {
+          "title": "Minimum Fu & Call",
+          "line1": "A hand needs at least 7 fu to win.",
+          "line2": "Calling adds no fu and no extra payout.",
+          "line3": "Call when tenpai; your hand locks, except a concealed kan that keeps the wait."
+        },
+        "section2": {
+          "title": "Misfire Penalty",
+          "line1": "Declaring a win after Call with actual fu < 7 is a misfire.",
+          "line2": "Pay the other three: Z = fu × 700.",
+          "line3": "Z > 2100: banned from winning this round and the next."
+        },
+        "section3": {
+          "title": "Table Bonus & Blue Chips",
+          "line1": "Settlement rounds to 350-point blue chips.",
+          "line2": "Self-draw remainders go to the table bonus pool.",
+          "line3": "The next winner takes the table bonus; dealer repeats add extra."
+        },
+        "back": "Back to Menu"
+      },
+      "tutorial": {
+        "title": "Tutorial",
+        "pageIndicator": "Three steps · Page {current} / {total}",
+        "page1": {
+          "title": "Step 1 · Discard",
+          "line1": "On your turn, click a tile in the bottom hand row.",
+          "line2": "The drawn tile sits at the far right; click it or any other tile.",
+          "line3": "Not sure what to discard? Check the tenpai hint and remaining count first."
+        },
+        "page2": {
+          "title": "Step 2 · Call",
+          "line1": "When your hand reaches tenpai, click Call.",
+          "line2": "After calling, your hand locks: you cannot change the wait, except a concealed kan that keeps the wait shape.",
+          "line3": "Calling adds no fu; a win below 7 fu is a misfire."
+        },
+        "page3": {
+          "title": "Step 3 · Win & Settlement",
+          "line1": "Click Win on self-draw, or Ron when someone discards your winning tile.",
+          "line2": "The settlement page lists yaku, score changes, and round adjustments.",
+          "line3": "Click Next Round to continue; return to the menu after the match."
+        },
+        "prev": "Back",
+        "next": "Next",
+        "back": "Back to Menu",
+        "tryRound": "Try a Round",
+        "viewRules": "View Rules",
+        "startRound": "Start a Round"
+      },
+      "achievements": {
+        "title": "Achievements",
+        "unlockedCount": "Unlocked {count} / {total}",
+        "unlocked": "Unlocked",
+        "back": "Back to Stats"
+      },
+      "stats": {
+        "title": "Stats",
+        "totalRounds": "Local total · {rounds} rounds",
+        "card": {
+          "rounds": "Rounds",
+          "winRate": "Win rate",
+          "tsumoRon": "Tsumo / Ron",
+          "drawRate": "Draw rate",
+          "tiisuin": "Great Seven Stars",
+          "witness": "Witness",
+          "points": "Total points",
+          "specialDraw": "Special Draw"
+        },
+        "empty": {
+          "noRounds": "No matches yet. Play a round first.",
+          "noPlayers": "No player stats yet."
+        },
+        "table": {
+          "player": "Player",
+          "wins": "Wins",
+          "tiisuin": "Great Seven Stars",
+          "witness": "Witness",
+          "points": "Total points"
+        },
+        "back": "Back to Menu",
+        "achievements": "Achievements"
+      },
+      "actionBar": {
+        "kan": "Kan",
+        "win": "Win",
+        "ron": "Ron",
+        "pon": "Pon",
+        "chi": "Chi",
+        "pass": "Pass",
+        "draw": "Draw",
+        "call": "Call",
+        "tenpai": "Tenpai"
+      },
+      "replay": {
+        "title": "Replay",
+        "emptyLog": "No replay logs yet. Enable Record tile log in Settings and play a round.",
+        "noSteps": "No replay available.",
+        "roundPrefix": "Round {current}/{total} · ",
+        "roundMeta": "{file} · round {round} · {honba} honba",
+        "hand": "Hand: ",
+        "wall": "Wall: ",
+        "rivers": "Rivers: ",
+        "prev": "Prev Step",
+        "back": "Back to Menu",
+        "next": "Next Step",
+        "prevRound": "← Prev Round",
+        "nextRound": "Next Round →",
+        "wallAnnotation": " (wall {wall})"
+      },
+      "markdown": {
+        "defaultTitle": "Document",
+        "pageIndicator": "Page {current} / {total}",
+        "footer": "← / → pages · wheel pages · Esc back",
+        "prev": "Prev Page",
+        "back": "Back",
+        "next": "Next Page"
+      },
+      "docs": {
+        "notFound": "Document not found: {file}",
+        "readFailed": "Read failed: {message}",
+        "title": {
+          "references": "References & Compliance",
+          "assets": "Asset Provenance",
+          "ml": "ML Weights Provenance",
+          "selfplay": "Self-play Training",
+          "release": "Release Compliance",
+          "thirdParty": "Third-party Notices"
+        }
+      },
+      "window": {
+        "title": "Tiisu Mahjong"
+      },
+      "gl": {
+        "hiddenNoPaint": "The hidden window did not finish GL drawing",
+        "noGrContext": "SKGLControl could not create a GRContext"
+      },
+      "svg": {
+        "hudMenuHint": "M / ESC: Menu",
+        "wallLeft": "Left {count}",
+        "roundInfo": "Honba {honba} · Bonus {kyotaku}",
+        "called": "Called",
+        "winBanned": "No win this round"
+      },
+      "table": {
+        "tuidaohuHint": "Tuidao Hu: no yaku · no points · win/loss only",
+        "dice": "Dice",
+        "holdToView": "Hold to view",
+        "dicePanelTitle": "Round setup",
+        "diceDealerFallback": "Dealer roll: (after the first round the previous dealer continues; no roll)",
+        "diceCutFallback": "Cut roll: —",
+        "diceReleaseHint": "Release to return to the table",
+        "confirmAgain": "Click {label} again to confirm",
+        "think": "Think",
+        "menu": "Menu",
+        "fuProgress": "Fu {fu} / {threshold}",
+        "baseFu": "Min {fu} fu",
+        "callArmed": "Call: click a hand tile to discard (click Call again to cancel)",
+        "called": "Called",
+        "winBanned": "No win this round",
+        "matchOverHint": "Match over · R / Enter returns to the menu",
+        "roundEndHint": "Round over · click Next Round to continue · Esc for settings",
+        "hint": {
+          "kan": "K Kan",
+          "win": "H Win",
+          "ron": "H Ron",
+          "pon": "P Pon",
+          "chiMultiple": "C Chi (multiple)",
+          "chi": "C Chi",
+          "pass": "Space Pass",
+          "draw": "F Draw",
+          "discard": "Click a tile to discard"
+        },
+        "pause": {
+          "title": "Menu",
+          "resume": "Resume",
+          "settings": "Settings",
+          "mainMenu": "Main Menu"
+        }
+      },
+      "menu": {
+        "navHint": "↑↓←→ Select · Enter Confirm"
+      },
+      "settings": {
+        "title": "Settings",
+        "back": "← Back",
+        "footer": "↑↓ Select · ←→ Change · Tab Group · Esc Back",
+        "group": {
+          "basic": "Basic",
+          "rules": "Rules",
+          "ai": "AI / Match"
+        },
+        "seat": {
+          "east": "East seat",
+          "south": "South seat",
+          "west": "West seat",
+          "north": "North seat"
+        },
+        "seatLock": {
+          "locked": "Lock · {seat}",
+          "lockedYou": "Lock · {seat} (you)"
+        },
+        "you": "You",
+        "seconds": "{value} s",
+        "on": "On",
+        "off": "Off",
+        "row": {
+          "think": "Think time",
+          "bgm": "Music volume",
+          "sfx": "SFX volume",
+          "voice": "Voice callouts",
+          "language": "Language",
+          "textScale": "Large text UI",
+          "showMa": "Show rinshan tiles",
+          "recordTiles": "Record tile log",
+          "diceViewer": "Dice viewer (bottom-right)",
+          "ruleset": "Ruleset (Tuidao Hu = no yaku/points)",
+          "aiWeights": "AI difficulty weights",
+          "mcts": "Shura MCTS",
+          "tableDifficulty": "Table AI difficulty (quick)"
+        },
+        "ruleset": {
+          "qizi": "Tiisu",
+          "tuidaohu": "Tuidao Hu"
+        },
+        "difficulty": {
+          "custom": "Custom",
+          "random": "Random",
+          "easy": "Easy",
+          "normal": "Normal",
+          "hard": "Hard",
+          "shura": "Shura"
+        }
+      },
+      "licenses": {
+        "name": {
+          "tiisuRoundedScWenyuanSubset": "Tiisu Rounded SC (WenYuan subset)",
+          "lietxiaMahjongGraphicTiles": "lietxia/mahjong_graphic (tiles)",
+          "audioVoiceAssets": "Audio & voice assets",
+          "tiisuMahjongSource": "Tiisu Mahjong source",
+          "starMahjong2002": "Star Mahjong 2002",
+          "tenhou": "Tenhou"
+        },
+        "usage": {
+          "tiisuRoundedScWenyuanSubset": "UI rounded font; subset and renamed to avoid OFL reserved name",
+          "lietxiaMahjongGraphicTiles": "Tile vector source; commercial use/modification/redistribution allowed without attribution; re-packed as tiles.png",
+          "skiasharp": "2D drawing, tile rendering, text layout",
+          "skiasharpNativeassetsWin32": "SkiaSharp Windows native library",
+          "skiasharpViewsWindowsforms": "Skia canvas control for WinForms",
+          "skiasharpHarfbuzz": "Text shaping (HarfBuzz binding)",
+          "harfbuzz": "Complex text shaping engine (bundled native library)",
+          "naudio": "BGM / SFX mixing and playback",
+          "naudioAsioCoreMidiWasapiWinformsWinmm": "NAudio transitive modules",
+          "harfbuzzsharpNativeassetsWin32": "SkiaSharp.HarfBuzz transitive dependency",
+          "opentk": "OpenGL window/graphics bindings (OpenTK transitive)",
+          "opentkGlcontrol": "WinForms GL control",
+          "glfwOpentkRedistGlfw": "Window/input native library",
+          "yogasharpCoreSkiasharpViewsDesktopCommon": "Layout and Skia desktop control transitive dependencies",
+          "yogasharpLayout": "Table Flex layout binding",
+          "yoga": "Facebook Flexbox layout engine (bundled yoga.dll)",
+          "netWindowsDesktopRuntime": "Runtime, WinForms, base libraries",
+          "systemSpeech": "Local Windows SAPI voice generation",
+          "xunit": "Unit tests (development builds only)",
+          "xunitRunnerVisualstudio": "Test runner (development builds only)",
+          "microsoftNetTestSdk": "Test host (development builds only)",
+          "coverletCollector": "Code coverage (development builds only)",
+          "parisian": "Menu BGM (lobby.wav, volume adjusted)",
+          "audioVoiceAssets": "SFX synthesized by AudioGen; voice generated by local SAPI, not shipped",
+          "tiisuMahjongSource": "Project source and documentation",
+          "aliceInCradle": "Spatial audio architecture research; no code/middleware/assets/derivatives used",
+          "starMahjong2002": "SFX envelope/duration/density feature analysis; no original audio/code/art used",
+          "tenhou": "Human tenpai-shape reference; no code/data/assets used"
+        },
+        "license": {
+          "lietxiaMahjongGraphicTiles": "Custom permissive license",
+          "audioVoiceAssets": "Project MIT",
+          "aliceInCradle": "EULA (reference)",
+          "starMahjong2002": "EULA (reference)",
+          "tenhou": "Terms of Service (reference)"
+        },
+        "version": {
+          "harfbuzz": "Distributed with SkiaSharp.HarfBuzz",
+          "yoga": "Distributed with YogaSharp",
+          "audioVoiceAssets": "Generated in-repo / locally",
+          "tiisuMahjongSource": "See version line",
+          "aliceInCradle": "Closed-source commercial work",
+          "starMahjong2002": "IGS commercial work",
+          "tenhou": "Online service"
+        },
+        "title": "Licenses & Credits",
+        "pageIndicator": "Open-source components + closed references · {current} / {total}",
+        "line": {
+          "version": "Version: {value}",
+          "license": "License: {value}",
+          "usage": "Usage: {value}",
+          "link": "Link: {value}"
+        },
+        "reference": "Reference",
+        "referenceNote": "Nature: closed-source/EULA reference credit; no code or assets used",
+        "footer": "← / → Page · Esc Back to Menu",
+        "viewText": "View Full License",
+        "docs": "References & Compliance",
+        "prev": "Prev Page",
+        "back": "Back to Menu",
+        "next": "Next Page",
+        "textPageIndicator": "License text · Page {current} / {total}",
+        "textNotFound": "License text not found: {file}"
+      },
+      "settlement": {
+        "title": {
+          "matchOver": "Match End",
+          "round": "Round Settlement"
+        },
+        "outcome": {
+          "exhaustive": "Exhaustive Draw",
+          "multi": "Multiple Winners",
+          "tsumo": "Tsumo",
+          "ron": "Ron",
+          "tiisuin": "Great Seven Stars",
+          "flow": "Draw"
+        },
+        "next": "Next",
+        "nextRound": "Next Round",
+        "winnerHand": {
+          "none": "Winner's hand",
+          "yours": "Your hand",
+          "named": "{name}'s hand"
+        },
+        "flowHandsTitle": "Hands",
+        "yakuHeader": "Yaku",
+        "fuHeader": "Fu",
+        "noYaku": "No yaku",
+        "finalPoints": "Final score",
+        "flowNoWinner": "No winner this round",
+        "simplified": {
+          "win": "Win",
+          "noWinner": "No winner"
+        },
+        "onlyResult": "Wins only, no points",
+        "penaltyTitle": "Penalty settlement",
+        "scoreChanges": "Score changes",
+        "ranking": "Final ranking",
+        "drawReason": {
+          "fourWind": "Four Winds",
+          "nineOrphans": "Nine Terminals",
+          "thirteenUnrelated": "Thirteen Orphans",
+          "tripleRon": "Three Winners",
+          "tripleRonChankan": "Three Winners (Robbing Kan)",
+          "special": "Special Draw"
+        },
+        "meld": {
+          "chi": "Chi",
+          "pon": "Pon",
+          "minkan": "Open Kan",
+          "ankan": "Concealed Kan",
+          "kakan": "Added Kan",
+          "other": "Meld"
+        },
+        "meta": {
+          "round": "Round {round}",
+          "honba": "{honba} honba"
+        },
+        "tuidaoHu": "Tuidao Hu",
+        "pageIndicator": "Page {current} / {total}",
+        "footer": {
+          "matchOver": "Esc for settings",
+          "multi": "← / → or Next to switch winner · Next Round to continue · Esc for settings",
+          "single": "Click Next Round to continue · Esc for settings"
+        },
+        "handSub": {
+          "tiles": "{count} tiles",
+          "noMelds": " · no melds",
+          "oneMeld": " · 1 meld",
+          "melds": " · {count} melds"
+        },
+        "flowMeldSuffix": " +{count} melds",
+        "dealerSuffix": " (Dealer)",
+        "discarder": " · Discarder {name}",
+        "moreYaku": "… {count} more",
+        "maLine": "Ma bonus {count} · total {total}",
+        "potBonus": "Table bonus +{points}",
+        "honbaLine": "Honba {count} · repeat bonus +{bonus}",
+        "transferLine": "{from} → {to}  {amount} ({reason})",
+        "adjustmentLine": "In-round adjustment {from} → {to}  {amount} ({reason})",
+        "auditMismatch": "Ledger mismatch: {line}",
+        "flag": {
+          "optional": " (optional)",
+          "tableless": " (off-table)"
+        },
+        "playerFallback": "Player {index}",
+        "seatName": {
+          "you": "{wind} · You",
+          "seat": "{wind} seat"
+        },
+        "wind": {
+          "east": "East",
+          "south": "South",
+          "west": "West",
+          "north": "North"
+        }
+      }
+    },
+    "runtime": {
+      "msg": {
+        "snapshotStale": "The view is behind (snapshot version mismatch); the last action was ignored. Try again.",
+        "noSave": "No save to resume",
+        "reset": "Reset",
+        "matchOver": "The match is over",
+        "roundNotOver": "This round has not ended",
+        "waitingOthers": "Waiting for other players",
+        "noMeldChance": "No meld opportunity now",
+        "noRonChance": "No ron opportunity now",
+        "alreadyCalled": "Already called; cannot declare again",
+        "handNotTenpai": "Hand is not tenpai; cannot call",
+        "cannotCallNow": "Cannot call now",
+        "pickTileToCall": "Choose the discard to complete the call",
+        "breaksTenpai": "Discarding this would leave tenpai; cannot call",
+        "noPendingAction": "No pending action",
+        "notYourDiscard": "It is not your discard phase",
+        "discardIndexOutOfRange": "Discard index out of range",
+        "tileNotInHand": "That tile is not in your hand",
+        "handNot14": "Hand is not 14 tiles; cannot self-draw",
+        "handCannotWin": "Hand cannot win",
+        "winBanned": "Winning is forbidden this round/turn",
+        "meldUnavailable": "That meld is not available",
+        "pushFlowUnavailable": "Hand does not meet the push-flow condition",
+        "unknownCommand": "Unknown command: {kind}",
+        "resumed": "Save restored · {label}",
+        "ronChance": "Ron chance: discarded {tile} · {fu} fu to win",
+        "misfireRisk": "Misfire risk: only {fu} fu (below {base}) · calling Ron triggers the misfire penalty",
+        "meldChance": "Meld chance: discarded {tile}",
+        "calledWait": "Called · waiting: {wait}",
+        "misfireSevere": "Call misfire (severe): {fu} fu is below the minimum · no win this and the next round",
+        "misfireMinor": "Call misfire: {fu} fu is below the minimum · pay {z} to each of the three",
+        "tripleRonChankan": "Triple ron (chankan) → automatic draw",
+        "mustDiscardAfterMeld": "You must discard a tile after chi/pon first",
+        "callLocksWait": "After declaring, the wait cannot change",
+        "noAnkan": "No tile available for ankan",
+        "noKakan": "No tile available for kakan",
+        "callBlocksMeld": "Chi/pon are forbidden after declaring"
+      },
+      "hud": {
+        "winBannedHint": "Winning is forbidden this round",
+        "roundProgress": "{label} / {target} rounds"
+      },
+      "err": {
+        "deadloop": "More than 200000 actions; possible infinite loop"
+      },
+      "payment": {
+        "tsumo": "Tsumo · {points} total from the three (remainder {remainder} split)",
+        "ron": "Ron · discarder pays {points}"
+      },
+      "audit": {
+        "scoreMismatch": "Total score not conserved: before={before} after={after} pot awarded={pot}",
+        "playerLedger": "{name}: actual Δ{actual}, ledger Δ{expected}",
+        "playerDetail": "{name}: actual Δ{actual}, detail Δ{expected}",
+        "logPrefix": " settlement self-check: ",
+        "flowPenaltyMismatch": " draw-penalty ledger does not match scores: ",
+        "noTsumoButton": "Can tsumo but no win button",
+        "winButtonWithoutWin": "Win button shown although the hand cannot win",
+        "misfireNoHint": "Misfire candidate without a visible hint",
+        "winBannedNoHint": "Win banned but no hint",
+        "winShapeNoHint": "Winning shape but cannot win and no hint",
+        "fuNoMisfireHint": "Insufficient fu without a misfire hint",
+        "ronWindowMissing": "Ron window is missing Ron/Pass",
+        "tenpaiUnparsable": "Tenpai hint could not be parsed",
+        "tenpaiCannotWin": "A tenpai hint tile actually cannot win"
+      },
+      "dice": {
+        "dealerLine": "Dealer roll {a}+{b}={sum} ({dir}) → {wind} seat is dealer",
+        "cutLine": "Cut roll {a}+{b}={sum} ({dir}) → skip {skip} tiles",
+        "cutSub": "(rinshan 4 / dead wall {wang}) · start: {wind} seat",
+        "self": "self count",
+        "clockwise": "clockwise",
+        "counterClockwise": "counter-clockwise",
+        "dealerSide": "dealer side"
+      },
+      "tenpai": {
+        "summary": "Waiting: {wait} · {left} left{points}",
+        "points": " · points {min}",
+        "pointsRange": " · points {min}–{max}"
+      },
+      "tile": {
+        "man": "{num}m",
+        "pin": "{num}p",
+        "sou": "{num}s",
+        "honor": {
+          "east": "East",
+          "south": "South",
+          "west": "West",
+          "north": "North",
+          "white": "White",
+          "green": "Green",
+          "red": "Red"
+        }
+      },
+      "chiLabel": "Chi {tiles}",
+      "cli": {
+        "unknownArg": "Unknown argument: {arg}",
+        "devHint": "Use tools/Tiisu.DevTools for dev/self-check commands (same arguments).",
+        "launchItems": "Launch options: --cpu-render --fullscreen --lang zh-CN|en-US|ja-JP"
+      },
+      "log": {
+        "engineThreadHang": "GameSession.Dispose: engine thread did not exit within 5s; abandoning the command queue release (P0-2 temporary)"
+      },
+      "wav": {
+        "notRiff": "Not a RIFF/WAV file",
+        "missingData": "WAV is missing the data chunk"
+      }
+    },
+    "table": {
+      "hud": {
+        "calledBadge": "Called",
+        "callBadge": "Call",
+        "you": " (you)"
+      },
+      "center": {
+        "wall": "Wall {count}",
+        "honbaKyotaku": "Honba {honba} · bonus {kyotaku}"
+      },
+      "aiLevel": {
+        "simple": "Simple",
+        "normal": "Normal",
+        "hard": "Hard",
+        "shura": "Shura"
+      },
+      "editor": {
+        "editing": "Editing",
+        "saved": "Saved → {path}",
+        "saveFailed": "Save failed: {message}",
+        "confirmRestore": "Press R again to restore the default layout",
+        "restored": "Default layout restored",
+        "restoreFailed": "Restore failed: {message}",
+        "bannerHint": "Layout editor: F2 exit · Tab switch · drag to move · wheel to resize (Shift = height only) · arrows 1px (Shift 10px) · S save · R restore default",
+        "selected": "Selected {index}/{total}  {id} · {note}  x={x} y={y} w={w} h={h}",
+        "selectedNone": "Selected 0/0"
+      },
+      "skin": {
+        "pathInvalid": "{env} path is invalid: {value} ({message})",
+        "notExist": "The skin pointed to by {env} does not exist: {path}",
+        "loadFailed": "Skin failed to load; falling back to procedural drawing: {path} ({error})",
+        "noManifest": "Skin manifest not found",
+        "emptyManifest": "Empty manifest",
+        "versionTooNew": "Manifest version {version} is newer than the supported {supported}",
+        "regionsUnavailable": "All regions in the manifest are unusable ({skipped} skipped)",
+        "noRegions": "Manifest has no regions"
+      },
+      "layout": {
+        "emptyFile": "Empty file",
+        "unsupportedVersion": "Version {version} is not supported",
+        "noRegions": "No regions",
+        "ignored": "[layout] Ignoring custom layout {path}: {message}"
+      }
+    }
+  },
+  "engine": {
+    "err": {
+      "meldCountRange": "Meld count must be within 0..4",
+      "unknownMeldType": "Unknown meld type",
+      "dealNeedsFourPlayers": "The deal must contain four players",
+      "dealerIndexOutOfRange": "Dealer index out of range",
+      "wallTooShortForDeal": "Wall is too short to deal: {wall} < {need} (skip tiles {skip} too large)",
+      "wallPlaceholderInReplay": "The wall is a replay placeholder (null); real draws are impossible. Use Draw(player, tile) or pass RoundDeal.WallOrder",
+      "applyMeldType": "applyMeld only accepts chi/pon/minkan",
+      "minkanNeedsRinshan": "Minkan requires the rinshan tile (in replays it is derived from the corpus snapshot)",
+      "doKanType": "doKan only accepts ankan/kakan",
+      "kanNeedsRinshan": "A kan requires the rinshan tile (in replays it is derived from the corpus snapshot)",
+      "wallTooShortForDeal2": "Wall is too short to deal: {wall} < {need}",
+      "dealerDiceCount": "The dealer roll must use two dice",
+      "deckSize": "The deck must have {expected} tiles; got {actual}",
+      "embeddedIkeMissing": "Embedded ike.json not found in Tiisu.Core",
+      "ikeBaselineLength": "ike.json points.baselines length must be thresholds + 1",
+      "replayCorpusEmpty": "Replay corpus parsed to an empty result",
+      "replayCorpusNoEvents": "Replay corpus has no events"
+    },
+    "reason": {
+      "tileNotInHand": "That tile is not in your hand",
+      "handCountWrong": "Hand size is wrong; cannot verify the tenpai shape",
+      "callLocksWait": "After declaring, the wait cannot change",
+      "callBlocksMeld": "Chi/pon/minkan are forbidden after declaring",
+      "callBlocksKakan": "Kakan is forbidden after declaring",
+      "ankanNeeds14": "Ankan must be judged on the 14-tile shape after the draw",
+      "noFourSameTiles": "No four identical tiles in hand",
+      "ankanChangesWait": "That ankan would change the wait shape",
+      "callBlocksMeldShort": "Chi/pon are forbidden after declaring"
+    },
+    "flow": {
+      "fourWind": "Four winds discarded ({tile})",
+      "tripleRon": "Triple ron → automatic draw"
+    },
+    "audit": {
+      "playerDelta": "{name}: actual Δ{actual}, ledger Δ{expected}, diff {diff}"
+    },
+    "roundLabel": {
+      "normal": "{wind} {round} round",
+      "extensionNorth": "North extension {round}",
+      "extensionEnter": "{wind} entry {round}"
+    },
+    "wind": {
+      "east": "East",
+      "south": "South",
+      "west": "West",
+      "north": "North"
+    },
+    "tile": {
+      "man": "{num}m",
+      "pin": "{num}p",
+      "sou": "{num}s",
+      "honor": {
+        "east": "East",
+        "south": "South",
+        "west": "West",
+        "north": "North",
+        "white": "White",
+        "green": "Green",
+        "red": "Red"
+      }
+    }
+  },
+  "core": {
+    "err": {
+      "emptyYakuData": "ike.json parsed to an empty result"
+    }
+  }
+}

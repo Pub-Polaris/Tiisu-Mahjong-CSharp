@@ -1,5 +1,7 @@
 using Tiisu.Core;
 
+using Tiisu.Localization;
+
 namespace Tiisu.Engine;
 
 /// <summary>结算部分：和牌支付、多家荣和、流局罚符、连庄 / 进庄、终局。engine.js 的分数相关段落。</summary>
@@ -117,7 +119,7 @@ public sealed partial class MahjongEngine
 
         if (winners.Count >= 3)
         {
-            DeclareSpecialFlow("三家和牌 → 自动流局");
+            DeclareSpecialFlow(L.T("engine.flow.tripleRon"));
             return;
         }
 
@@ -452,10 +454,11 @@ public sealed partial class MahjongEngine
             int actual = _scores[i] - scoresBefore[i];
             if (actual != expected[i])
             {
-                problems.Add(
-                    _players[i].Name + ": 实际Δ" + actual.ToString("+#;-#;0", System.Globalization.CultureInfo.InvariantCulture)
-                    + "，账本Δ" + expected[i].ToString("+#;-#;0", System.Globalization.CultureInfo.InvariantCulture)
-                    + "，差" + (actual - expected[i]).ToString("+#;-#;0", System.Globalization.CultureInfo.InvariantCulture));
+                problems.Add(L.T("engine.audit.playerDelta",
+                    ("name", _players[i].Name),
+                    ("actual", actual.ToString("+#;-#;0", System.Globalization.CultureInfo.InvariantCulture)),
+                    ("expected", expected[i].ToString("+#;-#;0", System.Globalization.CultureInfo.InvariantCulture)),
+                    ("diff", (actual - expected[i]).ToString("+#;-#;0", System.Globalization.CultureInfo.InvariantCulture))));
             }
         }
 

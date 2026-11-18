@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
+using Tiisu.Localization;
 
 namespace Tiisu.DevTools.TaskCenter;
 
@@ -18,7 +19,7 @@ internal sealed class AuditGamesDialog : Form
 
     public AuditGamesDialog()
     {
-        Text = "批量审局";
+        Text = L.T("tools.devtools.dialog.audit.title");
         Font = new Font("Microsoft YaHei UI", 9F);
         ClientSize = new Size(480, 360);
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -41,14 +42,14 @@ internal sealed class AuditGamesDialog : Form
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        AddRow(layout, 0, "局数", _count);
-        AddRow(layout, 1, "模式局数", _mode);
-        AddRow(layout, 2, "并行 jobs", _jobs);
-        AddRow(layout, 3, "起始种子", _seed);
+        AddRow(layout, 0, L.T("tools.devtools.dialog.audit.field.count"), _count);
+        AddRow(layout, 1, L.T("tools.devtools.dialog.audit.field.mode"), _mode);
+        AddRow(layout, 2, L.T("tools.devtools.dialog.audit.field.jobs"), _jobs);
+        AddRow(layout, 3, L.T("tools.devtools.dialog.audit.field.seed"), _seed);
 
-        _ui = new CheckBox { Text = "UI 不变量审计（--ui）", Checked = true, Dock = DockStyle.Fill };
-        _passive = new CheckBox { Text = "被动人类：能和也不和（--passive）", Dock = DockStyle.Fill };
-        _call = new CheckBox { Text = "覆盖报听分支（--call）", Dock = DockStyle.Fill };
+        _ui = new CheckBox { Text = L.T("tools.devtools.dialog.audit.checkbox.ui"), Checked = true, Dock = DockStyle.Fill };
+        _passive = new CheckBox { Text = L.T("tools.devtools.dialog.audit.checkbox.passive"), Dock = DockStyle.Fill };
+        _call = new CheckBox { Text = L.T("tools.devtools.dialog.audit.checkbox.call"), Dock = DockStyle.Fill };
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
@@ -67,8 +68,8 @@ internal sealed class AuditGamesDialog : Form
             Height = 46,
             Padding = new Padding(12, 8, 12, 8),
         };
-        var start = new Button { Text = "开始审计", DialogResult = DialogResult.OK, Width = 100 };
-        var cancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Width = 80 };
+        var start = new Button { Text = L.T("tools.devtools.dialog.audit.start"), DialogResult = DialogResult.OK, Width = 100 };
+        var cancel = new Button { Text = L.T("tools.devtools.dialog.audit.cancel"), DialogResult = DialogResult.Cancel, Width = 80 };
         buttons.Controls.Add(start);
         buttons.Controls.Add(cancel);
         Controls.Add(buttons);

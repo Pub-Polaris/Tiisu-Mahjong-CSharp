@@ -6,8 +6,12 @@ using System.Text.Json.Serialization;
 using Tiisu.Core;
 using Tiisu.Engine;
 using Tiisu.Engine.Replay;
+using Tiisu.Localization;
 using CoreMeld = Tiisu.Core.Meld;
 using EngineMeld = Tiisu.Engine.Meld;
+
+// CLI 文案跟随 TIISU_LANG；缺省 zh-CN。
+L.SetLanguage(Environment.GetEnvironmentVariable("TIISU_LANG"));
 
 if (args.Length > 0)
 {
@@ -29,9 +33,9 @@ if (args.Length > 0)
 }
 
 Console.WriteLine("Tiisu.Tools");
-Console.WriteLine("  --regen-yaku-fixtures  用当前 C# 实现重算 yaku golden 语料的期望值（就地重写）");
-Console.WriteLine("  --regen-engine-fixtures 用当前引擎重算 engine-golden.json 每个事件的快照（就地重写）");
-Console.WriteLine("  --probe-last-tile      校验和绝张的引擎可见张数口径（河里 + 副露，手牌不计）");
+Console.WriteLine(L.T("tools.cli.fixtures.usage.regenYaku"));
+Console.WriteLine(L.T("tools.cli.fixtures.usage.regenEngine"));
+Console.WriteLine(L.T("tools.cli.fixtures.usage.probeLastTile"));
 return 0;
 
 /// <summary>
@@ -64,13 +68,13 @@ internal static class RegenYakuFixtures
             string raw = File.ReadAllText(path, Encoding.UTF8);
             bool pretty = raw.Length > 1 && (raw[1] == '\n' || raw[1] == '\r');
             var records = JsonNode.Parse(raw)?.AsArray()
-                ?? throw new InvalidOperationException($"语料解析失败: {path}");
+                ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.corpusParseFailed", ("path", path)));
 
             int changed = 0;
             for (int index = 0; index < records.Count; index++)
             {
                 var record = records[index]?.AsObject()
-                    ?? throw new InvalidOperationException($"{fileName}[{index}] 不是对象");
+                    ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.recordNotObject", ("file", fileName), ("index", index)));
                 var input = ReadInput(record);
 
                 checker.MaxSplit = input.MaxSplit ?? true;
@@ -86,7 +90,7 @@ internal static class RegenYakuFixtures
                     input.Context);
 
                 JsonNode newNode = JsonSerializer.SerializeToNode(BuildResult(actual), CompactJson)
-                    ?? throw new InvalidOperationException("result 序列化为空");
+                    ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.resultSerializeEmpty"));
                 string oldText = record["result"]?.ToJsonString(CompactJson) ?? "null";
                 string newText = newNode.ToJsonString(CompactJson);
                 if (!string.Equals(oldText, newText, StringComparison.Ordinal))
@@ -94,7 +98,7 @@ internal static class RegenYakuFixtures
                     changed++;
                     if (changed <= 5)
                     {
-                        Console.WriteLine($"  {fileName}[{index}] 变化:");
+                        Console.WriteLine(L.T("tools.cli.fixtures.changeHeader", ("file", fileName), ("index", index)));
                         Console.WriteLine($"    - {oldText}");
                         Console.WriteLine($"    + {newText}");
                     }
@@ -115,12 +119,12 @@ internal static class RegenYakuFixtures
             string output = records.ToJsonString(writeOptions) + "\n";
             File.WriteAllText(path, output, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
-            Console.WriteLine($"[{fileName}] 共 {records.Count} 条，期望值变化 {changed} 条");
+            Console.WriteLine(L.T("tools.cli.fixtures.regenSummary", ("file", fileName), ("count", records.Count), ("changed", changed)));
             grandTotal += records.Count;
             grandChanged += changed;
         }
 
-        Console.WriteLine($"合计: 共 {grandTotal} 条，期望值变化 {grandChanged} 条");
+        Console.WriteLine(L.T("tools.cli.fixtures.regenTotal", ("total", grandTotal), ("changed", grandChanged)));
         return 0;
     }
 
@@ -134,9 +138,9 @@ internal static class RegenYakuFixtures
             foreach (var node in meldArray)
             {
                 var meld = node?.AsObject()
-                    ?? throw new InvalidOperationException("melds 元素不是对象");
+                    ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.meldNotObject"));
                 string type = meld["type"]?.GetValue<string>()
-                    ?? throw new InvalidOperationException("melds[].type 缺失");
+                    ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.meldTypeMissing"));
                 var tiles = ReadStringList(meld["tiles"]).Select(Tile.Parse).ToList();
                 melds.Add(new CoreMeld(type, tiles));
             }
@@ -243,7 +247,7 @@ internal static class RegenYakuFixtures
             directory = directory.Parent;
         }
 
-        throw new DirectoryNotFoundException("找不到 tests/fixtures/yaku-golden.json");
+        throw new FileNotFoundException(L.T("tools.cli.fixtures.fixtureNotFound", ("path", "tests/fixtures/yaku-golden.json")));
     }
 
     private sealed class GoldenInput
@@ -328,14 +332,14 @@ internal static class RegenEngineFixtures
         string path = FindCorpus();
         string raw = File.ReadAllText(path, Encoding.UTF8);
         var root = JsonNode.Parse(raw)?.AsObject()
-            ?? throw new InvalidOperationException($"语料解析失败: {path}");
+            ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.corpusParseFailed", ("path", path)));
         var eventsNode = root["events"]?.AsArray()
-            ?? throw new InvalidOperationException("engine-golden.json 缺少 events");
+            ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.engineEventsMissing"));
 
         var corpus = ReplayCorpus.Parse(raw);
         if (corpus.Events.Count != eventsNode.Count)
         {
-            throw new InvalidOperationException($"事件数不一致：{corpus.Events.Count} vs {eventsNode.Count}");
+            throw new InvalidOperationException(L.T("tools.cli.fixtures.eventCountMismatch", ("actual", corpus.Events.Count), ("expected", eventsNode.Count)));
         }
 
         var beforeSnapshot = corpus.Events.Select(ev => JsonSerializer.Serialize(ev.Snapshot, CompactJson)).ToList();
@@ -354,7 +358,7 @@ internal static class RegenEngineFixtures
                 changed++;
                 if (changed <= 3)
                 {
-                    Console.WriteLine($"  events[{index}] ({corpus.Events[index].Type}) 快照变化:");
+                    Console.WriteLine(L.T("tools.cli.fixtures.eventChangeHeader", ("index", index), ("type", corpus.Events[index].Type)));
                     Console.WriteLine($"    - {Ellipsis(beforeSnapshot[index])}");
                     Console.WriteLine($"    + {Ellipsis(after)}");
                 }
@@ -372,14 +376,14 @@ internal static class RegenEngineFixtures
         string output = root.ToJsonString(CompactJson) + "\n";
         File.WriteAllText(path, output, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
-        Console.WriteLine($"[engine-golden.json] 共 {corpus.Events.Count} 个事件，快照变化 {changed} 条；非快照字段意外变化 {changedOther} 条");
-        Console.WriteLine($"已写回: {path}");
+        Console.WriteLine(L.T("tools.cli.fixtures.engineSummary", ("count", corpus.Events.Count), ("changed", changed), ("other", changedOther)));
+        Console.WriteLine(L.T("tools.cli.fixtures.writtenBack", ("path", path)));
 
         // 写回后再跑一遍：必须 0 差异（Replay_EveryEventSnapshot_Matches 的同一口径）。
         var verify = ReplayDriver.Run(ReplayCorpus.LoadFromFile(path));
         Console.WriteLine(verify.Clean
-            ? "[verify] 重读语料后 0 差异"
-            : "[verify] 仍有差异:\n" + verify.Describe());
+            ? L.T("tools.cli.fixtures.verifyClean")
+            : L.T("tools.cli.fixtures.verifyDirty") + "\n" + verify.Describe());
         return verify.Clean ? 0 : 1;
     }
 
@@ -409,7 +413,7 @@ internal static class RegenEngineFixtures
             directory = directory.Parent;
         }
 
-        throw new FileNotFoundException("找不到 tests/fixtures/engine-golden.json");
+        throw new FileNotFoundException(L.T("tools.cli.fixtures.fixtureNotFound", ("path", "tests/fixtures/engine-golden.json")));
     }
 }
 
@@ -429,20 +433,20 @@ internal static class RegenAiFixtures
         string path = FindCorpus();
         string raw = File.ReadAllText(path, Encoding.UTF8);
         var root = JsonNode.Parse(raw)?.AsObject()
-            ?? throw new InvalidOperationException($"语料解析失败: {path}");
+            ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.corpusParseFailed", ("path", path)));
         var decisions = root["decisions"]?.AsArray()
-            ?? throw new InvalidOperationException("ai-golden.json 缺少 decisions");
+            ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.aiDecisionsMissing"));
         var checker = new WinChecker(YakuData.LoadDefault());
 
         int changed = 0;
         for (int index = 0; index < decisions.Count; index++)
         {
             var record = decisions[index]?.AsObject()
-                ?? throw new InvalidOperationException($"decisions[{index}] 不是对象");
+                ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.decisionNotObject", ("index", index)));
             string kind = record["kind"]?.GetValue<string>()
-                ?? throw new InvalidOperationException($"decisions[{index}].kind 缺失");
+                ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.decisionKindMissing", ("index", index)));
             var input = record["in"]?.AsObject()
-                ?? throw new InvalidOperationException($"decisions[{index}].in 缺失");
+                ?? throw new InvalidOperationException(L.T("tools.cli.fixtures.decisionInMissing", ("index", index)));
             var obs = BuildObservation(input);
 
             JsonNode? newNode = BuildOut(kind, record, obs, checker);
@@ -470,7 +474,7 @@ internal static class RegenAiFixtures
         }) + "\n";
         File.WriteAllText(path, output, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
-        Console.WriteLine($"[ai-golden.json] 共 {decisions.Count} 条决策，out 变化 {changed} 条");
+        Console.WriteLine(L.T("tools.cli.fixtures.aiSummary", ("count", decisions.Count), ("changed", changed)));
         return 0;
     }
 
@@ -551,7 +555,7 @@ internal static class RegenAiFixtures
                 return new JsonObject { ["win"] = AiPlayer.CheckTsumo(obs, checker).Success };
 
             default:
-                throw new InvalidOperationException($"未知决策类型: {kind}");
+                throw new InvalidOperationException(L.T("tools.cli.fixtures.unknownDecisionKind", ("kind", kind)));
         }
     }
 
@@ -658,7 +662,7 @@ internal static class RegenAiFixtures
         "south" => SeatWind.South,
         "west" => SeatWind.West,
         "north" => SeatWind.North,
-        _ => throw new InvalidOperationException("未知门风: " + wire),
+        _ => throw new InvalidOperationException(L.T("tools.cli.fixtures.unknownWind", ("wire", wire))),
     };
 
     private static string FindCorpus()
@@ -675,7 +679,7 @@ internal static class RegenAiFixtures
             directory = directory.Parent;
         }
 
-        throw new FileNotFoundException("找不到 tests/fixtures/ai-golden.json");
+        throw new FileNotFoundException(L.T("tools.cli.fixtures.fixtureNotFound", ("path", "tests/fixtures/ai-golden.json")));
     }
 }
 
@@ -692,7 +696,7 @@ internal static class ProbeLastTile
 
         // 场景 A：河里已有 2 张 + 别家副露 1 张，第三张放铳 → 和绝张成立。
         bool caseA = RunCase(
-            "河里2+副露1",
+            L.T("tools.cli.fixtures.caseLabel.meld"),
             meldWithTarget: true,
             expectLastTile: true,
             checker);
@@ -703,7 +707,7 @@ internal static class ProbeLastTile
 
         // 场景 B：河里已有 2 张 + 和牌者手里 1 张（暗牌不可见），第三张放铳 → 和绝张不成立。
         bool caseB = RunCase(
-            "河里2+手牌1",
+            L.T("tools.cli.fixtures.caseLabel.hand"),
             meldWithTarget: false,
             expectLastTile: false,
             checker);
@@ -712,7 +716,7 @@ internal static class ProbeLastTile
             failures++;
         }
 
-        Console.WriteLine(failures == 0 ? "[probe] 全部通过" : $"[probe] 失败 {failures} 项");
+        Console.WriteLine(failures == 0 ? L.T("tools.cli.fixtures.probePass") : L.T("tools.cli.fixtures.probeFail", ("count", failures)));
         return failures == 0 ? 0 : 1;
     }
 
@@ -763,17 +767,17 @@ internal static class ProbeLastTile
         var winner = candidates.FirstOrDefault(c => c.PlayerIndex == 1);
         if (winner is null)
         {
-            Console.WriteLine($"[probe] {label}: 未产生荣和（无法验证和绝张）");
+            Console.WriteLine(L.T("tools.cli.fixtures.probeNoRon", ("label", label)));
             return false;
         }
 
         bool lastTile = winner.Result.ActiveYaku.Any(y => y.Id == "last_tile");
         string yaku = string.Join(", ", winner.Result.ActiveYaku.Select(y => $"{y.Name}/{y.Fu}"));
-        Console.WriteLine($"[probe] {label}: success={winner.Result.Success}, totalFu={winner.Result.TotalFu}, 和绝张={lastTile}");
+        Console.WriteLine(L.T("tools.cli.fixtures.probeResult", ("label", label), ("success", winner.Result.Success), ("fu", winner.Result.TotalFu), ("lastTile", lastTile)));
         Console.WriteLine($"[probe]   yaku=[{yaku}]");
         if (lastTile != expectLastTile)
         {
-            Console.WriteLine($"[probe] {label}: 期望和绝张={expectLastTile}，实际={lastTile}");
+            Console.WriteLine(L.T("tools.cli.fixtures.probeMismatch", ("label", label), ("expected", expectLastTile), ("actual", lastTile)));
             return false;
         }
 

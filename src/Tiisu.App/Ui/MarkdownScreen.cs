@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using Tiisu.App.Rendering;
+using Tiisu.Localization;
 using Tiisu.App.Ui.Markdown;
 using Color = Tiisu.App.Rendering.Color;
 
@@ -31,7 +32,7 @@ public sealed class MarkdownScreen : Screen
 
     public MarkdownScreen(string title, string markdown, Action back) : base("markdown")
     {
-        _title = string.IsNullOrWhiteSpace(title) ? "文档" : title;
+        _title = string.IsNullOrWhiteSpace(title) ? L.T("app.ui.markdown.defaultTitle") : title;
         _back = back;
         Build(MarkdownDocument.Parse(markdown));
     }
@@ -43,7 +44,7 @@ public sealed class MarkdownScreen : Screen
 
         c.DrawText(UiText.Tr(_title), new RectF(0, 36, Width, 46),
             Color.Rgb(242, 230, 190), new TextStyle(34, Bold: true, Center: true));
-        c.DrawText(UiText.IsEnglish ? "Page " + (_page + 1) + " / " + Math.Max(1, _pages.Count) : UiText.IsJapanese ? (_page + 1) + " / " + Math.Max(1, _pages.Count) + " ページ" : "第 " + (_page + 1) + " / " + Math.Max(1, _pages.Count) + " 页",
+        c.DrawText(L.T("app.ui.markdown.pageIndicator", ("current", _page + 1), ("total", Math.Max(1, _pages.Count))),
             new RectF(0, 86, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(14, Center: true));
 
         var card = new RectF(110, 118, Width - 220, 490);
@@ -64,15 +65,15 @@ public sealed class MarkdownScreen : Screen
             }
         }
 
-        c.DrawText(UiText.Tr("← / → 翻页 · 滚轮翻页 · Esc 返回"),
+        c.DrawText(L.T("app.ui.markdown.footer"),
             new RectF(0, 616, Width, 22), Color.Rgb(127, 145, 137), new TextStyle(13, Center: true));
 
         _prev = new RectF(Width / 2f - 270, 650, 150, 44);
         _backButton = new RectF(Width / 2f - 75, 650, 150, 44);
         _next = new RectF(Width / 2f + 120, 650, 150, 44);
-        DrawButton(c, _prev, "上一页", _prevHover, _page > 0);
-        DrawButton(c, _backButton, "返回", _backHover, true);
-        DrawButton(c, _next, "下一页", _nextHover, _page < _pages.Count - 1);
+        DrawButton(c, _prev, "app.ui.markdown.prev", _prevHover, _page > 0);
+        DrawButton(c, _backButton, "app.ui.markdown.back", _backHover, true);
+        DrawButton(c, _next, "app.ui.markdown.next", _nextHover, _page < _pages.Count - 1);
     }
 
     private static void DrawButton(ICanvas c, RectF rect, string label, bool hover, bool enabled)
@@ -83,7 +84,7 @@ public sealed class MarkdownScreen : Screen
             : Color.Rgb(28, 36, 32);
         c.FillRoundRect(rect, 10, fill);
         c.StrokeRoundRect(rect, 10, border, 1.3f);
-        c.DrawText(UiText.Tr(label), rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
+        c.DrawText(L.T(label), rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
             new TextStyle(17, Bold: true, Center: true));
     }
 

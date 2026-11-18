@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+using Tiisu.Localization;
+
 namespace Tiisu.Engine;
 
 /// <summary>
@@ -15,7 +17,7 @@ public sealed record PointsConfig(int PerFu, IReadOnlyList<int> Thresholds, IRea
     {
         var assembly = typeof(Tiisu.Core.YakuData).Assembly;
         using var stream = assembly.GetManifestResourceStream("Tiisu.Core.ike.json")
-            ?? throw new InvalidOperationException("找不到 Tiisu.Core 内嵌的 ike.json");
+            ?? throw new InvalidOperationException(L.T("engine.err.embeddedIkeMissing"));
         using var document = JsonDocument.Parse(stream);
         var points = document.RootElement.GetProperty("points");
         int perFu = points.GetProperty("perFu").GetInt32();
@@ -23,7 +25,7 @@ public sealed record PointsConfig(int PerFu, IReadOnlyList<int> Thresholds, IRea
         var baselines = points.GetProperty("baselines").EnumerateArray().Select(e => e.GetInt32()).ToArray();
         if (baselines.Length != thresholds.Length + 1)
         {
-            throw new InvalidOperationException("ike.json 的 points.baselines 长度应为 thresholds + 1");
+            throw new InvalidOperationException(L.T("engine.err.ikeBaselineLength"));
         }
 
         return new PointsConfig(perFu, thresholds, baselines);

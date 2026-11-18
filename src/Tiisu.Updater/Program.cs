@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using Tiisu.Localization;
 
 namespace Tiisu.Updater;
 
@@ -25,6 +26,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        // CLI 文案跟随 TIISU_LANG（与 App 同一约定）；缺省 zh-CN，保持旧输出不变。
+        L.SetLanguage(Environment.GetEnvironmentVariable("TIISU_LANG"));
         string? source = null;
         string? installDir = null;
           string? expectedSha256 = null;
@@ -49,27 +52,27 @@ internal static class Program
                     break;
                 case "-h":
                 case "--help":
-                    Console.WriteLine("Tiisu.Updater --apply <目录或 zip> [--install <安装目录>] [--sha256 <hex>] [--restart]");
+                    Console.WriteLine(L.T("updater.cli.usage"));
                     return 0;
             }
         }
 
         if (string.IsNullOrWhiteSpace(source))
         {
-            Console.Error.WriteLine("缺少 --apply <目录或 zip>");
+            Console.Error.WriteLine(L.T("updater.err.applyRequired"));
             return 2;
         }
 
         if (!File.Exists(source) && !Directory.Exists(source))
         {
-            Console.Error.WriteLine("源不存在: " + source);
+            Console.Error.WriteLine(L.T("updater.err.sourceNotFound", ("path", source)));
             return 2;
         }
 
         installDir ??= AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
         if (!Directory.Exists(installDir))
         {
-            Console.Error.WriteLine("安装目录不存在: " + installDir);
+            Console.Error.WriteLine(L.T("updater.err.installDirNotFound", ("path", installDir)));
             return 2;
         }
 
@@ -77,7 +80,7 @@ internal static class Program
         {
             if (!File.Exists(source))
             {
-                Console.Error.WriteLine("--sha256 只支持文件（zip）");
+                Console.Error.WriteLine(L.T("updater.err.sha256FileOnly"));
                 return 2;
             }
 
@@ -90,7 +93,8 @@ internal static class Program
 
             if (!string.Equals(actual, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                Console.Error.WriteLine("SHA256 不匹配：期望 " + expectedSha256 + "，实际 " + actual);
+                Console.Error.WriteLine(L.T("updater.err.sha256Mismatch",
+                    ("expected", expectedSha256), ("actual", actual)));
                 return 3;
             }
         }
@@ -102,10 +106,10 @@ internal static class Program
             WaitForAppExit();
             string payload = UpdateCore.ResolvePayload(source, out payloadTemp);
             backup = UpdateCore.Backup(installDir);
-            Log($"备份: {backup}");
+            Log(L.T("updater.log.backup", ("path", backup)));
             UpdateCore.CopyTree(payload, installDir, skipUpdaterFiles: true);
             UpdateCore.WriteVersion(installDir, source, payload);
-            Log("更新完成: " + installDir);
+            Log(L.T("updater.log.updated", ("path", installDir)));
 
             if (restart)
             {
@@ -113,7 +117,7 @@ internal static class Program
                 if (File.Exists(exe))
                 {
                     Process.Start(new ProcessStartInfo(exe) { WorkingDirectory = installDir, UseShellExecute = true });
-                    Log("已重新启动: " + exe);
+                    Log(L.T("updater.log.restarted", ("path", exe)));
                 }
             }
 
@@ -121,20 +125,21 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Log("更新失败: " + ex.Message);
+            Log(L.T("updater.err.updateFailed", ("message", ex.Message)));
 
             // 半覆盖比失败更糟：先用备份还原（P2-9）。
             if (backup is not null && Directory.Exists(backup))
             {
                 try
                 {
-                    Log("开始回滚: " + backup);
+                    Log(L.T("updater.log.rollbackStart", ("path", backup)));
                     UpdateCore.CopyTree(backup, installDir);
-                    Log("回滚完成");
+                    Log(L.T("updater.log.rollbackDone"));
                 }
                 catch (Exception rollbackError)
                 {
-                    Log("回滚失败，备份保留在 " + backup + "：" + rollbackError.Message);
+                    Log(L.T("updater.err.rollbackFailed",
+                        ("backup", backup), ("message", rollbackError.Message)));
                 }
             }
 
@@ -175,7 +180,7 @@ internal static class Program
             Thread.Sleep(400);
         }
 
-        throw new TimeoutException("主程序仍在运行，已等待 60 秒");
+        throw new TimeoutException(L.T("updater.err.appStillRunning"));
     }
 
     private static void Log(string message)

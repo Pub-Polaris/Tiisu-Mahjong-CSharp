@@ -194,6 +194,9 @@ public sealed record TableViewModel
     /// <summary>当前手牌是否已成和形（哪怕赋不足，也可用于显示「差多少」）。</summary>
     public bool WinShape { get; init; }
 
+    /// <summary>当前和形成立的役名（来自判役器；用于牌型提示）。</summary>
+    public IReadOnlyList<string> WinYakuNames { get; init; } = Array.Empty<string>();
+
     /// <summary>本巡刚摸进来的那张牌（摸切 / 长考超时自动切走用）；没有则为 null。</summary>
     public string? DrawnTileId { get; init; }
 

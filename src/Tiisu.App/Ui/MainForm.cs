@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
+using Tiisu.Localization;
 using Tiisu.App.Assets;
 
 namespace Tiisu.App.Ui;
@@ -20,7 +21,7 @@ public sealed class MainForm : Form
     {
         _atlas = atlas;
 
-        Text = "七子麻将 · Tiisu Mahjong";
+        Text = L.T("app.ui.window.title");
 
         // 窗口图标与 exe 图标一致：直接取可执行文件里嵌的那一份（csproj 的 ApplicationIcon），
         // 不在程序集里再存一份。取不到（如无图标的调试产物）就保留 WinForms 默认图标。
@@ -50,7 +51,7 @@ public sealed class MainForm : Form
         // GPU（SKGLControl + GRContext）优先，不可用时工厂内部自动回退 CPU（SKControl）。
         _host = ScreenHostFactory.Create(atlas, forceCpuRender);
         Controls.Add(_host);
-        Text = UiText.IsEnglish ? "Tiisu Mahjong" : UiText.IsJapanese ? "七子麻雀" : "七子麻将 · Tiisu Mahjong";
+        Text = L.T("app.ui.window.title");
 
         // 启动/激活时把焦点交给画布，否则键盘事件没有落点。
         UiText.LanguageChanged += OnLanguageChanged;
@@ -69,7 +70,7 @@ public sealed class MainForm : Form
 
     private void OnLanguageChanged()
     {
-        Text = UiText.IsEnglish ? "Tiisu Mahjong" : UiText.IsJapanese ? "七子麻雀" : "七子麻将 · Tiisu Mahjong";
+        Text = L.T("app.ui.window.title");
         Invalidate(true);
     }
 

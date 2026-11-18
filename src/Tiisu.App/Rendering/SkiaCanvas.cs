@@ -6,13 +6,14 @@ using Tiisu.App.Assets;
 namespace Tiisu.App.Rendering;
 
 /// <summary>ICanvas 的 Skia 实现。SKCanvas 只在这里出现，Scene 看不到 SkiaSharp 类型。</summary>
-public sealed class SkiaCanvas : ICanvas, IDisposable
+public sealed class SkiaCanvas : IImageCanvas, IDisposable
 {
     private static readonly Dictionary<(string Family, bool Bold), SKTypeface> Typefaces = new();
 
     private SKCanvas _canvas;
     private readonly SKPaint _fill = new() { IsAntialias = true };
     private readonly SKPaint _stroke = new() { IsAntialias = true, Style = SKPaintStyle.Stroke };
+    private readonly SKPaint _image = new() { IsAntialias = true };
 
     // 每帧复用：字体按 (粗体, 字号) 缓存；透视矩阵只在相机参数变化时重建（P2-5）。
     private readonly Dictionary<(bool Bold, float Size, string Family), SKFont> _fonts = new();
@@ -42,6 +43,71 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     public void Scale(float factor) => _canvas.Scale(factor);
     public void RotateDegrees(float degrees) => _canvas.RotateDegrees(degrees);
     public void ClipRect(RectF r) => _canvas.ClipRect(new SKRect(r.X, r.Y, r.Right, r.Bottom));
+
+    /// <summary>
+    /// 皮肤切片：把源像素矩形画到逻辑矩形。图片是进程内长期持有的 <see cref="SKImage"/>，
+    /// 每次只做采样缩放，不解码、不 resize。
+    /// </summary>
+    public void DrawSkinImage(SkinImage image, RectF sourcePixels, RectF destination, float alpha = 1f)
+    {
+        if (image.Image is not { } sheet || destination.W <= 0f || destination.H <= 0f)
+        {
+            return;
+        }
+
+        _image.Color = SKColors.White.WithAlpha((byte)Math.Clamp(alpha * 255f, 0f, 255f));
+        _canvas.DrawImage(
+            sheet,
+            new SKRect(sourcePixels.X, sourcePixels.Y, sourcePixels.Right, sourcePixels.Bottom),
+            new SKRect(destination.X, destination.Y, destination.Right, destination.Bottom),
+            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None),
+            _image);
+    }
+
+    /// <summary>静态层录制：临时把绘制目标换成离屏 surface 的画布，返回原画布。</summary>
+    internal SKCanvas SwapBackingCanvas(SKCanvas next)
+    {
+        SKCanvas previous = _canvas;
+        _canvas = next;
+        return previous;
+    }
+
+    /// <summary>
+    /// 当前设备缩放（宿主 letterbox 缩放后「每逻辑像素 = 多少物理像素」）。
+    /// 静态层按这个缩放预合成，回放时才能落在同一设备像素网格上。
+    /// </summary>
+    internal float DeviceScale
+    {
+        get
+        {
+            SKMatrix matrix = _canvas.TotalMatrix;
+            float scale = MathF.Max(MathF.Abs(matrix.ScaleX), MathF.Abs(matrix.ScaleY));
+            return scale > 0.01f ? scale : 1f;
+        }
+    }
+
+    /// <summary>当前「逻辑 → 设备像素」矩阵（静态层按它把内容合成到同一像素网格）。</summary>
+    internal SKMatrix TotalMatrix => _canvas.TotalMatrix;
+
+    /// <summary>
+    /// 回放预合成的静态层：位图是在同一设备像素网格上合成的，这里按整数设备坐标 1:1 贴上，
+    /// 不缩放、不插值（像素相位与直接绘制一致）。
+    /// </summary>
+    internal void DrawCachedLayer(SKImage image, int deviceX, int deviceY)
+    {
+        _image.Color = SKColors.White;
+        _canvas.Save();
+        _canvas.SetMatrix(new SKMatrix(
+            1f, 0f, deviceX,
+            0f, 1f, deviceY,
+            0f, 0f, 1f));
+        _canvas.DrawImage(
+            image,
+            new SKRect(0f, 0f, image.Width, image.Height),
+            new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None),
+            _image);
+        _canvas.Restore();
+    }
 
     /// <summary>
     /// 真透视：M = V · P · T(0,0,-distance) · R_x(-rotateX) · T(-cx,-cy)。
@@ -444,6 +510,7 @@ public sealed class SkiaCanvas : ICanvas, IDisposable
     {
         _fill.Dispose();
         _stroke.Dispose();
+        _image.Dispose();
         foreach (SKFont font in _fonts.Values)
         {
             font.Dispose();

@@ -1,4 +1,5 @@
 using System.Globalization;
+using Tiisu.Localization;
 
 namespace Tiisu.DevTools;
 
@@ -75,13 +76,13 @@ internal sealed class Toolchain
         string? root = NormalizeRoot(Tiisu.Core.TiisuConfig.Current.DevRoot, notes);
         if (root is not null)
         {
-            notes.Add("仓库根来自 config.toml [dev] root：" + root);
+            notes.Add(L.T("tools.devtools.toolchain.rootFromConfig", ("path", root)));
         }
 
         root ??= FindRoot(AppContext.BaseDirectory) ?? FindRoot(Directory.GetCurrentDirectory());
         if (root is null)
         {
-            notes.Add("未找到仓库根；可在 %APPDATA%\\TiisuMahjong\\config.toml 的 [dev] root 指定。");
+            notes.Add(L.T("tools.devtools.toolchain.rootNotFound"));
         }
 
         string? gameExe = null;
@@ -100,8 +101,12 @@ internal sealed class Toolchain
                 AudioGenExeName);
         }
 
-        notes.Add(GameExeName + "：" + (gameExe ?? "未找到（先 dotnet build src/Tiisu.App）"));
-        notes.Add(AudioGenExeName + "：" + (audioGenExe ?? "未找到（先 dotnet build tools/Tiisu.AudioGen）"));
+        notes.Add(gameExe is null
+            ? L.T("tools.devtools.toolchain.gameMissing", ("name", GameExeName))
+            : L.T("tools.devtools.toolchain.found", ("name", GameExeName), ("path", gameExe)));
+        notes.Add(audioGenExe is null
+            ? L.T("tools.devtools.toolchain.audioMissing", ("name", AudioGenExeName))
+            : L.T("tools.devtools.toolchain.found", ("name", AudioGenExeName), ("path", audioGenExe)));
 
         return new Toolchain(root, gameExe, audioGenExe, notes);
     }
@@ -120,7 +125,7 @@ internal sealed class Toolchain
         string path = value.Trim().Trim('"').Trim();
         if (!Directory.Exists(path))
         {
-            notes.Add("config.toml [dev] root 指向的目录不存在：" + path);
+            notes.Add(L.T("tools.devtools.toolchain.configRootMissing", ("path", path)));
             return null;
         }
 
@@ -135,7 +140,7 @@ internal sealed class Toolchain
 
         if (!LooksLikeRoot(path))
         {
-            notes.Add("config.toml [dev] root 里没有 src/Tiisu.App 与 Tiisu.slnx，仍按原样使用：" + path);
+            notes.Add(L.T("tools.devtools.toolchain.configRootIncomplete", ("path", path)));
         }
 
         return path;

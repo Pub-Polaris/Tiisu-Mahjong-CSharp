@@ -1,4 +1,5 @@
 using System;
+using Tiisu.Localization;
 using System.Collections.Generic;
 using System.Text;
 using Tiisu.App.Table;
@@ -164,6 +165,7 @@ public static class SnapshotBuilder
         int? selfWinFu = null;
         bool selfWinShape = false;
         int selfWinThreshold = engine.BaseFu;
+        IReadOnlyList<string> selfWinYakuNames = Array.Empty<string>();
         string winHint = string.Empty;
         string tenpaiSummary = string.Empty;
         if (selfIndex >= 0)
@@ -186,13 +188,14 @@ public static class SnapshotBuilder
                     selfWinShape = true;
                     selfWinFu = eval.TotalFu;
                     selfWinThreshold = eval.ThresholdFu > 0 ? eval.ThresholdFu : engine.BaseFu;
+                    selfWinYakuNames = eval.ActiveYaku.Select(y => y.Name).ToArray();
                 }
 
                 if (!eval.Success)
                 {
                     if (engine.IsWinBanned(self))
                     {
-                        winHint = "本局禁和，不能和牌";
+                        winHint = L.T("app.runtime.hud.winBannedHint");
                     }
                 }
             }
@@ -207,20 +210,30 @@ public static class SnapshotBuilder
             if (engine.DiceDealer is { Count: 2 } dealerDice)
             {
                 int dsum = dealerDice[0] + dealerDice[1];
-                string ddir = dsum == 7 ? "自数" : dsum < 7 ? "顺时针" : "逆时针";
-                diceDealerText = $"定庄骰 {dealerDice[0]}+{dealerDice[1]}={dsum}（{ddir}）→ {dealerWind}家坐庄";
+                string ddir = dsum == 7
+                    ? L.T("app.runtime.dice.self")
+                    : dsum < 7
+                        ? L.T("app.runtime.dice.clockwise")
+                        : L.T("app.runtime.dice.counterClockwise");
+                diceDealerText = L.T("app.runtime.dice.dealerLine",
+                    ("a", dealerDice[0]), ("b", dealerDice[1]), ("sum", dsum), ("dir", ddir), ("wind", dealerWind));
             }
 
             int sum = cutDice[0] + cutDice[1];
-            string dir = sum == 7 ? "庄家侧" : sum < 7 ? "顺时针" : "逆时针";
+            string dir = sum == 7
+                ? L.T("app.runtime.dice.dealerSide")
+                : sum < 7
+                    ? L.T("app.runtime.dice.clockwise")
+                    : L.T("app.runtime.dice.counterClockwise");
             int wang = Math.Max(0, engine.CutSkipTiles - 4);
-            diceCutText = $"切牌骰 {cutDice[0]}+{cutDice[1]}={sum}（{dir}）→ 跳 {engine.CutSkipTiles} 张"
-                          + $"（岭上 4 / 王堆 {wang}）· 起手：{dealerWind}家";
+            diceCutText = L.T("app.runtime.dice.cutLine",
+                                ("a", cutDice[0]), ("b", cutDice[1]), ("sum", sum), ("dir", dir), ("skip", engine.CutSkipTiles))
+                          + L.T("app.runtime.dice.cutSub", ("wang", wang), ("wind", dealerWind));
         }
 
         return new TableViewModel
         {
-            RoundLabel = engine.RoundLabel() + " / " + engine.ModeTarget + "局",
+            RoundLabel = L.T("app.runtime.hud.roundProgress", ("label", engine.RoundLabel()), ("target", engine.ModeTarget)),
             WallCount = engine.Wall.Count,
             RinshanCount = engine.Rinshan.Count,
             Honba = engine.Honba,
@@ -248,6 +261,7 @@ public static class SnapshotBuilder
             WinFu = selfWinFu,
             WinThresholdFu = selfWinThreshold,
             WinShape = selfWinShape,
+            WinYakuNames = selfWinYakuNames,
             DrawnTileId = selfIndex >= 0 ? engine.Players[selfIndex].LastDraw?.Id : null,
             DiceDealerText = diceDealerText,
             DiceCutText = diceCutText,
@@ -349,9 +363,13 @@ public static class SnapshotBuilder
             string listen = string.Join("/", ids);
             string left = string.Join("/", remain);
             string points = minPoints != int.MaxValue
-                ? minPoints == maxPoints ? " · 打点 " + minPoints : " · 打点 " + minPoints + "–" + maxPoints
+                ? minPoints == maxPoints
+                    ? L.T("app.runtime.tenpai.points", ("min", minPoints))
+                    : L.T("app.runtime.tenpai.pointsRange", ("min", minPoints), ("max", maxPoints))
                 : string.Empty;
-            return new TenpaiHints(ids, "听 " + listen + " · 余 " + left + " 张" + points);
+            return new TenpaiHints(
+                ids,
+                L.T("app.runtime.tenpai.summary", ("wait", listen), ("left", left), ("points", points)));
         }
         catch
         {

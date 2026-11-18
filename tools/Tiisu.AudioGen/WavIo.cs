@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using Tiisu.Localization;
 
 namespace Tiisu.AudioGen;
 
@@ -12,7 +13,7 @@ internal static class WavIo
         byte[] bytes = File.ReadAllBytes(path);
         if (bytes.Length < 12 || Encoding.ASCII.GetString(bytes, 0, 4) != "RIFF")
         {
-            throw new InvalidDataException("不是 RIFF/WAV: " + path);
+            throw new InvalidDataException(L.T("tools.cli.audio.notRiff", ("path", path)));
         }
 
         int pos = 12;
@@ -43,7 +44,7 @@ internal static class WavIo
 
         if (payload is null)
         {
-            throw new InvalidDataException("WAV 缺 data 块: " + path);
+            throw new InvalidDataException(L.T("tools.cli.audio.wavNoDataChunk", ("path", path)));
         }
 
         int bytesPerSample = Math.Max(1, bits / 8);

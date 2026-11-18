@@ -2,6 +2,8 @@ using CoreMeld = Tiisu.Core.Meld;
 using Tiisu.Core;
 using Tiisu.Engine.Random;
 
+using Tiisu.Localization;
+
 namespace Tiisu.Engine;
 
 /// <summary>
@@ -239,13 +241,13 @@ public sealed partial class MahjongEngine
     {
         if (deal.Hands.Count != PlayerCount)
         {
-            throw new ArgumentException("配牌必须是四家", nameof(deal));
+            throw new ArgumentException(L.T("engine.err.dealNeedsFourPlayers"), nameof(deal));
         }
 
         DealerIndex = deal.DealerIndex;
         if (DealerIndex is < 0 or >= PlayerCount)
         {
-            throw new ArgumentOutOfRangeException(nameof(deal), DealerIndex, "庄家序号越界");
+            throw new ArgumentOutOfRangeException(nameof(deal), DealerIndex, L.T("engine.err.dealerIndexOutOfRange"));
         }
 
         RevealHands = false;
@@ -260,7 +262,7 @@ public sealed partial class MahjongEngine
         // deal()：牌山先被扣掉 53 张；具体配牌由语料给出（回放不洗牌、不发真牌）。
         if (_wall.Count < DealTileCount)
         {
-            throw new InvalidOperationException($"牌山不足配牌张数：{_wall.Count} < {DealTileCount}（跳墩张数 {deal.SkipTiles} 过大）");
+            throw new InvalidOperationException(L.T("engine.err.wallTooShortForDeal", ("wall", _wall.Count), ("need", DealTileCount), ("skip", deal.SkipTiles)));
         }
 
         _wall.RemoveRange(_wall.Count - DealTileCount, DealTileCount);
@@ -413,8 +415,7 @@ public sealed partial class MahjongEngine
         var tile = _wall[^1];
         if (tile is null)
         {
-            throw new InvalidOperationException(
-                "牌墙是回放占位（null），无法执行真实摸牌；请用 Draw(player, tile) 或传入 RoundDeal.WallOrder");
+            throw new InvalidOperationException(L.T("engine.err.wallPlaceholderInReplay"));
         }
 
         int before = _wall.Count;
@@ -522,7 +523,7 @@ public sealed partial class MahjongEngine
             bool fourPlayers = last4.Select(e => e.PlayerIndex).Distinct().Count() == PlayerCount;
             if (isWind && same && fourPlayers)
             {
-                DeclareSpecialFlow("四风连打（" + TileUtil.Display(t0) + "）");
+                DeclareSpecialFlow(L.T("engine.flow.fourWind", ("tile", TileUtil.Display(t0))));
                 return true;
             }
         }
@@ -673,7 +674,7 @@ public sealed partial class MahjongEngine
         // 报听禁吃碰（含明杠）；暗杠走 DoKan 的听牌形校验，不从这里进。
         if (!CallAllowsMeld(player, type, out string? callReason))
         {
-            throw new InvalidOperationException(callReason ?? "报听后禁止吃碰");
+            throw new InvalidOperationException(callReason ?? L.T("engine.reason.callBlocksMeldShort"));
         }
 
         switch (type)
@@ -723,7 +724,7 @@ public sealed partial class MahjongEngine
             }
 
             default:
-                throw new ArgumentOutOfRangeException(nameof(type), type, "applyMeld 只接受 chi/pon/minkan");
+                throw new ArgumentOutOfRangeException(nameof(type), type, L.T("engine.err.applyMeldType"));
         }
 
         // 被鸣的那张牌要从放铳者的牌河拿走（现实里吃碰杠会取走对应牌）。
@@ -740,7 +741,7 @@ public sealed partial class MahjongEngine
                 return;
             }
 
-            DrawFromRinshan(player, rinshanTile ?? throw new InvalidOperationException("明杠需要岭上补摸的牌（回放由语料快照推出）"));
+            DrawFromRinshan(player, rinshanTile ?? throw new InvalidOperationException(L.T("engine.err.minkanNeedsRinshan")));
         }
 
         TurnIndex = playerIndex;
@@ -757,7 +758,7 @@ public sealed partial class MahjongEngine
     {
         if (type is not (MeldType.Ankan or MeldType.Kakan))
         {
-            throw new ArgumentOutOfRangeException(nameof(type), type, "doKan 只接受 ankan/kakan");
+            throw new ArgumentOutOfRangeException(nameof(type), type, L.T("engine.err.doKanType"));
         }
 
         // 报听：只允许「听牌形不变」的暗杠；加杠 / 明杠一律拒绝。
@@ -793,7 +794,7 @@ public sealed partial class MahjongEngine
             return false;
         }
 
-        DrawFromRinshan(player, rinshanTile ?? throw new InvalidOperationException("杠后需要岭上补摸的牌（回放由语料快照推出）"));
+        DrawFromRinshan(player, rinshanTile ?? throw new InvalidOperationException(L.T("engine.err.kanNeedsRinshan")));
         return true;
     }
 
@@ -1056,16 +1057,25 @@ public sealed partial class MahjongEngine
     /// <summary>本场标签（engine.js <c>roundLabel</c>）。</summary>
     public string RoundLabel()
     {
-        string[] winds = { "东", "南", "西", "北" };
         int n = (DealerCount % 4) + 1;
         if (InExtension)
         {
             int w = RoundWindIdx % 4;
-            return (w == 0 ? "北增" : winds[w] + "入") + n + "局";
+            return w == 0
+                ? L.T("engine.roundLabel.extensionNorth", ("round", n))
+                : L.T("engine.roundLabel.extensionEnter", ("wind", WindName(w)), ("round", n));
         }
 
-        return winds[RoundWindIdx % 4] + n + "局";
+        return L.T("engine.roundLabel.normal", ("wind", WindName(RoundWindIdx % 4)), ("round", n));
     }
+
+    private static string WindName(int index) => L.T(index switch
+    {
+        0 => "engine.wind.east",
+        1 => "engine.wind.south",
+        2 => "engine.wind.west",
+        _ => "engine.wind.north",
+    });
 
     /// <summary>听牌判定（engine.js <c>isTenpai</c>：用 listTenpai 逐张试和）。</summary>
     public bool IsTenpai(Player player)

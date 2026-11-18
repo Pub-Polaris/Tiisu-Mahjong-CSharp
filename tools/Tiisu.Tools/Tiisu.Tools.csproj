@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Tiisu.Core\Tiisu.Core.csproj" />
     <ProjectReference Include="..\..\src\Tiisu.Engine\Tiisu.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Tiisu.Localization\Tiisu.Localization.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

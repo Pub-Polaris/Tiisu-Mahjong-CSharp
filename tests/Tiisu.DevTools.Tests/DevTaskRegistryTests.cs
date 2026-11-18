@@ -70,7 +70,7 @@ public sealed class DevTaskRegistryTests
         var tasks = DevTaskRegistry.Ai(actions);
 
         Assert.Equal(5, tasks.Count);
-        Assert.All(tasks, t => Assert.Equal("AI 数据", t.Category));
+        Assert.All(tasks, t => Assert.Equal("ai", t.Category));
         Assert.Contains(tasks, t => t.Id == "ai.export-selfplay" && t.Confirm);
         Assert.Contains(tasks, t => t.Id == "ai.smoke-neural");
     }
@@ -92,7 +92,7 @@ public sealed class DevTaskRegistryTests
             () => Task.CompletedTask));
 
         Assert.Equal(4, audit.Count);
-        Assert.All(audit, t => Assert.Equal("审局", t.Category));
+        Assert.All(audit, t => Assert.Equal("audit", t.Category));
         Assert.Contains(audit, t => t.Id == "audit.games");
         Assert.Equal(5, resources.Count);
         Assert.Contains(resources, t => t.Id == "resource.font");
@@ -104,7 +104,7 @@ public sealed class DevTaskRegistryTests
     public void Categories_IncludePublishAndFuture()
     {
         Assert.Contains(DevTaskRegistry.PublishCategory, DevTaskRegistry.Categories);
-        Assert.Contains("出图", DevTaskRegistry.Categories);
-        Assert.Contains("AI 数据", DevTaskRegistry.Categories);
+        Assert.Contains("render", DevTaskRegistry.Categories);
+        Assert.Contains("ai", DevTaskRegistry.Categories);
     }
 }

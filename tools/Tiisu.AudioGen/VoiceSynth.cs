@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using Tiisu.Localization;
 
 namespace Tiisu.AudioGen;
 
@@ -32,7 +33,7 @@ internal static class VoiceSynth
     {
         if (!File.Exists(espeak))
         {
-            Console.Error.WriteLine($"找不到 espeak-ng：{espeak}");
+            Console.Error.WriteLine(L.T("tools.cli.audio.espeakNotFound", ("path", espeak)));
             return 2;
         }
 
@@ -64,7 +65,7 @@ internal static class VoiceSynth
                 using var proc = Process.Start(psi);
                 if (proc is null)
                 {
-                    Console.Error.WriteLine("启动 espeak-ng 失败");
+                    Console.Error.WriteLine(L.T("tools.cli.audio.espeakStartFailed"));
                     return 3;
                 }
 
@@ -73,7 +74,7 @@ internal static class VoiceSynth
                 proc.WaitForExit();
                 if (proc.ExitCode != 0)
                 {
-                    Console.Error.WriteLine($"espeak-ng 合成失败：{text}（exit {proc.ExitCode}）");
+                    Console.Error.WriteLine(L.T("tools.cli.audio.espeakSynthFailed", ("text", text), ("code", proc.ExitCode)));
                     return 4;
                 }
 
@@ -108,7 +109,7 @@ internal static class VoiceSynth
         string wave = Encoding.ASCII.GetString(br.ReadBytes(4));
         if (riff != "RIFF" || wave != "WAVE")
         {
-            throw new InvalidDataException("不是 WAV: " + path);
+            throw new InvalidDataException(L.T("tools.cli.audio.notWav", ("path", path)));
         }
 
         int channels = 1;
@@ -150,7 +151,7 @@ internal static class VoiceSynth
 
         if (payload is null)
         {
-            throw new InvalidDataException("WAV 缺少 data: " + path);
+            throw new InvalidDataException(L.T("tools.cli.audio.wavNoData", ("path", path)));
         }
 
         var data = new double[payload.Length / (bits / 8) / channels];

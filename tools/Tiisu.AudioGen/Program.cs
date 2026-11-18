@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Tiisu.Localization;
 
 namespace Tiisu.AudioGen;
 
@@ -19,6 +20,8 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        // CLI 文案跟随 TIISU_LANG；缺省 zh-CN。
+        L.SetLanguage(Environment.GetEnvironmentVariable("TIISU_LANG"));
         string? outDir = null;
         string? espeak = null;
         string engine = "auto";
@@ -77,35 +80,35 @@ internal static class Program
 
         if (list)
         {
-            Console.WriteLine("音效：");
+            Console.WriteLine(L.T("tools.cli.audio.sfxHeader"));
             foreach (var (name, _) in SfxSynth.All)
             {
                 Console.WriteLine("  " + name + ".wav");
             }
 
-            Console.WriteLine("语音：");
+            Console.WriteLine(L.T("tools.cli.audio.voiceHeader"));
             foreach (var (name, text) in VoiceSynth.Lines)
             {
                 Console.WriteLine($"  {name}.wav  ({text})");
             }
 
-            Console.WriteLine("输出目录：" + outDir);
+            Console.WriteLine(L.T("tools.cli.audio.outputDir", ("path", outDir)));
             return 0;
         }
 
-        Console.WriteLine("输出目录：" + outDir);
+        Console.WriteLine(L.T("tools.cli.audio.outputDir", ("path", outDir)));
 
         if (sfx)
         {
             string dir = Path.Combine(outDir, "sounds");
             Directory.CreateDirectory(dir);
-            Console.WriteLine("音效：");
+            Console.WriteLine(L.T("tools.cli.audio.sfxHeader"));
             foreach (var (name, build) in SfxSynth.All)
             {
                 string path = Path.Combine(dir, name + ".wav");
                 if (!force && File.Exists(path))
                 {
-                    Console.WriteLine($"  {name,-9} skip（已存在）");
+                    Console.WriteLine($"  {name,-9} " + L.T("tools.cli.audio.skipExists"));
                     continue;
                 }
 
@@ -117,12 +120,12 @@ internal static class Program
 
         if (voices)
         {
-            Console.WriteLine("语音：");
+            Console.WriteLine(L.T("tools.cli.audio.voiceHeader"));
             string voiceDir = Path.Combine(outDir, "voices");
             if (!force && Directory.Exists(voiceDir)
                 && Directory.EnumerateFiles(voiceDir, "*.wav").Any())
             {
-                Console.WriteLine("  skip（voices 已存在，--force 可重生成）");
+                Console.WriteLine("  " + L.T("tools.cli.audio.voiceSkip"));
                 goto AfterVoices;
             }
 
@@ -143,13 +146,13 @@ internal static class Program
             {
                 if (engine == "auto")
                 {
-                    Console.WriteLine("（没有中文 SAPI 语音，改用 espeak-ng）");
+                    Console.WriteLine(L.T("tools.cli.audio.noChineseSapi"));
                 }
 
                 int code = VoiceSynth.Generate(voiceDir, espeak ?? VoiceSynth.DefaultEspeak);
                 if (code != 0)
                 {
-                    Console.Error.WriteLine("语音生成失败（可用 --espeak 指定 espeak-ng 路径）");
+                    Console.Error.WriteLine(L.T("tools.cli.audio.voiceFailed"));
                     return code;
                 }
             }
@@ -158,11 +161,11 @@ internal static class Program
     AfterVoices:
         if (!string.IsNullOrWhiteSpace(bgm))
         {
-            Console.WriteLine("BGM：");
+            Console.WriteLine(L.T("tools.cli.audio.bgmHeader"));
             string bgmPath = Path.Combine(outDir, "bgm", "lobby.wav");
             if (!force && File.Exists(bgmPath))
             {
-                Console.WriteLine($"  skip（{bgmPath} 已存在）");
+                Console.WriteLine("  " + L.T("tools.cli.audio.bgmSkip", ("path", bgmPath)));
             }
             else
             {
@@ -174,7 +177,7 @@ internal static class Program
             }
         }
 
-        Console.WriteLine("完成。");
+        Console.WriteLine(L.T("tools.cli.audio.done"));
         return 0;
     }
 

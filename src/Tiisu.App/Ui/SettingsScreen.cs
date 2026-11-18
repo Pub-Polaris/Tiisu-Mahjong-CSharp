@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
+using Tiisu.Localization;
 using Tiisu.Core;
 using Color = Tiisu.App.Rendering.Color;
 
@@ -34,9 +35,9 @@ public sealed class SettingsScreen : Screen
 
     private static readonly (SettingsGroup Group, string Label)[] Groups =
     {
-        (SettingsGroup.Basic, "基础"),
-        (SettingsGroup.Rules, "规则"),
-        (SettingsGroup.Ai, "AI / 对局"),
+        (SettingsGroup.Basic, "app.ui.settings.group.basic"),
+        (SettingsGroup.Rules, "app.ui.settings.group.rules"),
+        (SettingsGroup.Ai, "app.ui.settings.group.ai"),
     };
     private const float RowStep = 32f;
     private const float RowHeight = 30f;
@@ -45,7 +46,13 @@ public sealed class SettingsScreen : Screen
     private const int HumanSeat = 0;
 
     /// <summary>座位名（按引擎四家顺序）。</summary>
-    private static readonly string[] SeatNames = { "东座", "南座", "西座", "北座" };
+    private static readonly string[] SeatNames =
+    {
+        "app.ui.settings.seat.east",
+        "app.ui.settings.seat.south",
+        "app.ui.settings.seat.west",
+        "app.ui.settings.seat.north",
+    };
 
     /// <summary>与 Web 设置页同一组可选役（5 项）；中文名取自 ike.json。</summary>
     private static readonly (string Id, string Name)[] OptionalYakuOptions = BuildOptionalOptions();
@@ -88,13 +95,13 @@ public sealed class SettingsScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(20, 28, 34), Color.Rgb(8, 12, 16));
 
-        c.DrawText(UiText.Tr("设置"), new RectF(0, 36, Width, 52), Gold,
+        c.DrawText(L.T("app.ui.settings.title"), new RectF(0, 36, Width, 52), Gold,
             new TextStyle(32, Bold: true, Center: true));
 
         // 左上角返回按钮
         c.FillRoundRect(BackButton, 10, _backHover ? Color.Rgb(44, 66, 60) : Color.Rgb(24, 34, 30).WithAlpha(200));
         c.StrokeRoundRect(BackButton, 10, Gold, 1.2f);
-        c.DrawText(UiText.Tr("← 返回"), BackButton, TextColor, new TextStyle(18, Bold: false, Center: true));
+        c.DrawText(L.T("app.ui.settings.back"), BackButton, TextColor, new TextStyle(18, Bold: false, Center: true));
 
         for (int t = 0; t < Groups.Length; t++)
         {
@@ -102,11 +109,10 @@ public sealed class SettingsScreen : Screen
             bool active = Groups[t].Group == _group;
             c.FillRoundRect(tab, 8, active ? Color.Rgb(44, 66, 60) : Color.Rgb(22, 32, 28));
             c.StrokeRoundRect(tab, 8, active ? Gold : Color.Rgb(70, 88, 80), 1.2f);
-            c.DrawText(UiText.Tr(Groups[t].Label), tab, active ? Color.Rgb(255, 244, 214) : Muted,
+            c.DrawText(L.T(Groups[t].Label), tab, active ? Color.Rgb(255, 244, 214) : Muted,
                 new TextStyle(15, Bold: active, Center: true));
         }
 
-        ClassifyGroups();
         var visible = VisibleRows();
         _selected = Math.Clamp(_selected, 0, Math.Max(0, visible.Count - 1));
         float panelH = 40 + (visible.Count * RowStep);
@@ -131,7 +137,7 @@ public sealed class SettingsScreen : Screen
                 c.StrokeRoundRect(rect, 8, Gold, 1.4f);
             }
 
-            c.DrawText(UiText.Tr(row.Label), new RectF(rect.X + 16, rect.Y, rect.W - 180, rect.H),
+            c.DrawText(RowLabel(row.Label), new RectF(rect.X + 16, rect.Y, rect.W - 180, rect.H),
                 selected ? Color.Rgb(255, 244, 214) : TextColor,
                 new TextStyle(17, Bold: selected, Center: false));
 
@@ -142,13 +148,13 @@ public sealed class SettingsScreen : Screen
               }
             else
             {
-                c.DrawText(UiText.Tr(row.Value()), new RectF(rect.Right - 170, rect.Y, 150, rect.H),
+                c.DrawText(row.Value(), new RectF(rect.Right - 170, rect.Y, 150, rect.H),
                     row.IsOn() ? Gold : Muted,
                     new TextStyle(16, Bold: row.IsOn(), Center: false, Right: true));
             }
         }
 
-        c.DrawText(UiText.Tr("↑↓ 选择 · ←→ 改值 · Tab 切换分组 · Esc 返回"), new RectF(0, 684, Width, 28), Muted,
+        c.DrawText(L.T("app.ui.settings.footer"), new RectF(0, 684, Width, 28), Muted,
             new TextStyle(16, Center: true));
     }
 
@@ -270,21 +276,9 @@ public sealed class SettingsScreen : Screen
         }
     }
 
-      private void ClassifyGroups()
-      {
-          var optionalNames = OptionalYakuOptions.Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
-          foreach (var row in _rows)
-          {
-              row.Group = optionalNames.Contains(row.Label) || row.Label.StartsWith("规则集", StringComparison.Ordinal)
-                  ? SettingsGroup.Rules
-                  : row.Label.StartsWith("AI", StringComparison.Ordinal)
-                    || row.Label.StartsWith("修罗", StringComparison.Ordinal)
-                    || row.Label.StartsWith("锁定", StringComparison.Ordinal)
-                    || row.Label.StartsWith("全桌", StringComparison.Ordinal)
-                      ? SettingsGroup.Ai
-                      : SettingsGroup.Basic;
-          }
-      }
+      /// <summary>行标签：app.* 走 L.T，其余（可选役中文名等数据）走旧中文键 Tr。</summary>
+      private static string RowLabel(string label) =>
+          label.StartsWith("app.", StringComparison.Ordinal) ? L.T(label) : UiText.Tr(label);
 
       private List<Row> VisibleRows() => _rows.Where(r => r.Group == _group).ToList();
 
@@ -322,8 +316,8 @@ public sealed class SettingsScreen : Screen
     private void BuildRows()
     {
         _rows.Add(new Row(
-            "长考秒数",
-            () => _settings.ThinkSeconds + " 秒",
+            "app.ui.settings.row.think",
+            () => L.T("app.ui.settings.seconds", ("value", _settings.ThinkSeconds)),
             () => _settings.ThinkSeconds > 0,
             dir => CycleThink(dir)));
 
@@ -331,9 +325,10 @@ public sealed class SettingsScreen : Screen
         {
             _rows.Add(new Row(
                 name,
-                () => IsOptionalOn(id) ? "开" : "关",
+                () => OnOff(IsOptionalOn(id)),
                 () => IsOptionalOn(id),
-                _ => ToggleOptional(id)));
+                _ => ToggleOptional(id),
+                group: SettingsGroup.Rules));
         }
 
           var bgmSlider = new Slider(0, 100, _settings.BgmVolume,
@@ -341,59 +336,62 @@ public sealed class SettingsScreen : Screen
           var sfxSlider = new Slider(0, 100, _settings.SfxVolume,
               v => SetVolumeLive(bgm: false, v), Save);
           _rows.Add(new Row(
-              "音乐音量",
+              "app.ui.settings.row.bgm",
               () => _settings.BgmVolume + "%",
               () => _settings.BgmVolume > 0,
               direction => bgmSlider.Step(direction * 10),
               () => _settings.BgmVolume,
               bgmSlider));
           _rows.Add(new Row(
-              "音效音量",
+              "app.ui.settings.row.sfx",
               () => _settings.SfxVolume + "%",
               () => _settings.SfxVolume > 0,
               direction => sfxSlider.Step(direction * 10),
               () => _settings.SfxVolume,
               sfxSlider));
-        _rows.Add(new Row("报牌语音", () => OnOff(_settings.VoiceEnabled), () => _settings.VoiceEnabled, _ => Toggle(
+        _rows.Add(new Row("app.ui.settings.row.voice", () => OnOff(_settings.VoiceEnabled), () => _settings.VoiceEnabled, _ => Toggle(
             () => _settings.VoiceEnabled,
             value => _settings.VoiceEnabled = value)));
-        _rows.Add(new Row("语言 / Language", LanguageName,
+        _rows.Add(new Row("app.ui.settings.row.language", LanguageName,
             () => _settings.Language != "zh-CN", _ => CycleLanguage()));
-        _rows.Add(new Row("大字号界面", TextScaleName, () => _settings.UiTextScale > 1.01, _ => CycleTextScale()));
-        _rows.Add(new Row("显示岭上指示牌", () => OnOff(_settings.ShowMa), () => _settings.ShowMa, _ => Toggle(
+        _rows.Add(new Row("app.ui.settings.row.textScale", TextScaleName, () => _settings.UiTextScale > 1.01, _ => CycleTextScale()));
+        _rows.Add(new Row("app.ui.settings.row.showMa", () => OnOff(_settings.ShowMa), () => _settings.ShowMa, _ => Toggle(
             () => _settings.ShowMa,
             value => _settings.ShowMa = value)));
-        _rows.Add(new Row("记录牌型日志", () => OnOff(_settings.RecordTiles), () => _settings.RecordTiles, _ => Toggle(
+        _rows.Add(new Row("app.ui.settings.row.recordTiles", () => OnOff(_settings.RecordTiles), () => _settings.RecordTiles, _ => Toggle(
             () => _settings.RecordTiles,
             value => _settings.RecordTiles = value)));
-        _rows.Add(new Row("骰子查看器（右下角按钮）", () => OnOff(_settings.ShowWallViewer), () => _settings.ShowWallViewer, _ => Toggle(
+        _rows.Add(new Row("app.ui.settings.row.diceViewer", () => OnOff(_settings.ShowWallViewer), () => _settings.ShowWallViewer, _ => Toggle(
             () => _settings.ShowWallViewer,
             value => _settings.ShowWallViewer = value)));
 
         // 1102工程：规则集切换（只在新一局生效；ScreenHost 会重置牌桌并回菜单）。
         _rows.Add(new Row(
-            "规则集（推倒胡=无役/无点数）",
-            () => _settings.Ruleset == Ruleset.TuidaoHu ? "推倒胡" : "七子",
+            "app.ui.settings.row.ruleset",
+            () => _settings.Ruleset == Ruleset.TuidaoHu
+                ? L.T("app.ui.settings.ruleset.tuidaohu")
+                : L.T("app.ui.settings.ruleset.qizi"),
             () => _settings.Ruleset == Ruleset.TuidaoHu,
             _ =>
             {
                 _settings.Ruleset = _settings.Ruleset == Ruleset.TuidaoHu ? Ruleset.Qizi : Ruleset.TuidaoHu;
                 Save();
-            }));
+            },
+            group: SettingsGroup.Rules));
 
         _rows.Add(new Row(
-            "AI 难度权重",
+            "app.ui.settings.row.aiWeights",
             WeightText,
             () => true,
             CycleWeights));
         _rows.Add(new Row(
-            "修罗 MCTS",
+            "app.ui.settings.row.mcts",
             () => OnOff(_settings.AiMctsEnabled),
             () => _settings.AiMctsEnabled,
             _ => Toggle(() => _settings.AiMctsEnabled, value => _settings.AiMctsEnabled = value)));
 
         _rows.Add(new Row(
-            "全桌 AI 难度（快捷）",
+            "app.ui.settings.row.tableDifficulty",
             TableDifficultyName,
             () => TableDifficultyTier() >= 0,
             _ => CycleTableDifficulty()));
@@ -404,8 +402,10 @@ public sealed class SettingsScreen : Screen
             int index = seat;
             bool human = seat == HumanSeat;
             _rows.Add(new Row(
-                "锁定 · " + SeatNames[seat] + (human ? "（你）" : string.Empty),
-                () => human ? "你" : LockName(SeatLock(index)),
+                human
+                    ? L.T("app.ui.settings.seatLock.lockedYou", ("seat", L.T(SeatNames[seat])))
+                    : L.T("app.ui.settings.seatLock.locked", ("seat", L.T(SeatNames[seat]))),
+                () => human ? L.T("app.ui.settings.you") : LockName(SeatLock(index)),
                 () => !human && SeatLock(index) >= 0,
                 direction =>
                 {
@@ -445,14 +445,14 @@ public sealed class SettingsScreen : Screen
 
     private string TableDifficultyName() => TableDifficultyTier() switch
     {
-        -2 => "自定义",
-        -1 => "随机",
-        0 => "简单",
-        1 => "普通",
-        2 => "困难",
-        3 => "修罗",
+        -2 => L.T("app.ui.settings.difficulty.custom"),
+        -1 => L.T("app.ui.settings.difficulty.random"),
+        0 => L.T("app.ui.settings.difficulty.easy"),
+        1 => L.T("app.ui.settings.difficulty.normal"),
+        2 => L.T("app.ui.settings.difficulty.hard"),
+        3 => L.T("app.ui.settings.difficulty.shura"),
         4 => "7Neuu",
-        _ => "随机",
+        _ => L.T("app.ui.settings.difficulty.random"),
     };
 
     private void CycleTableDifficulty()
@@ -480,12 +480,12 @@ public sealed class SettingsScreen : Screen
     /// <summary>锁档名：-1 = 随机，0..3 = 简单 / 普通 / 困难 / 修罗，4 = 7Neuu。</summary>
     private static string LockName(int value) => value switch
     {
-        0 => "简单",
-        1 => "普通",
-        2 => "困难",
-        3 => "修罗",
+        0 => L.T("app.ui.settings.difficulty.easy"),
+        1 => L.T("app.ui.settings.difficulty.normal"),
+        2 => L.T("app.ui.settings.difficulty.hard"),
+        3 => L.T("app.ui.settings.difficulty.shura"),
         4 => "7Neuu",
-        _ => "随机",
+        _ => L.T("app.ui.settings.difficulty.random"),
     };
 
     private int SeatLock(int seat)
@@ -706,7 +706,9 @@ public sealed class SettingsScreen : Screen
         _changed(_settings.Clone());
     }
 
-    private static string OnOff(bool value) => value ? "开" : "关";
+    private static string OnOff(bool value) => value
+        ? L.T("app.ui.settings.on")
+        : L.T("app.ui.settings.off");
 
     private static (string Id, string Name)[] BuildOptionalOptions()
     {

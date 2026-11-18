@@ -1,4 +1,5 @@
 using System;
+using Tiisu.Localization;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -61,19 +62,19 @@ public static class CustomLayoutStore
             var file = JsonSerializer.Deserialize<LayoutFile>(text, ReadOptions);
             if (file is null)
             {
-                Warn(path, "空文件");
+                Warn(path, L.T("app.table.layout.emptyFile"));
                 return false;
             }
 
             if (file.Version is int version && version != CurrentVersion)
             {
-                Warn(path, $"版本 {version} 不受支持");
+                Warn(path, L.T("app.table.layout.unsupportedVersion", ("version", version)));
                 return false;
             }
 
             if (file.Regions is null || file.Regions.Count == 0)
             {
-                Warn(path, "没有 regions");
+                Warn(path, L.T("app.table.layout.noRegions"));
                 return false;
             }
 
@@ -166,7 +167,7 @@ public static class CustomLayoutStore
     private static void Warn(string path, string message)
     {
         // 自检/控制台可读；GUI 下 Console 不存在时静默。
-        string line = $"[layout] 忽略自定义布局 {path}: {message}";
+        string line = L.T("app.table.layout.ignored", ("path", path), ("message", message));
         Debug.WriteLine(line);
         try
         {

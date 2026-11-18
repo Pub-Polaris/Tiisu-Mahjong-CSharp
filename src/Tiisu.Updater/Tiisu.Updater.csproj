@@ -10,4 +10,8 @@
     <DebugType>none</DebugType>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Tiisu.Localization\Tiisu.Localization.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Tiisu.App/Tiisu.App.csproj" />
     <Project Path="src/Tiisu.Core/Tiisu.Core.csproj" />
+    <Project Path="src/Tiisu.Localization/Tiisu.Localization.csproj" />
     <Project Path="src/Tiisu.Engine/Tiisu.Engine.csproj" />
     <Project Path="src/Tiisu.Updater/Tiisu.Updater.csproj" />
   </Folder>

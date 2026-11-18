@@ -1,0 +1,44 @@
+// 牌桌皮肤清单样例 —— 不参与加载（运行时不读这个文件名）。
+//
+// 启用方式：把本文件改名为 skin.json，和 skin-atlas.png 一起放进
+//   src/Tiisu.App/Assets/ui/          （随包生效）
+// 或者开发时用环境变量指目录：
+//   $env:TIISU_SKIN = "art/table/skin-demo"
+//
+// 字段说明见 art/table/README.md；这里只是最小可用样例（对应示例皮）。
+// JSON 允许注释与尾逗号（解析时跳过），但为了兼容别家工具，正式交付建议去掉。
+{
+  "version": 1,
+  "name": "示例 · 青苔木台",
+  "author": "Tiisu 牌桌美术示例",
+  "scale": 2,
+  "atlas": "skin-atlas.png",
+  "background": "#0d1512",
+  "regions": {
+    "table": {
+      "src": [0, 0, 512, 512],
+      "slice": [96, 96, 96, 96]
+    },
+    "center-plate": {
+      "src": [520, 0, 320, 200],
+      "slice": [40, 40, 40, 40]
+    },
+    "river-bed": {
+      "src": [520, 208, 240, 160],
+      "slice": [32, 32, 32, 32]
+    },
+    "button": {
+      "src": [520, 376, 160, 64],
+      "slice": [20, 20, 20, 20]
+    },
+    "shadow": {
+      "src": [520, 448, 256, 256],
+      "slice": [80, 80, 80, 80],
+      "inflate": 40
+    },
+    "frame": {
+      "src": [0, 520, 320, 320],
+      "slice": [88, 88, 88, 88]
+    }
+  }
+}

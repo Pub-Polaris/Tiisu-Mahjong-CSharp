@@ -1,5 +1,7 @@
 using Tiisu.Core;
 
+using Tiisu.Localization;
+
 namespace Tiisu.Engine;
 
 /// <summary>
@@ -218,14 +220,14 @@ public sealed partial class MahjongEngine
         int index = hand.IndexOf(tile);
         if (index < 0)
         {
-            reason = "这张牌不在手里";
+            reason = L.T("engine.reason.tileNotInHand");
             return false;
         }
 
         hand.RemoveAt(index);
         if (hand.Count + player.MeldTiles() != 13 + player.KongCount())
         {
-            reason = "手牌张数不对，无法校验听牌形";
+            reason = L.T("engine.reason.handCountWrong");
             return false;
         }
 
@@ -233,7 +235,7 @@ public sealed partial class MahjongEngine
             hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
         if (mask != player.CalledWaitMask)
         {
-            reason = "报听后听牌张不能变";
+            reason = L.T("engine.reason.callLocksWait");
             return false;
         }
 
@@ -254,10 +256,10 @@ public sealed partial class MahjongEngine
             case MeldType.Chi:
             case MeldType.Pon:
             case MeldType.Minkan:
-                reason = "报听后禁止吃碰明杠";
+                reason = L.T("engine.reason.callBlocksMeld");
                 return false;
             case MeldType.Kakan:
-                reason = "报听后禁止加杠";
+                reason = L.T("engine.reason.callBlocksKakan");
                 return false;
             default:
                 // 暗杠要看听牌形（见 CallAllowsAnkan），这里只放行不判定。
@@ -279,7 +281,7 @@ public sealed partial class MahjongEngine
 
         if (player.Hand.Count + player.MeldTiles() != 14 + player.KongCount())
         {
-            reason = "暗杠要按摸牌后的 14 张形判定";
+            reason = L.T("engine.reason.ankanNeeds14");
             return false;
         }
 
@@ -300,7 +302,7 @@ public sealed partial class MahjongEngine
 
         if (removed < 4)
         {
-            reason = "手里没有四张同样的牌";
+            reason = L.T("engine.reason.noFourSameTiles");
             return false;
         }
 
@@ -309,7 +311,7 @@ public sealed partial class MahjongEngine
             hand, melds, player.AnkanCount + 1, player.MinkanCount, player.SeatWind, player.FirstTurn);
         if (mask != player.CalledWaitMask)
         {
-            reason = "这组暗杠会改变听牌形";
+            reason = L.T("engine.reason.ankanChangesWait");
             return false;
         }
 

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Windows.Forms;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
+using Tiisu.Localization;
 using Color = Tiisu.App.Rendering.Color;
 
 namespace Tiisu.App.Ui;
@@ -54,20 +55,19 @@ public sealed class ReplayScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
 
-        c.DrawText(UiText.Tr("牌谱回看"), new RectF(0, 30, Width, 48), Gold,
+        c.DrawText(L.T("app.ui.replay.title"), new RectF(0, 30, Width, 48), Gold,
             new TextStyle(36, Bold: true, Center: true));
         c.DrawText(_round is null
-                ? UiText.Tr("本机 logs 里还没有牌谱；在设置中开启「记录牌型日志」后打一局。")
-                : UiText.IsEnglish
-                    ? (_rounds.Count > 1 ? $"Round {_roundIndex + 1}/{_rounds.Count} · " : string.Empty)
-                      + $"{_round.FileName} · round {_round.Round} · {_round.Honba} honba"
-                    : (_rounds.Count > 1 ? "第 " + (_roundIndex + 1) + "/" + _rounds.Count + " 局 · " : string.Empty)
-                      + _round.FileName + " · " + _round.Round + " 局 · " + _round.Honba + " 本场",
+                ? L.T("app.ui.replay.emptyLog")
+                : (_rounds.Count > 1
+                        ? L.T("app.ui.replay.roundPrefix", ("current", _roundIndex + 1), ("total", _rounds.Count))
+                        : string.Empty)
+                  + L.T("app.ui.replay.roundMeta", ("file", _round.FileName), ("round", _round.Round), ("honba", _round.Honba)),
             new RectF(0, 78, Width, 24), Muted, new TextStyle(14, Center: true));
 
         if (_round is null || _round.Steps.Count == 0)
         {
-            c.DrawText(UiText.Tr("没有可回看的牌谱。"), new RectF(0, 300, Width, 28), Muted,
+            c.DrawText(L.T("app.ui.replay.noSteps"), new RectF(0, 300, Width, 28), Muted,
                 new TextStyle(18, Center: true));
             DrawNavigation(c);
             return;
@@ -107,7 +107,7 @@ public sealed class ReplayScreen : Screen
                       + (string.IsNullOrEmpty(current.Reason) ? string.Empty : " · " + current.Reason),
             new RectF(detail.X + 18, detail.Y + 10, detail.W - 36, 26), Gold,
             new TextStyle(17, Bold: true));
-        c.DrawText(UiText.Tr("手牌：") + (current.Hand ?? "—") + "    " + UiText.Tr("余牌：") + current.Wall,
+        c.DrawText(L.T("app.ui.replay.hand") + (current.Hand ?? "—") + "    " + L.T("app.ui.replay.wall") + current.Wall,
             new RectF(detail.X + 18, detail.Y + 42, detail.W - 36, 24), Text,
             new TextStyle(14));
         c.DrawText(RiversLine(_round, current),
@@ -124,16 +124,16 @@ public sealed class ReplayScreen : Screen
         _prev = new RectF(Width / 2f - 300, 648, 150, 42);
         _backButton = new RectF(Width / 2f - 75, 648, 150, 42);
         _next = new RectF(Width / 2f + 150, 648, 150, 42);
-        DrawButton(c, _prev, "上一手", _prevHover, _round is not null && _index > 0);
-        DrawButton(c, _backButton, "返回菜单", _backHover, true);
-        DrawButton(c, _next, "下一手", _nextHover, _round is not null && _index < _round.Steps.Count - 1);
+        DrawButton(c, _prev, "app.ui.replay.prev", _prevHover, _round is not null && _index > 0);
+        DrawButton(c, _backButton, "app.ui.replay.back", _backHover, true);
+        DrawButton(c, _next, "app.ui.replay.next", _nextHover, _round is not null && _index < _round.Steps.Count - 1);
 
         _prevRound = new RectF(80, 610, 170, 30);
         _nextRound = new RectF(Width - 250, 610, 170, 30);
         if (_rounds.Count > 1)
         {
-            DrawButton(c, _prevRound, "← 上一局", _prevRoundHover, _roundIndex > 0);
-            DrawButton(c, _nextRound, "下一局 →", _nextRoundHover, _roundIndex < _rounds.Count - 1);
+            DrawButton(c, _prevRound, "app.ui.replay.prevRound", _prevRoundHover, _roundIndex > 0);
+            DrawButton(c, _nextRound, "app.ui.replay.nextRound", _nextRoundHover, _roundIndex < _rounds.Count - 1);
         }
     }
 
@@ -148,7 +148,7 @@ public sealed class ReplayScreen : Screen
             }
         }
 
-        return parts.Count == 0 ? UiText.Tr("牌河：") + "—" : UiText.Tr("牌河：") + string.Join(" ｜ ", parts);
+        return parts.Count == 0 ? L.T("app.ui.replay.rivers") + "—" : L.T("app.ui.replay.rivers") + string.Join(" ｜ ", parts);
     }
 
     private static void DrawButton(ICanvas c, RectF rect, string label, bool hover, bool enabled)
@@ -159,7 +159,7 @@ public sealed class ReplayScreen : Screen
             : Color.Rgb(28, 36, 32);
         c.FillRoundRect(rect, 10, fill);
         c.StrokeRoundRect(rect, 10, border, 1.3f);
-        c.DrawText(UiText.Tr(label), rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
+        c.DrawText(L.T(label), rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
             new TextStyle(17, Bold: true, Center: true));
     }
 
@@ -169,7 +169,7 @@ public sealed class ReplayScreen : Screen
         string action = UiText.Tr(RoundLogReader.ActionName(step.Action));
         string tile = string.IsNullOrEmpty(step.Tile) ? string.Empty : " " + step.Tile;
         string wall = step.Wall > 0
-            ? (UiText.IsEnglish ? " (wall " + step.Wall + ")" : UiText.IsJapanese ? "（残り " + step.Wall + "）" : "（余 " + step.Wall + "）")
+            ? L.T("app.ui.replay.wallAnnotation", ("wall", step.Wall))
             : string.Empty;
         return (index + 1).ToString(CultureInfo.InvariantCulture) + ". " + player + " " + action + tile + wall;
     }

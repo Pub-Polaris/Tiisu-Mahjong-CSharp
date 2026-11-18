@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Tiisu.App.Rendering;
+using Tiisu.Localization;
+using Tiisu.App.Runtime;
 using Tiisu.App.Ui;
 using Color = Tiisu.App.Rendering.Color;
 
@@ -239,6 +242,37 @@ public sealed class TableLayoutSpec
     };
 }
 
+/// <summary>
+/// 静态层指纹：桌面层只依赖 (皮肤, 观感, 画布尺寸, 边距, 中央板, 四家牌河)。
+/// 任一变化 → 键变 → 重建；否则命中离屏位图缓存。全部是值类型，每帧比较不分配。
+/// </summary>
+public readonly record struct TableStaticKey(
+    int SkinId,
+    long SkinStamp,
+    TableRenderStyle Style,
+    float CanvasW,
+    float CanvasH,
+    float Margin,
+    RectF Plate,
+    RectF River0,
+    RectF River1,
+    RectF River2,
+    RectF River3)
+{
+    public static TableStaticKey For(TableLayoutSpec l, TableRenderStyle style, TableSkin skin) => new(
+        skin.IsActive ? RuntimeHelpers.GetHashCode(skin) : 0,
+        skin.Stamp,
+        style,
+        l.CanvasW,
+        l.CanvasH,
+        l.Margin,
+        l.PlateRect,
+        l.RiverRects[0],
+        l.RiverRects[1],
+        l.RiverRects[2],
+        l.RiverRects[3]);
+}
+
 /// <summary>牌桌渲染：按 Yoga 算出的矩形绘制。</summary>
 public sealed class TableSceneSkia : ITableScene
 {
@@ -327,26 +361,103 @@ public sealed class TableSceneSkia : ITableScene
     }
 
     /// <summary>
-    /// 桌面背景 + 中央信息板。Flat 走原来的实心圆角矩形；Light/Medium 用「上窄下宽」的梯形模拟；
-    /// Mixed 把整层（底板/渐变/暗角/桌沿 + 中央板）Save → 真透视矩阵 → 绘制 → Restore，
-    /// 牌与牌河恢复逻辑坐标后再画，位置一个都不动。
+    /// 桌面背景 + 中央信息板底板。分两条路径：
+    /// <list type="bullet">
+    /// <item>默认平面桌且没有皮肤：直接程序化绘制（与旧实现逐行一致，不引入任何额外开销）。</item>
+    /// <item>有皮肤或 2.5D 桌面：整层预合成到离屏位图（<see cref="StaticLayerCache{TKey}"/>），
+    /// 每帧只回放一次 1:1 blit，再逐帧画板上的文字 / 余牌 / 点数 / 风位（<see cref="DrawCenterInfo"/>）。</item>
+    /// </list>
+    /// 为什么按需启用：默认路径只有 3 个纯色填充，缓存反而多一次全屏位图拷贝（实测 +0.3–0.5ms）；
+    /// 皮肤/2.5D 的静态层是几十次带插值的图片绘制，预合成后 17.6ms → 4.4ms（同一布局、同一机器）。
     /// </summary>
-    private static void DrawTableSurface(ICanvas c, TableViewModel vm, TableLayoutSpec l, TableRenderMetrics m)
+    private void DrawTableSurface(ICanvas c, TableViewModel vm, TableLayoutSpec l, TableRenderMetrics m)
     {
-        if (!m.UsePerspective && !m.HasTileDepth && m.TableTopInset <= 0f)
+        TableSkin skin = SkinStore.Current;
+        bool styled = m.UsePerspective || m.HasTileDepth || m.TableTopInset > 0f;
+        if (skin.IsActive || styled)
         {
-            c.FillRect(new RectF(0, 0, l.CanvasW, l.CanvasH), Color.Rgb(20, 30, 24));
-            c.FillRoundRect(new RectF(l.Margin, l.Margin, l.CanvasW - l.Margin * 2, l.CanvasH - l.Margin * 2),
-                20, Color.Rgb(46, 72, 56));
-            DrawCenter(c, vm, l.PlateRect);
+            TableStaticKey key = TableStaticKey.For(l, Style, skin);
+            var bounds = new RectF(0, 0, l.CanvasW, l.CanvasH);
+            if (!StaticLayerCache<TableStaticKey>.TryDraw(c, key, bounds))
+            {
+                StaticLayerCache<TableStaticKey>.Draw(c, key, bounds, ctx =>
+                {
+                    using var perf = PerfProbe.Measure("table.static.rebuild");
+                    DrawStaticLayer(ctx, l, m, skin);
+                });
+            }
+        }
+        else
+        {
+            DrawStaticLayer(c, l, m, skin);
+        }
+
+        DrawCenterInfo(c, vm, l.PlateRect);
+    }
+
+    /// <summary>清空静态层缓存（换皮 / 观感重载时调用，避免回放到已释放的皮肤图）。</summary>
+    public static void ClearStaticLayers() => StaticLayerCache<TableStaticKey>.Clear();
+
+    /// <summary>
+    /// 静态层内容：外圈底色 → 阴影(皮) → 桌面(皮/程序化圆角) → 牌河底(皮) → 中央板底(皮/程序化) → 外框(皮)。
+    /// 皮肤缺哪块就回退哪块；没有皮肤时这里的绘制调用与旧代码一一对应，逐像素一致。
+    /// </summary>
+    private static void DrawStaticLayer(ICanvas c, TableLayoutSpec l, TableRenderMetrics m, TableSkin skin)
+    {
+        if (m.UsePerspective || m.HasTileDepth || m.TableTopInset > 0f)
+        {
+            DrawStyledStaticLayer(c, l, m, skin);
             return;
         }
 
+        c.FillRect(new RectF(0, 0, l.CanvasW, l.CanvasH), skin.Background);
+
+        var table = new RectF(l.Margin, l.Margin, l.CanvasW - l.Margin * 2f, l.CanvasH - l.Margin * 2f);
+        skin.TryDraw(c, TableSkinRegion.Shadow, table);
+
+        if (!skin.TryDraw(c, TableSkinRegion.Table, table))
+        {
+            c.FillRoundRect(table, 20, Color.Rgb(46, 72, 56));
+        }
+
+        // 牌河底：默认桌面没有垫布，只有皮肤提供该区域时才画。
+        for (int seat = 0; seat < 4; seat++)
+        {
+            var river = l.RiverRects[seat];
+            if (river.W > 0f && river.H > 0f)
+            {
+                skin.TryDraw(c, TableSkinRegion.RiverBed, river);
+            }
+        }
+
+        DrawPlateBackground(c, l.PlateRect, skin);
+
+        skin.TryDraw(c, TableSkinRegion.Frame, new RectF(0, 0, l.CanvasW, l.CanvasH));
+    }
+
+    /// <summary>中央板底板：有皮肤用九宫格，没有就还是原来的深圆角矩形 + 描边（文字始终实时画）。</summary>
+    private static void DrawPlateBackground(ICanvas c, RectF p, TableSkin skin)
+    {
+        if (skin.TryDraw(c, TableSkinRegion.CenterPlate, p))
+        {
+            return;
+        }
+
+        c.FillRoundRect(p, 16, Color.Rgb(52, 62, 74));
+        c.StrokeRoundRect(p, 16, Color.Rgb(22, 28, 34), 2f);
+    }
+
+    /// <summary>
+    /// 2.5D / 梯形观感（当前设置一律简化成 Flat，保留原路径以便将来恢复档位）：
+    /// 整块桌面照旧绘制，中央板底板同样走皮肤 / 程序化回退。
+    /// </summary>
+    private static void DrawStyledStaticLayer(ICanvas c, TableLayoutSpec l, TableRenderMetrics m, TableSkin skin)
+    {
         c.FillLinearGradient(new RectF(0, 0, l.CanvasW, l.CanvasH), 0, m.SurroundTop, m.SurroundBottom);
 
         if (m.UsePerspective)
         {
-            DrawPerspectiveSurface(c, vm, l, m);
+            DrawPerspectiveSurface(c, l, m, skin);
             return;
         }
 
@@ -391,14 +502,14 @@ public sealed class TableSceneSkia : ITableScene
         };
         c.FillPolygon(topGlow, Color.Rgb(186, 224, 190).WithAlpha(m.EdgeHighlightAlpha));
 
-        DrawCenter(c, vm, l.PlateRect);
+        DrawPlateBackground(c, l.PlateRect, skin);
     }
 
     /// <summary>
     /// 真透视桌面层：Save → ConcatPerspective → 画整块桌面（底板/渐变/暗角/桌沿/远边高光）
-    /// + 中央信息板 → Restore。输入仍是 1400×1400 逻辑坐标，透视只发生在这一层。
+    /// + 中央信息板底 → Restore。输入仍是 1400×1400 逻辑坐标，透视只发生在这一层。
     /// </summary>
-    private static void DrawPerspectiveSurface(ICanvas c, TableViewModel vm, TableLayoutSpec l, TableRenderMetrics m)
+    private static void DrawPerspectiveSurface(ICanvas c, TableLayoutSpec l, TableRenderMetrics m, TableSkin skin)
     {
         c.Save();
         c.ConcatPerspective(new PerspectiveCamera(
@@ -458,8 +569,8 @@ public sealed class TableSceneSkia : ITableScene
         };
         c.FillPolygon(topGlow, Color.Rgb(186, 224, 190).WithAlpha(m.EdgeHighlightAlpha));
 
-        // 中央信息板：与桌面同一套透视矩阵画，斜度自然一致（牌不套矩阵，仍在外面画）。
-        DrawCenter(c, vm, l.PlateRect);
+        // 中央信息板底：与桌面同一套透视矩阵画，斜度自然一致（牌不套矩阵，仍在外面画）。
+        DrawPlateBackground(c, l.PlateRect, skin);
 
         c.Restore();
     }
@@ -492,6 +603,7 @@ public sealed class TableSceneSkia : ITableScene
     {
         const float badgeW = 66f;
         const float badgeH = 24f;
+        TableSkin skin = SkinStore.Current;
 
         for (int seat = 0; seat < 4; seat++)
         {
@@ -515,15 +627,16 @@ public sealed class TableSceneSkia : ITableScene
             };
 
             bool self = seat == 0;
-            c.FillRoundRect(box, 7, Color.Rgb(96, 62, 12).WithAlpha(220));
-            c.StrokeRoundRect(box, 7, Color.Rgb(255, 206, 120).WithAlpha(180), 1.2f);
-            c.DrawText(self ? "已报听" : "报听", box,
+            if (!skin.TryDrawButton(c, box))
+            {
+                c.FillRoundRect(box, 7, Color.Rgb(96, 62, 12).WithAlpha(220));
+                c.StrokeRoundRect(box, 7, Color.Rgb(255, 206, 120).WithAlpha(180), 1.2f);
+            }
+
+            c.DrawText(self ? L.T("app.table.hud.calledBadge") : L.T("app.table.hud.callBadge"), box,
                 Color.Rgb(255, 236, 190), new TextStyle(13, Bold: true, Center: true));
         }
     }
-
-    /// <summary>AI 档位小字：Simple=简 / Normal=普 / Hard=难 / Shura=修，人类座位不显示。</summary>
-    private static readonly string[] AiLevelBadges = { "简", "普", "难", "修" };
 
     /// <summary>
     /// 在每家 AI 手牌框外侧画一枚半透明小标（座位名 · 档位），贴合座位名牌位置，
@@ -539,6 +652,7 @@ public sealed class TableSceneSkia : ITableScene
 
         float badgeW = UiText.IsEnglish || UiText.IsJapanese ? 82f : 62f;
         const float badgeH = 24f;
+        TableSkin skin = SkinStore.Current;
 
         for (int seat = 1; seat < 4 && seat < levels.Count; seat++)
         {
@@ -564,8 +678,12 @@ public sealed class TableSceneSkia : ITableScene
                 _ => new RectF(frame.X, frame.Top - badgeH - 8, badgeW, badgeH),
             };
 
-            c.FillRoundRect(box, 7, Color.Rgb(0, 0, 0).WithAlpha(150));
-            c.StrokeRoundRect(box, 7, Color.Rgb(150, 170, 160).WithAlpha(90), 1f);
+            if (!skin.TryDrawButton(c, box))
+            {
+                c.FillRoundRect(box, 7, Color.Rgb(0, 0, 0).WithAlpha(150));
+                c.StrokeRoundRect(box, 7, Color.Rgb(150, 170, 160).WithAlpha(90), 1f);
+            }
+
             c.DrawText((UiText.IsEnglish ? WindShort(view.Wind) : UiText.IsJapanese ? UiText.Tr(view.Wind) : view.Wind) + "·" + level, box,
                 Color.Rgb(214, 230, 220), new TextStyle(13, Bold: true, Center: true));
         }
@@ -581,10 +699,10 @@ public sealed class TableSceneSkia : ITableScene
 
         return level switch
         {
-            "Simple" => UiText.IsEnglish ? "Simple" : UiText.IsJapanese ? "簡単" : AiLevelBadges[0],
-            "Normal" => UiText.IsEnglish ? "Normal" : UiText.IsJapanese ? "普通" : AiLevelBadges[1],
-            "Hard" => UiText.IsEnglish ? "Hard" : UiText.IsJapanese ? "難しい" : AiLevelBadges[2],
-            "Shura" => UiText.IsEnglish ? "Shura" : UiText.IsJapanese ? "修羅" : AiLevelBadges[3],
+            "Simple" => L.T("app.table.aiLevel.simple"),
+            "Normal" => L.T("app.table.aiLevel.normal"),
+            "Hard" => L.T("app.table.aiLevel.hard"),
+            "Shura" => L.T("app.table.aiLevel.shura"),
             _ => string.Empty,
         };
     }
@@ -784,16 +902,18 @@ public sealed class TableSceneSkia : ITableScene
         return sum - l.MeldGroupGap;
     }
 
-    private static void DrawCenter(ICanvas c, TableViewModel vm, RectF p)
+    /// <summary>
+    /// 中央板上的动态信息：局数 / 余牌 / 本场·场赏 / 实时点数顺位 / 风位小方块。
+    /// 底板已在静态层里画好，这里只叠文字与小方框（皮肤提供按钮区域时，风位小方块也换成皮肤九宫格）。
+    /// </summary>
+    private static void DrawCenterInfo(ICanvas c, TableViewModel vm, RectF p)
     {
-        c.FillRoundRect(p, 16, Color.Rgb(52, 62, 74));
-        c.StrokeRoundRect(p, 16, Color.Rgb(22, 28, 34), 2f);
-
+        TableSkin skin = SkinStore.Current;
         c.DrawText(UiText.Tr(vm.RoundLabel), new RectF(p.X, p.CenterY - 62, p.W, 34),
             Color.Rgb(140, 246, 236), new TextStyle(26, Bold: true, Center: true));
-        c.DrawText(UiText.Tr("余") + " " + vm.WallCount, new RectF(p.X, p.CenterY - 18, p.W, 30),
+        c.DrawText(L.T("app.table.center.wall", ("count", vm.WallCount)), new RectF(p.X, p.CenterY - 18, p.W, 30),
             Color.Rgb(150, 236, 226), new TextStyle(21, Center: true));
-        c.DrawText(UiText.Tr("本场") + " " + vm.Honba + " · " + UiText.Tr("场赏") + " " + vm.Kyotaku, new RectF(p.X, p.CenterY + 20, p.W, 24),
+        c.DrawText(L.T("app.table.center.honbaKyotaku", ("honba", vm.Honba), ("kyotaku", vm.Kyotaku)), new RectF(p.X, p.CenterY + 20, p.W, 24),
             Color.Rgb(180, 214, 208), new TextStyle(15, Center: true));
         // 实时点数与顺位：2×2 排在中央面板下半部。
         var ordered = Enumerable.Range(0, 4)
@@ -814,7 +934,7 @@ public sealed class TableSceneSkia : ITableScene
             bool first = rank[i] == 1;
             bool human = seat.IsHuman;
             string text = rank[i].ToString(System.Globalization.CultureInfo.InvariantCulture)
-                          + "  " + UiText.Tr(seat.Wind) + (human ? UiText.Tr("(你)") : string.Empty) + "  " + seat.Score;
+                          + "  " + UiText.Tr(seat.Wind) + (human ? L.T("app.table.hud.you") : string.Empty) + "  " + seat.Score;
             c.DrawText(text, new RectF(x, y, 188, 24),
                 first ? Color.Rgb(255, 226, 140) : human ? Color.Rgb(210, 236, 220) : Color.Rgb(176, 200, 188),
                 new TextStyle(14, Bold: first || human, Center: false));
@@ -823,10 +943,10 @@ public sealed class TableSceneSkia : ITableScene
 
         const float s = 38f, m = 14f;
         var winds = new[] { Seat(vm, 0).Wind, Seat(vm, 1).Wind, Seat(vm, 2).Wind, Seat(vm, 3).Wind };
-        Wind(c, WindShort(winds[0]), new RectF(p.X + m, p.Bottom - m - s, s, s));
-        Wind(c, WindShort(winds[1]), new RectF(p.Right - m - s, p.Bottom - m - s, s, s));
-        Wind(c, WindShort(winds[2]), new RectF(p.Right - m - s, p.Y + m, s, s));
-        Wind(c, WindShort(winds[3]), new RectF(p.X + m, p.Y + m, s, s));
+        Wind(c, skin, WindShort(winds[0]), new RectF(p.X + m, p.Bottom - m - s, s, s));
+        Wind(c, skin, WindShort(winds[1]), new RectF(p.Right - m - s, p.Bottom - m - s, s, s));
+        Wind(c, skin, WindShort(winds[2]), new RectF(p.Right - m - s, p.Y + m, s, s));
+        Wind(c, skin, WindShort(winds[3]), new RectF(p.X + m, p.Y + m, s, s));
     }
 
     private static string WindShort(string wind) => UiText.IsEnglish
@@ -840,10 +960,14 @@ public sealed class TableSceneSkia : ITableScene
         }
         : wind;
 
-    private static void Wind(ICanvas c, string w, RectF r)
+    private static void Wind(ICanvas c, TableSkin skin, string w, RectF r)
     {
-        c.FillRoundRect(r, 8, Color.Rgb(30, 36, 42));
-        c.StrokeRoundRect(r, 8, Color.Rgb(120, 132, 140), 1.5f);
+        if (!skin.TryDrawButton(c, r))
+        {
+            c.FillRoundRect(r, 8, Color.Rgb(30, 36, 42));
+            c.StrokeRoundRect(r, 8, Color.Rgb(120, 132, 140), 1.5f);
+        }
+
         c.DrawText(w, r, Color.Rgb(240, 244, 240), new TextStyle(21, Bold: true, Center: true));
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Windows.Forms;
+using Tiisu.Localization;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
@@ -67,14 +68,14 @@ internal sealed class GlHostWindow : IDisposable
 
             if (paints == 0)
             {
-                error = "隐藏窗口没有完成 GL 绘制";
+                error = L.T("app.ui.gl.hiddenNoPaint");
                 form.Dispose();
                 return null;
             }
 
             if (control.GRContext is null)
             {
-                error = "SKGLControl 未能创建 GRContext";
+                error = L.T("app.ui.gl.noGrContext");
                 form.Dispose();
                 return null;
             }

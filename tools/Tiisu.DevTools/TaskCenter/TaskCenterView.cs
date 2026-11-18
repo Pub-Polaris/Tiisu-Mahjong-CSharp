@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Tiisu.Localization;
 
 namespace Tiisu.DevTools.TaskCenter;
 
@@ -56,7 +57,7 @@ internal sealed class TaskCenterView : UserControl
         _header = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 6) };
         var title = new Label
         {
-            Text = "任务中心",
+            Text = L.T("tools.devtools.taskc.title"),
             Location = new Point(4, 0),
             Size = new Size(300, 30),
             Font = new Font("Microsoft YaHei UI", 14F, FontStyle.Bold),
@@ -64,7 +65,7 @@ internal sealed class TaskCenterView : UserControl
         };
         var hint = new Label
         {
-            Text = "按分类选任务，产物与说明都在卡片上。",
+            Text = L.T("tools.devtools.taskc.hint"),
             Location = new Point(340, 4),
             Size = new Size(420, 22),
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
@@ -73,7 +74,7 @@ internal sealed class TaskCenterView : UserControl
         };
         var outLabel = new Label
         {
-            Text = "出图目录",
+            Text = L.T("tools.devtools.open.label.renderDir"),
             Location = new Point(4, 42),
             Size = new Size(68, 24),
             TextAlign = ContentAlignment.MiddleLeft,
@@ -86,7 +87,7 @@ internal sealed class TaskCenterView : UserControl
         };
         var browse = new Button
         {
-            Text = "浏览…",
+            Text = L.T("tools.devtools.taskc.browse"),
             Location = new Point(604, 39),
             Size = new Size(76, 26),
             UseVisualStyleBackColor = true,
@@ -96,7 +97,7 @@ internal sealed class TaskCenterView : UserControl
             using var dialog = new FolderBrowserDialog
             {
                 SelectedPath = Directory.Exists(_outputDir.Text) ? _outputDir.Text : AppContext.BaseDirectory,
-                Description = "选择出图输出目录",
+                Description = L.T("tools.devtools.taskc.chooseOutput"),
             };
             if (dialog.ShowDialog(this) == DialogResult.OK)
             {
@@ -123,7 +124,7 @@ internal sealed class TaskCenterView : UserControl
         };
         foreach (string category in DevTaskRegistry.Categories)
         {
-            _categories.Items.Add(category);
+            _categories.Items.Add(L.T("tools.devtools.category." + category));
         }
 
         _categories.SelectedIndexChanged += (_, _) => Rebuild();
@@ -142,7 +143,7 @@ internal sealed class TaskCenterView : UserControl
 
         var previewBox = new GroupBox
         {
-            Text = "最近产物",
+            Text = L.T("tools.devtools.taskc.preview"),
             Dock = DockStyle.Fill,
             Padding = new Padding(8, 6, 8, 8),
             Margin = new Padding(6, 0, 0, 0),
@@ -165,7 +166,7 @@ internal sealed class TaskCenterView : UserControl
         _previewPath = new Label
         {
             Dock = DockStyle.Fill,
-            Text = "还没有出图。运行一个出图任务后，这里显示缩略图。",
+            Text = L.T("tools.devtools.taskc.noPreview"),
             ForeColor = Color.DimGray,
             TextAlign = ContentAlignment.MiddleLeft,
         };
@@ -189,13 +190,16 @@ internal sealed class TaskCenterView : UserControl
         _cards.SuspendLayout();
         _cards.Controls.Clear();
 
-        string category = _categories.SelectedItem as string ?? DevTaskRegistry.PublishCategory;
+        int index = _categories.SelectedIndex;
+        string category = index >= 0 && index < DevTaskRegistry.Categories.Count
+            ? DevTaskRegistry.Categories[index]
+            : DevTaskRegistry.PublishCategory;
         var tasks = _tasks.Where(t => t.Category == category).ToArray();
         if (tasks.Length == 0)
         {
             _cards.Controls.Add(new Label
             {
-                Text = "这个分类还没迁移；先看「发布」或「出图」。",
+                Text = L.T("tools.devtools.taskc.categoryEmpty"),
                 AutoSize = true,
                 ForeColor = Color.DimGray,
                 Margin = new Padding(12),
@@ -263,7 +267,7 @@ internal sealed class TaskCenterView : UserControl
         };
         var output = new Label
         {
-            Text = "产物：" + task.OutputHint,
+            Text = L.T("tools.devtools.taskc.outputPrefix", ("hint", task.OutputHint)),
             Location = new Point(12, 60),
             Size = new Size(card.Width - 150, 20),
             ForeColor = Color.DimGray,
@@ -280,7 +284,7 @@ internal sealed class TaskCenterView : UserControl
 
         var run = new Button
         {
-            Text = "运行",
+            Text = L.T("tools.devtools.taskc.run"),
             Size = new Size(84, 30),
             Location = new Point(card.Width - 104, 32),
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
@@ -290,32 +294,32 @@ internal sealed class TaskCenterView : UserControl
         {
             if (task.Confirm && MessageBox.Show(
                     this,
-                    "会覆盖现有产物，继续？\n\n" + task.Title,
-                    "确认执行",
+                    L.T("tools.devtools.taskc.confirmOverwrite", ("title", task.Title)),
+                    L.T("tools.devtools.taskc.confirmTitle"),
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Warning,
                     MessageBoxDefaultButton.Button2) != DialogResult.Yes)
             {
-                _log("  已取消：" + task.Title);
+                _log(L.T("tools.devtools.taskc.cancelled", ("title", task.Title)));
                 return;
             }
 
             run.Enabled = false;
-            state.Text = "运行中…";
+            state.Text = L.T("tools.devtools.taskc.running");
             state.ForeColor = Color.DarkOrange;
             _setStatus(task.Title + " …", string.Empty);
             try
             {
                 await _execute(task);
-                state.Text = "完成";
+                state.Text = L.T("tools.devtools.taskc.done");
                 state.ForeColor = Color.FromArgb(30, 110, 70);
                 ShowPreview(task.OutputPath?.Invoke());
             }
             catch (Exception ex)
             {
-                state.Text = "失败：" + ex.Message;
+                state.Text = L.T("tools.devtools.taskc.failed", ("message", ex.Message));
                 state.ForeColor = Color.Firebrick;
-                _log("  ! " + task.Title + "：" + ex.Message);
+                _log(L.T("tools.devtools.taskc.logFailed", ("title", task.Title), ("message", ex.Message)));
             }
             finally
             {
@@ -340,7 +344,7 @@ internal sealed class TaskCenterView : UserControl
         _preview.Image = null;
         if (string.IsNullOrWhiteSpace(path))
         {
-            _previewPath.Text = "该任务没有图片产物。";
+            _previewPath.Text = L.T("tools.devtools.taskc.noImage");
             return;
         }
 
@@ -358,7 +362,7 @@ internal sealed class TaskCenterView : UserControl
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            _previewPath.Text = "预览失败：" + ex.Message;
+            _previewPath.Text = L.T("tools.devtools.taskc.previewFailed", ("message", ex.Message));
         }
     }
 }

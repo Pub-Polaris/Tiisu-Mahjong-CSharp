@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Tiisu.Localization;
 
 
 /// <summary>
@@ -21,7 +22,7 @@ internal static class ExportDataset
     {
         if (args.Length < 2)
         {
-            Console.Error.WriteLine("用法：--export-dataset <out.jsonl> [logDir] [--human-only|--ai-only]");
+            Console.Error.WriteLine(L.T("tools.cli.dataset.usage"));
             return 2;
         }
 
@@ -49,14 +50,14 @@ internal static class ExportDataset
 
         if (!Directory.Exists(logDir))
         {
-            Console.Error.WriteLine($"找不到日志目录：{logDir}");
+            Console.Error.WriteLine(L.T("tools.cli.dataset.logDirNotFound", ("path", logDir)));
             return 2;
         }
 
         var files = Directory.GetFiles(logDir, "roundlog_*.jsonl").OrderBy(f => f, StringComparer.Ordinal).ToArray();
         if (files.Length == 0)
         {
-            Console.Error.WriteLine($"目录里没有 roundlog_*.jsonl：{logDir}");
+            Console.Error.WriteLine(L.T("tools.cli.dataset.noLogs", ("path", logDir)));
             return 2;
         }
 
@@ -226,8 +227,8 @@ internal static class ExportDataset
             new UTF8Encoding(false));
 
         Console.WriteLine($"dataset: {output}");
-        Console.WriteLine($"  日志文件 {files.Length} 个 · 样本 {total}（人类 {human} / AI {ai}）");
-        Console.WriteLine($"  label 分布（34 格，0=1m…33=7z）：{string.Join(",", perTile)}");
+        Console.WriteLine(L.T("tools.cli.dataset.summary", ("files", files.Length), ("total", total), ("human", human), ("ai", ai)));
+        Console.WriteLine(L.T("tools.cli.dataset.labelHeader", ("values", string.Join(",", perTile))));
         return 0;
     }
 

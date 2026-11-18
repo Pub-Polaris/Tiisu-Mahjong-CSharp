@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using Tiisu.Localization;
+
 namespace Tiisu.Core;
 
 /// <summary>ike.json 中的一条役定义（普通役与高役共用）。</summary>
@@ -92,7 +94,7 @@ public sealed class YakuData
     public static YakuData Parse(string json)
     {
         var file = JsonSerializer.Deserialize<YakuFile>(json, JsonOptions)
-            ?? throw new InvalidOperationException("ike.json 解析结果为空");
+            ?? throw new InvalidOperationException(L.T("core.err.emptyYakuData"));
         return new YakuData
         {
             BaseFu = file.BaseFu ?? 7,

@@ -1,4 +1,5 @@
 using System;
+using Tiisu.Localization;
 using System.Collections.Concurrent;
 using System.Threading;
 using Tiisu.App.Table;
@@ -237,7 +238,7 @@ public sealed class GameSession : IDisposable
                 System.IO.File.AppendAllText(
                     System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tiisu-error.log"),
                     DateTime.Now.ToString("HH:mm:ss.fff")
-                    + " GameSession.Dispose: 引擎线程 5s 未退出，放弃释放命令队列（P0-2 临时方案）"
+                    + " " + L.T("app.runtime.log.engineThreadHang")
                     + Environment.NewLine);
             }
             catch

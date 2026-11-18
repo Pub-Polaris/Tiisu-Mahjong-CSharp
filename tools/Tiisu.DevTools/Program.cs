@@ -1,3 +1,5 @@
+using Tiisu.Localization;
+
 namespace Tiisu.DevTools;
 
 internal static class Program
@@ -15,6 +17,8 @@ internal static class Program
         }
 
         // 显式初始化，避免与 App 程序集里同名的 ApplicationConfiguration 生成类型冲突（CS0436）。
+        // GUI 跟随 TIISU_LANG；没设时用游戏设置里的语言，保持与主程序一致。
+        L.SetLanguage(Environment.GetEnvironmentVariable("TIISU_LANG") ?? Tiisu.App.Runtime.Settings.Load().Language);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);

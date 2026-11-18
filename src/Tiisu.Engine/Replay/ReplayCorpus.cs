@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using Tiisu.Localization;
+
 namespace Tiisu.Engine.Replay;
 
 /// <summary>
@@ -34,10 +36,10 @@ public sealed class ReplayCorpus
     public static ReplayCorpus Parse(string json)
     {
         var corpus = JsonSerializer.Deserialize<ReplayCorpus>(json, JsonOptions)
-            ?? throw new InvalidOperationException("回放语料解析结果为空");
+            ?? throw new InvalidOperationException(L.T("engine.err.replayCorpusEmpty"));
         if (corpus.Events.Count == 0)
         {
-            throw new InvalidOperationException("回放语料没有 events");
+            throw new InvalidOperationException(L.T("engine.err.replayCorpusNoEvents"));
         }
 
         return corpus;

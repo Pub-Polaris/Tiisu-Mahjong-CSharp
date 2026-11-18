@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Tiisu.Localization;
 using System.Globalization;
 using Tiisu.App.Table;
 using Tiisu.Core;
@@ -48,7 +49,7 @@ public sealed class UiInvariantAuditor
             {
                 if (!banned && !hasTsumo)
                 {
-                    Report("能自摸却没有和按钮", engine, vm, "");
+                    Report(L.T("app.runtime.audit.noTsumoButton"), engine, vm, "");
                 }
             }
             else if (hasTsumo)
@@ -56,29 +57,29 @@ public sealed class UiInvariantAuditor
                 bool misfire = eval.Reason == "no_yaku" && eval.ThresholdFu > 0 && eval.ThresholdFu < engine.BaseFu;
                 if (!misfire)
                 {
-                    Report("不能和却给了和按钮", engine, vm, eval.Reason ?? "");
+                    Report(L.T("app.runtime.audit.winButtonWithoutWin"), engine, vm, eval.Reason ?? "");
                 }
                 else if (string.IsNullOrEmpty(vm.WinHint))
                 {
-                    Report("错和候选但无可见提示", engine, vm,
+                    Report(L.T("app.runtime.audit.misfireNoHint"), engine, vm,
                         "fu=" + eval.ThresholdFu.ToString(CultureInfo.InvariantCulture));
                 }
             }
             else
             {
-                if (banned && !vm.WinHint.Contains("禁和", StringComparison.Ordinal))
+                if (banned && !vm.WinHint.Contains(L.T("app.runtime.hud.winBannedHint"), StringComparison.Ordinal))
                 {
-                    Report("禁和但无提示", engine, vm, "");
+                    Report(L.T("app.runtime.audit.winBannedNoHint"), engine, vm, "");
                 }
                 else if (eval.Reason == "no_yaku" && string.IsNullOrEmpty(vm.WinHint))
                 {
-                    Report("成和形但不能和且无提示", engine, vm,
+                    Report(L.T("app.runtime.audit.winShapeNoHint"), engine, vm,
                         "fu=" + eval.ThresholdFu.ToString(CultureInfo.InvariantCulture));
                 }
                 else if (eval.Reason == "no_yaku" && eval.ThresholdFu > 0 && eval.ThresholdFu < engine.BaseFu
-                         && !vm.WinHint.Contains("错和", StringComparison.Ordinal))
+)
                 {
-                    Report("赋不足无错和提示", engine, vm,
+                    Report(L.T("app.runtime.audit.fuNoMisfireHint"), engine, vm,
                         "fu=" + eval.ThresholdFu.ToString(CultureInfo.InvariantCulture));
                 }
             }
@@ -87,7 +88,7 @@ public sealed class UiInvariantAuditor
         if (vm.Phase == "human_ron"
             && ((vm.Actions & HumanAction.Ron) == 0 || (vm.Actions & HumanAction.Pass) == 0))
         {
-            Report("荣和窗口缺 Ron/Pass", engine, vm, "");
+            Report(L.T("app.runtime.audit.ronWindowMissing"), engine, vm, "");
         }
 
         // 待牌提示：13 张形逐张对照实际判和。
@@ -98,7 +99,7 @@ public sealed class UiInvariantAuditor
             {
                 if (!TryParseAtlas(wire, out var tile))
                 {
-                    Report("待牌提示无法解析", engine, vm, wire);
+                    Report(L.T("app.runtime.audit.tenpaiUnparsable"), engine, vm, wire);
                     continue;
                 }
 
@@ -106,7 +107,7 @@ public sealed class UiInvariantAuditor
                 var eval = engine.EvaluateWinFor(player, trial, selfDraw: true, tile);
                 if (!eval.Success && eval.Reason != "no_yaku")
                 {
-                    Report("待牌提示有张实际不能和", engine, vm,
+                    Report(L.T("app.runtime.audit.tenpaiCannotWin"), engine, vm,
                         wire + " reason=" + (eval.Reason ?? "?"));
                 }
             }

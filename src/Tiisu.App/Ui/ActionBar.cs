@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Tiisu.App.Rendering;
+using Tiisu.Localization;
 using Tiisu.App.Table;
 using Color = Tiisu.App.Rendering.Color;
 
@@ -142,28 +143,28 @@ public sealed class ActionBar
 
         if ((vm.Actions & HumanAction.Kan) != 0)
         {
-            items.Add((Kind.Kan, "杠", 0, true));
+            items.Add((Kind.Kan, L.T("app.ui.actionBar.kan"), 0, true));
         }
 
         if ((vm.Actions & HumanAction.Tsumo) != 0)
         {
-            items.Add((Kind.Tsumo, "和牌", 0, true));
+            items.Add((Kind.Tsumo, L.T("app.ui.actionBar.win"), 0, true));
         }
         else if ((vm.Actions & HumanAction.Ron) != 0)
         {
-            items.Add((Kind.Ron, "荣和", 0, true));
+            items.Add((Kind.Ron, L.T("app.ui.actionBar.ron"), 0, true));
         }
 
         if ((vm.Actions & HumanAction.Pon) != 0)
         {
-            items.Add((Kind.Pon, "碰", 0, true));
+            items.Add((Kind.Pon, L.T("app.ui.actionBar.pon"), 0, true));
         }
 
         if ((vm.Actions & HumanAction.Chi) != 0)
         {
             if (vm.ActionLabels.Count <= 1)
             {
-                items.Add((Kind.Chi, "吃", 0, true));
+                items.Add((Kind.Chi, L.T("app.ui.actionBar.chi"), 0, true));
             }
             else
             {
@@ -176,12 +177,12 @@ public sealed class ActionBar
 
         if ((vm.Actions & HumanAction.Pass) != 0)
         {
-            items.Add((Kind.Pass, "过", 0, true));
+            items.Add((Kind.Pass, L.T("app.ui.actionBar.pass"), 0, true));
         }
 
         if ((vm.Actions & HumanAction.Flow) != 0)
         {
-            items.Add((Kind.Flow, "流局", 0, true));
+            items.Add((Kind.Flow, L.T("app.ui.actionBar.draw"), 0, true));
         }
 
         // 报听：只在真的可以报听时出现（真听牌 / 摸牌后能打出成听牌形）。
@@ -190,7 +191,7 @@ public sealed class ActionBar
             && vm.Seats.Count > 0 && vm.Seats[0].Hand.Count > 0
             && (vm.Actions & HumanAction.DeclareCall) != 0)
         {
-            items.Add((Kind.DeclareCall, "报听", 0, true));
+            items.Add((Kind.DeclareCall, L.T("app.ui.actionBar.call"), 0, true));
         }
 
         if (items.Count == 0)
@@ -292,7 +293,7 @@ public sealed class ActionBar
 
         var box = new RectF(x - 8, y - 6, totalW + 8, th + 12);
         c.FillRoundRect(box, 8, Color.Rgb(0, 0, 0).WithAlpha(150));
-        c.DrawText(UiText.Tr("听牌"), new RectF(x, y + th / 2f - 10, labelW, 20),
+        c.DrawText(L.T("app.ui.actionBar.tenpai"), new RectF(x, y + th / 2f - 10, labelW, 20),
             Color.Rgb(255, 226, 140), new TextStyle(16, Bold: true, Center: false));
 
         float tx = x + labelW;

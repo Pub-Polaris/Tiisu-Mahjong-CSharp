@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Forms;
 using Tiisu.App.Rendering;
+using Tiisu.Localization;
 using Color = Tiisu.App.Rendering.Color;
 
 namespace Tiisu.App.Ui;
@@ -10,23 +11,23 @@ public sealed class TutorialScreen : Screen
 {
     private static readonly (string Title, string[] Lines)[] Pages =
     {
-        ("第一步 · 出牌", new[]
+        ("app.ui.tutorial.page1.title", new[]
         {
-            "轮到你时，点最下面一排手牌中的一张。",
-            "刚摸到的牌会单独放在最右，点它或点其他牌都可以。",
-            "不确定打哪张时，先看上方「听牌」提示和剩余张数。",
+            "app.ui.tutorial.page1.line1",
+            "app.ui.tutorial.page1.line2",
+            "app.ui.tutorial.page1.line3",
         }),
-        ("第二步 · 报听", new[]
+        ("app.ui.tutorial.page2.title", new[]
         {
-            "手牌进入听牌后，可以点「报听」。",
-            "报听后锁手：之后不能改变听牌形，只有不破坏听牌形的暗杠例外。",
-            "报听本身不加赋；报和时赋不足 7 会被判错和。",
+            "app.ui.tutorial.page2.line1",
+            "app.ui.tutorial.page2.line2",
+            "app.ui.tutorial.page2.line3",
         }),
-        ("第三步 · 和牌与结算", new[]
+        ("app.ui.tutorial.page3.title", new[]
         {
-            "能自摸时点「和牌」，别人打出铳张时点「荣和」。",
-            "结算页会列出役种、点数变化和局内调整。",
-            "点「下一局」继续；整场结束后回菜单。",
+            "app.ui.tutorial.page3.line1",
+            "app.ui.tutorial.page3.line2",
+            "app.ui.tutorial.page3.line3",
         }),
     };
 
@@ -55,9 +56,9 @@ public sealed class TutorialScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
 
-        c.DrawText(UiText.Tr("新手引导"), new RectF(0, 44, Width, 54),
+        c.DrawText(L.T("app.ui.tutorial.title"), new RectF(0, 44, Width, 54),
             Color.Rgb(242, 230, 190), new TextStyle(40, Bold: true, Center: true));
-        c.DrawText(UiText.Tr("三步上手 · 第 " + (_page + 1) + " / " + Pages.Length + " 页"),
+        c.DrawText(L.T("app.ui.tutorial.pageIndicator", ("current", _page + 1), ("total", Pages.Length)),
             new RectF(0, 100, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(15, Center: true));
 
         var (title, lines) = Pages[_page];
@@ -65,12 +66,12 @@ public sealed class TutorialScreen : Screen
         c.FillRoundRect(card, 16, Color.Rgb(26, 38, 34));
         c.StrokeRoundRect(card, 16, Color.Rgb(96, 122, 108), 1.2f);
 
-        c.DrawText(UiText.Tr(title), new RectF(card.X + 30, card.Y + 24, card.W - 60, 34),
+        c.DrawText(L.T(title), new RectF(card.X + 30, card.Y + 24, card.W - 60, 34),
             Color.Rgb(242, 201, 76), new TextStyle(24, Bold: true, Center: false));
         float y = card.Y + 78;
         foreach (string line in lines)
         {
-            c.DrawText("· " + UiText.Tr(line), new RectF(card.X + 30, y, card.W - 60, 30),
+            c.DrawText("· " + L.T(line), new RectF(card.X + 30, y, card.W - 60, 30),
                 Color.Rgb(220, 228, 220), new TextStyle(17, Center: false));
             y += 42;
         }
@@ -80,14 +81,14 @@ public sealed class TutorialScreen : Screen
         _backButton = new RectF(Width / 2f + 150, 574, 150, 44);
         _startButton = new RectF(Width / 2f - 100, 634, 200, 44);
 
-        DrawButton(c, _prev, "上一步", _prevHover, _page > 0);
-        DrawButton(c, _next, "下一步", _nextHover, _page < Pages.Length - 1);
-        DrawButton(c, _backButton, "返回菜单", _backHover, true);
+        DrawButton(c, _prev, L.T("app.ui.tutorial.prev"), _prevHover, _page > 0);
+        DrawButton(c, _next, L.T("app.ui.tutorial.next"), _nextHover, _page < Pages.Length - 1);
+        DrawButton(c, _backButton, L.T("app.ui.tutorial.back"), _backHover, true);
         string actionLabel = _page switch
         {
-            0 => "试打一局",
-            1 => "查看规则速查",
-            _ => "开始一局",
+            0 => L.T("app.ui.tutorial.tryRound"),
+            1 => L.T("app.ui.tutorial.viewRules"),
+            _ => L.T("app.ui.tutorial.startRound"),
         };
         DrawButton(c, _startButton, actionLabel, _startHover, true);
     }
@@ -100,7 +101,7 @@ public sealed class TutorialScreen : Screen
             : Color.Rgb(28, 36, 32);
         c.FillRoundRect(rect, 10, fill);
         c.StrokeRoundRect(rect, 10, border, 1.3f);
-        c.DrawText(UiText.Tr(label), rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
+        c.DrawText(label, rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
             new TextStyle(17, Bold: true, Center: true));
     }
 

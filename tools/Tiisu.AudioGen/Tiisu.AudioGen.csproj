@@ -14,4 +14,9 @@
     <PackageReference Include="System.Speech" Version="9.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 工具组输出文案走共享语言目录（tools.cli.audio.*） -->
+    <ProjectReference Include="..\..\src\Tiisu.Localization\Tiisu.Localization.csproj" />
+  </ItemGroup>
+
 </Project>

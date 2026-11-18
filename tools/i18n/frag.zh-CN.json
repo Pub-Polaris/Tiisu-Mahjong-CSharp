@@ -1,0 +1,1492 @@
+{
+  "updater": {
+    "cli": {
+      "usage": "Tiisu.Updater --apply <目录或 zip> [--install <安装目录>] [--sha256 <hex>] [--restart]"
+    },
+    "err": {
+      "applyRequired": "缺少 --apply <目录或 zip>",
+      "sourceNotFound": "源不存在: {path}",
+      "installDirNotFound": "安装目录不存在: {path}",
+      "sha256FileOnly": "--sha256 只支持文件（zip）",
+      "sha256Mismatch": "SHA256 不匹配：期望 {expected}，实际 {actual}",
+      "updateFailed": "更新失败: {message}",
+      "rollbackFailed": "回滚失败，备份保留在 {backup}：{message}",
+      "appStillRunning": "主程序仍在运行，已等待 60 秒"
+    },
+    "log": {
+      "backup": "备份: {path}",
+      "updated": "更新完成: {path}",
+      "restarted": "已重新启动: {path}",
+      "rollbackStart": "开始回滚: {path}",
+      "rollbackDone": "回滚完成"
+    }
+  },
+  "tools": {
+    "cli": {
+      "audio": {
+        "sfxHeader": "音效：",
+        "voiceHeader": "语音：",
+        "outputDir": "输出目录：{path}",
+        "skipExists": "skip（已存在）",
+        "voiceSkip": "skip（voices 已存在，--force 可重生成）",
+        "noChineseSapi": "（没有中文 SAPI 语音，改用 espeak-ng）",
+        "voiceFailed": "语音生成失败（可用 --espeak 指定 espeak-ng 路径）",
+        "bgmHeader": "BGM：",
+        "bgmSkip": "skip（{path} 已存在）",
+        "done": "完成。",
+        "espeakNotFound": "找不到 espeak-ng：{path}",
+        "espeakStartFailed": "启动 espeak-ng 失败",
+        "espeakSynthFailed": "espeak-ng 合成失败：{text}（exit {code}）",
+        "notWav": "不是 WAV: {path}",
+        "wavNoData": "WAV 缺少 data: {path}",
+        "noSapiVoice": "没有可用的中文 SAPI 语音",
+        "engineLine": "语音引擎：SAPI · {voice}",
+        "notRiff": "不是 RIFF/WAV: {path}",
+        "wavNoDataChunk": "WAV 缺 data 块: {path}",
+        "bgmSourceMissing": "BGM 源不存在: {path}",
+        "unsupportedBits": "暂不支持 {bits} bit",
+        "bgmConverted": "BGM {gain} dB → {path}（{kb} KB）"
+      },
+      "fixtures": {
+        "usage": {
+          "regenYaku": "  --regen-yaku-fixtures  用当前 C# 实现重算 yaku golden 语料的期望值（就地重写）",
+          "regenEngine": "  --regen-engine-fixtures 用当前引擎重算 engine-golden.json 每个事件的快照（就地重写）",
+          "probeLastTile": "  --probe-last-tile      校验和绝张的引擎可见张数口径（河里 + 副露，手牌不计）"
+        },
+        "corpusParseFailed": "语料解析失败: {path}",
+        "recordNotObject": "{file}[{index}] 不是对象",
+        "resultSerializeEmpty": "result 序列化为空",
+        "changeHeader": "  {file}[{index}] 变化:",
+        "regenSummary": "[{file}] 共 {count} 条，期望值变化 {changed} 条",
+        "regenTotal": "合计: 共 {total} 条，期望值变化 {changed} 条",
+        "meldNotObject": "melds 元素不是对象",
+        "meldTypeMissing": "melds[].type 缺失",
+        "fixtureNotFound": "找不到 {path}",
+        "engineEventsMissing": "engine-golden.json 缺少 events",
+        "eventCountMismatch": "事件数不一致：{actual} vs {expected}",
+        "eventChangeHeader": "  events[{index}] ({type}) 快照变化:",
+        "engineSummary": "[engine-golden.json] 共 {count} 个事件，快照变化 {changed} 条；非快照字段意外变化 {other} 条",
+        "writtenBack": "已写回: {path}",
+        "verifyClean": "[verify] 重读语料后 0 差异",
+        "verifyDirty": "[verify] 仍有差异:",
+        "aiDecisionsMissing": "ai-golden.json 缺少 decisions",
+        "decisionNotObject": "decisions[{index}] 不是对象",
+        "decisionKindMissing": "decisions[{index}].kind 缺失",
+        "decisionInMissing": "decisions[{index}].in 缺失",
+        "aiSummary": "[ai-golden.json] 共 {count} 条决策，out 变化 {changed} 条",
+        "unknownDecisionKind": "未知决策类型: {kind}",
+        "unknownWind": "未知门风: {wire}",
+        "probePass": "[probe] 全部通过",
+        "probeFail": "[probe] 失败 {count} 项",
+        "probeNoRon": "[probe] {label}: 未产生荣和（无法验证和绝张）",
+        "probeResult": "[probe] {label}: success={success}, totalFu={fu}, 和绝张={lastTile}",
+        "probeMismatch": "[probe] {label}: 期望和绝张={expected}，实际={actual}",
+        "caseLabel": {
+          "meld": "河里2+副露1",
+          "hand": "河里2+手牌1"
+        }
+      },
+      "report": {
+        "usage": "用法：--analyze-discards <dataset.jsonl> [--out report.md]",
+        "datasetNotFound": "找不到数据集：{path}",
+        "title": "# 弃牌偏好统计（人类 vs AI）",
+        "source": "数据：`{file}`",
+        "samples": "## 样本量",
+        "sourceTableHead": "| 来源 | 样本 | 平均巡目 |",
+        "humanRow": "| 人类 | {total} | {avg} |",
+        "aiRow": "| AI | {total} | {avg} |",
+        "categories": "## 类别占比",
+        "categoryTableHead": "| 类别 | 人类 | AI | 差（人−AI） |",
+        "honors": "字牌（1z-7z）",
+        "terminals": "幺九（1/9 数牌）",
+        "middle": "中张（2-8 数牌）",
+        "humanTop": "## 人类更爱打的牌（前 10，按「人类占比 − AI 占比」）",
+        "aiTop": "## AI 更爱打的牌（前 10）",
+        "tileTableHead": "| 牌 | 人类 | AI | 差 |",
+        "turnImpact": "## 巡目影响（字牌占各自弃牌的比例）",
+        "turnTableHead": "| 巡目段 | 人类 | AI |",
+        "distribution": "## 分布差异",
+        "tvLine": "- 总变差距离（0=完全相同，1=完全不同）：**{value}**",
+        "jsLine": "- 人类 vs AI 的 JS 散度：**{value}**",
+        "notes": "## 说明",
+        "noteSource": "- 样本来自 `roundlog_*.jsonl`，每条 = 一次实际弃牌。",
+        "noteTurn": "- 巡目 = 该玩家本局已打出的牌数，`0` 表示第一打。",
+        "noteSampleSize": "- 人类样本量远少于 AI 时会抖，建议攒到 5000+ 再看差异。",
+        "summary": "  人类 {human} 条 · AI {ai} 条 · TV 距离 {tv}"
+      },
+      "dataset": {
+        "usage": "用法：--export-dataset <out.jsonl> [logDir] [--human-only|--ai-only]",
+        "logDirNotFound": "找不到日志目录：{path}",
+        "noLogs": "目录里没有 roundlog_*.jsonl：{path}",
+        "summary": "  日志文件 {files} 个 · 样本 {total}（人类 {human} / AI {ai}）",
+        "labelHeader": "  label 分布（34 格，0=1m…33=7z）：{values}"
+      },
+      "devtools": {
+        "CheckI18n": {
+          "1": "check-i18n: FAIL 找不到 ",
+          "2": "check-i18n: {p1} 个键在 zh/en/ja 语言包里缺失",
+          "3": "  缺："
+        },
+        "CheckSteam": {
+          "1": "接入文档",
+          "2": "成就映射文档",
+          "3": "发布清单",
+          "4": "achievements.json 无法解析",
+          "5": "成就映射 10 项",
+          "6": "成就映射不是 10 项",
+          "7": "AppID（steam_appid.txt）",
+          "8": "VDF 模板",
+          "9": "Steam 接入检查",
+          "10": "  已就绪：",
+          "11": "  阻塞项：",
+          "12": "  结果：可以接真实 SDK",
+          "13": "  结果：未就绪（等待 AppID / SDK）"
+        },
+        "AuditUiStrings": {
+          "1": "audit-ui-strings: FAIL 找不到 ",
+          "2": "audit-ui-strings: {p1} 个中文 UI 字面量，{p2} 个文件"
+        },
+        "CheckFont": {
+          "1": "check-font: FAIL 字体不存在 ",
+          "2": "check-font: FAIL 字体无法加载 ",
+          "3": "  字符集 {p1}；缺字 {p2}",
+          "4": "  缺字："
+        },
+        "CheckPublish": {
+          "1": "publish 目录不存在: ",
+          "2": "缺少 ",
+          "3": "Assets/voices 仍存在（语音不应随包分发）",
+          "4": "禁止文件: ",
+          "5": "未找到 ASSET-HASHES.md，跳过哈希核对",
+          "6": "哈希清单里的文件缺失: ",
+          "7": "哈希不一致: ",
+          "8": "已核对资源哈希 ",
+          "9": " 个",
+          "10": " 项失败"
+        },
+        "BenchSnapshot": {
+          "1": "  (听牌缓存开启；同状态重复构建)"
+        },
+        "AuditGames": {
+          "1": "passive 驱动遇到未知阶段: ",
+          "2": "  ... {p1}/{p2} 局，问题 {p3}，耗时 {p4}s",
+          "3": "  并行 {p1} 路（CPU {p2} 线程）",
+          "4": "  完成 {p1}/{p2}（异常 {p3}）· 总小局 {p4}（和牌 {p5} / 流局 {p6}）",
+          "5": "  结算自检问题: {p1}",
+          "6": "  UI/提示自检问题: {p1}"
+        },
+        "SmokeRun": {
+          "1": "用法：--smoke-run <seed> [mode] [--record]",
+          "2": "未在 {p1} 次推进内终局（phase={p2}）"
+        },
+        "SmokeAi": {
+          "1": "用法：--smoke-ai <seed> [mode]",
+          "2": "  权重: ",
+          "3": "  修罗MCTS: ",
+          "4": "开",
+          "5": "关",
+          "6": "  四家等级: ",
+          "7": "  弃牌决策: ",
+          "8": " 次（",
+          "9": "）",
+          "10": "  完成: {0}  rounds={1} handsPlayed={2}  总耗时={3:F0} ms  平均每步={4:F3} ms",
+          "11": "是",
+          "12": "否",
+          "13": "smoke-ai 未终局（phase={p1}）"
+        },
+        "SmokeAiCall": {
+          "1": "用法：--smoke-ai-call <seed> [mode]",
+          "2": "  报听次数: 总=",
+          "3": "（",
+          "4": " 次",
+          "5": "  完成: {0}  rounds={1} handsPlayed={2}  总耗时={3:F0} ms",
+          "6": "smoke-ai-call 未终局（phase={p1}）"
+        },
+        "SmokeSave": {
+          "1": "smoke-save（验证存档已停用）",
+          "2": "  SaveStore.Enabled={p1}  打完 {p2} 局: {p3}",
+          "3": "  存档路径: {p1}",
+          "4": "  文件存在: {p1} → {p2}  内容: {p3}",
+          "5": "  结论: {p1}",
+          "unchanged": "未变",
+          "changed": "已变",
+          "saveNotWritten": "未写盘",
+          "saveWritten": "写盘了（停用失效）",
+          "noResumeEntry": "无恢复入口",
+          "resumeEntryStill": "恢复入口仍在"
+        },
+        "SmokeResume": {
+          "1": "smoke-resume（验证恢复已停用）",
+          "2": "  菜单 action=resume 入口: {p1}",
+          "3": "  GameSession.PostResume: {p1}",
+          "4": "  SaveStore.Load（{p1}）: {p2}",
+          "hasEntry": "有",
+          "noEntry": "无",
+          "exists": "存在",
+          "missing": "不存在",
+          "loadBlocked": "null（不读档）",
+          "loadRead": "读出存档"
+        },
+        "SmokeSession": {
+          "1": "seed 无效",
+          "2": "  终局快照: phase={p1} roundLabel={p2} 人类命令={p3} 事件={p4}",
+          "3": "  四家分数: ",
+          "4": "会话未正常终局"
+        },
+        "SmokePointer": {
+          "1": "  终局快照: phase={p1} roundLabel={p2} 输入动作={p3} 点手牌出牌={p4}",
+          "2": "输入层自检未正常终局"
+        },
+        "CheckVoices": {
+          "1": "副露类型 → 语音名"
+        },
+        "SmokeEscape": {
+          "1": "  牌桌 ESC（有「过」）: handled={p1} command={p2}",
+          "2": "  牌桌 ESC（结算弹窗）: handled={p1} 弹窗关闭={p2}",
+          "3": "  牌桌 ESC（弹窗已关）: handled={p1} 回菜单={p2}",
+          "4": "  菜单 ESC: handled={p1} 动作=\"{p2}\"（不退出、不做事）",
+          "5": "  菜单「退出」按钮: handled={p1} action=\"{p2}\"",
+          "6": "  设置 ESC: handled={p1} 回菜单={p2}"
+        },
+        "SmokeCredits": {
+          "1": "开源信息",
+          "2": "  署名行: \"{p1}\"  y={p2}  fontSize={p3}",
+          "3": "  [缺失] {p1} → {p2}",
+          "4": "  分隔符（空 URL）保留: {p1}",
+          "5": "  ESC: handled={p1} 无动作={p2}",
+          "6": "  「退出」按钮: handled={p1} action=\"{p2}\"",
+          "7": "  与按钮重叠: {p1}"
+        },
+        "PrintSmoke": {
+          "1": "  局数: rounds={p1} handsPlayed={p2} mode={p3}",
+          "2": "  和牌/流局: 和牌 {p1} 局（自摸 {p2} / 荣和 {p3}）· 流局 {p4} 局（特殊 {p5}）"
+        },
+        "CreateScreen": {
+          "1": "参考与合规说明"
+        },
+        "RenderHandsToPng": {
+          "1": "{p1}家（{p2}）：{p3}",
+          "2": "系统时间 {p1}",
+          "3": "第 {p1} · 余 {p2} 张 · seed={p3} mode={p4}",
+          "4": "rendered hands -> {p1}  {p2} 余{p3} 人类弃牌={p4} 阶段={p5}"
+        },
+        "RenderTileRotate": {
+          "1": "牌面图集不可用（Assets/tiles.png / tiles.json）"
+        },
+        "RenderRoundEndToPng": {
+          "1": "没有在第一次局末停下（phase={p1}）",
+          "2": "  结果: kind={p1} winners=[{p2}] ",
+          "3": "  分数: ",
+          "4": "  明细: {p1} 条",
+          "5": "自摸",
+          "6": "荣和",
+          "7": "      役: "
+        },
+        "BenchGl": {
+          "1": "GL 不可用，跳过：{p1}",
+          "2": "GL 不可用，跳过：离屏 GPU surface 创建失败",
+          "unknownReason": "未知原因"
+        },
+        "Render25DToPng": {
+          "1": "未知 --variant：{p1}（mixed | flat | light | medium）"
+        },
+        "ExportSvg": {
+          "1": "exported svg -> {p1}（内嵌牌面 {p2} 张）/ table-regions.svg / layout.json / layout.md"
+        },
+        "SmokeCall": {
+          "1": "13 张手牌听牌",
+          "2": "报听宣言",
+          "3": "重复宣言被拒",
+          "4": "非听牌不能报",
+          "5": "锁手拒绝改听牌张",
+          "6": "未找到破坏听牌形的打牌",
+          "7": "越界弃牌被引擎拦下",
+          "8": "禁吃碰明杠加杠",
+          "9": "引擎硬拒绝副露",
+          "10": "暗杠例外（形不变）",
+          "11": "非四张暗杠被拒",
+          "12": "加杠被拒",
+          "13": "报听后加杠",
+          "14": "普通错和 Z=赋×700",
+          "15": "错和解除报听",
+          "16": "本巡禁和标记",
+          "17": "重罚错和（子家违规）",
+          "18": "重罚：本局+下局禁和",
+          "19": "流局报听者算听牌",
+          "20": "流局未听牌家灰显依据",
+          "21": "流局翻牌"
+        },
+        "PlayReal": {
+          "1": "用法：--play-real <seed> [mode] [games]",
+          "2": "动作数超过 200000",
+          "3": "卡在 {p1}（回合={p2}，手牌={p3}，动作={p4}）",
+          "4": "过牌后手牌张数异常：{p1} -> {p2}",
+          "5": "（应在 {p1}..{p2}）",
+          "timeoutNotFinished": "45 秒内未终局（阶段={phase}）",
+          "10": "耗时={p1}s 步数={p2} 荣和窗口={p3} 过牌={p4} ",
+          "11": "报听={p1} 阶段={p2} 结果={p3}",
+          "noPlayableTile": "找不到可打的牌（手牌={count}：{hand}，报听={called}）"
+        },
+        "SmokeCalledRonPass": {
+          "1": "未出现报听荣和",
+          "2": "找不到可打的牌",
+          "3": "  荣和窗口: actions={p1} passFlag={p2} ",
+          "4": "passBtn={p1} clickable={p2} overlap={p3}",
+          "5": "报听荣和→过：阶段={p1} 手牌 {p2}->{p3}",
+          "6": "  副露={p1} 有取牌下标={p2}",
+          "7": "smoke-called-ron-pass: seed={p1} 报听={p2} 报听荣和={p3} ",
+          "8": "{p1} 锁手灰显={p2} {p3}",
+          "noPassButton": "无"
+        },
+        "ListLocks": {
+          "1": "随机",
+          "2": "简单",
+          "3": "普通",
+          "4": "困难",
+          "5": "修罗",
+          "6": "  座 {p1}: {p2}"
+        },
+        "Smoke7Neuu": {
+          "1": "smoke-7neuu: 神经决策 {p1} 次（与困难不同 {p2}）{p3}"
+        },
+        "SelfPlay": {
+          "1": "  {p1}/{p2}  平均顺位 {p3}  一位率 {p4}",
+          "2": "selfplay: {p1} 局 → {p2}",
+          "3": "  平均顺位 {p1}，一位率 {p2}，耗时 {p3}s"
+        },
+        "SmokeAb": {
+          "1": "  神经座平均顺位 {p1}（一位率 {p2}）",
+          "2": "  基线座平均顺位 {p1}（一位率 {p2}）",
+          "3": "  神经决策 {p1} 次，与 TieredAi 不同 {p2} 次（AI 总决策 {p3}）",
+          "4": "  神经顺位: {p1} / 基线: {p2}"
+        },
+        "SmokeRulesetSwitch": {
+          "1": "smoke-ruleset-switch: 初始七子={p1} 切换后推倒胡={p2} {p3}"
+        },
+        "SmokeNeural": {
+          "1": "  手牌={p1}",
+          "2": "  选择={p1} {p2}",
+          "none": "无"
+        },
+        "SmokeOptional": {
+          "1": "smoke-optional: 默认关闭={p1} 应用后全数={p2} {p3}"
+        },
+        "SmokeTuidaoHu": {
+          "1": "smoke-tuidaohu: seed={p1} 阶段={p2} 简化结算={p3} ",
+          "2": "零分数={p1} 报听={p2} {p3}"
+        },
+        "SmokeDice": {
+          "1": "smoke-dice: 面板像素变化={p1} 定庄骰={p2} 切牌骰={p3} ",
+          "2": "跳墩={p1} {p2}"
+        },
+        "SmokeThink": {
+          "1": "smoke-think: 人类出牌={p1} 手牌={p2} 自动动作={p3} 结束阶段={p4} "
+        },
+        "SmokeCallFlow": {
+          "1": "用法：--smoke-call-flow <seed> [mode]",
+          "2": "未出现报听时机",
+          "3": "动作数超过 50000",
+          "6": "报听按钮可用但找不到保持听牌的弃牌",
+          "7": "  报听: 打出={0} isCalled={1} 阶段={2} 回合={3}->{4} 牌山={5}->{6} 用时={7:F0}ms",
+          "14": "没有可打出的手牌",
+          "20": "  报听时机={p1} 人类动作={p2} 用时={p3}s",
+          "21": "点报听未出牌不卡",
+          "22": "待弃态只改 UI，不发命令；取消后仍可正常出牌",
+          "23": "报听并弃牌",
+          "24": "人类 isCalled=true",
+          "25": "报听后牌局推进",
+          "26": "报听后按钮消失",
+          "27": "已报听不再显示报听按钮",
+          "28": "本局已结束，跳过按钮检查",
+          "29": "报听后仍能出牌",
+          "30": "本局未再轮到出牌",
+          "31": "锁手允许的弃牌被接受",
+          "32": "整场在时限内终局",
+          "33": "阶段={p1} 用时={p2}s / 上限 {p3}s",
+          "34": "  卡住: ",
+          "declared": "已宣言",
+          "notSeen": "未出现",
+          "advanceDetail": "宣言后阶段={phase}，回合 {turnBefore}->{turnAfter}，牌山 {wallBefore}->{wallAfter}",
+          "stuckAt": "牌局停在 {phase}，无人推进",
+          "noAdvance": "报听并弃牌后牌局没有推进（阶段={phase}，回合已到 {turn}，牌山仍为 {wall}）",
+          "discardRejected": "出牌未被接受（手牌={count}，阶段={phase}，动作={actions}，下标={pick}，牌={tile}）"
+        },
+        "SmokeLayoutEditor": {
+          "1": "区域可枚举（{p1} 个，≥16）",
+          "2": "覆盖必需区域",
+          "3": "  默认 hand-self = {p1},{p2} {p3}×{p4}",
+          "4": "进入编辑模式",
+          "5": "  拖动后 hand-self = {p1},{p2} {p3}×{p4}",
+          "6": "拖拽 +10,+10 生效",
+          "7": "S 保存文件",
+          "8": "JSON 含 version 与区域 x/y/w/h",
+          "9": "  重新加载 hand-self = {p1},{p2}",
+          "10": "重新加载生效",
+          "11": "R 第一次只提醒（文件保留）",
+          "12": "R 第二次删除自定义文件",
+          "13": "  恢复默认 hand-self = {p1},{p2}",
+          "14": "恢复默认回原值",
+          "15": "非法 JSON：不崩、不生效",
+          "16": "字段缺失 / 未知区域：忽略并继续用默认",
+          "17": "  启动异常: ",
+          "18": "启动时布局文件损坏 → 正常启动"
+        },
+        "YakuStats": {
+          "1": "yaku-stats: {p1} 局 / {p2} 和牌 -> {p3}"
+        }
+      }
+    },
+    "devtools": {
+      "tableStyle": {
+        "flat": "平面"
+      },
+      "title": "Tiisu 开发者工具",
+      "status": {
+        "ready": "就绪",
+        "gameExeMissing": "未找到 Tiisu.Mahjong.exe：先 dotnet build src/Tiisu.App -c Release",
+        "publishMissing": "还没有 dist/publish",
+        "installerScriptMissing": "找不到 installer/build_installer.ps1",
+        "steamScriptMissing": "找不到 tools/steam_package.ps1",
+        "rulesScriptMissing": "找不到 tools/build_rules_lib.ps1",
+        "hashesWritten": "已把 dist 产物哈希写入日志",
+        "desktopSetupMissing": "桌面没有安装包",
+        "desktopSetupFound": "已定位桌面安装包",
+        "layoutLocated": "已定位 layout-custom.json",
+        "layoutOpenFailed": "打开布局文件失败",
+        "noCustomLayout": "还没有自定义布局（当前为默认布局）",
+        "noCustomLayoutDelete": "没有自定义布局，已是默认布局",
+        "deleteCancelled": "已取消删除",
+        "deleted": "已删除自定义布局（恢复默认）",
+        "busy": "上一条命令还在执行，请稍候",
+        "gameStarted": "游戏已启动 · 进入牌桌按 F2 编辑布局",
+        "launchFailed": "启动游戏失败：{message}",
+        "deleteFailed": "删除失败：{message}",
+        "taskFailed": "{title} 失败：{message}",
+        "commandNotStartable": "{title}：命令无法启动",
+        "dirMissing": "{label} 目录不存在，先生成一次",
+        "opened": "已打开 {label}",
+        "openFailedLabel": "打开 {label} 失败",
+        "taskResult": "{title}：{summary}",
+        "toolMissing": "找不到 {name}：先 {build}"
+      },
+      "log": {
+        "group": "运行日志",
+        "cancelledSelfplay": "  已取消：导出自博弈数据",
+        "cancelledAudit": "  已取消：批量审局",
+        "cancelled": "  已取消",
+        "explorerLocated": "  已在资源管理器中定位",
+        "noCustomLayout": "  ! 还没有自定义布局，游戏当前使用默认布局",
+        "noCustomLayoutDelete": "  ! 没有自定义布局，已经是默认布局",
+        "deleted": "  已删除，下次启动游戏使用默认布局",
+        "artifactHashes": "产物 SHA256",
+        "launchGame": "启动游戏（布局编辑）",
+        "viewLayout": "查看当前自定义布局",
+        "deleteLayout": "删除自定义布局",
+        "outputDir": "  输出目录：{path}",
+        "started": "  已启动（PID {pid}）",
+        "launchFailed": "  ! 启动失败：{message}",
+        "openFailed": "  ! 打开失败：{path}",
+        "deleteFailed": "  ! 删除失败：{message}",
+        "unhandled": "  ! 未处理的异常：{message}",
+        "startFailed": "  ! 启动失败：{message}",
+        "outputFileMissing": "  ! 命令成功但没找到输出文件：{path}",
+        "output": "  输出：{path}",
+        "dirMissing": "  ! {label} 目录不存在：{path}",
+        "opened": "  已打开 {label}：{path}",
+        "openFailedLabel": "  ! 打开失败 {label}：{path}",
+        "tailTruncated": "…（仅显示末尾 {limit} 字符）",
+        "cannotLocate": "  ! 无法在资源管理器中定位该文件",
+        "publishMissing": "  ! 还没有 dist/publish：先生成安装包",
+        "installerScriptMissing": "  ! 找不到安装包脚本：{path}",
+        "steamScriptMissing": "  ! 找不到 Steam 打包脚本：{path}",
+        "rulesScriptMissing": "  ! 找不到规则库脚本：{path}",
+        "distMissing": "  ! dist 不存在，先生成安装包 / 规则库",
+        "desktopSetupMissing": "  ! 桌面没有 TiisuMahjong-Setup.exe，先生成安装包"
+      },
+      "tab": {
+        "taskCenter": "任务中心",
+        "legacy": "旧版工具"
+      },
+      "startup": {
+        "banner": "Tiisu 开发者工具 —— 美工 / 音效 / 布局 / 牌桌样式"
+      },
+      "section": {
+        "art": "美工",
+        "audio": "音效",
+        "layout": "布局",
+        "style": "牌桌样式",
+        "publish": "发布 / 合规"
+      },
+      "action": {
+        "exportUiSvg": "导出合并 SVG",
+        "renderActions": "按钮三态图",
+        "openOutput": "打开输出目录",
+        "generateAudio": "生成音效+语音",
+        "generateSfx": "只生成音效",
+        "openSounds": "打开 sounds 目录",
+        "openVoices": "打开 voices 目录",
+        "launchGame": "启动游戏（布局编辑）",
+        "viewLayout": "查看当前自定义布局",
+        "deleteLayout": "删除自定义布局（恢复默认）",
+        "renderAllStyles": "全部生成并打开目录",
+        "checkPublish": "发布自检",
+        "buildInstaller": "生成安装包",
+        "buildRules": "生成规则库",
+        "copyHashes": "复制产物哈希",
+        "openDist": "打开 dist",
+        "openDesktopSetup": "打开桌面安装包",
+        "checkSteam": "Steam 就绪检查",
+        "buildSteamDepot": "Steam Depot",
+        "exportSelfplay": "导出自博弈数据",
+        "smokeNeural": "验证 7Neuu 权重",
+        "smoke7neuu": "验证 7Neuu 决策",
+        "benchSnapshot": "UI 快照性能",
+        "auditGames": "批量审局",
+        "auditUi": "UI 不变量审计",
+        "auditCall": "报听分支审计",
+        "smokeRun": "整场冒烟",
+        "checkFont": "字体缺字检查",
+        "auditUiStrings": "盘点 UI 文案",
+        "exportAtlas": "导出 UI 图集"
+      },
+      "task": {
+        "renderRoundEnd": "出图：结算页",
+        "renderActions": "出图：按钮三态",
+        "renderTableStyle": "出图：牌桌样式",
+        "renderScreen": "出图：{screen}",
+        "tableStyleWithLabel": "牌桌样式 {style}",
+        "exportSteamShots": "Steam 商店截图",
+        "exportSteamCapsules": "Steam 胶囊图"
+      },
+      "open": {
+        "label": {
+          "renderDir": "出图目录",
+          "aiData": "自博弈数据",
+          "outputDir": "输出目录"
+        }
+      },
+      "summary": {
+        "allStylesOk": "全部生成：{total}/{total} 成功",
+        "allStylesPartial": "全部生成：{ok}/{total} 成功，{failed} 个失败",
+        "exitFailed": "exit {code}（失败）"
+      },
+      "dialog": {
+        "viewLayout": {
+          "title": "查看自定义布局",
+          "text": "还没有自定义布局，游戏当前使用默认布局。\n\n进入游戏牌桌按 F2 编辑，按 S 保存后会生成：\n{path}"
+        },
+        "deleteLayout": {
+          "title": "删除自定义布局",
+          "text": "删除后游戏恢复默认布局，不能撤销。\n\n{path}"
+        },
+        "layoutEdit": {
+          "title": "布局编辑",
+          "text": "已启动 Tiisu.Mahjong.exe。\n\n进入牌桌按 F2 进入布局编辑（S 保存，R 两次确认恢复默认）。"
+        },
+        "commandFailed": {
+          "title": "{title} —— 命令无法启动"
+        },
+        "toolMissing": {
+          "title": "找不到命令",
+          "text": "找不到 {name}。\n\n先构建：{build}\n或在 config.toml 的 [dev] root 指定仓库根目录。"
+        },
+        "selfplay": {
+          "title": "导出自博弈数据",
+          "browse": "浏览…",
+          "saveTitle": "保存自博弈数据",
+          "filter": "JSONL (*.jsonl)|*.jsonl|所有文件 (*.*)|*.*",
+          "field": {
+            "games": "局数",
+            "jobs": "并行 jobs",
+            "sampleEvery": "每 N 步采样",
+            "explore": "探索率 0–0.9",
+            "output": "输出文件"
+          },
+          "hint": "1000 局约数分钟；big 局数建议 jobs ≤ CPU 核数。输出为 JSONL，可续跑。",
+          "start": "开始导出",
+          "cancel": "取消",
+          "emptyOutput": "输出文件不能为空。",
+          "paramError": "参数错误"
+        },
+        "audit": {
+          "title": "批量审局",
+          "field": {
+            "count": "局数",
+            "mode": "模式局数",
+            "jobs": "并行 jobs",
+            "seed": "起始种子"
+          },
+          "checkbox": {
+            "ui": "UI 不变量审计（--ui）",
+            "passive": "被动人类：能和也不和（--passive）",
+            "call": "覆盖报听分支（--call）"
+          },
+          "start": "开始审计",
+          "cancel": "取消"
+        }
+      },
+      "toolchain": {
+        "rootFromConfig": "仓库根来自 config.toml [dev] root：{path}",
+        "rootNotFound": "未找到仓库根；可在 %APPDATA%\\TiisuMahjong\\config.toml 的 [dev] root 指定。",
+        "gameMissing": "{name}：未找到（先 dotnet build src/Tiisu.App）",
+        "audioMissing": "{name}：未找到（先 dotnet build tools/Tiisu.AudioGen）",
+        "found": "{name}：{path}",
+        "configRootMissing": "config.toml [dev] root 指向的目录不存在：{path}",
+        "configRootIncomplete": "config.toml [dev] root 里没有 src/Tiisu.App 与 Tiisu.slnx，仍按原样使用：{path}"
+      },
+      "command": {
+        "startNull": "Process.Start 返回 null",
+        "startNullPath": "Process.Start 返回 null：{path}",
+        "exeNotFound": "找不到可执行文件：{path}",
+        "notFound": "系统找不到该命令：{path}",
+        "accessDenied": "没有权限执行：{path}（{message}）"
+      },
+      "category": {
+        "publish": "发布",
+        "render": "出图",
+        "audit": "审局",
+        "ai": "AI 数据",
+        "resource": "资源"
+      },
+      "taskc": {
+        "title": "任务中心",
+        "browse": "浏览…",
+        "chooseOutput": "选择出图输出目录",
+        "preview": "最近产物",
+        "noPreview": "还没有出图。运行一个出图任务后，这里显示缩略图。",
+        "categoryEmpty": "这个分类还没迁移；先看「发布」或「出图」。",
+        "outputPrefix": "产物：{hint}",
+        "run": "运行",
+        "confirmOverwrite": "会覆盖现有产物，继续？\n\n{title}",
+        "confirmTitle": "确认执行",
+        "cancelled": "  已取消：{title}",
+        "running": "运行中…",
+        "done": "完成",
+        "failed": "失败：{message}",
+        "logFailed": "  ! {title}：{message}",
+        "noImage": "该任务没有图片产物。",
+        "previewFailed": "预览失败：{message}",
+        "publish.check": {
+          "title": "发布自检",
+          "summary": "检查 dist/publish 的许可、字体、资源哈希与禁带项。"
+        },
+        "publish.steam-check": {
+          "title": "Steam 就绪检查",
+          "summary": "检查 AppID、Steamworks SDK、成就映射、Depot；缺 AppID 只报告不报错。"
+        },
+        "publish.installer": {
+          "title": "生成安装包",
+          "summary": "重新 publish 并打包 Setup，复制到桌面。"
+        },
+        "publish.steam": {
+          "title": "Steam Depot",
+          "summary": "从 dist/publish 生成 Steam depot 内容、清单与 VDF 模板。"
+        },
+        "publish.rules": {
+          "title": "生成规则库",
+          "summary": "生成规则库独立 zip，供外部调用方引用。"
+        },
+        "publish.hashes": {
+          "title": "复制产物哈希",
+          "summary": "把 dist 下文件的 SHA256 写进日志，方便发版说明。"
+        },
+        "publish.open-dist": {
+          "title": "打开 dist",
+          "summary": "定位安装包与规则库的输出目录。"
+        },
+        "publish.open-setup": {
+          "title": "打开桌面安装包",
+          "summary": "定位桌面上的 TiisuMahjong-Setup.exe。"
+        },
+        "render.table": {
+          "title": "牌桌截图",
+          "summary": "当前牌桌布局与手牌，用于检查视觉回归。"
+        },
+        "render.menu": {
+          "title": "主菜单截图",
+          "summary": "菜单标题、模式按钮与底部署名。"
+        },
+        "render.settings": {
+          "title": "设置页截图",
+          "summary": "设置页分组与滑条，检查文字是否溢出。"
+        },
+        "render.tutorial": {
+          "title": "新手引导截图",
+          "summary": "新手引导三页的第一页。"
+        },
+        "render.markdown": {
+          "title": "参考文档截图",
+          "summary": "Markdown 渲染器的参考文献页。"
+        },
+        "render.roundend": {
+          "title": "结算页截图",
+          "summary": "单家和牌结算布局；不跑游戏。"
+        },
+        "render.actions": {
+          "title": "按钮三态图",
+          "summary": "动作按钮 normal / hover / pressed 对照。"
+        },
+        "render.ui-svg": {
+          "title": "导出合并 SVG",
+          "summary": "UI 图形合并为可编辑 SVG。"
+        },
+        "render.style": {
+          "title": "牌桌样式：平面",
+          "summary": "当前唯一的 Flat 牌桌出图。"
+        },
+        "render.steam": {
+          "title": "Steam 商店截图",
+          "summary": "1920×1080 牌桌/菜单/设置/战绩/成就/回牌谱，输出到 artifacts/steam。"
+        },
+        "render.steam-capsules": {
+          "title": "Steam 胶囊图",
+          "summary": "生成主图/页头/小图/库图/库头图，输出 artifacts/steam/capsules。"
+        },
+        "render.open-output": {
+          "title": "打开出图目录",
+          "summary": "定位本次出图的输出目录。"
+        },
+        "ai.export-selfplay": {
+          "title": "导出自博弈数据",
+          "summary": "跑自博弈并导出弃牌样本 JSONL；参数在弹窗里选。"
+        },
+        "ai.smoke-neural": {
+          "title": "验证 7Neuu 权重",
+          "summary": "检查 v4 权重能否加载并给出合法弃牌。"
+        },
+        "ai.smoke-7neuu": {
+          "title": "验证 7Neuu 决策",
+          "summary": "整局跑一遍，确认 7Neuu 座位真的走小策略网。"
+        },
+        "ai.bench-snapshot": {
+          "title": "UI 快照性能",
+          "summary": "用真实引擎状态重复构建 UI 快照，输出耗时/分配。"
+        },
+        "ai.open-data": {
+          "title": "打开数据目录",
+          "summary": "定位自博弈 JSONL 的输出目录。"
+        },
+        "audit.games": {
+          "title": "批量审局",
+          "summary": "弹窗选局数/模式/jobs/种子，可开 UI 不变量与报听分支。"
+        },
+        "audit.ui": {
+          "title": "UI 不变量审计",
+          "summary": "固定 50 局，启用 --ui 检查快照/按钮/提示不变量。"
+        },
+        "audit.call": {
+          "title": "报听分支审计",
+          "summary": "固定 50 局，--call --passive 覆盖报听与过牌分支。"
+        },
+        "audit.smoke": {
+          "title": "整场冒烟",
+          "summary": "无窗口跑一整场，输出事件流哈希。"
+        },
+        "resource.font": {
+          "title": "字体缺字检查",
+          "summary": "检查字体子集是否覆盖版本代号、UI 文案与 docs。"
+        },
+        "resource.i18n": {
+          "title": "盘点 UI 文案",
+          "summary": "扫描 App 里的中文 UI 字面量，输出 CSV 作为英文本地化范围。"
+        },
+        "resource.atlas": {
+          "title": "导出 UI 图集",
+          "summary": "把 UI 图元导出为图集 PNG。"
+        },
+        "resource.open-assets": {
+          "title": "打开 Assets",
+          "summary": "定位牌面、字体、音频与许可目录。"
+        },
+        "resource.open-docs": {
+          "title": "打开 docs",
+          "summary": "定位参考/合规/ML 文档目录。"
+        },
+        "hint": "按分类选任务，产物与说明都在卡片上。"
+      },
+      "hint": {
+        "none": "无文件产物；结果看日志",
+        "logReadyBlocked": "日志：就绪项 / 阻塞项",
+        "sha256Log": "日志中的 SHA256",
+        "explorer": "资源管理器",
+        "passFail": "日志：PASS / FAIL",
+        "bench": "日志：us/iter",
+        "auditCount": "日志：完成数 / 问题数",
+        "auditUi": "日志：UI 问题数",
+        "auditCall": "日志：问题数",
+        "smoke": "日志：事件流 SHA256",
+        "font": "日志：缺字列表 / PASS",
+        "capsules": "主图 616×353 等 5 张"
+      }
+    }
+  },
+  "app": {
+    "achievement": {
+      "first-round": {
+        "title": "初战",
+        "desc": "完成 1 个小局"
+      },
+      "ten-rounds": {
+        "title": "十局",
+        "desc": "完成 10 个小局"
+      },
+      "hundred-rounds": {
+        "title": "百局",
+        "desc": "完成 100 个小局"
+      },
+      "first-win": {
+        "title": "首胜",
+        "desc": "和牌 1 次"
+      },
+      "ten-wins": {
+        "title": "十胜",
+        "desc": "和牌 10 次"
+      },
+      "hundred-wins": {
+        "title": "百胜",
+        "desc": "和牌 100 次"
+      },
+      "first-tsumo": {
+        "title": "自摸",
+        "desc": "自摸 1 次"
+      },
+      "ten-tsumo": {
+        "title": "自摸十次",
+        "desc": "自摸 10 次"
+      },
+      "tiisuin": {
+        "title": "大七星",
+        "desc": "打出一次大七星"
+      },
+      "witness": {
+        "title": "见证",
+        "desc": "见证一次大七星"
+      }
+    },
+    "ui": {
+      "rules": {
+        "title": "规则速查",
+        "subtitle": "七子麻将 · 和「标准日麻」不同的地方",
+        "section1": {
+          "title": "起和与报听",
+          "line1": "手牌够 7 赋才能和；赋不够不能和。",
+          "line2": "报听本身不加赋，也不给额外收益。",
+          "line3": "听牌即可报听；报听后锁手，不破坏听牌形的暗杠除外。"
+        },
+        "section2": {
+          "title": "错和惩罚",
+          "line1": "报听后主动报和，实际赋 < 7 = 错和。",
+          "line2": "向三家赔 Z = 赋 × 700。",
+          "line3": "Z > 2100 重罚：禁和本局 + 下局。"
+        },
+        "section3": {
+          "title": "场供与蓝筹",
+          "line1": "结算按 350 点蓝筹取整。",
+          "line2": "自摸除不尽的尾数进场供池。",
+          "line3": "场供由下一手和牌者拿走；本场连庄有加成。"
+        },
+        "back": "返回菜单"
+      },
+      "tutorial": {
+        "title": "新手引导",
+        "pageIndicator": "三步上手 · 第 {current} / {total} 页",
+        "page1": {
+          "title": "第一步 · 出牌",
+          "line1": "轮到你时，点最下面一排手牌中的一张。",
+          "line2": "刚摸到的牌会单独放在最右，点它或点其他牌都可以。",
+          "line3": "不确定打哪张时，先看上方「听牌」提示和剩余张数。"
+        },
+        "page2": {
+          "title": "第二步 · 报听",
+          "line1": "手牌进入听牌后，可以点「报听」。",
+          "line2": "报听后锁手：之后不能改变听牌形，只有不破坏听牌形的暗杠例外。",
+          "line3": "报听本身不加赋；报和时赋不足 7 会被判错和。"
+        },
+        "page3": {
+          "title": "第三步 · 和牌与结算",
+          "line1": "能自摸时点「和牌」，别人打出铳张时点「荣和」。",
+          "line2": "结算页会列出役种、点数变化和局内调整。",
+          "line3": "点「下一局」继续；整场结束后回菜单。"
+        },
+        "prev": "上一步",
+        "next": "下一步",
+        "back": "返回菜单",
+        "tryRound": "试打一局",
+        "viewRules": "查看规则速查",
+        "startRound": "开始一局"
+      },
+      "achievements": {
+        "title": "成就",
+        "unlockedCount": "已解锁 {count} / {total}",
+        "unlocked": "已解锁",
+        "back": "返回战绩"
+      },
+      "stats": {
+        "title": "战绩统计",
+        "totalRounds": "本机累计 · {rounds} 个小局",
+        "card": {
+          "rounds": "总局数",
+          "winRate": "和牌率",
+          "tsumoRon": "自摸 / 荣和",
+          "drawRate": "流局率",
+          "tiisuin": "大七星",
+          "witness": "见证",
+          "points": "累计点数",
+          "specialDraw": "特殊流局"
+        },
+        "empty": {
+          "noRounds": "还没有对局记录，先打一局。",
+          "noPlayers": "还没有玩家统计。"
+        },
+        "table": {
+          "player": "玩家",
+          "wins": "和牌次数",
+          "tiisuin": "大七星",
+          "witness": "见证",
+          "points": "累计点数"
+        },
+        "back": "返回菜单",
+        "achievements": "成就"
+      },
+      "actionBar": {
+        "kan": "杠",
+        "win": "和牌",
+        "ron": "荣和",
+        "pon": "碰",
+        "chi": "吃",
+        "pass": "过",
+        "draw": "流局",
+        "call": "报听",
+        "tenpai": "听牌"
+      },
+      "replay": {
+        "title": "牌谱回看",
+        "emptyLog": "本机 logs 里还没有牌谱；在设置中开启「记录牌型日志」后打一局。",
+        "noSteps": "没有可回看的牌谱。",
+        "roundPrefix": "{current}/{total} 局 · ",
+        "roundMeta": "{file} · {round} 局 · {honba} 本场",
+        "hand": "手牌：",
+        "wall": "余牌：",
+        "rivers": "牌河：",
+        "prev": "上一手",
+        "back": "返回菜单",
+        "next": "下一手",
+        "prevRound": "← 上一局",
+        "nextRound": "下一局 →",
+        "wallAnnotation": "（余 {wall}）"
+      },
+      "markdown": {
+        "defaultTitle": "文档",
+        "pageIndicator": "第 {current} / {total} 页",
+        "footer": "← / → 翻页 · 滚轮翻页 · Esc 返回",
+        "prev": "上一页",
+        "back": "返回",
+        "next": "下一页"
+      },
+      "docs": {
+        "notFound": "未找到文档：{file}",
+        "readFailed": "读取失败：{message}",
+        "title": {
+          "references": "参考与合规说明",
+          "assets": "素材来源",
+          "ml": "ML 权重来源",
+          "selfplay": "自博弈训练",
+          "release": "发布合规清单",
+          "thirdParty": "第三方声明"
+        }
+      },
+      "window": {
+        "title": "七子麻将 · Tiisu Mahjong"
+      },
+      "gl": {
+        "hiddenNoPaint": "隐藏窗口没有完成 GL 绘制",
+        "noGrContext": "SKGLControl 未能创建 GRContext"
+      },
+      "svg": {
+        "hudMenuHint": "M / ESC：菜单",
+        "wallLeft": "余 {count}",
+        "roundInfo": "本场 {honba} · 场赏 {kyotaku}",
+        "called": "已报听",
+        "winBanned": "本局禁和"
+      },
+      "table": {
+        "tuidaohuHint": "推倒胡：无役 · 无点数 · 只记胜负",
+        "dice": "骰子",
+        "holdToView": "按住查看",
+        "dicePanelTitle": "本局开局",
+        "diceDealerFallback": "定庄骰：（首局之后沿用上局庄家，不再掷）",
+        "diceCutFallback": "切牌骰：—",
+        "diceReleaseHint": "松开恢复牌桌",
+        "confirmAgain": "再点一次「{label}」确认",
+        "think": "长考",
+        "menu": "菜单",
+        "fuProgress": "赋 {fu} / {threshold}",
+        "baseFu": "起和 {fu} 赋",
+        "callArmed": "报听：点一张手牌打出（再点「报听」取消）",
+        "called": "已报听",
+        "winBanned": "本局禁和",
+        "matchOverHint": "整场结束 · R / Enter 返回菜单",
+        "roundEndHint": "本局结束 · 点「下一局」继续 · Esc 设置",
+        "hint": {
+          "kan": "K 杠",
+          "win": "H 和牌",
+          "ron": "H 荣和",
+          "pon": "P 碰",
+          "chiMultiple": "C 吃(多组)",
+          "chi": "C 吃",
+          "pass": "Space 过",
+          "draw": "F 流局",
+          "discard": "点手牌出牌"
+        },
+        "pause": {
+          "title": "菜单",
+          "resume": "继续",
+          "settings": "设置",
+          "mainMenu": "主菜单"
+        }
+      },
+      "menu": {
+        "navHint": "↑↓←→ 选择 · Enter 确认"
+      },
+      "settings": {
+        "title": "设置",
+        "back": "← 返回",
+        "footer": "↑↓ 选择 · ←→ 改值 · Tab 切换分组 · Esc 返回",
+        "group": {
+          "basic": "基础",
+          "rules": "规则",
+          "ai": "AI / 对局"
+        },
+        "seat": {
+          "east": "东座",
+          "south": "南座",
+          "west": "西座",
+          "north": "北座"
+        },
+        "seatLock": {
+          "locked": "锁定 · {seat}",
+          "lockedYou": "锁定 · {seat}（你）"
+        },
+        "you": "你",
+        "seconds": "{value} 秒",
+        "on": "开",
+        "off": "关",
+        "row": {
+          "think": "长考秒数",
+          "bgm": "音乐音量",
+          "sfx": "音效音量",
+          "voice": "报牌语音",
+          "language": "语言 / Language",
+          "textScale": "大字号界面",
+          "showMa": "显示岭上指示牌",
+          "recordTiles": "记录牌型日志",
+          "diceViewer": "骰子查看器（右下角按钮）",
+          "ruleset": "规则集（推倒胡=无役/无点数）",
+          "aiWeights": "AI 难度权重",
+          "mcts": "修罗 MCTS",
+          "tableDifficulty": "全桌 AI 难度（快捷）"
+        },
+        "ruleset": {
+          "qizi": "七子",
+          "tuidaohu": "推倒胡"
+        },
+        "difficulty": {
+          "custom": "自定义",
+          "random": "随机",
+          "easy": "简单",
+          "normal": "普通",
+          "hard": "困难",
+          "shura": "修罗"
+        }
+      },
+      "licenses": {
+        "name": {
+          "tiisuRoundedScWenyuanSubset": "Tiisu Rounded SC（文渊圆体子集）",
+          "lietxiaMahjongGraphicTiles": "lietxia/mahjong_graphic（牌面素材）",
+          "audioVoiceAssets": "音效与语音素材",
+          "tiisuMahjongSource": "Tiisu Mahjong 本项目代码",
+          "starMahjong2002": "明星三缺一 2002",
+          "tenhou": "天凤 Tenhou"
+        },
+        "usage": {
+          "tiisuRoundedScWenyuanSubset": "界面圆体；子集化后重命名，避免 OFL 保留字体名",
+          "lietxiaMahjongGraphicTiles": "牌面矢量素材来源；允许商用/修改/再分发，无署名要求；本项目重排为 tiles.png",
+          "skiasharp": "2D 绘制、牌面渲染、文字排版",
+          "skiasharpNativeassetsWin32": "SkiaSharp 的 Windows 原生库",
+          "skiasharpViewsWindowsforms": "WinForms 上的 Skia 画布控件",
+          "skiasharpHarfbuzz": "文字整形（HarfBuzz 绑定）",
+          "harfbuzz": "复杂文字整形引擎（随包原生库）",
+          "naudio": "BGM / 音效混音与播放",
+          "naudioAsioCoreMidiWasapiWinformsWinmm": "NAudio 的传递依赖模块",
+          "harfbuzzsharpNativeassetsWin32": "SkiaSharp.HarfBuzz 的传递依赖",
+          "opentk": "OpenGL 窗口与图形绑定（OpenTK.* 传递依赖）",
+          "opentkGlcontrol": "WinForms GL 控件",
+          "glfwOpentkRedistGlfw": "窗口/输入原生库",
+          "yogasharpCoreSkiasharpViewsDesktopCommon": "布局与 Skia 桌面控件的传递依赖",
+          "yogasharpLayout": "牌桌 Flex 布局绑定",
+          "yoga": "Facebook 的 Flexbox 布局引擎（随包 yoga.dll）",
+          "netWindowsDesktopRuntime": "运行时、WinForms 与基础库",
+          "systemSpeech": "本机 Windows SAPI 报牌语音生成",
+          "xunit": "单元测试（仅开发构建）",
+          "xunitRunnerVisualstudio": "测试运行器（仅开发构建）",
+          "microsoftNetTestSdk": "测试宿主（仅开发构建）",
+          "coverletCollector": "代码覆盖率（仅开发构建）",
+          "parisian": "菜单 BGM（lobby.wav，已做音量调整）",
+          "audioVoiceAssets": "音效由 AudioGen 合成；语音本机 SAPI 生成，不随包分发",
+          "tiisuMahjongSource": "仓库内自有代码与文档",
+          "aliceInCradle": "空间音频架构调研；未使用代码、中间件、素材或衍生产物",
+          "starMahjong2002": "音效包络/时长/密度特征分析；未使用原音频、代码或美术",
+          "tenhou": "人类听牌形参考；未使用代码、数据或素材"
+        },
+        "license": {
+          "lietxiaMahjongGraphicTiles": "自定义自由许可",
+          "audioVoiceAssets": "随项目 MIT",
+          "aliceInCradle": "EULA（仅参考）",
+          "starMahjong2002": "EULA（仅参考）",
+          "tenhou": "服务条款（仅参考）"
+        },
+        "version": {
+          "harfbuzz": "随 SkiaSharp.HarfBuzz 分发",
+          "yoga": "随 YogaSharp 分发",
+          "audioVoiceAssets": "本仓合成/本机生成",
+          "tiisuMahjongSource": "见版本行",
+          "aliceInCradle": "闭源商业作品",
+          "starMahjong2002": "IGS 商业作品",
+          "tenhou": "在线服务"
+        },
+        "title": "开源许可与参考鸣谢",
+        "pageIndicator": "开源组件 + 闭源参考项目 · 第 {current} / {total} 项",
+        "line": {
+          "version": "版本：{value}",
+          "license": "许可：{value}",
+          "usage": "用途：{value}",
+          "link": "链接：{value}"
+        },
+        "reference": "参考",
+        "referenceNote": "性质：闭源/EULA 参考鸣谢，未使用其代码或素材",
+        "footer": "按 ← / → 翻页 · Esc 返回菜单",
+        "viewText": "查看本页许可全文",
+        "docs": "参考与合规说明",
+        "prev": "上一页",
+        "back": "返回菜单",
+        "next": "下一页",
+        "textPageIndicator": "许可全文 · 第 {current} / {total} 页",
+        "textNotFound": "未找到许可全文：{file}"
+      },
+      "settlement": {
+        "title": {
+          "matchOver": "终局",
+          "round": "本局结算"
+        },
+        "outcome": {
+          "exhaustive": "荒牌流局",
+          "multi": "多家和牌",
+          "tsumo": "自摸",
+          "ron": "荣和",
+          "tiisuin": "大七星",
+          "flow": "流局"
+        },
+        "next": "下一个",
+        "nextRound": "下一局",
+        "winnerHand": {
+          "none": "和牌者的手牌",
+          "yours": "你的手牌",
+          "named": "{name} 的手牌"
+        },
+        "flowHandsTitle": "四家手牌",
+        "yakuHeader": "役种",
+        "fuHeader": "赋",
+        "noYaku": "无役",
+        "finalPoints": "最终点数",
+        "flowNoWinner": "本局无人和牌",
+        "simplified": {
+          "win": "和牌",
+          "noWinner": "无人和牌"
+        },
+        "onlyResult": "只记胜负，不计点数",
+        "penaltyTitle": "惩罚结算",
+        "scoreChanges": "分数变化",
+        "ranking": "最终排名",
+        "drawReason": {
+          "fourWind": "四风连打",
+          "nineOrphans": "九种九牌",
+          "thirteenUnrelated": "十三不靠",
+          "tripleRon": "三家和牌",
+          "tripleRonChankan": "三家和牌（抢杠）",
+          "special": "特殊流局"
+        },
+        "meld": {
+          "chi": "吃",
+          "pon": "碰",
+          "minkan": "明杠",
+          "ankan": "暗杠",
+          "kakan": "加杠",
+          "other": "副露"
+        },
+        "meta": {
+          "round": "第 {round} 局",
+          "honba": "本场 {honba}"
+        },
+        "tuidaoHu": "推倒胡",
+        "pageIndicator": "第 {current} / {total} 页",
+        "footer": {
+          "matchOver": "Esc 进入设置",
+          "multi": "← / → 或点「下一个」切换和牌者 · 点「下一局」继续 · Esc 设置",
+          "single": "点「下一局」继续 · Esc 设置"
+        },
+        "handSub": {
+          "tiles": "{count} 张",
+          "noMelds": " · 无副露",
+          "oneMeld": " · 1 组副露",
+          "melds": " · {count} 组副露"
+        },
+        "flowMeldSuffix": "＋{count} 副露",
+        "dealerSuffix": "（庄）",
+        "discarder": " · 放铳者 {name}",
+        "moreYaku": "… 另有 {count} 项",
+        "maLine": "马赏 {count} 匹 · 合计 {total}",
+        "potBonus": "场供 +{points}",
+        "honbaLine": "本场 {count} · 连庄奖励 +{bonus}",
+        "transferLine": "{from} → {to}  {amount}（{reason}）",
+        "adjustmentLine": "局内调整 {from} → {to}  {amount}（{reason}）",
+        "auditMismatch": "账本不一致：{line}",
+        "flag": {
+          "optional": "（可选）",
+          "tableless": "（表外）"
+        },
+        "playerFallback": "玩家{index}",
+        "seatName": {
+          "you": "{wind}·你",
+          "seat": "{wind}家"
+        },
+        "wind": {
+          "east": "东",
+          "south": "南",
+          "west": "西",
+          "north": "北"
+        }
+      }
+    },
+    "runtime": {
+      "msg": {
+        "snapshotStale": "画面还没跟上（快照版本不一致），刚才的操作已忽略，请再按一次",
+        "noSave": "没有可恢复的存档",
+        "reset": "已重置",
+        "matchOver": "整场已结束",
+        "roundNotOver": "本局尚未结束",
+        "waitingOthers": "等待其他玩家确认",
+        "noMeldChance": "现在没有可副露的机会",
+        "noRonChance": "现在没有可荣和的牌",
+        "alreadyCalled": "已经报听，不能重复宣言",
+        "handNotTenpai": "手牌没有听牌，不能报听",
+        "cannotCallNow": "现在不能报听",
+        "pickTileToCall": "请选择要打出的那张牌完成报听",
+        "breaksTenpai": "打出这张后不听牌，不能报听",
+        "noPendingAction": "当前没有待决动作",
+        "notYourDiscard": "现在不是你的出牌阶段",
+        "discardIndexOutOfRange": "出牌下标越界",
+        "tileNotInHand": "这张牌不在手里",
+        "handNot14": "手牌不是 14 张，不能自摸",
+        "handCannotWin": "手牌不能和",
+        "winBanned": "本局禁和（或本巡禁和），不能宣布和牌",
+        "meldUnavailable": "这个副露不可用",
+        "pushFlowUnavailable": "当前手牌不满足推牌流局条件",
+        "unknownCommand": "未知命令：{kind}",
+        "resumed": "已恢复存档继续 · {label}",
+        "ronChance": "荣和机会：别人打出 {tile} · {fu}赋可和",
+        "misfireRisk": "报听错和风险：这手只有 {fu} 赋（不足 {base}）· 点荣和按错和罚",
+        "meldChance": "副露机会：别人打出 {tile}",
+        "calledWait": "已报听 · 听 {wait}",
+        "misfireSevere": "报听错和（重罚）：赋 {fu} 不足起和线 · 本局 + 下局禁和",
+        "misfireMinor": "报听错和：赋 {fu} 不足起和线 · 向三家各付 {z}",
+        "tripleRonChankan": "三家和牌（抢杠）→ 自动流局",
+        "mustDiscardAfterMeld": "吃/碰后必须先打出一张牌",
+        "callLocksWait": "报听后听牌张不能变",
+        "noAnkan": "没有可暗杠的牌",
+        "noKakan": "没有可加杠的牌",
+        "callBlocksMeld": "报听后禁止吃碰"
+      },
+      "hud": {
+        "winBannedHint": "本局禁和，不能和牌",
+        "roundProgress": "{label} / {target}局"
+      },
+      "err": {
+        "deadloop": "对局动作数超过 200000，疑似死循环"
+      },
+      "payment": {
+        "tsumo": "自摸 · 三家合计付 {points}（余数 {remainder} 分摊）",
+        "ron": "荣和 · 放铳者付 {points}"
+      },
+      "audit": {
+        "scoreMismatch": "总分不守恒: before={before} after={after} 场供发出={pot}",
+        "playerLedger": "{name}: 实际Δ{actual}，账本Δ{expected}",
+        "playerDetail": "{name}: 实际Δ{actual}，明细Δ{expected}",
+        "logPrefix": " 结算自检: ",
+        "flowPenaltyMismatch": " 流局罚项账本与分数不一致：",
+        "noTsumoButton": "能自摸却没有和按钮",
+        "winButtonWithoutWin": "不能和却给了和按钮",
+        "misfireNoHint": "错和候选但无可见提示",
+        "winBannedNoHint": "禁和但无提示",
+        "winShapeNoHint": "成和形但不能和且无提示",
+        "fuNoMisfireHint": "赋不足无错和提示",
+        "ronWindowMissing": "荣和窗口缺 Ron/Pass",
+        "tenpaiUnparsable": "待牌提示无法解析",
+        "tenpaiCannotWin": "待牌提示有张实际不能和"
+      },
+      "dice": {
+        "dealerLine": "定庄骰 {a}+{b}={sum}（{dir}）→ {wind}家坐庄",
+        "cutLine": "切牌骰 {a}+{b}={sum}（{dir}）→ 跳 {skip} 张",
+        "cutSub": "（岭上 4 / 王堆 {wang}）· 起手：{wind}家",
+        "self": "自数",
+        "clockwise": "顺时针",
+        "counterClockwise": "逆时针",
+        "dealerSide": "庄家侧"
+      },
+      "tenpai": {
+        "summary": "听 {wait} · 余 {left} 张{points}",
+        "points": " · 打点 {min}",
+        "pointsRange": " · 打点 {min}–{max}"
+      },
+      "tile": {
+        "man": "{num}万",
+        "pin": "{num}饼",
+        "sou": "{num}索",
+        "honor": {
+          "east": "东",
+          "south": "南",
+          "west": "西",
+          "north": "北",
+          "white": "白",
+          "green": "发",
+          "red": "中"
+        }
+      },
+      "chiLabel": "吃 {tiles}",
+      "cli": {
+        "unknownArg": "未知参数：{arg}",
+        "devHint": "开发/自检命令请用 tools/Tiisu.DevTools（同一批参数）。",
+        "launchItems": "启动项：--cpu-render --fullscreen --lang zh-CN|en-US|ja-JP"
+      },
+      "log": {
+        "engineThreadHang": "GameSession.Dispose: 引擎线程 5s 未退出，放弃释放命令队列（P0-2 临时方案）"
+      },
+      "wav": {
+        "notRiff": "不是 RIFF/WAV",
+        "missingData": "WAV 缺 data"
+      }
+    },
+    "table": {
+      "hud": {
+        "calledBadge": "已报听",
+        "callBadge": "报听",
+        "you": "(你)"
+      },
+      "center": {
+        "wall": "余 {count}",
+        "honbaKyotaku": "本场 {honba} · 场赏 {kyotaku}"
+      },
+      "aiLevel": {
+        "simple": "简",
+        "normal": "普",
+        "hard": "难",
+        "shura": "修"
+      },
+      "editor": {
+        "editing": "编辑中",
+        "saved": "已保存 → {path}",
+        "saveFailed": "保存失败：{message}",
+        "confirmRestore": "再按一次 R 确认恢复默认",
+        "restored": "已恢复默认",
+        "restoreFailed": "恢复失败：{message}",
+        "bannerHint": "布局编辑 F2 退出 · Tab 切换 · 拖拽移动 · 滚轮缩放（Shift 只改高） · 方向键 1px（Shift 10px） · S 保存 · R 恢复默认",
+        "selected": "选中 {index}/{total}  {id} · {note}  x={x} y={y} w={w} h={h}",
+        "selectedNone": "选中 0/0"
+      },
+      "skin": {
+        "pathInvalid": "{env} 路径非法：{value}（{message}）",
+        "notExist": "{env} 指向的皮肤不存在：{path}",
+        "loadFailed": "皮肤加载失败，回退程序化绘制：{path}（{error}）",
+        "noManifest": "皮肤清单不存在",
+        "emptyManifest": "空清单",
+        "versionTooNew": "清单版本 {version} 高于当前支持的 {supported}",
+        "regionsUnavailable": "清单里的区域都不可用（跳过 {skipped} 个）",
+        "noRegions": "清单没有 regions"
+      },
+      "layout": {
+        "emptyFile": "空文件",
+        "unsupportedVersion": "版本 {version} 不受支持",
+        "noRegions": "没有 regions",
+        "ignored": "[layout] 忽略自定义布局 {path}: {message}"
+      }
+    }
+  },
+  "engine": {
+    "err": {
+      "meldCountRange": "副露数必须在 0..4",
+      "unknownMeldType": "未知副露类型",
+      "dealNeedsFourPlayers": "配牌必须是四家",
+      "dealerIndexOutOfRange": "庄家序号越界",
+      "wallTooShortForDeal": "牌山不足配牌张数：{wall} < {need}（跳墩张数 {skip} 过大）",
+      "wallPlaceholderInReplay": "牌墙是回放占位（null），无法执行真实摸牌；请用 Draw(player, tile) 或传入 RoundDeal.WallOrder",
+      "applyMeldType": "applyMeld 只接受 chi/pon/minkan",
+      "minkanNeedsRinshan": "明杠需要岭上补摸的牌（回放由语料快照推出）",
+      "doKanType": "doKan 只接受 ankan/kakan",
+      "kanNeedsRinshan": "杠后需要岭上补摸的牌（回放由语料快照推出）",
+      "wallTooShortForDeal2": "牌山不足配牌张数：{wall} < {need}",
+      "dealerDiceCount": "定庄必须是两颗骰子",
+      "deckSize": "牌序必须是 {expected} 张，实际 {actual}",
+      "embeddedIkeMissing": "找不到 Tiisu.Core 内嵌的 ike.json",
+      "ikeBaselineLength": "ike.json 的 points.baselines 长度应为 thresholds + 1",
+      "replayCorpusEmpty": "回放语料解析结果为空",
+      "replayCorpusNoEvents": "回放语料没有 events"
+    },
+    "reason": {
+      "tileNotInHand": "这张牌不在手里",
+      "handCountWrong": "手牌张数不对，无法校验听牌形",
+      "callLocksWait": "报听后听牌张不能变",
+      "callBlocksMeld": "报听后禁止吃碰明杠",
+      "callBlocksKakan": "报听后禁止加杠",
+      "ankanNeeds14": "暗杠要按摸牌后的 14 张形判定",
+      "noFourSameTiles": "手里没有四张同样的牌",
+      "ankanChangesWait": "这组暗杠会改变听牌形",
+      "callBlocksMeldShort": "报听后禁止吃碰"
+    },
+    "flow": {
+      "fourWind": "四风连打（{tile}）",
+      "tripleRon": "三家和牌 → 自动流局"
+    },
+    "audit": {
+      "playerDelta": "{name}: 实际Δ{actual}，账本Δ{expected}，差{diff}"
+    },
+    "roundLabel": {
+      "normal": "{wind}{round}局",
+      "extensionNorth": "北增{round}局",
+      "extensionEnter": "{wind}入{round}局"
+    },
+    "wind": {
+      "east": "东",
+      "south": "南",
+      "west": "西",
+      "north": "北"
+    },
+    "tile": {
+      "man": "{num}万",
+      "pin": "{num}饼",
+      "sou": "{num}索",
+      "honor": {
+        "east": "东",
+        "south": "南",
+        "west": "西",
+        "north": "北",
+        "white": "白",
+        "green": "发",
+        "red": "中"
+      }
+    }
+  },
+  "core": {
+    "err": {
+      "emptyYakuData": "ike.json 解析结果为空"
+    }
+  }
+}

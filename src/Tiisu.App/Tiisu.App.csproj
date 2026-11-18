@@ -33,6 +33,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Tiisu.Core\Tiisu.Core.csproj" />
     <ProjectReference Include="..\Tiisu.Engine\Tiisu.Engine.csproj" />
+    <ProjectReference Include="..\Tiisu.Localization\Tiisu.Localization.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using Tiisu.Localization;
 using System.Globalization;
 using System.Text;
 
@@ -53,7 +54,7 @@ internal static class CommandRunner
             using Process? process = Process.Start(startInfo);
             if (process is null)
             {
-                return new CommandResult(commandLine, null, stopwatch.Elapsed, string.Empty, "Process.Start 返回 null");
+                return new CommandResult(commandLine, null, stopwatch.Elapsed, string.Empty, L.T("tools.devtools.command.startNull"));
             }
 
             Task<string> stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
@@ -89,7 +90,7 @@ internal static class CommandRunner
             CreateNoWindow = true,
         };
 
-        return Process.Start(startInfo) ?? throw new InvalidOperationException("Process.Start 返回 null：" + fileName);
+        return Process.Start(startInfo) ?? throw new InvalidOperationException(L.T("tools.devtools.command.startNullPath", ("path", fileName)));
     }
 
     /// <summary>资源管理器打开目录，或定位到某个文件。</summary>
@@ -156,9 +157,9 @@ internal static class CommandRunner
 
     private static string DescribeStartError(Exception ex, string fileName) => ex switch
     {
-        FileNotFoundException => "找不到可执行文件：" + fileName,
-        Win32Exception win32 when win32.NativeErrorCode == 2 => "系统找不到该命令：" + fileName,
-        Win32Exception win32 when win32.NativeErrorCode == 5 => "没有权限执行：" + fileName + "（" + win32.Message + "）",
+        FileNotFoundException => L.T("tools.devtools.command.exeNotFound", ("path", fileName)),
+        Win32Exception win32 when win32.NativeErrorCode == 2 => L.T("tools.devtools.command.notFound", ("path", fileName)),
+        Win32Exception win32 when win32.NativeErrorCode == 5 => L.T("tools.devtools.command.accessDenied", ("path", fileName), ("message", win32.Message)),
         _ => ex.Message,
     };
 }

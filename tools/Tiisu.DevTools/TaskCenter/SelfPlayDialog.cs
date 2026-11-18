@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
+using Tiisu.Localization;
 
 namespace Tiisu.DevTools.TaskCenter;
 
@@ -16,7 +17,7 @@ internal sealed class SelfPlayDialog : Form
 
     public SelfPlayDialog(string workingDirectory)
     {
-        Text = "导出自博弈数据";
+        Text = L.T("tools.devtools.dialog.selfplay.title");
         Font = new Font("Microsoft YaHei UI", 9F);
         ClientSize = new Size(520, 330);
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -45,13 +46,13 @@ internal sealed class SelfPlayDialog : Form
             Text = Path.Combine(directory, "selfplay-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".jsonl"),
             Dock = DockStyle.Fill,
         };
-        var browse = new Button { Text = "浏览…", Width = 76, Dock = DockStyle.Right };
+        var browse = new Button { Text = L.T("tools.devtools.dialog.selfplay.browse"), Width = 76, Dock = DockStyle.Right };
         browse.Click += (_, _) =>
         {
             using var dialog = new SaveFileDialog
             {
-                Title = "保存自博弈数据",
-                Filter = "JSONL (*.jsonl)|*.jsonl|所有文件 (*.*)|*.*",
+                Title = L.T("tools.devtools.dialog.selfplay.saveTitle"),
+                Filter = L.T("tools.devtools.dialog.selfplay.filter"),
                 InitialDirectory = directory,
                 FileName = Path.GetFileName(_output.Text),
                 OverwritePrompt = true,
@@ -82,15 +83,15 @@ internal sealed class SelfPlayDialog : Form
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        AddRow(layout, 0, "局数", _games);
-        AddRow(layout, 1, "并行 jobs", _jobs);
-        AddRow(layout, 2, "每 N 步采样", _sampleEvery);
-        AddRow(layout, 3, "探索率 0–0.9", _explore);
-        AddRow(layout, 4, "输出文件", outputRow);
+        AddRow(layout, 0, L.T("tools.devtools.dialog.selfplay.field.games"), _games);
+        AddRow(layout, 1, L.T("tools.devtools.dialog.selfplay.field.jobs"), _jobs);
+        AddRow(layout, 2, L.T("tools.devtools.dialog.selfplay.field.sampleEvery"), _sampleEvery);
+        AddRow(layout, 3, L.T("tools.devtools.dialog.selfplay.field.explore"), _explore);
+        AddRow(layout, 4, L.T("tools.devtools.dialog.selfplay.field.output"), outputRow);
 
         var hint = new Label
         {
-            Text = "1000 局约数分钟；big 局数建议 jobs ≤ CPU 核数。输出为 JSONL，可续跑。",
+            Text = L.T("tools.devtools.dialog.selfplay.hint"),
             Dock = DockStyle.Fill,
             ForeColor = Color.DimGray,
             TextAlign = ContentAlignment.MiddleLeft,
@@ -107,8 +108,8 @@ internal sealed class SelfPlayDialog : Form
             Height = 46,
             Padding = new Padding(12, 8, 12, 8),
         };
-        var start = new Button { Text = "开始导出", DialogResult = DialogResult.OK, Width = 100 };
-        var cancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Width = 80 };
+        var start = new Button { Text = L.T("tools.devtools.dialog.selfplay.start"), DialogResult = DialogResult.OK, Width = 100 };
+        var cancel = new Button { Text = L.T("tools.devtools.dialog.selfplay.cancel"), DialogResult = DialogResult.Cancel, Width = 80 };
         buttons.Controls.Add(start);
         buttons.Controls.Add(cancel);
         Controls.Add(buttons);
@@ -126,7 +127,7 @@ internal sealed class SelfPlayDialog : Form
     {
         if (DialogResult == DialogResult.OK && string.IsNullOrWhiteSpace(OutputPath))
         {
-            MessageBox.Show(this, "输出文件不能为空。", "参数错误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, L.T("tools.devtools.dialog.selfplay.emptyOutput"), L.T("tools.devtools.dialog.selfplay.paramError"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             e.Cancel = true;
         }
 

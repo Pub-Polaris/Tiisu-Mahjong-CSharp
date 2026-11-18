@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using Tiisu.App.Table;
+using Tiisu.Localization;
 using Tiisu.App.Ui;
 
 namespace Tiisu.App.Svg;
@@ -138,8 +139,8 @@ public sealed class SvgExporter
         sb.AppendLine($"    <rect x=\"{F(p.X)}\" y=\"{F(p.Y)}\" width=\"{F(p.W)}\" height=\"{F(p.H)}\" rx=\"16\" " +
                       "fill=\"url(#plate)\" stroke=\"#161c22\" stroke-width=\"2\"/>");
         AppendText(sb, vm.RoundLabel, p.CenterX, p.CenterY - 42, 26, "#8cf6ec", bold: true);
-        AppendText(sb, "余 " + vm.WallCount, p.CenterX, p.CenterY + 2, 21, "#96ece2");
-        AppendText(sb, $"本场 {vm.Honba} · 场赏 {vm.Kyotaku}", p.CenterX, p.CenterY + 34, 15, "#b4d6d0");
+        AppendText(sb, L.T("app.ui.svg.wallLeft", ("count", vm.WallCount)), p.CenterX, p.CenterY + 2, 21, "#96ece2");
+        AppendText(sb, L.T("app.ui.svg.roundInfo", ("honba", vm.Honba), ("kyotaku", vm.Kyotaku)), p.CenterX, p.CenterY + 34, 15, "#b4d6d0");
 
         const float s = 38f, m = 14f;
         var winds = new[] { Seat(vm, 0).Wind, Seat(vm, 1).Wind, Seat(vm, 2).Wind, Seat(vm, 3).Wind };
@@ -272,7 +273,7 @@ public sealed class SvgExporter
         sb.AppendLine($"    <rect x=\"{F(hint.X)}\" y=\"{F(hint.Y)}\" width=\"{F(hint.W)}\" height=\"{F(hint.H)}\" " +
                       "rx=\"8\" fill=\"#000000\" fill-opacity=\"0.51\"/>");
         sb.AppendLine($"    <text x=\"{F(hint.X + 12)}\" y=\"{F(hint.Y + 8 + 10)}\" fill=\"#e6ece2\" " +
-                      "font-family=\"Microsoft YaHei\" font-size=\"15\" dominant-baseline=\"middle\">M / ESC：菜单</text>");
+                      "font-family=\"Microsoft YaHei\" font-size=\"15\" dominant-baseline=\"middle\">" + L.T("app.ui.svg.hudMenuHint") + "</text>");
 
         if (!string.IsNullOrEmpty(vm.Message))
         {
@@ -283,7 +284,7 @@ public sealed class SvgExporter
             AppendText(sb, vm.Message, box.CenterX, box.CenterY, 17, "#ffe478", bold: true);
         }
 
-        string status = vm.IsCalled ? "已报听" : vm.WinBanned ? "本局禁和" : string.Empty;
+        string status = vm.IsCalled ? L.T("app.ui.svg.called") : vm.WinBanned ? L.T("app.ui.svg.winBanned") : string.Empty;
         if (status.Length > 0)
         {
             var box = new Rendering.RectF(_l.CanvasW - 190, 18, 166, 34);

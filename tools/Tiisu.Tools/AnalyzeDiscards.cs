@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Tiisu.Localization;
 
 /// <summary>
 /// <c>--analyze-discards &lt;dataset.jsonl&gt; [--out report.md]</c>
@@ -21,7 +22,7 @@ internal static class AnalyzeDiscards
     {
         if (args.Length < 2)
         {
-            Console.Error.WriteLine("用法：--analyze-discards <dataset.jsonl> [--out report.md]");
+            Console.Error.WriteLine(L.T("tools.cli.report.usage"));
             return 2;
         }
 
@@ -37,7 +38,7 @@ internal static class AnalyzeDiscards
 
         if (!File.Exists(input))
         {
-            Console.Error.WriteLine($"找不到数据集：{input}");
+            Console.Error.WriteLine(L.T("tools.cli.report.datasetNotFound", ("path", input)));
             return 2;
         }
 
@@ -80,30 +81,30 @@ internal static class AnalyzeDiscards
         }
 
         var md = new StringBuilder();
-        md.AppendLine("# 弃牌偏好统计（人类 vs AI）");
+        md.AppendLine(L.T("tools.cli.report.title"));
         md.AppendLine();
-        md.AppendLine($"数据：`{Path.GetFileName(input)}`");
+        md.AppendLine(L.T("tools.cli.report.source", ("file", Path.GetFileName(input))));
         md.AppendLine();
-        md.AppendLine("## 样本量");
+        md.AppendLine(L.T("tools.cli.report.samples"));
         md.AppendLine();
-        md.AppendLine("| 来源 | 样本 | 平均巡目 |");
+        md.AppendLine(L.T("tools.cli.report.sourceTableHead"));
         md.AppendLine("|---|---:|---:|");
-        md.AppendLine($"| 人类 | {human.Total} | {human.AverageTurn():F1} |");
-        md.AppendLine($"| AI | {ai.Total} | {ai.AverageTurn():F1} |");
+        md.AppendLine(L.T("tools.cli.report.humanRow", ("total", human.Total), ("avg", human.AverageTurn().ToString("F1", CultureInfo.InvariantCulture))));
+        md.AppendLine(L.T("tools.cli.report.aiRow", ("total", ai.Total), ("avg", ai.AverageTurn().ToString("F1", CultureInfo.InvariantCulture))));
 
         md.AppendLine();
-        md.AppendLine("## 类别占比");
+        md.AppendLine(L.T("tools.cli.report.categories"));
         md.AppendLine();
-        md.AppendLine("| 类别 | 人类 | AI | 差（人−AI） |");
+        md.AppendLine(L.T("tools.cli.report.categoryTableHead"));
         md.AppendLine("|---|---:|---:|---:|");
-        AppendCategory(md, "字牌（1z-7z）", human.HonorRate(), ai.HonorRate());
-        AppendCategory(md, "幺九（1/9 数牌）", human.TerminalRate(), ai.TerminalRate());
-        AppendCategory(md, "中张（2-8 数牌）", human.MiddleRate(), ai.MiddleRate());
+        AppendCategory(md, L.T("tools.cli.report.honors"), human.HonorRate(), ai.HonorRate());
+        AppendCategory(md, L.T("tools.cli.report.terminals"), human.TerminalRate(), ai.TerminalRate());
+        AppendCategory(md, L.T("tools.cli.report.middle"), human.MiddleRate(), ai.MiddleRate());
 
         md.AppendLine();
-        md.AppendLine("## 人类更爱打的牌（前 10，按「人类占比 − AI 占比」）");
+        md.AppendLine(L.T("tools.cli.report.humanTop"));
         md.AppendLine();
-        md.AppendLine("| 牌 | 人类 | AI | 差 |");
+        md.AppendLine(L.T("tools.cli.report.tileTableHead"));
         md.AppendLine("|---|---:|---:|---:|");
         foreach (var (idx, delta) in Enumerable.Range(0, 34)
                      .Select(i => (i, human.Share(i) - ai.Share(i)))
@@ -114,9 +115,9 @@ internal static class AnalyzeDiscards
         }
 
         md.AppendLine();
-        md.AppendLine("## AI 更爱打的牌（前 10）");
+        md.AppendLine(L.T("tools.cli.report.aiTop"));
         md.AppendLine();
-        md.AppendLine("| 牌 | 人类 | AI | 差 |");
+        md.AppendLine(L.T("tools.cli.report.tileTableHead"));
         md.AppendLine("|---|---:|---:|---:|");
         foreach (var (idx, delta) in Enumerable.Range(0, 34)
                      .Select(i => (i, human.Share(i) - ai.Share(i)))
@@ -127,9 +128,9 @@ internal static class AnalyzeDiscards
         }
 
         md.AppendLine();
-        md.AppendLine("## 巡目影响（字牌占各自弃牌的比例）");
+        md.AppendLine(L.T("tools.cli.report.turnImpact"));
         md.AppendLine();
-        md.AppendLine("| 巡目段 | 人类 | AI |");
+        md.AppendLine(L.T("tools.cli.report.turnTableHead"));
         md.AppendLine("|---|---:|---:|");
         foreach (var (lo, hi, label) in new[] { (0, 5, "0-5"), (6, 11, "6-11"), (12, 17, "12-17"), (18, 99, "18+") })
         {
@@ -137,23 +138,23 @@ internal static class AnalyzeDiscards
         }
 
         md.AppendLine();
-        md.AppendLine("## 分布差异");
+        md.AppendLine(L.T("tools.cli.report.distribution"));
         md.AppendLine();
-        md.AppendLine($"- 总变差距离（0=完全相同，1=完全不同）：**{human.TotalVariationDistance(ai):F3}**");
-        md.AppendLine($"- 人类 vs AI 的 JS 散度：**{human.JensenShannon(ai):F4}**");
+        md.AppendLine(L.T("tools.cli.report.tvLine", ("value", human.TotalVariationDistance(ai).ToString("F3", CultureInfo.InvariantCulture))));
+        md.AppendLine(L.T("tools.cli.report.jsLine", ("value", human.JensenShannon(ai).ToString("F4", CultureInfo.InvariantCulture))));
 
         md.AppendLine();
-        md.AppendLine("## 说明");
+        md.AppendLine(L.T("tools.cli.report.notes"));
         md.AppendLine();
-        md.AppendLine("- 样本来自 `roundlog_*.jsonl`，每条 = 一次实际弃牌。");
-        md.AppendLine("- 巡目 = 该玩家本局已打出的牌数，`0` 表示第一打。");
-        md.AppendLine("- 人类样本量远少于 AI 时会抖，建议攒到 5000+ 再看差异。");
+        md.AppendLine(L.T("tools.cli.report.noteSource"));
+        md.AppendLine(L.T("tools.cli.report.noteTurn"));
+        md.AppendLine(L.T("tools.cli.report.noteSampleSize"));
 
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
         File.WriteAllText(output, md.ToString(), new UTF8Encoding(false));
 
         Console.WriteLine($"report: {output}");
-        Console.WriteLine($"  人类 {human.Total} 条 · AI {ai.Total} 条 · TV 距离 {human.TotalVariationDistance(ai):F3}");
+        Console.WriteLine(L.T("tools.cli.report.summary", ("human", human.Total), ("ai", ai.Total), ("tv", human.TotalVariationDistance(ai).ToString("F3", CultureInfo.InvariantCulture))));
         return 0;
     }
 

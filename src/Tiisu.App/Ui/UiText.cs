@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
+using Tiisu.Localization;
 
 namespace Tiisu.App.Ui;
 
@@ -11,74 +10,39 @@ namespace Tiisu.App.Ui;
 /// </summary>
 public static class UiText
 {
-    private static readonly Dictionary<string, string> Translations = new(StringComparer.Ordinal);
-    private static string _language = "zh-CN";
 
-    public static string Language => _language;
+    public static string Language => L.Language;
     public static event Action? LanguageChanged;
-    public static bool IsEnglish => _language == "en-US";
-    public static bool IsJapanese => _language == "ja-JP";
+    public static bool IsEnglish => L.Language == "en-US";
+    public static bool IsJapanese => L.Language == "ja-JP";
 
     public static void SetLanguage(string? language)
     {
-        string next = Normalize(language);
-        bool changed = next != _language;
-        _language = next;
-        Translations.Clear();
-        if (_language == "zh-CN")
-        {
-            if (changed)
-            {
-                LanguageChanged?.Invoke();
-            }
-            return;
-        }
-
-        string file = IsJapanese ? "ja-JP.json" : "en-US.json";
-        string path = Path.Combine(AppContext.BaseDirectory, "Assets", "i18n", file);
-        try
-        {
-            if (!File.Exists(path))
-            {
-                return;
-            }
-
-            var map = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path));
-            if (map is not null)
-            {
-                foreach (var pair in map)
-                {
-                    Translations[pair.Key] = pair.Value;
-                }
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        {
-            // 翻译文件损坏时回退中文，不影响游戏。
-        }
-
-        if (changed)
+        string before = L.Language;
+        L.SetLanguage(language);
+        if (!string.Equals(before, L.Language, StringComparison.Ordinal))
         {
             LanguageChanged?.Invoke();
         }
     }
 
-    public static string Normalize(string? language) =>
-        language is not null && language.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? "en-US"
-        : language is not null && (language.StartsWith("ja", StringComparison.OrdinalIgnoreCase)
-                                   || language.StartsWith("jp", StringComparison.OrdinalIgnoreCase)) ? "ja-JP"
-        : "zh-CN";
+    public static string Normalize(string? language) => L.Normalize(language);
 
     public static string Tr(string? chinese)
     {
-        if (string.IsNullOrEmpty(chinese) || _language == "zh-CN")
+        if (string.IsNullOrEmpty(chinese))
         {
-            return chinese ?? string.Empty;
+            return string.Empty;
         }
 
-        if (Translations.TryGetValue(chinese, out string? translated))
+        if (L.HasKey(chinese))
         {
-            return translated;
+            return L.T(chinese);
+        }
+
+        if (L.Language == "zh-CN")
+        {
+            return chinese;
         }
 
         if (IsJapanese)
@@ -86,7 +50,7 @@ public static class UiText
             return TrJapanesePatterns(chinese);
         }
 
-        // 对局内动态提示：固定前缀 + 运行时内容。
+        // 兼容旧的中文 key 动态提示；迁移完成后这些分支会成为兜底。
         if (chinese.StartsWith("未知命令：", StringComparison.Ordinal))
         {
             return "Unknown command: " + chinese["未知命令：".Length..];

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using Tiisu.App.Rendering;
+using Tiisu.Localization;
 using Color = Tiisu.App.Rendering.Color;
 
 namespace Tiisu.App.Ui;
@@ -12,23 +13,23 @@ public sealed class RulesScreen : Screen
     private readonly Action _back;
     private readonly List<(string Title, string[] Lines)> _sections = new()
     {
-        ("起和与报听", new[]
+        ("app.ui.rules.section1.title", new[]
         {
-            "手牌够 7 赋才能和；赋不够不能和。",
-            "报听本身不加赋，也不给额外收益。",
-            "听牌即可报听；报听后锁手，不破坏听牌形的暗杠除外。",
+            "app.ui.rules.section1.line1",
+            "app.ui.rules.section1.line2",
+            "app.ui.rules.section1.line3",
         }),
-        ("错和惩罚", new[]
+        ("app.ui.rules.section2.title", new[]
         {
-            "报听后主动报和，实际赋 < 7 = 错和。",
-            "向三家赔 Z = 赋 × 700。",
-            "Z > 2100 重罚：禁和本局 + 下局。",
+            "app.ui.rules.section2.line1",
+            "app.ui.rules.section2.line2",
+            "app.ui.rules.section2.line3",
         }),
-        ("场供与蓝筹", new[]
+        ("app.ui.rules.section3.title", new[]
         {
-            "结算按 350 点蓝筹取整。",
-            "自摸除不尽的尾数进场供池。",
-            "场供由下一手和牌者拿走；本场连庄有加成。",
+            "app.ui.rules.section3.line1",
+            "app.ui.rules.section3.line2",
+            "app.ui.rules.section3.line3",
         }),
     };
 
@@ -46,9 +47,9 @@ public sealed class RulesScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
 
-        c.DrawText(UiText.Tr("规则速查"), new RectF(0, 54, Width, 56),
+        c.DrawText(L.T("app.ui.rules.title"), new RectF(0, 54, Width, 56),
             Color.Rgb(242, 230, 190), new TextStyle(42, Bold: true, Center: true, Family: Rounded));
-        c.DrawText(UiText.Tr("七子麻将 · 和「标准日麻」不同的地方"), new RectF(0, 108, Width, 26),
+        c.DrawText(L.T("app.ui.rules.subtitle"), new RectF(0, 108, Width, 26),
             Color.Rgb(159, 180, 170), new TextStyle(16, Center: true, Family: Rounded));
 
         float y = 136;
@@ -59,12 +60,12 @@ public sealed class RulesScreen : Screen
             var box = new RectF(150, y, Width - 300, boxH);
             c.FillRoundRect(box, 14, Color.Rgb(26, 38, 34));
             c.StrokeRoundRect(box, 14, Color.Rgb(96, 122, 108), 1.2f);
-            c.DrawText(UiText.Tr(title), new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
+            c.DrawText(L.T(title), new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
                 Color.Rgb(242, 201, 76), new TextStyle(20, Bold: true, Center: false, Family: Rounded));
             float ly = box.Y + 42;
             foreach (string line in lines)
             {
-                c.DrawText("· " + UiText.Tr(line), new RectF(box.X + 26, ly, box.W - 52, lineH),
+                c.DrawText("· " + L.T(line), new RectF(box.X + 26, ly, box.W - 52, lineH),
                     Color.Rgb(220, 228, 220), new TextStyle(16, Center: false, Family: Rounded));
                 ly += lineH;
             }
@@ -75,7 +76,7 @@ public sealed class RulesScreen : Screen
         _backButton = new RectF(Width / 2f - 90, Height - 80, 180, 44);
         c.FillRoundRect(_backButton, 10, Color.Rgb(40, 58, 48));
         c.StrokeRoundRect(_backButton, 10, Color.Rgb(214, 178, 92), 1.5f);
-        c.DrawText(UiText.Tr("返回菜单"), _backButton, Color.Rgb(242, 230, 190), new TextStyle(17, Bold: true, Center: true, Family: Rounded));
+        c.DrawText(L.T("app.ui.rules.back"), _backButton, Color.Rgb(242, 230, 190), new TextStyle(17, Bold: true, Center: true, Family: Rounded));
     }
 
     public override bool OnClick(float x, float y)

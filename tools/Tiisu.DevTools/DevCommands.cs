@@ -9,6 +9,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Tiisu.Localization;
 using SkiaSharp;
 using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
@@ -182,65 +183,137 @@ internal static class DevCommands
     /// <summary>
     /// <c>--check-steam [root]</c>：Steam 接入就绪检查。没有 AppID 时只报告阻塞项，不报错退出。
     /// </summary>
-    /// <summary><c>--check-i18n [root]</c>：检查 UiText.Tr 字面量是否都有英文映射。</summary>
+    /// <summary>
+    /// <c>--check-i18n [root]</c>：检查 <c>UiText.Tr("中文键")</c> 与 <c>L.T("键")</c> 在 zh/en/ja 三份
+    /// <c>NET/lang</c> 语言包里是否齐全；缺失即失败（退出码 1）。
+    /// </summary>
     private static int CheckI18n(string[] args)
     {
         Tiisu.App.Program.TryUseUtf8Console();
         string root = args.Length >= 2 && Directory.Exists(args[1])
             ? Path.GetFullPath(args[1])
             : Directory.GetCurrentDirectory();
-        string mapPath = Path.Combine(root, "src", "Tiisu.App", "Assets", "i18n", "en-US.json");
-        string app = Path.Combine(root, "src", "Tiisu.App");
-        if (!File.Exists(mapPath))
+        string langDir = Path.Combine(root, "lang");
+        if (!Directory.Exists(langDir))
         {
-            Console.WriteLine("check-i18n: FAIL 找不到 " + mapPath);
+            Console.WriteLine(L.T("tools.cli.devtools.CheckI18n.1") + langDir);
             return 1;
         }
 
         var maps = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (string lang in new[] { "en-US", "ja-JP" })
+        foreach (string lang in new[] { "zh-CN", "en-US", "ja-JP" })
         {
-            string path = Path.Combine(root, "src", "Tiisu.App", "Assets", "i18n", lang + ".json");
+            string path = Path.Combine(langDir, lang + ".json");
+            if (!File.Exists(path))
+            {
+                Console.WriteLine(L.T("tools.cli.devtools.CheckI18n.1") + path);
+                return 1;
+            }
+
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            maps[lang] = new HashSet<string>(doc.RootElement.EnumerateObject().Select(p => p.Name), StringComparer.Ordinal);
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            FlattenLangKeys(doc.RootElement, string.Empty, keys);
+            maps[lang] = keys;
         }
 
-        var pattern = new Regex("UiText\\.Tr\\(\"((?:[^\"\\\\]|\\\\.)*)\"\\)");
+        var uiTextPattern = new Regex("UiText\\.Tr\\(\"((?:[^\"\\\\]|\\\\.)*)\"\\)");
+        var lKeyPattern = new Regex("\\bL\\.T\\(\"([A-Za-z_][A-Za-z0-9_.]*)\"");
         var missing = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (string file in Directory.EnumerateFiles(app, "*.cs", SearchOption.AllDirectories))
+        int checkedKeys = 0;
+        foreach (string project in new[] { "src", "tools" })
         {
-            if (file.Contains(Path.Combine("bin", string.Empty), StringComparison.Ordinal)
-                || file.Contains(Path.Combine("obj", string.Empty), StringComparison.Ordinal))
+            string dir = Path.Combine(root, project);
+            if (!Directory.Exists(dir))
             {
                 continue;
             }
 
-            foreach (Match match in pattern.Matches(File.ReadAllText(file)))
+            foreach (string file in Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories))
             {
-                string key = Regex.Unescape(match.Groups[1].Value);
-                if (!key.Any(c => c >= 0x4e00 && c <= 0x9fff))
+                if (IsBuildArtifact(file))
                 {
                     continue;
                 }
 
-                foreach (var (lang, translated) in maps)
+                foreach (string line in File.ReadLines(file))
                 {
-                    if (!translated.Contains(key))
+                    string trimmed = line.TrimStart();
+                    if (trimmed.StartsWith("//", StringComparison.Ordinal)
+                        || trimmed.StartsWith("*", StringComparison.Ordinal)
+                        || trimmed.StartsWith("/*", StringComparison.Ordinal))
                     {
-                        missing.Add(lang + ": " + key);
+                        continue;
+                    }
+
+                    foreach (Match match in uiTextPattern.Matches(line))
+                    {
+                        string key = Regex.Unescape(match.Groups[1].Value);
+                        if (!key.Any(c => c >= 0x4e00 && c <= 0x9fff))
+                        {
+                            continue;
+                        }
+
+                        checkedKeys++;
+                        AddMissing(missing, maps, key);
+                    }
+
+                    foreach (Match match in lKeyPattern.Matches(line))
+                    {
+                        checkedKeys++;
+                        AddMissing(missing, maps, match.Groups[1].Value);
                     }
                 }
             }
         }
 
-        Console.WriteLine($"check-i18n: {missing.Count} 个 UiText.Tr 中文键缺翻译（en/ja）");
+        Console.WriteLine(L.T("tools.cli.devtools.CheckI18n.2", ("p1", missing.Count)));
         foreach (string key in missing.Take(40))
         {
-            Console.WriteLine("  缺：" + key);
+            Console.WriteLine(L.T("tools.cli.devtools.CheckI18n.3") + key);
         }
 
         return missing.Count == 0 ? 0 : 1;
     }
+
+    private static void FlattenLangKeys(JsonElement element, string prefix, HashSet<string> keys)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                FlattenLangKeys(property.Value, prefix.Length == 0 ? property.Name : prefix + "." + property.Name, keys);
+            }
+
+            return;
+        }
+
+        if (element.ValueKind == JsonValueKind.String && prefix.Length > 0)
+        {
+            keys.Add(prefix);
+        }
+    }
+
+    private static void AddMissing(SortedSet<string> missing, Dictionary<string, HashSet<string>> maps, string key)
+    {
+        // 动态拼接的键（如 "tools.devtools.category." + id）只校验到前缀，跳过。
+        if (key.EndsWith(".", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        foreach (var (lang, translated) in maps)
+        {
+            if (!translated.Contains(key))
+            {
+                missing.Add(lang + ": " + key);
+            }
+        }
+    }
+
+    private static bool IsBuildArtifact(string path) =>
+        path.Contains(Path.Combine("bin", string.Empty), StringComparison.Ordinal)
+        || path.Contains(Path.Combine("obj", string.Empty), StringComparison.Ordinal)
+        || path.Contains(Path.Combine("Generated", string.Empty), StringComparison.Ordinal);
 
     private static int CheckSteam(string[] args)
     {
@@ -253,9 +326,9 @@ internal static class DevCommands
         var blockers = new List<string>();
         var ready = new List<string>();
 
-        if (File.Exists(Path.Combine(docs, "STEAM_INTEGRATION.md"))) ready.Add("接入文档");
-        if (File.Exists(Path.Combine(docs, "STEAM_ACHIEVEMENTS.md"))) ready.Add("成就映射文档");
-        if (File.Exists(Path.Combine(docs, "STEAM_RELEASE_CHECKLIST.md"))) ready.Add("发布清单");
+        if (File.Exists(Path.Combine(docs, "STEAM_INTEGRATION.md"))) ready.Add(L.T("tools.cli.devtools.CheckSteam.1"));
+        if (File.Exists(Path.Combine(docs, "STEAM_ACHIEVEMENTS.md"))) ready.Add(L.T("tools.cli.devtools.CheckSteam.2"));
+        if (File.Exists(Path.Combine(docs, "STEAM_RELEASE_CHECKLIST.md"))) ready.Add(L.T("tools.cli.devtools.CheckSteam.3"));
 
         int mapCount = 0;
         if (File.Exists(mapPath))
@@ -269,25 +342,25 @@ internal static class DevCommands
             }
             catch (JsonException)
             {
-                blockers.Add("achievements.json 无法解析");
+                blockers.Add(L.T("tools.cli.devtools.CheckSteam.4"));
             }
         }
 
-        if (mapCount == 10) ready.Add("成就映射 10 项"); else blockers.Add("成就映射不是 10 项");
+        if (mapCount == 10) ready.Add(L.T("tools.cli.devtools.CheckSteam.5")); else blockers.Add(L.T("tools.cli.devtools.CheckSteam.6"));
 
         bool hasAppId = File.Exists(Path.Combine(root, "steam_appid.txt"))
                         || File.Exists(Path.Combine(root, "dist", "publish", "steam_appid.txt"));
         bool hasNative = File.Exists(Path.Combine(root, "dist", "publish", "steam_api64.dll"));
-        if (hasAppId) ready.Add("steam_appid.txt"); else blockers.Add("AppID（steam_appid.txt）");
+        if (hasAppId) ready.Add("steam_appid.txt"); else blockers.Add(L.T("tools.cli.devtools.CheckSteam.7"));
         if (hasNative) ready.Add("steam_api64.dll"); else blockers.Add("steam_api64.dll / Steamworks SDK");
 
         if (File.Exists(Path.Combine(root, "dist", "steam", "depot-manifest.json"))) ready.Add("Steam depot"); else blockers.Add("Steam depot manifest");
-        if (File.Exists(Path.Combine(root, "dist", "steam", "app_build.vdf.template"))) ready.Add("VDF 模板");
+        if (File.Exists(Path.Combine(root, "dist", "steam", "app_build.vdf.template"))) ready.Add(L.T("tools.cli.devtools.CheckSteam.8"));
 
-        Console.WriteLine("Steam 接入检查");
-        Console.WriteLine("  已就绪：" + string.Join(" / ", ready));
-        Console.WriteLine("  阻塞项：" + string.Join(" / ", blockers));
-        Console.WriteLine(hasAppId && hasNative ? "  结果：可以接真实 SDK" : "  结果：未就绪（等待 AppID / SDK）");
+        Console.WriteLine(L.T("tools.cli.devtools.CheckSteam.9"));
+        Console.WriteLine(L.T("tools.cli.devtools.CheckSteam.10") + string.Join(" / ", ready));
+        Console.WriteLine(L.T("tools.cli.devtools.CheckSteam.11") + string.Join(" / ", blockers));
+        Console.WriteLine(hasAppId && hasNative ? L.T("tools.cli.devtools.CheckSteam.12") : L.T("tools.cli.devtools.CheckSteam.13"));
         return 0;
     }
 
@@ -298,10 +371,17 @@ internal static class DevCommands
         string root = args.Length >= 2 && Directory.Exists(args[1])
             ? Path.GetFullPath(args[1])
             : Directory.GetCurrentDirectory();
-        string app = Path.Combine(root, "src", "Tiisu.App");
-        if (!Directory.Exists(app))
+        string[] projects =
         {
-            Console.WriteLine("audit-ui-strings: FAIL 找不到 " + app);
+            Path.Combine(root, "src", "Tiisu.App"),
+            Path.Combine(root, "tools", "Tiisu.DevTools"),
+            Path.Combine(root, "tools", "Tiisu.Tools"),
+            Path.Combine(root, "tools", "Tiisu.AudioGen"),
+            Path.Combine(root, "src", "Tiisu.Updater"),
+        };
+        if (!projects.Any(Directory.Exists))
+        {
+            Console.WriteLine(L.T("tools.cli.devtools.AuditUiStrings.1") + root);
             return 1;
         }
 
@@ -310,23 +390,24 @@ internal static class DevCommands
         var pattern = new Regex("\"[^\"\r\n]*[\u4e00-\u9fff][^\"\r\n]*\"");
         var rows = new List<(string File, int Count)>();
         int total = 0;
-        foreach (string file in Directory.EnumerateFiles(app, "*.cs", SearchOption.AllDirectories))
+        foreach (string project in projects.Where(Directory.Exists))
         {
-            if (file.Contains(Path.Combine("bin", string.Empty), StringComparison.Ordinal)
-                || file.Contains(Path.Combine("obj", string.Empty), StringComparison.Ordinal)
-                || file.Contains(Path.Combine("Generated", string.Empty), StringComparison.Ordinal))
+            foreach (string file in Directory.EnumerateFiles(project, "*.cs", SearchOption.AllDirectories))
             {
-                continue;
-            }
+                if (IsBuildArtifact(file))
+                {
+                    continue;
+                }
 
-            int count = pattern.Matches(File.ReadAllText(file)).Count;
-            if (count == 0)
-            {
-                continue;
-            }
+                int count = pattern.Matches(File.ReadAllText(file)).Count;
+                if (count == 0)
+                {
+                    continue;
+                }
 
-            rows.Add((Path.GetRelativePath(root, file), count));
-            total += count;
+                rows.Add((Path.GetRelativePath(root, file), count));
+                total += count;
+            }
         }
 
         rows.Sort((a, b) => b.Count.CompareTo(a.Count));
@@ -334,7 +415,7 @@ internal static class DevCommands
         csvLines.AddRange(rows.Select(r => r.File.Replace(',', '_') + "," + r.Count));
         File.WriteAllText(csv, string.Join("\n", csvLines) + "\n", new System.Text.UTF8Encoding(false));
 
-        Console.WriteLine($"audit-ui-strings: {total} 个中文 UI 字面量，{rows.Count} 个文件");
+        Console.WriteLine(L.T("tools.cli.devtools.AuditUiStrings.2", ("p1", total), ("p2", rows.Count)));
         foreach (var row in rows.Take(15))
         {
             Console.WriteLine($"  {row.Count,4}  {row.File}");
@@ -359,14 +440,14 @@ internal static class DevCommands
 
         if (!File.Exists(fontPath))
         {
-            Console.WriteLine("check-font: FAIL 字体不存在 " + fontPath);
+            Console.WriteLine(L.T("tools.cli.devtools.CheckFont.1") + fontPath);
             return 1;
         }
 
         using var typeface = SKTypeface.FromFile(fontPath);
         if (typeface is null)
         {
-            Console.WriteLine("check-font: FAIL 字体无法加载 " + fontPath);
+            Console.WriteLine(L.T("tools.cli.devtools.CheckFont.2") + fontPath);
             return 1;
         }
 
@@ -423,10 +504,10 @@ internal static class DevCommands
             .OrderBy(ch => ch)
             .ToArray();
         Console.WriteLine($"check-font: {fontPath}");
-        Console.WriteLine($"  字符集 {chars.Count}；缺字 {missing.Length}");
+        Console.WriteLine(L.T("tools.cli.devtools.CheckFont.3", ("p1", chars.Count), ("p2", missing.Length)));
         if (missing.Length > 0)
         {
-            Console.WriteLine("  缺字：" + string.Join(" ", missing));
+            Console.WriteLine(L.T("tools.cli.devtools.CheckFont.4") + string.Join(" ", missing));
             return 1;
         }
 
@@ -443,7 +524,7 @@ internal static class DevCommands
 
         if (!Directory.Exists(dir))
         {
-            Console.Error.WriteLine("publish 目录不存在: " + dir);
+            Console.Error.WriteLine(L.T("tools.cli.devtools.CheckPublish.1") + dir);
             return 2;
         }
 
@@ -471,13 +552,13 @@ internal static class DevCommands
         {
             if (!File.Exists(Path.Combine(dir, rel)))
             {
-                errors.Add("缺少 " + rel);
+                errors.Add(L.T("tools.cli.devtools.CheckPublish.2") + rel);
             }
         }
 
         if (Directory.Exists(Path.Combine(dir, "Assets", "voices")))
         {
-            errors.Add("Assets/voices 仍存在（语音不应随包分发）");
+            errors.Add(L.T("tools.cli.devtools.CheckPublish.3"));
         }
 
         string[] forbidden = { "xunit", "testhost", "coverlet", "Microsoft.TestPlatform", "ffmpeg", "espeak" };
@@ -488,7 +569,7 @@ internal static class DevCommands
             {
                 if (name.Contains(bad, StringComparison.Ordinal))
                 {
-                    errors.Add("禁止文件: " + Path.GetRelativePath(dir, file));
+                    errors.Add(L.T("tools.cli.devtools.CheckPublish.4") + Path.GetRelativePath(dir, file));
                     break;
                 }
             }
@@ -497,7 +578,7 @@ internal static class DevCommands
         string manifestPath = Path.Combine(Directory.GetCurrentDirectory(), "ASSET-HASHES.md");
         if (!File.Exists(manifestPath))
         {
-            notes.Add("未找到 ASSET-HASHES.md，跳过哈希核对");
+            notes.Add(L.T("tools.cli.devtools.CheckPublish.5"));
         }
         else
         {
@@ -518,7 +599,7 @@ internal static class DevCommands
                 string path = Path.Combine(dir, "Assets", rel.Replace('/', Path.DirectorySeparatorChar));
                 if (!File.Exists(path))
                 {
-                    errors.Add("哈希清单里的文件缺失: " + rel);
+                    errors.Add(L.T("tools.cli.devtools.CheckPublish.6") + rel);
                     continue;
                 }
 
@@ -527,13 +608,13 @@ internal static class DevCommands
                 string actual = Convert.ToHexString(sha.ComputeHash(stream)).ToLowerInvariant();
                 if (!string.Equals(actual, expected, StringComparison.Ordinal))
                 {
-                    errors.Add("哈希不一致: " + rel);
+                    errors.Add(L.T("tools.cli.devtools.CheckPublish.7") + rel);
                 }
 
                 checkedHashes++;
             }
 
-            notes.Add("已核对资源哈希 " + checkedHashes + " 个");
+            notes.Add(L.T("tools.cli.devtools.CheckPublish.8") + checkedHashes + L.T("tools.cli.devtools.CheckPublish.9"));
         }
 
         foreach (string note in notes)
@@ -552,7 +633,7 @@ internal static class DevCommands
             Console.Error.WriteLine("  FAIL " + error);
         }
 
-        Console.Error.WriteLine("check-publish: " + errors.Count + " 项失败");
+        Console.Error.WriteLine("check-publish: " + errors.Count + L.T("tools.cli.devtools.CheckPublish.10"));
         return 1;
     }
 
@@ -599,7 +680,7 @@ internal static class DevCommands
         Console.WriteLine($"bench-snapshot: {iterations} iters");
         Console.WriteLine($"  avg: {sw.Elapsed.TotalMilliseconds * 1000.0 / iterations:F2} us/iter");
         Console.WriteLine($"  alloc: {(double)allocated / iterations:F1} B/iter");
-        Console.WriteLine("  (听牌缓存开启；同状态重复构建)");
+        Console.WriteLine(L.T("tools.cli.devtools.BenchSnapshot.1"));
         return 0;
     }
 
@@ -711,7 +792,7 @@ internal static class DevCommands
                         }
 
                         default:
-                            throw new InvalidOperationException("passive 驱动遇到未知阶段: " + runtime.Phase);
+                            throw new InvalidOperationException(L.T("tools.cli.devtools.AuditGames.1") + runtime.Phase);
                     }
                 }
             }
@@ -757,11 +838,11 @@ internal static class DevCommands
             int done = Interlocked.Increment(ref completed);
             if (jobs > 1 && done % 1000 == 0)
             {
-                Console.WriteLine($"  ... {done}/{count} 局，问题 {Volatile.Read(ref issueTotal)}，耗时 {clock.Elapsed.TotalSeconds:F0}s");
+                Console.WriteLine(L.T("tools.cli.devtools.AuditGames.2", ("p1", done), ("p2", count), ("p3", Volatile.Read(ref issueTotal)), ("p4", (clock.Elapsed.TotalSeconds).ToString("F0", CultureInfo.InvariantCulture))));
             }
             else if (jobs == 1 && done % 100 == 0)
             {
-                Console.WriteLine($"  ... {done}/{count} 局，问题 {issueTotal}，耗时 {clock.Elapsed.TotalSeconds:F0}s");
+                Console.WriteLine(L.T("tools.cli.devtools.AuditGames.2", ("p1", done), ("p2", count), ("p3", issueTotal), ("p4", (clock.Elapsed.TotalSeconds).ToString("F0", CultureInfo.InvariantCulture))));
             }
         }
 
@@ -774,7 +855,7 @@ internal static class DevCommands
         }
         else
         {
-            Console.WriteLine($"  并行 {jobs} 路（CPU {Environment.ProcessorCount} 线程）");
+            Console.WriteLine(L.T("tools.cli.devtools.AuditGames.3", ("p1", jobs), ("p2", Environment.ProcessorCount)));
             System.Threading.Tasks.Parallel.For(0, count,
                 new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = jobs },
                 RunOne);
@@ -782,9 +863,9 @@ internal static class DevCommands
 
         clock.Stop();
         Console.WriteLine($"audit-games: count={count} mode={mode} start={startSeed} jobs={jobs}");
-        Console.WriteLine($"  完成 {count - failed}/{count}（异常 {failed}）· 总小局 {totalRounds}（和牌 {wins} / 流局 {flows}）");
-        Console.WriteLine($"  结算自检问题: {issueTotal}");
-        Console.WriteLine($"  UI/提示自检问题: {uiIssueTotal}");
+        Console.WriteLine(L.T("tools.cli.devtools.AuditGames.4", ("p1", count - failed), ("p2", count), ("p3", failed), ("p4", totalRounds), ("p5", wins), ("p6", flows)));
+        Console.WriteLine(L.T("tools.cli.devtools.AuditGames.5", ("p1", issueTotal)));
+        Console.WriteLine(L.T("tools.cli.devtools.AuditGames.6", ("p1", uiIssueTotal)));
         foreach (string sample in samples.Take(10))
         {
             Console.WriteLine("   - " + sample);
@@ -799,7 +880,7 @@ internal static class DevCommands
         if (args.Length < 2
             || !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint seed))
         {
-            Console.Error.WriteLine("用法：--smoke-run <seed> [mode] [--record]");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.SmokeRun.1"));
             return 2;
         }
 
@@ -833,7 +914,7 @@ internal static class DevCommands
 
         if (runtime.Phase != MatchPhase.MatchOver)
         {
-            Console.Error.WriteLine($"未在 {guard} 次推进内终局（phase={runtime.Phase}）");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.SmokeRun.2", ("p1", guard), ("p2", runtime.Phase)));
             return 1;
         }
 
@@ -857,7 +938,7 @@ internal static class DevCommands
         if (args.Length < 2
             || !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint seed))
         {
-            Console.Error.WriteLine("用法：--smoke-ai <seed> [mode]");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.SmokeAi.1"));
             return 2;
         }
 
@@ -894,15 +975,15 @@ internal static class DevCommands
         var names = runtime.Engine.Players.Select(p => p.Name).ToArray();
 
         Console.WriteLine($"smoke-ai seed={seed} mode={mode} matchSeed={runtime.MatchSeed}");
-        Console.WriteLine("  权重: " + string.Join("/", settings.AiWeights) + "  修罗MCTS: " + (settings.AiMctsEnabled ? "开" : "关"));
-        Console.WriteLine("  四家等级: " + string.Join("  ", names.Select((name, i) =>
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeAi.2") + string.Join("/", settings.AiWeights) + L.T("tools.cli.devtools.SmokeAi.3") + (settings.AiMctsEnabled ? L.T("tools.cli.devtools.SmokeAi.4") : L.T("tools.cli.devtools.SmokeAi.5")));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeAi.6") + string.Join("  ", names.Select((name, i) =>
             name + "=" + runtime.AiLevels[i])));
-        Console.WriteLine("  弃牌决策: " + runtime.AiDiscardDecisions + " 次（" + string.Join(" ", names.Select((name, i) =>
-            name + "=" + runtime.AiDiscardDecisionsBySeat[i])) + "）");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeAi.7") + runtime.AiDiscardDecisions + L.T("tools.cli.devtools.SmokeAi.8") + string.Join(" ", names.Select((name, i) =>
+            name + "=" + runtime.AiDiscardDecisionsBySeat[i])) + L.T("tools.cli.devtools.SmokeAi.9"));
         Console.WriteLine(string.Format(
             CultureInfo.InvariantCulture,
-            "  完成: {0}  rounds={1} handsPlayed={2}  总耗时={3:F0} ms  平均每步={4:F3} ms",
-            completed ? "是" : "否",
+            L.T("tools.cli.devtools.SmokeAi.10"),
+            completed ? L.T("tools.cli.devtools.SmokeAi.11") : L.T("tools.cli.devtools.SmokeAi.12"),
             runtime.Rounds,
             runtime.Engine.HandsPlayed,
             clock.Elapsed.TotalMilliseconds,
@@ -911,7 +992,7 @@ internal static class DevCommands
 
         if (!completed)
         {
-            Console.Error.WriteLine($"smoke-ai 未终局（phase={runtime.Phase}）");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.SmokeAi.13", ("p1", runtime.Phase)));
             return 1;
         }
 
@@ -928,7 +1009,7 @@ internal static class DevCommands
         if (args.Length < 2
             || !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint seed))
         {
-            Console.Error.WriteLine("用法：--smoke-ai-call <seed> [mode]");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.SmokeAiCall.1"));
             return 2;
         }
 
@@ -967,15 +1048,15 @@ internal static class DevCommands
         var calls = runtime.AiCallDeclarationsBySeat;
 
         Console.WriteLine($"smoke-ai-call seed={seed} mode={mode} matchSeed={runtime.MatchSeed}");
-        Console.WriteLine("  四家等级: " + string.Join("  ", names.Select((name, i) =>
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeAi.6") + string.Join("  ", names.Select((name, i) =>
             name + "=" + runtime.AiLevels[i])));
-        Console.WriteLine("  报听次数: 总=" + runtime.AiCallDeclarations + "（" + string.Join(" ", names.Select((name, i) =>
-            name + "=" + calls[i])) + "）");
-        Console.WriteLine("  弃牌决策: " + runtime.AiDiscardDecisions + " 次");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeAiCall.2") + runtime.AiCallDeclarations + L.T("tools.cli.devtools.SmokeAiCall.3") + string.Join(" ", names.Select((name, i) =>
+            name + "=" + calls[i])) + L.T("tools.cli.devtools.SmokeAi.9"));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeAi.7") + runtime.AiDiscardDecisions + L.T("tools.cli.devtools.SmokeAiCall.4"));
         Console.WriteLine(string.Format(
             CultureInfo.InvariantCulture,
-            "  完成: {0}  rounds={1} handsPlayed={2}  总耗时={3:F0} ms",
-            completed ? "是" : "否",
+            L.T("tools.cli.devtools.SmokeAiCall.5"),
+            completed ? L.T("tools.cli.devtools.SmokeAi.11") : L.T("tools.cli.devtools.SmokeAi.12"),
             runtime.Rounds,
             runtime.Engine.HandsPlayed,
             clock.Elapsed.TotalMilliseconds));
@@ -983,7 +1064,7 @@ internal static class DevCommands
 
         if (!completed)
         {
-            Console.Error.WriteLine($"smoke-ai-call 未终局（phase={runtime.Phase}）");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.SmokeAiCall.6", ("p1", runtime.Phase)));
             return 1;
         }
 
@@ -1032,11 +1113,11 @@ internal static class DevCommands
         bool completed = runtime.Phase == MatchPhase.MatchOver;
         bool ok = !save.Enabled && completed && existedAfter == existedBefore && unchanged;
 
-        Console.WriteLine("smoke-save（验证存档已停用）");
-        Console.WriteLine($"  SaveStore.Enabled={save.Enabled}  打完 {runtime.Rounds} 局: {completed}");
-        Console.WriteLine($"  存档路径: {statePath}");
-        Console.WriteLine($"  文件存在: {existedBefore} → {existedAfter}  内容: {(unchanged ? "未变" : "已变")}");
-        Console.WriteLine($"  结论: {(ok ? "未写盘" : "写盘了（停用失效）")}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeSave.1"));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeSave.2", ("p1", save.Enabled), ("p2", runtime.Rounds), ("p3", completed)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeSave.3", ("p1", statePath)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeSave.4", ("p1", existedBefore), ("p2", existedAfter), ("p3", (unchanged ? L.T("tools.cli.devtools.SmokeSave.unchanged") : L.T("tools.cli.devtools.SmokeSave.changed")))));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeSave.5", ("p1", (ok ? L.T("tools.cli.devtools.SmokeSave.saveNotWritten") : L.T("tools.cli.devtools.SmokeSave.saveWritten")))));
         return ok ? 0 : 1;
     }
 
@@ -1055,11 +1136,11 @@ internal static class DevCommands
         bool loadBlocked = save.Load() is null;
         bool ok = !hasMenuEntry && !hasPostResume && loadBlocked;
 
-        Console.WriteLine("smoke-resume（验证恢复已停用）");
-        Console.WriteLine($"  菜单 action=resume 入口: {(hasMenuEntry ? "有" : "无")}");
-        Console.WriteLine($"  GameSession.PostResume: {(hasPostResume ? "存在" : "不存在")}");
-        Console.WriteLine($"  SaveStore.Load（{save.StatePath}）: {(loadBlocked ? "null（不读档）" : "读出存档")}");
-        Console.WriteLine($"  结论: {(ok ? "无恢复入口" : "恢复入口仍在")}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeResume.1"));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeResume.2", ("p1", (hasMenuEntry ? L.T("tools.cli.devtools.SmokeResume.hasEntry") : L.T("tools.cli.devtools.SmokeResume.noEntry")))));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeResume.3", ("p1", (hasPostResume ? L.T("tools.cli.devtools.SmokeResume.exists") : L.T("tools.cli.devtools.SmokeResume.missing")))));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeResume.4", ("p1", save.StatePath), ("p2", (loadBlocked ? L.T("tools.cli.devtools.SmokeResume.loadBlocked") : L.T("tools.cli.devtools.SmokeResume.loadRead")))));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeSave.5", ("p1", (ok ? L.T("tools.cli.devtools.SmokeSave.noResumeEntry") : L.T("tools.cli.devtools.SmokeSave.resumeEntryStill")))));
         return ok ? 0 : 1;
     }
 
@@ -1073,7 +1154,7 @@ internal static class DevCommands
         uint seed = 1;
         if (args.Length >= 2 && !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out seed))
         {
-            Console.Error.WriteLine("seed 无效");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.SmokeSession.1"));
             return 2;
         }
 
@@ -1135,14 +1216,14 @@ internal static class DevCommands
         var final = session.LatestSnapshot;
         bool ok = final.Phase == "match_over" && final.Seats.Count == MahjongEngine.PlayerCount;
         Console.WriteLine($"smoke-session seed={seed} mode={mode}");
-        Console.WriteLine($"  终局快照: phase={final.Phase} roundLabel={final.RoundLabel} 人类命令={actions} 事件={events}");
-        Console.WriteLine("  四家分数: " + string.Join("  ", final.Seats.Select(seat =>
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeSession.2", ("p1", final.Phase), ("p2", final.RoundLabel), ("p3", actions), ("p4", events)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeSession.3") + string.Join("  ", final.Seats.Select(seat =>
             seat.Name + "=" + seat.Score.ToString("+0;-0;0", CultureInfo.InvariantCulture))));
         Console.WriteLine("  LastError: " + (session.LastError ?? "-"));
 
         if (!ok)
         {
-            Console.Error.WriteLine("会话未正常终局");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.SmokeSession.4"));
             return 1;
         }
 
@@ -1245,14 +1326,14 @@ internal static class DevCommands
         var final = session.LatestSnapshot;
         bool ok = final.Phase == "match_over";
         Console.WriteLine($"smoke-pointer seed={seed} mode={mode}");
-        Console.WriteLine($"  终局快照: phase={final.Phase} roundLabel={final.RoundLabel} 输入动作={actions} 点手牌出牌={discards}");
-        Console.WriteLine("  四家分数: " + string.Join("  ", final.Seats.Select(seat =>
+        Console.WriteLine(L.T("tools.cli.devtools.SmokePointer.1", ("p1", final.Phase), ("p2", final.RoundLabel), ("p3", actions), ("p4", discards)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeSession.3") + string.Join("  ", final.Seats.Select(seat =>
             seat.Name + "=" + seat.Score.ToString("+0;-0;0", CultureInfo.InvariantCulture))));
         Console.WriteLine("  LastError: " + (session.LastError ?? "-"));
 
         if (!ok)
         {
-            Console.Error.WriteLine("输入层自检未正常终局");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.SmokePointer.2"));
             return 1;
         }
 
@@ -1263,7 +1344,7 @@ internal static class DevCommands
     private static int CheckVoices()
     {
         Tiisu.App.Program.TryUseUtf8Console();
-        Console.WriteLine("副露类型 → 语音名");
+        Console.WriteLine(L.T("tools.cli.devtools.CheckVoices.1"));
         foreach (string type in TableScreen.MeldTypes)
         {
             Console.WriteLine($"  {type,-8} → {TableScreen.VoiceForMeld(type)}");
@@ -1320,12 +1401,12 @@ internal static class DevCommands
                   && settingsHandled && settingsBack;
 
         Console.WriteLine("smoke-escape");
-        Console.WriteLine($"  牌桌 ESC（有「过」）: handled={meldHandled} command={meldCommand}");
-        Console.WriteLine($"  牌桌 ESC（结算弹窗）: handled={dismissHandled} 弹窗关闭={!backAfterDismiss}");
-        Console.WriteLine($"  牌桌 ESC（弹窗已关）: handled={menuHandled} 回菜单={backAfterSecond}");
-        Console.WriteLine($"  菜单 ESC: handled={lobbyHandled} 动作=\"{(menuEscQuit ? clicked : "-")}\"（不退出、不做事）");
-        Console.WriteLine($"  菜单「退出」按钮: handled={quitHandled} action=\"{clicked}\"");
-        Console.WriteLine($"  设置 ESC: handled={settingsHandled} 回菜单={settingsBack}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeEscape.1", ("p1", meldHandled), ("p2", meldCommand)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeEscape.2", ("p1", dismissHandled), ("p2", !backAfterDismiss)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeEscape.3", ("p1", menuHandled), ("p2", backAfterSecond)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeEscape.4", ("p1", lobbyHandled), ("p2", (menuEscQuit ? clicked : "-"))));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeEscape.5", ("p1", quitHandled), ("p2", clicked)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeEscape.6", ("p1", settingsHandled), ("p2", settingsBack)));
         return ok ? 0 : 1;
     }
 
@@ -1351,18 +1432,18 @@ internal static class DevCommands
         {
             ("Parisian", "https://incompetech.com/music/royalty-free/"),
             ("CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"),
-            ("开源信息", "https://github.com/Pub-Polaris/Tiisu-Mahjong-CSharp"),
+            (L.T("tools.cli.devtools.SmokeCredits.1"), "https://github.com/Pub-Polaris/Tiisu-Mahjong-CSharp"),
         };
 
         bool ok = rects.Count == credits.Links!.Count;
         Console.WriteLine("smoke-credits");
-        Console.WriteLine($"  署名行: \"{credits.Text}\"  y={credits.Y:F0}  fontSize={credits.FontSize:F0}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeCredits.2", ("p1", credits.Text), ("p2", (credits.Y).ToString("F0", CultureInfo.InvariantCulture)), ("p3", (credits.FontSize).ToString("F0", CultureInfo.InvariantCulture))));
         foreach (var (needle, url) in expected)
         {
             var hit = rects.FirstOrDefault(r => r.Link.Url == url && r.Link.Text.Contains(needle, StringComparison.Ordinal));
             if (hit.Link is null)
             {
-                Console.WriteLine($"  [缺失] {needle} → {url}");
+                Console.WriteLine(L.T("tools.cli.devtools.SmokeCredits.3", ("p1", needle), ("p2", url)));
                 ok = false;
                 continue;
             }
@@ -1387,10 +1468,10 @@ internal static class DevCommands
         bool overlap = rects.Any(r => layout.Elements.Any(el =>
             el.Type == "button" && el.Rect.Contains(r.Rect.CenterX, r.Rect.CenterY)));
 
-        Console.WriteLine($"  分隔符（空 URL）保留: {emptyUrlIgnored}");
-        Console.WriteLine($"  ESC: handled={escapeHandled} 无动作={noActionOnEsc}");
-        Console.WriteLine($"  「退出」按钮: handled={quitHandled} action=\"{clickedAction}\"");
-        Console.WriteLine($"  与按钮重叠: {overlap}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeCredits.4", ("p1", emptyUrlIgnored)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeCredits.5", ("p1", escapeHandled), ("p2", noActionOnEsc)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeCredits.6", ("p1", quitHandled), ("p2", clickedAction)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeCredits.7", ("p1", overlap)));
 
         ok &= emptyUrlIgnored && escapeHandled && noActionOnEsc && quitHandled && quitAction && !overlap;
         Console.WriteLine(ok ? "  OK" : "  FAIL");
@@ -1414,10 +1495,10 @@ internal static class DevCommands
         var scores = runtime.FinalScores;
         int winRounds = runtime.TsumoWins + runtime.RonWins;
 
-        Console.WriteLine($"  局数: rounds={runtime.Rounds} handsPlayed={runtime.Engine.HandsPlayed} mode={runtime.ModeTarget}");
+        Console.WriteLine(L.T("tools.cli.devtools.PrintSmoke.1", ("p1", runtime.Rounds), ("p2", runtime.Engine.HandsPlayed), ("p3", runtime.ModeTarget)));
         Console.WriteLine(
-            $"  和牌/流局: 和牌 {winRounds} 局（自摸 {runtime.TsumoWins} / 荣和 {runtime.RonWins}）· 流局 {runtime.DrawRounds} 局（特殊 {runtime.SpecialFlowRounds}）");
-        Console.WriteLine("  四家分数: " + string.Join("  ", names.Select((name, i) =>
+            L.T("tools.cli.devtools.PrintSmoke.2", ("p1", winRounds), ("p2", runtime.TsumoWins), ("p3", runtime.RonWins), ("p4", runtime.DrawRounds), ("p5", runtime.SpecialFlowRounds)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeSession.3") + string.Join("  ", names.Select((name, i) =>
             name + "=" + scores[i].ToString("+0;-0;0", CultureInfo.InvariantCulture))));
         Console.WriteLine("  EventHash: " + runtime.EventHash);
     }
@@ -1436,7 +1517,7 @@ internal static class DevCommands
         "rules" => new RulesScreen(() => { }),
         "licenses" => new LicensesScreen(() => { }),
         "markdown" => new MarkdownScreen(
-          "参考与合规说明",
+          L.T("tools.cli.devtools.CreateScreen.1"),
           System.IO.File.ReadAllText(Path.Combine(Tiisu.App.Program.AssetsDir, "docs",
               UiText.IsEnglish ? "en/REFERENCES.md" : UiText.IsJapanese ? "ja/REFERENCES.md" : "REFERENCES.md")),
           () => { }),
@@ -1556,13 +1637,13 @@ internal static class DevCommands
                 .OrderBy(t => (int)t.Suit)
                 .ThenBy(t => t.Num)
                 .Select(t => t.Id));
-            hands.Add($"{wind}家（{player.Hand.Count}）：{tiles}");
+            hands.Add(L.T("tools.cli.devtools.RenderHandsToPng.1", ("p1", wind), ("p2", player.Hand.Count), ("p3", tiles)));
         }
 
         float boxH = 60f + (hands.Count * 30f) + 10f;
         canvas.DrawRoundRect(new SKRect(16, 16, 1184, 16 + boxH), 10, 10, panel);
-        canvas.DrawText($"系统时间 {DateTime.Now:yyyy-MM-dd HH:mm:ss}", 30, 46, SKTextAlign.Left, titleFont, paint);
-        canvas.DrawText($"第 {vm.RoundLabel} · 余 {vm.WallCount} 张 · seed={seed} mode={mode}",
+        canvas.DrawText(L.T("tools.cli.devtools.RenderHandsToPng.2", ("p1", (DateTime.Now).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture))), 30, 46, SKTextAlign.Left, titleFont, paint);
+        canvas.DrawText(L.T("tools.cli.devtools.RenderHandsToPng.3", ("p1", vm.RoundLabel), ("p2", vm.WallCount), ("p3", seed), ("p4", mode)),
             30, 74, SKTextAlign.Left, bodyFont, muted);
         float y = 104;
         foreach (string line in hands)
@@ -1574,7 +1655,7 @@ internal static class DevCommands
         using var image = surface.Snapshot();
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(path, data.ToArray());
-        Console.WriteLine($"rendered hands -> {path}  {vm.RoundLabel} 余{vm.WallCount} 人类弃牌={humanDiscards} 阶段={runtime.Phase}");
+        Console.WriteLine(L.T("tools.cli.devtools.RenderHandsToPng.4", ("p1", path), ("p2", vm.RoundLabel), ("p3", vm.WallCount), ("p4", humanDiscards), ("p5", runtime.Phase)));
         foreach (string line in hands)
         {
             Console.WriteLine("  " + line);
@@ -1817,7 +1898,7 @@ internal static class DevCommands
         if (!atlas.IsLoaded || atlas.Sheet is not { } sheet
             || !atlas.TryGetSource("1s", out var src))
         {
-            Console.Error.WriteLine("牌面图集不可用（Assets/tiles.png / tiles.json）");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.RenderTileRotate.1"));
             return 1;
         }
 
@@ -1956,7 +2037,7 @@ internal static class DevCommands
         runtime.StartMatch(mode);
         if (captured is null)
         {
-            Console.Error.WriteLine($"没有在第一次局末停下（phase={runtime.Phase}）");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.RenderRoundEndToPng.1", ("p1", runtime.Phase)));
             return 1;
         }
 
@@ -1966,19 +2047,19 @@ internal static class DevCommands
         RenderScreen(path, screen, atlas);
 
         Console.WriteLine($"rendered roundend -> {path}  seed={seed} mode={mode} phase={runtime.Phase}");
-        Console.WriteLine($"  结果: kind={captured.Kind} winners=[{string.Join(",", captured.Winners)}] " +
+        Console.WriteLine(L.T("tools.cli.devtools.RenderRoundEndToPng.2", ("p1", captured.Kind), ("p2", string.Join(",", captured.Winners))) +
                           $"draw={captured.DrawReason ?? "-"} matchOver={captured.MatchOver}");
-        Console.WriteLine("  分数: " + string.Join("  ", captured.Scores.Select((value, i) =>
+        Console.WriteLine(L.T("tools.cli.devtools.RenderRoundEndToPng.3") + string.Join("  ", captured.Scores.Select((value, i) =>
             runtime.Engine.Players[i].Name + "=" + value.ToString("+0;-0;0", CultureInfo.InvariantCulture))));
         var details = captured.Details ?? Array.Empty<SettlementDetail>();
-        Console.WriteLine($"  明细: {details.Count} 条");
+        Console.WriteLine(L.T("tools.cli.devtools.RenderRoundEndToPng.4", ("p1", details.Count)));
         foreach (var detail in details)
         {
             Console.WriteLine(string.Format(
                 CultureInfo.InvariantCulture,
                 "    {0}: {1} totalFu={2} tableSafe={3} base={4} tableless={5} bonus={6} sub={7} dealer={8} honba={9} final={10} pay=\"{11}\"",
                 runtime.Engine.Players[detail.WinnerIndex].Name,
-                detail.SelfDraw ? "自摸" : "荣和",
+                detail.SelfDraw ? L.T("tools.cli.devtools.RenderRoundEndToPng.5") : L.T("tools.cli.devtools.RenderRoundEndToPng.6"),
                 detail.TotalFu,
                 detail.TableSafeFu,
                 detail.BasePoints,
@@ -1989,7 +2070,7 @@ internal static class DevCommands
                 detail.HonbaCount,
                 detail.FinalPoints,
                 detail.PaymentText));
-            Console.WriteLine("      役: " + string.Join(" / ", detail.Yaku.Select(y =>
+            Console.WriteLine(L.T("tools.cli.devtools.RenderRoundEndToPng.7") + string.Join(" / ", detail.Yaku.Select(y =>
                 y.Name + y.Fu + "(" + y.Flag + ")")));
         }
 
@@ -2508,7 +2589,7 @@ internal static class DevCommands
         var gr = host?.Context;
         if (host is null || gr is null)
         {
-            Console.WriteLine($"GL 不可用，跳过：{error ?? "未知原因"}");
+            Console.WriteLine(L.T("tools.cli.devtools.BenchGl.1", ("p1", error ?? L.T("tools.cli.devtools.BenchGl.unknownReason"))));
             return 0;
         }
 
@@ -2518,7 +2599,7 @@ internal static class DevCommands
         using var surface = SKSurface.Create(gr, true, info);
         if (surface is null)
         {
-            Console.WriteLine("GL 不可用，跳过：离屏 GPU surface 创建失败");
+            Console.WriteLine(L.T("tools.cli.devtools.BenchGl.2"));
             return 0;
         }
 
@@ -2576,7 +2657,7 @@ internal static class DevCommands
                 "flat" or "2d" => TableRenderStyle.Flat,
                 "medium" or "medium25d" => TableRenderStyle.Flat,
                 "light" or "light25d" => TableRenderStyle.Flat,
-                var other => throw new ArgumentException($"未知 --variant：{other}（mixed | flat | light | medium）"),
+                var other => throw new ArgumentException(L.T("tools.cli.devtools.Render25DToPng.1", ("p1", other))),
             };
         }
 
@@ -2675,7 +2756,7 @@ internal static class DevCommands
         File.WriteAllText(Path.Combine(outDir, "layout.md"),
             SvgExporter.BuildLayoutMarkdown(layout), new System.Text.UTF8Encoding(false));
 
-        Console.WriteLine($"exported svg -> {main}（内嵌牌面 {exporter.TileCount} 张）/ table-regions.svg / layout.json / layout.md");
+        Console.WriteLine(L.T("tools.cli.devtools.ExportSvg.1", ("p1", main), ("p2", exporter.TileCount)));
     }
 
     /// <summary>
@@ -3053,12 +3134,12 @@ internal static class DevCommands
         // ── 1. 报听宣言 / 非听牌被拒 ──────────────────────────────
         var engine = NewRound("1111m23m456m789m5z", 0, out var selfHand);
         var player = engine.Players[0];
-        Check("13 张手牌听牌", engine.IsTenpai(player), "hand=1111m23m456m789m5z");
-        Check("报听宣言", engine.DeclareCall(player) && player.IsCalled,
+        Check(L.T("tools.cli.devtools.SmokeCall.1"), engine.IsTenpai(player), "hand=1111m23m456m789m5z");
+        Check(L.T("tools.cli.devtools.SmokeCall.2"), engine.DeclareCall(player) && player.IsCalled,
             "waitMask=" + player.CalledWaitMask.ToString("x"));
-        Check("重复宣言被拒", !engine.DeclareCall(player), "");
+        Check(L.T("tools.cli.devtools.SmokeCall.3"), !engine.DeclareCall(player), "");
         var junkEngine = NewRound("1234m6789p12345s", 0, out _);
-        Check("非听牌不能报", !junkEngine.DeclareCall(junkEngine.Players[0]), "hand=1234m6789p12345s");
+        Check(L.T("tools.cli.devtools.SmokeCall.4"), !junkEngine.DeclareCall(junkEngine.Players[0]), "hand=1234m6789p12345s");
 
         // ── 2. 锁手：打掉会改听牌张的牌被拒 ──────────────────────
         engine.Draw(player, new GameTile(GameSuit.Pin, 9));
@@ -3077,12 +3158,12 @@ internal static class DevCommands
             }
         }
 
-        Check("锁手拒绝改听牌张", breakTile is not null, breakTile is null ? "未找到破坏听牌形的打牌" : "tile=" + breakTile.Value.Id + " · " + breakReason);
+        Check(L.T("tools.cli.devtools.SmokeCall.5"), breakTile is not null, breakTile is null ? L.T("tools.cli.devtools.SmokeCall.6") : "tile=" + breakTile.Value.Id + " · " + breakReason);
         if (breakTile is not null)
         {
             int before = player.Hand.Count;
             var blocked = engine.Discard(player, breakTile.Value);
-            Check("越界弃牌被引擎拦下", blocked is null && player.Hand.Count == before, "hand=" + before);
+            Check(L.T("tools.cli.devtools.SmokeCall.7"), blocked is null && player.Hand.Count == before, "hand=" + before);
         }
 
         // ── 3. 吃碰被拒 ─────────────────────────────────────────
@@ -3090,7 +3171,7 @@ internal static class DevCommands
         bool chiDenied = !engine.CallAllowsMeld(player, MeldType.Chi, out _);
         bool minkanDenied = !engine.CallAllowsMeld(player, MeldType.Minkan, out _);
         bool kakanDenied = !engine.CallAllowsMeld(player, MeldType.Kakan, out _);
-        Check("禁吃碰明杠加杠", ponDenied && chiDenied && minkanDenied && kakanDenied, ponReason ?? string.Empty);
+        Check(L.T("tools.cli.devtools.SmokeCall.8"), ponDenied && chiDenied && minkanDenied && kakanDenied, ponReason ?? string.Empty);
 
         bool meldThrew = false;
         try
@@ -3102,7 +3183,7 @@ internal static class DevCommands
             meldThrew = true;
         }
 
-        Check("引擎硬拒绝副露", meldThrew, "ApplyMeld → InvalidOperationException");
+        Check(L.T("tools.cli.devtools.SmokeCall.9"), meldThrew, "ApplyMeld → InvalidOperationException");
 
         // ── 4. 暗杠例外 ─────────────────────────────────────────
         var kanEngine = NewRound("1111m23m456m789m5z", 0, out _);
@@ -3113,15 +3194,15 @@ internal static class DevCommands
         kanEngine.Draw(kanPlayer, new GameTile(GameSuit.Man, 4));
         bool ankanAllowed = kanEngine.CallAllowsAnkan(kanPlayer, new GameTile(GameSuit.Man, 1), out string? ankanYes);
         bool ankanOther = kanEngine.CallAllowsAnkan(kanPlayer, new GameTile(GameSuit.Man, 2), out string? ankanNo);
-        Check("暗杠例外（形不变）", kanDeclared && ankanAllowed, ankanYes ?? "ankan 1m allowed");
-        Check("非四张暗杠被拒", !ankanOther, ankanNo ?? string.Empty);
+        Check(L.T("tools.cli.devtools.SmokeCall.10"), kanDeclared && ankanAllowed, ankanYes ?? "ankan 1m allowed");
+        Check(L.T("tools.cli.devtools.SmokeCall.11"), !ankanOther, ankanNo ?? string.Empty);
 
         var kakanEngine = NewRound("1111m23m456m789m5z", 0, out _);
         var kakanPlayer = kakanEngine.Players[0];
         kakanEngine.DeclareCall(kakanPlayer);
         kakanEngine.Draw(kakanPlayer, new GameTile(GameSuit.Pin, 9));
         kakanPlayer.AddMeld(MeldType.Pon, new[] { new GameTile(GameSuit.Honor, 5), new GameTile(GameSuit.Honor, 5), new GameTile(GameSuit.Honor, 5) });
-        Check("加杠被拒", !kakanEngine.DoKan(kakanPlayer, new GameTile(GameSuit.Honor, 5), MeldType.Kakan), "报听后加杠");
+        Check(L.T("tools.cli.devtools.SmokeCall.12"), !kakanEngine.DoKan(kakanPlayer, new GameTile(GameSuit.Honor, 5), MeldType.Kakan), L.T("tools.cli.devtools.SmokeCall.13"));
 
         // ── 5. 普通错和（Z = 赋 × 700）──────────────────────────
         var scoresBefore = engine.Scores.ToArray();
@@ -3131,10 +3212,10 @@ internal static class DevCommands
                        && engine.Scores[1] == scoresBefore[1] + 1400
                        && engine.Scores[2] == scoresBefore[2] + 1400
                        && engine.Scores[3] == scoresBefore[3] + 1400;
-        Check("普通错和 Z=赋×700", minorOk,
+        Check(L.T("tools.cli.devtools.SmokeCall.14"), minorOk,
             penalty is null ? "null" : $"fu={penalty.Fu} z={penalty.Z} scores={string.Join(",", engine.Scores)}");
-        Check("错和解除报听", !player.IsCalled, "isCalled=false");
-        Check("本巡禁和标记", engine.IsWinBanned(player), "isWinBanned=true");
+        Check(L.T("tools.cli.devtools.SmokeCall.15"), !player.IsCalled, "isCalled=false");
+        Check(L.T("tools.cli.devtools.SmokeCall.16"), engine.IsWinBanned(player), "isWinBanned=true");
 
         // ── 6. 重罚错和（Z > 2100）──────────────────────────────
         var severeEngine = NewRound("1111m23m456m789m5z", 1, out _);
@@ -3147,9 +3228,9 @@ internal static class DevCommands
                         && severeEngine.Scores[2] == severeScores[2] + 7000
                         && severeEngine.Scores[3] == severeScores[3] + 7000
                         && severeEngine.Scores[0] == severeScores[0] - 28000;
-        Check("重罚错和（子家违规）", severeOk,
+        Check(L.T("tools.cli.devtools.SmokeCall.17"), severeOk,
             severe is null ? "null" : $"z={severe.Z} paid={string.Join(",", severe.Paid)} scores={string.Join(",", severeEngine.Scores)}");
-        Check("重罚：本局+下局禁和",
+        Check(L.T("tools.cli.devtools.SmokeCall.18"),
             severeEngine.IsWinBanned(severePlayer) && severeEngine.IsWinBannedNextHand(0), "hand+nextHand=true");
 
         // ── 7. 流局：已报听者自动算听牌 ─────────────────────────
@@ -3158,13 +3239,13 @@ internal static class DevCommands
         flowEngine.DeclareCall(flowPlayer);
         flowEngine.Players[3].IsCalled = true; // 非听牌但已报听（直接置位验证「自动算听牌」）
         flowEngine.Flow();
-        Check("流局报听者算听牌",
+        Check(L.T("tools.cli.devtools.SmokeCall.19"),
             flowEngine.FlowTenpai.Count == 4 && flowEngine.FlowTenpai[0] && flowEngine.FlowTenpai[3],
             "tenpai=" + string.Join(",", flowEngine.FlowTenpai));
-        Check("流局未听牌家灰显依据",
+        Check(L.T("tools.cli.devtools.SmokeCall.20"),
             !flowEngine.FlowTenpai[1] && !flowEngine.FlowTenpai[2],
             "seat1/2 noten");
-        Check("流局翻牌", flowEngine.RevealHands, "revealHands=true");
+        Check(L.T("tools.cli.devtools.SmokeCall.21"), flowEngine.RevealHands, "revealHands=true");
 
         Console.WriteLine();
         Console.WriteLine(failures == 0 ? "smoke-call: all checks passed" : "smoke-call: " + failures + " failed");
@@ -3182,7 +3263,7 @@ internal static class DevCommands
         if (args.Length < 2
             || !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint seed))
         {
-            Console.Error.WriteLine("用法：--play-real <seed> [mode] [games]");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.PlayReal.1"));
             return 2;
         }
 
@@ -3221,7 +3302,7 @@ internal static class DevCommands
             {
                 if (++steps > 200_000)
                 {
-                    stall = "动作数超过 200000";
+                    stall = L.T("tools.cli.devtools.PlayReal.2");
                     break;
                 }
 
@@ -3244,7 +3325,7 @@ internal static class DevCommands
                 {
                     if (++sameState > 400)
                     {
-                        stall = $"卡在 {phase}（回合={runtime.Engine.TurnIndex}，手牌={handCount}，动作={runtime.Snapshot.Actions}）";
+                        stall = L.T("tools.cli.devtools.PlayReal.3", ("p1", phase), ("p2", runtime.Engine.TurnIndex), ("p3", handCount), ("p4", runtime.Snapshot.Actions));
                         break;
                     }
                 }
@@ -3277,8 +3358,8 @@ internal static class DevCommands
                             // 关键是不能少牌（小相公）也不能多出两张以上。
                             if (player.Hand.Count < concealed || player.Hand.Count > concealed + 1)
                             {
-                                stall = $"过牌后手牌张数异常：{beforeCount} -> {player.Hand.Count}"
-                                        + $"（应在 {concealed}..{concealed + 1}）";
+                                stall = L.T("tools.cli.devtools.PlayReal.4", ("p1", beforeCount), ("p2", player.Hand.Count))
+                                        + L.T("tools.cli.devtools.PlayReal.5", ("p1", concealed), ("p2", concealed + 1));
                             }
                         }
 
@@ -3315,9 +3396,7 @@ internal static class DevCommands
                             : BestShantenDiscardIndex(player);
                         if (pick < 0 || pick >= player.Hand.Count)
                         {
-                            stall = "找不到可打的牌（手牌=" + player.Hand.Count + "："
-                                    + string.Join(" ", player.Hand.Select(t => t.Id))
-                                    + "，报听=" + player.IsCalled + "）";
+                            stall = L.T("tools.cli.devtools.PlayReal.noPlayableTile", ("count", player.Hand.Count), ("hand", string.Join(" ", player.Hand.Select(t => t.Id))), ("called", player.IsCalled));
                             break;
                         }
 
@@ -3339,12 +3418,12 @@ internal static class DevCommands
             bool completed = runtime.Phase == MatchPhase.MatchOver;
             if (stall.Length == 0 && !completed)
             {
-                stall = "45 秒内未终局（阶段=" + runtime.Phase + "）";
+                stall = L.T("tools.cli.devtools.PlayReal.timeoutNotFinished", ("phase", runtime.Phase));
             }
 
             Console.WriteLine($"play-real game={game + 1}/{games} seed={gameSeed} mode={mode} "
-                + $"耗时={clock.Elapsed.TotalSeconds:F1}s 步数={steps} 荣和窗口={ronWindows} 过牌={ronPasses} "
-                + $"报听={callDeclares} 阶段={runtime.Phase} 结果={(stall.Length == 0 ? "OK" : "FAIL " + stall)}");
+                + L.T("tools.cli.devtools.PlayReal.10", ("p1", (clock.Elapsed.TotalSeconds).ToString("F1", CultureInfo.InvariantCulture)), ("p2", steps), ("p3", ronWindows), ("p4", ronPasses))
+                + L.T("tools.cli.devtools.PlayReal.11", ("p1", callDeclares), ("p2", runtime.Phase), ("p3", (stall.Length == 0 ? "OK" : "FAIL " + stall))));
 
             if (stall.Length > 0)
             {
@@ -3376,7 +3455,7 @@ internal static class DevCommands
         bool sawCalledRon = false;
         bool passedOk = false;
         bool lastPassFlag = false;
-        string detail = "未出现报听荣和";
+        string detail = L.T("tools.cli.devtools.SmokeCalledRonPass.1");
         var clock = Stopwatch.StartNew();
 
         while (clock.Elapsed < TimeSpan.FromSeconds(40) && runtime.Phase != MatchPhase.MatchOver)
@@ -3409,7 +3488,7 @@ internal static class DevCommands
                     : BestShantenDiscardIndex(player);
                 if (pick < 0)
                 {
-                    detail = "找不到可打的牌";
+                    detail = L.T("tools.cli.devtools.SmokeCalledRonPass.2");
                     break;
                 }
 
@@ -3450,12 +3529,12 @@ internal static class DevCommands
                         }
                     }
 
-                    Console.WriteLine($"  荣和窗口: actions={ronVm.Actions} passFlag={hasPassFlag} "
-                        + $"passBtn={(passBtn is null ? "无" : passBtn.Label)} clickable={passClickable} overlap={overlap}");
+                    Console.WriteLine(L.T("tools.cli.devtools.SmokeCalledRonPass.3", ("p1", ronVm.Actions), ("p2", hasPassFlag))
+                        + L.T("tools.cli.devtools.SmokeCalledRonPass.4", ("p1", (passBtn is null ? L.T("tools.cli.devtools.SmokeCalledRonPass.noPassButton") : passBtn.Label)), ("p2", passClickable), ("p3", overlap)));
                     int before = player.Hand.Count;
                     runtime.Execute(GameCommand.Pass());
                     passedOk = runtime.Phase != MatchPhase.HumanRon || player.Hand.Count == before;
-                    detail = $"报听荣和→过：阶段={runtime.Phase} 手牌 {before}->{player.Hand.Count}";
+                    detail = L.T("tools.cli.devtools.SmokeCalledRonPass.5", ("p1", runtime.Phase), ("p2", before), ("p3", player.Hand.Count));
                     break;
                 }
 
@@ -3490,9 +3569,9 @@ internal static class DevCommands
             }
         }
 
-        Console.WriteLine($"  副露={meldSeen} 有取牌下标={claimSeen}");
-        Console.WriteLine($"smoke-called-ron-pass: seed={seed} 报听={called} 报听荣和={sawCalledRon} "
-            + $"{detail} 锁手灰显={lockOk} {(ok ? "PASS" : "FAIL")}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeCalledRonPass.6", ("p1", meldSeen), ("p2", claimSeen)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeCalledRonPass.7", ("p1", seed), ("p2", called), ("p3", sawCalledRon))
+            + L.T("tools.cli.devtools.SmokeCalledRonPass.8", ("p1", detail), ("p2", lockOk), ("p3", (ok ? "PASS" : "FAIL"))));
         return ok ? 0 : 1;
     }
 
@@ -3509,11 +3588,11 @@ internal static class DevCommands
             {
                 int next = settings.AiSeatLocks[seat] + 1;
                 settings.AiSeatLocks[seat] = next > 4 ? -1 : next;
-                seq.Add(settings.AiSeatLocks[seat] < 0 ? "随机" : new[] { "简单", "普通", "困难", "修罗", "7Neuu" }[settings.AiSeatLocks[seat]]);
+                seq.Add(settings.AiSeatLocks[seat] < 0 ? L.T("tools.cli.devtools.ListLocks.1") : new[] { L.T("tools.cli.devtools.ListLocks.2"), L.T("tools.cli.devtools.ListLocks.3"), L.T("tools.cli.devtools.ListLocks.4"), L.T("tools.cli.devtools.ListLocks.5"), "7Neuu" }[settings.AiSeatLocks[seat]]);
             }
 
             settings.AiSeatLocks[seat] = -1;
-            Console.WriteLine($"  座 {seat}: {string.Join(" → ", seq)}");
+            Console.WriteLine(L.T("tools.cli.devtools.ListLocks.6", ("p1", seat), ("p2", string.Join(" → ", seq))));
         }
 
         return 0;
@@ -3542,7 +3621,7 @@ internal static class DevCommands
         }
 
         bool ok = runtime.NeuralDecisions > 0;
-        Console.WriteLine($"smoke-7neuu: 神经决策 {runtime.NeuralDecisions} 次（与困难不同 {runtime.NeuralDifferent}）{(ok ? " PASS" : " FAIL")}");
+        Console.WriteLine(L.T("tools.cli.devtools.Smoke7Neuu.1", ("p1", runtime.NeuralDecisions), ("p2", runtime.NeuralDifferent), ("p3", (ok ? " PASS" : " FAIL"))));
         return ok ? 0 : 1;
     }
 
@@ -3652,12 +3731,12 @@ internal static class DevCommands
 
             if ((i + 1) % 10 == 0 || i + 1 == games)
             {
-                Console.WriteLine($"  {i + 1}/{games}  平均顺位 {rankSum / (i + 1):F2}  一位率 {wins / (double)(i + 1):P0}");
+                Console.WriteLine(L.T("tools.cli.devtools.SelfPlay.1", ("p1", i + 1), ("p2", games), ("p3", (rankSum / (i + 1)).ToString("F2", CultureInfo.InvariantCulture)), ("p4", (wins / (double)(i + 1)).ToString("P0", CultureInfo.InvariantCulture))));
             }
         }
 
-        Console.WriteLine($"selfplay: {games} 局 → {outPath}");
-        Console.WriteLine($"  平均顺位 {rankSum / games:F2}，一位率 {wins / (double)games:P0}，耗时 {sw.Elapsed.TotalSeconds:F0}s");
+        Console.WriteLine(L.T("tools.cli.devtools.SelfPlay.2", ("p1", games), ("p2", outPath)));
+        Console.WriteLine(L.T("tools.cli.devtools.SelfPlay.3", ("p1", (rankSum / games).ToString("F2", CultureInfo.InvariantCulture)), ("p2", (wins / (double)games).ToString("P0", CultureInfo.InvariantCulture)), ("p3", (sw.Elapsed.TotalSeconds).ToString("F0", CultureInfo.InvariantCulture))));
         return 0;
     }
     /// <summary><c>--smoke-ab [games]</c>：指定座位走小策略网，其余 TieredAi，统计该座位顺位。</summary>
@@ -3715,10 +3794,10 @@ internal static class DevCommands
         double Avg(List<int> list) => list.Count == 0 ? 0 : list.Average();
         double WinRate(List<int> list) => list.Count == 0 ? 0 : list.Count(r => r == 1) / (double)list.Count;
         Console.WriteLine($"smoke-ab: games={games}");
-        Console.WriteLine($"  神经座平均顺位 {Avg(neuralRanks):F2}（一位率 {WinRate(neuralRanks):P0}）");
-        Console.WriteLine($"  基线座平均顺位 {Avg(baseRanks):F2}（一位率 {WinRate(baseRanks):P0}）");
-        Console.WriteLine($"  神经决策 {decisions} 次，与 TieredAi 不同 {different} 次（AI 总决策 {aiCalls}）");
-        Console.WriteLine($"  神经顺位: {string.Join(",", neuralRanks)} / 基线: {string.Join(",", baseRanks)}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeAb.1", ("p1", (Avg(neuralRanks)).ToString("F2", CultureInfo.InvariantCulture)), ("p2", (WinRate(neuralRanks)).ToString("P0", CultureInfo.InvariantCulture))));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeAb.2", ("p1", (Avg(baseRanks)).ToString("F2", CultureInfo.InvariantCulture)), ("p2", (WinRate(baseRanks)).ToString("P0", CultureInfo.InvariantCulture))));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeAb.3", ("p1", decisions), ("p2", different), ("p3", aiCalls)));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeAb.4", ("p1", string.Join(",", neuralRanks)), ("p2", string.Join(",", baseRanks))));
         return 0;
     }
     /// <summary><c>--smoke-ruleset-switch</c>：设置切到推倒胡并重置后，引擎必须真的换成推倒胡。</summary>
@@ -3738,7 +3817,7 @@ internal static class DevCommands
             && runtime.Engine.Checker.Ruleset == Ruleset.TuidaoHu;
 
         bool ok = before && after;
-        Console.WriteLine($"smoke-ruleset-switch: 初始七子={before} 切换后推倒胡={after} {(ok ? "PASS" : "FAIL")}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeRulesetSwitch.1", ("p1", before), ("p2", after), ("p3", (ok ? "PASS" : "FAIL"))));
         return ok ? 0 : 1;
     }
 
@@ -3768,8 +3847,8 @@ internal static class DevCommands
         int idx = NeuralPolicyAi.ChooseDiscard(ctx);
         bool ok = NeuralPolicyAi.Available && idx >= 0 && idx < hand.Length;
         Console.WriteLine($"smoke-neural: available={NeuralPolicyAi.Available} weights={NeuralPolicyAi.LoadedFrom}");
-        Console.WriteLine($"  手牌={string.Join(" ", hand.Select(x => x.Id))}");
-        Console.WriteLine($"  选择={(idx >= 0 ? hand[idx].Id : "无")} {(ok ? "PASS" : "FAIL")}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeNeural.1", ("p1", string.Join(" ", hand.Select(x => x.Id)))));
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeNeural.2", ("p1", (idx >= 0 ? hand[idx].Id : L.T("tools.cli.devtools.SmokeNeural.none"))), ("p2", (ok ? "PASS" : "FAIL"))));
         return ok ? 0 : 1;
     }
 
@@ -3793,7 +3872,7 @@ internal static class DevCommands
         bool onAfterApply = runtime.Engine.Checker.OptionalEnabled.Contains("all_number");
 
         bool ok = offByDefault && onAfterApply;
-        Console.WriteLine($"smoke-optional: 默认关闭={offByDefault} 应用后全数={onAfterApply} {(ok ? "PASS" : "FAIL")}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeOptional.1", ("p1", offByDefault), ("p2", onAfterApply), ("p3", (ok ? "PASS" : "FAIL"))));
         return ok ? 0 : 1;
     }
 
@@ -3870,8 +3949,8 @@ internal static class DevCommands
         bool zeroScores = runtime.Engine.Scores.All(s => s == start);
         bool simplified = last is { Simplified: true };
         bool ok = simplified && zeroScores && !called;
-        Console.WriteLine($"smoke-tuidaohu: seed={seed} 阶段={runtime.Phase} 简化结算={simplified} "
-            + $"零分数={zeroScores} 报听={called} {(ok ? "PASS" : "FAIL")}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeTuidaoHu.1", ("p1", seed), ("p2", runtime.Phase), ("p3", simplified))
+            + L.T("tools.cli.devtools.SmokeTuidaoHu.2", ("p1", zeroScores), ("p2", called), ("p3", (ok ? "PASS" : "FAIL"))));
         return ok ? 0 : 1;
     }
 
@@ -4006,8 +4085,8 @@ internal static class DevCommands
         string dealerText = dealerDice is { Count: 2 } ? $"{dealerDice[0]}+{dealerDice[1]}={dealerDice[0] + dealerDice[1]}" : "-";
         double ratio = total == 0 ? 0 : (double)changed / total;
         bool passed = ratio > 0.5 && cut is { Count: 2 } && runtime.Engine.CutSkipTiles == (cut[0] + cut[1]) * 2;
-        Console.WriteLine($"smoke-dice: 面板像素变化={ratio:P1} 定庄骰={dealerText} 切牌骰={cutText} "
-            + $"跳墩={runtime.Engine.CutSkipTiles} {(passed ? "PASS" : "FAIL")}");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeDice.1", ("p1", (ratio).ToString("P1", CultureInfo.InvariantCulture)), ("p2", dealerText), ("p3", cutText))
+            + L.T("tools.cli.devtools.SmokeDice.2", ("p1", runtime.Engine.CutSkipTiles), ("p2", (passed ? "PASS" : "FAIL"))));
         return passed ? 0 : 1;
     }
 
@@ -4069,7 +4148,7 @@ internal static class DevCommands
         }
 
         bool passed = sawHuman && lastActed;
-        Console.WriteLine($"smoke-think: 人类出牌={sawHuman} 手牌={before} 自动动作={lastActed} 结束阶段={runtime.Phase} "
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeThink.1", ("p1", sawHuman), ("p2", before), ("p3", lastActed), ("p4", runtime.Phase))
             + (passed ? "PASS" : "FAIL"));
         return passed ? 0 : 1;
     }
@@ -4092,7 +4171,7 @@ internal static class DevCommands
         if (args.Length < 2
             || !uint.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint seed))
         {
-            Console.Error.WriteLine("用法：--smoke-call-flow <seed> [mode]");
+            Console.Error.WriteLine(L.T("tools.cli.devtools.SmokeCallFlow.1"));
             return 2;
         }
 
@@ -4130,7 +4209,7 @@ internal static class DevCommands
         bool armOk = false;
         bool declared = false;
         bool advanceOk = false;
-        string advanceDetail = "未出现报听时机";
+        string advanceDetail = L.T("tools.cli.devtools.SmokeCallFlow.2");
         bool callButtonOk = false;
         bool callButtonChecked = false;
         bool postCallDiscardOk = false;
@@ -4142,7 +4221,7 @@ internal static class DevCommands
         {
             if (++actions > 50_000)
             {
-                stuck = "动作数超过 50000";
+                stuck = L.T("tools.cli.devtools.SmokeCallFlow.3");
                 break;
             }
 
@@ -4172,7 +4251,7 @@ internal static class DevCommands
 
             if (phase != MatchPhase.HumanDiscard)
             {
-                stuck = "牌局停在 " + phase + "，无人推进";
+                stuck = L.T("tools.cli.devtools.SmokeCallFlow.stuckAt", ("phase", phase));
                 break;
             }
 
@@ -4193,7 +4272,7 @@ internal static class DevCommands
                 int index = TenpaiDiscardIndex(runtime.Engine, player);
                 if (index < 0 || index >= player.Hand.Count)
                 {
-                    stuck = "报听按钮可用但找不到保持听牌的弃牌";
+                    stuck = L.T("tools.cli.devtools.SmokeCallFlow.6");
                     break;
                 }
 
@@ -4223,18 +4302,15 @@ internal static class DevCommands
                                 || runtime.Phase is MatchPhase.RoundEnded or MatchPhase.MatchOver);
                 Console.WriteLine(string.Format(
                     CultureInfo.InvariantCulture,
-                    "  报听: 打出={0} isCalled={1} 阶段={2} 回合={3}->{4} 牌山={5}->{6} 用时={7:F0}ms",
+                    L.T("tools.cli.devtools.SmokeCallFlow.7"),
                     tile.Id, player.IsCalled, runtime.Phase, turnBefore,
                     runtime.Engine.TurnIndex, wallBefore, runtime.Engine.Wall.Count,
                     clock.Elapsed.TotalMilliseconds));
 
-                advanceDetail = "宣言后阶段=" + runtime.Phase + "，回合 " + turnBefore + "->"
-                                + runtime.Engine.TurnIndex + "，牌山 " + wallBefore + "->"
-                                + runtime.Engine.Wall.Count;
+                advanceDetail = L.T("tools.cli.devtools.SmokeCallFlow.advanceDetail", ("phase", runtime.Phase), ("turnBefore", turnBefore), ("turnAfter", runtime.Engine.TurnIndex), ("wallBefore", wallBefore), ("wallAfter", runtime.Engine.Wall.Count));
                 if (!advanceOk)
                 {
-                    stuck = "报听并弃牌后牌局没有推进（阶段=" + runtime.Phase + "，回合已到 "
-                            + runtime.Engine.TurnIndex + "，牌山仍为 " + runtime.Engine.Wall.Count + "）";
+                    stuck = L.T("tools.cli.devtools.SmokeCallFlow.noAdvance", ("phase", runtime.Phase), ("turn", runtime.Engine.TurnIndex), ("wall", runtime.Engine.Wall.Count));
                     break;
                 }
 
@@ -4257,7 +4333,7 @@ internal static class DevCommands
                 : BestShantenDiscardIndex(player);
             if (pick < 0 || pick >= player.Hand.Count)
             {
-                stuck = "没有可打出的手牌";
+                stuck = L.T("tools.cli.devtools.SmokeCallFlow.14");
                 break;
             }
 
@@ -4271,8 +4347,7 @@ internal static class DevCommands
             bool accepted = !ReferenceEquals(beforeDiscard, runtime.Snapshot);
             if (!accepted)
             {
-                stuck = "出牌未被接受（手牌=" + player.Hand.Count + "，阶段=" + runtime.Phase
-                        + "，动作=" + vm.Actions + "，下标=" + pick + "，牌=" + player.Hand[pick].Id + "）";
+                stuck = L.T("tools.cli.devtools.SmokeCallFlow.discardRejected", ("count", player.Hand.Count), ("phase", runtime.Phase), ("actions", vm.Actions), ("pick", pick), ("tile", player.Hand[pick].Id));
                 break;
             }
 
@@ -4288,20 +4363,20 @@ internal static class DevCommands
         bool inTime = clock.Elapsed < budget;
 
         Console.WriteLine($"smoke-call-flow seed={seed} mode={mode}");
-        Console.WriteLine($"  报听时机={(declared ? "已宣言" : "未出现")} 人类动作={actions} 用时={clock.Elapsed.TotalSeconds:F2}s");
-        Check("点报听未出牌不卡", armOk, "待弃态只改 UI，不发命令；取消后仍可正常出牌");
-        Check("报听并弃牌", declared, "人类 isCalled=true");
-        Check("报听后牌局推进", advanceOk, stuck.Length > 0 ? stuck : advanceDetail);
-        Check("报听后按钮消失", !callButtonChecked || callButtonOk,
-            callButtonChecked ? "已报听不再显示报听按钮" : "本局已结束，跳过按钮检查");
-        Check("报听后仍能出牌", postCallTurns == 0 || postCallDiscardOk,
-            postCallTurns == 0 ? "本局未再轮到出牌" : "锁手允许的弃牌被接受");
-        Check("整场在时限内终局", completed && inTime,
-            $"阶段={final.Phase} 用时={clock.Elapsed.TotalSeconds:F2}s / 上限 {budget.TotalSeconds:F0}s");
+        Console.WriteLine(L.T("tools.cli.devtools.SmokeCallFlow.20", ("p1", (declared ? L.T("tools.cli.devtools.SmokeCallFlow.declared") : L.T("tools.cli.devtools.SmokeCallFlow.notSeen"))), ("p2", actions), ("p3", (clock.Elapsed.TotalSeconds).ToString("F2", CultureInfo.InvariantCulture))));
+        Check(L.T("tools.cli.devtools.SmokeCallFlow.21"), armOk, L.T("tools.cli.devtools.SmokeCallFlow.22"));
+        Check(L.T("tools.cli.devtools.SmokeCallFlow.23"), declared, L.T("tools.cli.devtools.SmokeCallFlow.24"));
+        Check(L.T("tools.cli.devtools.SmokeCallFlow.25"), advanceOk, stuck.Length > 0 ? stuck : advanceDetail);
+        Check(L.T("tools.cli.devtools.SmokeCallFlow.26"), !callButtonChecked || callButtonOk,
+            callButtonChecked ? L.T("tools.cli.devtools.SmokeCallFlow.27") : L.T("tools.cli.devtools.SmokeCallFlow.28"));
+        Check(L.T("tools.cli.devtools.SmokeCallFlow.29"), postCallTurns == 0 || postCallDiscardOk,
+            postCallTurns == 0 ? L.T("tools.cli.devtools.SmokeCallFlow.30") : L.T("tools.cli.devtools.SmokeCallFlow.31"));
+        Check(L.T("tools.cli.devtools.SmokeCallFlow.32"), completed && inTime,
+            L.T("tools.cli.devtools.SmokeCallFlow.33", ("p1", final.Phase), ("p2", (clock.Elapsed.TotalSeconds).ToString("F2", CultureInfo.InvariantCulture)), ("p3", (budget.TotalSeconds).ToString("F0", CultureInfo.InvariantCulture))));
 
         if (stuck.Length > 0)
         {
-            Console.WriteLine("  卡住: " + stuck);
+            Console.WriteLine(L.T("tools.cli.devtools.SmokeCallFlow.34") + stuck);
         }
 
         Console.WriteLine(failures == 0 ? "smoke-call-flow: all checks passed" : "smoke-call-flow: " + failures + " failed");
@@ -4421,8 +4496,8 @@ internal static class DevCommands
                 "hand-self", "meld-self", "river-self", "plate",
                 "hud", "action-bar", "settlement", "thumbnail",
             };
-            Check($"区域可枚举（{layout.Regions.Count} 个，≥16）", layout.Regions.Count >= 16);
-            Check("覆盖必需区域", required.All(id => layout.Regions.Any(r => r.Id == id)));
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.1", ("p1", layout.Regions.Count)), layout.Regions.Count >= 16);
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.2"), required.All(id => layout.Regions.Any(r => r.Id == id)));
 
             int index = 0;
             for (int i = 0; i < layout.Regions.Count; i++)
@@ -4434,18 +4509,18 @@ internal static class DevCommands
             }
 
             var before = layout.Regions[index].Rect;
-            Console.WriteLine($"  默认 hand-self = {before.X:0},{before.Y:0} {before.W:0}×{before.H:0}");
+            Console.WriteLine(L.T("tools.cli.devtools.SmokeLayoutEditor.3", ("p1", (before.X).ToString("0", CultureInfo.InvariantCulture)), ("p2", (before.Y).ToString("0", CultureInfo.InvariantCulture)), ("p3", (before.W).ToString("0", CultureInfo.InvariantCulture)), ("p4", (before.H).ToString("0", CultureInfo.InvariantCulture))));
 
             editor.Enter();
-            Check("进入编辑模式", editor.Active);
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.4"), editor.Active);
             editor.Select(index);
             editor.PointerDown(before.CenterX, before.CenterY);
             editor.PointerMove(before.CenterX + 10f, before.CenterY + 10f);
             editor.PointerUp();
 
             var moved = layout.Regions[index].Rect;
-            Console.WriteLine($"  拖动后 hand-self = {moved.X:0},{moved.Y:0} {moved.W:0}×{moved.H:0}");
-            Check("拖拽 +10,+10 生效",
+            Console.WriteLine(L.T("tools.cli.devtools.SmokeLayoutEditor.5", ("p1", (moved.X).ToString("0", CultureInfo.InvariantCulture)), ("p2", (moved.Y).ToString("0", CultureInfo.InvariantCulture)), ("p3", (moved.W).ToString("0", CultureInfo.InvariantCulture)), ("p4", (moved.H).ToString("0", CultureInfo.InvariantCulture))));
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.6"),
                 Math.Abs(moved.X - before.X - 10f) < 0.01f
                 && Math.Abs(moved.Y - before.Y - 10f) < 0.01f
                 && Math.Abs(moved.W - before.W) < 0.01f
@@ -4453,9 +4528,9 @@ internal static class DevCommands
 
             editor.Save();
             string file = CustomLayoutStore.PathFor(dir);
-            Check("S 保存文件", File.Exists(file));
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.7"), File.Exists(file));
             string savedJson = File.ReadAllText(file);
-            Check("JSON 含 version 与区域 x/y/w/h",
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.8"),
                 savedJson.Contains("\"version\": 1", StringComparison.Ordinal)
                 && savedJson.Contains("\"hand-self\"", StringComparison.Ordinal)
                 && savedJson.Contains("\"x\": 267", StringComparison.Ordinal));
@@ -4463,8 +4538,8 @@ internal static class DevCommands
             var reloaded = NewLayout();
             bool applied = CustomLayoutStore.Load(reloaded, dir);
             var afterReload = reloaded.Regions[index].Rect;
-            Console.WriteLine($"  重新加载 hand-self = {afterReload.X:0},{afterReload.Y:0}");
-            Check("重新加载生效",
+            Console.WriteLine(L.T("tools.cli.devtools.SmokeLayoutEditor.9", ("p1", (afterReload.X).ToString("0", CultureInfo.InvariantCulture)), ("p2", (afterReload.Y).ToString("0", CultureInfo.InvariantCulture))));
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.10"),
                 applied
                 && Math.Abs(afterReload.X - moved.X) < 0.01f
                 && Math.Abs(afterReload.Y - moved.Y) < 0.01f);
@@ -4473,13 +4548,13 @@ internal static class DevCommands
             editor2.Enter();
             editor2.Select(index);
             editor2.RestoreDefault();
-            Check("R 第一次只提醒（文件保留）", File.Exists(file) && editor2.Status.Contains("R", StringComparison.Ordinal));
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.11"), File.Exists(file) && editor2.Status.Contains("R", StringComparison.Ordinal));
             editor2.RestoreDefault();
-            Check("R 第二次删除自定义文件", !File.Exists(file));
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.12"), !File.Exists(file));
 
             var afterReset = reloaded.Regions[index].Rect;
-            Console.WriteLine($"  恢复默认 hand-self = {afterReset.X:0},{afterReset.Y:0}");
-            Check("恢复默认回原值",
+            Console.WriteLine(L.T("tools.cli.devtools.SmokeLayoutEditor.13", ("p1", (afterReset.X).ToString("0", CultureInfo.InvariantCulture)), ("p2", (afterReset.Y).ToString("0", CultureInfo.InvariantCulture))));
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.14"),
                 Math.Abs(afterReset.X - before.X) < 0.01f
                 && Math.Abs(afterReset.Y - before.Y) < 0.01f
                 && Math.Abs(afterReset.W - before.W) < 0.01f
@@ -4490,7 +4565,7 @@ internal static class DevCommands
             var broken = NewLayout();
             bool brokenApplied = CustomLayoutStore.Load(broken, dir);
             var brokenRect = broken.Regions[index].Rect;
-            Check("非法 JSON：不崩、不生效",
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.15"),
                 !brokenApplied
                 && Math.Abs(brokenRect.X - before.X) < 0.01f
                 && Math.Abs(brokenRect.Y - before.Y) < 0.01f);
@@ -4502,7 +4577,7 @@ internal static class DevCommands
             var partial = NewLayout();
             bool partialApplied = CustomLayoutStore.Load(partial, dir);
             var partialRect = partial.Regions[index].Rect;
-            Check("字段缺失 / 未知区域：忽略并继续用默认",
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.16"),
                 !partialApplied && Math.Abs(partialRect.X - before.X) < 0.01f);
 
             // 破坏性测试 3：真实启动路径（默认目录写坏文件后构造 TableScreen）。
@@ -4519,7 +4594,7 @@ internal static class DevCommands
             }
             catch (Exception ex)
             {
-                Console.WriteLine("  启动异常: " + ex);
+                Console.WriteLine(L.T("tools.cli.devtools.SmokeLayoutEditor.17") + ex);
                 startupOk = false;
             }
             finally
@@ -4534,7 +4609,7 @@ internal static class DevCommands
                 }
             }
 
-            Check("启动时布局文件损坏 → 正常启动", startupOk);
+            Check(L.T("tools.cli.devtools.SmokeLayoutEditor.18"), startupOk);
         }
         finally
         {
@@ -4597,6 +4672,7 @@ internal static class DevCommands
         int jobs = Math.Clamp(Environment.ProcessorCount, 1, 32);
         int mode = 4;
         long roundLimit = 0;
+        bool enableOptional = false;
         uint startSeed = 1;
         string outPath = Path.Combine("dist", "yaku-stats-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + ".json");
         for (int i = 1; i < args.Length; i++)
@@ -4615,6 +4691,10 @@ internal static class DevCommands
                 case "--rounds":
                     if (i + 1 < args.Length && long.TryParse(args[++i], out long rounds)) roundLimit = Math.Max(0, rounds);
                     break;
+                case "--optional":
+                    enableOptional = i + 1 < args.Length
+                        && args[++i].Equals("all", StringComparison.OrdinalIgnoreCase);
+                    break;
                 case "--out":
                     if (i + 1 < args.Length) outPath = args[++i];
                     break;
@@ -4625,11 +4705,12 @@ internal static class DevCommands
         }
 
         var yakuData = YakuData.LoadDefault();
-        var optional = yakuData.Yaku.Concat(yakuData.HighYaku)
+        var optionals = yakuData.Yaku.Concat(yakuData.HighYaku)
             .Where(y => y.Optional)
             .Select(y => y.Id)
             .Distinct(StringComparer.Ordinal)
             .ToList();
+        var optional = enableOptional ? optionals : new List<string>();
         var allYakuNames = yakuData.Yaku.Concat(yakuData.HighYaku)
             .Select(y => y.Name)
             .Append("大七星")
@@ -4640,7 +4721,7 @@ internal static class DevCommands
         int done = 0;
         var sw = Stopwatch.StartNew();
         var options = new ParallelOptions { MaxDegreeOfParallelism = jobs };
-        Console.WriteLine($"yaku-stats: games={games} jobs={jobs} mode={mode} roundsLimit={roundLimit} optional={optional.Count}");
+        Console.WriteLine($"yaku-stats: games={games} jobs={jobs} mode={mode} roundsLimit={roundLimit} optional={(enableOptional ? "all" : "off")} ({optional.Count})");
 
         Parallel.For(0, games, options,
             () => new YakuAgg(),
@@ -4693,7 +4774,7 @@ internal static class DevCommands
             ronWins = total.RonWins,
             settings = new
             {
-                optionalYaku = "all",
+                optionalYaku = enableOptional ? "all" : "off",
                 optionalCount = optional.Count,
                 mode,
                 jobs,
@@ -4714,7 +4795,7 @@ internal static class DevCommands
                 .Append(row.shareOfRounds.ToString("F8", CultureInfo.InvariantCulture)).AppendLine();
         }
         File.WriteAllText(csvPath, csv.ToString(), new System.Text.UTF8Encoding(false));
-        Console.WriteLine($"yaku-stats: {total.Rounds} 局 / {total.WinningHands} 和牌 -> {outPath}");
+        Console.WriteLine(L.T("tools.cli.devtools.YakuStats.1", ("p1", total.Rounds), ("p2", total.WinningHands), ("p3", outPath)));
         Console.WriteLine($"csv -> {csvPath}");
         return 0;
     }
@@ -4817,6 +4898,8 @@ internal static class DevCommands
     /// <summary>开发/自检命令分发；返回 null 表示不是开发命令，交给 GUI。</summary>
     public static int? Run(string[] args)
     {
+        // CLI 文案跟随 TIISU_LANG；缺省 zh-CN。需要固定语言的渲染命令仍可用 --lang 覆盖。
+        L.SetLanguage(Environment.GetEnvironmentVariable("TIISU_LANG"));
         switch (args.Length >= 1 ? args[0] : string.Empty)
         {
             case "--version":

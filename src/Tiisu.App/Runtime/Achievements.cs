@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Tiisu.App.Runtime;
+using Tiisu.Localization;
 
 namespace Tiisu.App.Runtime;
 
@@ -15,16 +16,16 @@ public static class Achievements
         ArgumentNullException.ThrowIfNull(stats);
         return new[]
         {
-            Make("first-round", "初战", "完成 1 个小局", stats.Rounds >= 1, stats.Rounds + "/1"),
-            Make("ten-rounds", "十局", "完成 10 个小局", stats.Rounds >= 10, stats.Rounds + "/10"),
-            Make("hundred-rounds", "百局", "完成 100 个小局", stats.Rounds >= 100, stats.Rounds + "/100"),
-            Make("first-win", "首胜", "和牌 1 次", stats.Wins >= 1, stats.Wins + "/1"),
-            Make("ten-wins", "十胜", "和牌 10 次", stats.Wins >= 10, stats.Wins + "/10"),
-            Make("hundred-wins", "百胜", "和牌 100 次", stats.Wins >= 100, stats.Wins + "/100"),
-            Make("first-tsumo", "自摸", "自摸 1 次", stats.TsumoWins >= 1, stats.TsumoWins + "/1"),
-            Make("ten-tsumo", "自摸十次", "自摸 10 次", stats.TsumoWins >= 10, stats.TsumoWins + "/10"),
-            Make("tiisuin", "大七星", "打出一次大七星", stats.TiisuinCount >= 1, stats.TiisuinCount + "/1"),
-            Make("witness", "见证", "见证一次大七星", stats.WitnessCount >= 1, stats.WitnessCount + "/1"),
+            Make("first-round", L.T("app.achievement.first-round.title"), L.T("app.achievement.first-round.desc"), stats.Rounds >= 1, stats.Rounds + "/1"),
+            Make("ten-rounds", L.T("app.achievement.ten-rounds.title"), L.T("app.achievement.ten-rounds.desc"), stats.Rounds >= 10, stats.Rounds + "/10"),
+            Make("hundred-rounds", L.T("app.achievement.hundred-rounds.title"), L.T("app.achievement.hundred-rounds.desc"), stats.Rounds >= 100, stats.Rounds + "/100"),
+            Make("first-win", L.T("app.achievement.first-win.title"), L.T("app.achievement.first-win.desc"), stats.Wins >= 1, stats.Wins + "/1"),
+            Make("ten-wins", L.T("app.achievement.ten-wins.title"), L.T("app.achievement.ten-wins.desc"), stats.Wins >= 10, stats.Wins + "/10"),
+            Make("hundred-wins", L.T("app.achievement.hundred-wins.title"), L.T("app.achievement.hundred-wins.desc"), stats.Wins >= 100, stats.Wins + "/100"),
+            Make("first-tsumo", L.T("app.achievement.first-tsumo.title"), L.T("app.achievement.first-tsumo.desc"), stats.TsumoWins >= 1, stats.TsumoWins + "/1"),
+            Make("ten-tsumo", L.T("app.achievement.ten-tsumo.title"), L.T("app.achievement.ten-tsumo.desc"), stats.TsumoWins >= 10, stats.TsumoWins + "/10"),
+            Make("tiisuin", L.T("app.achievement.tiisuin.title"), L.T("app.achievement.tiisuin.desc"), stats.TiisuinCount >= 1, stats.TiisuinCount + "/1"),
+            Make("witness", L.T("app.achievement.witness.title"), L.T("app.achievement.witness.desc"), stats.WitnessCount >= 1, stats.WitnessCount + "/1"),
         };
     }
 

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using Tiisu.App.Rendering;
+using Tiisu.Localization;
 using Color = Tiisu.App.Rendering.Color;
 
 namespace Tiisu.App.Ui;
@@ -15,91 +16,62 @@ public sealed class LicensesScreen : Screen
 
     private static readonly Entry[] Entries =
     {
-        new("Tiisu Rounded SC（文渊圆体子集）", "v1.110", "SIL OFL 1.1",
-            "界面圆体；子集化后重命名，避免 OFL 保留字体名",
-            "https://github.com/takushun-wu/WenYuanFonts"),
-        new("lietxia/mahjong_graphic（牌面素材）", "3e27580", "自定义自由许可",
-            "牌面矢量素材来源；允许商用/修改/再分发，无署名要求；本项目重排为 tiles.png",
-            "https://github.com/lietxia/mahjong_graphic"),
-
+        new("app.ui.licenses.name.tiisuRoundedScWenyuanSubset", "v1.110", "SIL OFL 1.1",
+            "app.ui.licenses.usage.tiisuRoundedScWenyuanSubset", "https://github.com/takushun-wu/WenYuanFonts"),
+        new("app.ui.licenses.name.lietxiaMahjongGraphicTiles", "3e27580", "app.ui.licenses.license.lietxiaMahjongGraphicTiles",
+            "app.ui.licenses.usage.lietxiaMahjongGraphicTiles", "https://github.com/lietxia/mahjong_graphic"),
         new("SkiaSharp", "4.153.1", "MIT",
-            "2D 绘制、牌面渲染、文字排版",
-            "https://github.com/mono/SkiaSharp"),
+            "app.ui.licenses.usage.skiasharp", "https://github.com/mono/SkiaSharp"),
         new("SkiaSharp.NativeAssets.Win32", "4.153.1", "MIT",
-            "SkiaSharp 的 Windows 原生库",
-            "https://github.com/mono/SkiaSharp"),
+            "app.ui.licenses.usage.skiasharpNativeassetsWin32", "https://github.com/mono/SkiaSharp"),
         new("SkiaSharp.Views.WindowsForms", "4.153.1", "MIT",
-            "WinForms 上的 Skia 画布控件",
-            "https://github.com/mono/SkiaSharp"),
+            "app.ui.licenses.usage.skiasharpViewsWindowsforms", "https://github.com/mono/SkiaSharp"),
         new("SkiaSharp.HarfBuzz", "4.153.1", "MIT",
-            "文字整形（HarfBuzz 绑定）",
-            "https://github.com/mono/SkiaSharp"),
-        new("HarfBuzz", "随 SkiaSharp.HarfBuzz 分发", "MIT",
-            "复杂文字整形引擎（随包原生库）",
-            "https://github.com/harfbuzz/harfbuzz"),
+            "app.ui.licenses.usage.skiasharpHarfbuzz", "https://github.com/mono/SkiaSharp"),
+        new("HarfBuzz", "app.ui.licenses.version.harfbuzz", "MIT",
+            "app.ui.licenses.usage.harfbuzz", "https://github.com/harfbuzz/harfbuzz"),
         new("NAudio", "2.2.1", "MIT",
-            "BGM / 音效混音与播放",
-            "https://github.com/naudio/NAudio"),
+            "app.ui.licenses.usage.naudio", "https://github.com/naudio/NAudio"),
         new("NAudio.Asio / Core / Midi / Wasapi / WinForms / WinMM", "2.2.1", "MIT",
-            "NAudio 的传递依赖模块",
-            "https://github.com/naudio/NAudio"),
+            "app.ui.licenses.usage.naudioAsioCoreMidiWasapiWinformsWinmm", "https://github.com/naudio/NAudio"),
         new("HarfBuzzSharp / NativeAssets.Win32", "14.2.1.301", "MIT",
-            "SkiaSharp.HarfBuzz 的传递依赖",
-            "https://github.com/mono/SkiaSharp"),
+            "app.ui.licenses.usage.harfbuzzsharpNativeassetsWin32", "https://github.com/mono/SkiaSharp"),
         new("OpenTK", "4.8.2", "MIT",
-            "OpenGL 窗口与图形绑定（OpenTK.* 传递依赖）",
-            "https://github.com/opentk/opentk"),
+            "app.ui.licenses.usage.opentk", "https://github.com/opentk/opentk"),
         new("OpenTK.GLControl", "4.0.1", "MIT",
-            "WinForms GL 控件",
-            "https://github.com/opentk/opentk"),
+            "app.ui.licenses.usage.opentkGlcontrol", "https://github.com/opentk/opentk"),
         new("GLFW（OpenTK.redist.glfw）", "3.3.8.39", "Zlib/libpng",
-            "窗口/输入原生库",
-            "https://www.glfw.org/"),
+            "app.ui.licenses.usage.glfwOpentkRedistGlfw", "https://www.glfw.org/"),
         new("YogaSharp.Core / SkiaSharp.Views.Desktop.Common", "1.0.6 / 4.153.1", "MIT",
-            "布局与 Skia 桌面控件的传递依赖",
-            "https://github.com/RaZeR-RaY/YogaSharp"),
+            "app.ui.licenses.usage.yogasharpCoreSkiasharpViewsDesktopCommon", "https://github.com/RaZeR-RaY/YogaSharp"),
         new("YogaSharp.Layout", "1.0.6", "MIT",
-            "牌桌 Flex 布局绑定",
-            "https://github.com/RaZeR-RaY/YogaSharp"),
-        new("Yoga", "随 YogaSharp 分发", "MIT",
-            "Facebook 的 Flexbox 布局引擎（随包 yoga.dll）",
-            "https://github.com/facebook/yoga"),
+            "app.ui.licenses.usage.yogasharpLayout", "https://github.com/RaZeR-RaY/YogaSharp"),
+        new("Yoga", "app.ui.licenses.version.yoga", "MIT",
+            "app.ui.licenses.usage.yoga", "https://github.com/facebook/yoga"),
         new(".NET / Windows Desktop Runtime", "10", "MIT",
-            "运行时、WinForms 与基础库",
-            "https://github.com/dotnet/runtime"),
+            "app.ui.licenses.usage.netWindowsDesktopRuntime", "https://github.com/dotnet/runtime"),
         new("System.Speech", "9.0.0", "MIT",
-            "本机 Windows SAPI 报牌语音生成",
-            "https://github.com/dotnet/runtime"),
+            "app.ui.licenses.usage.systemSpeech", "https://github.com/dotnet/runtime"),
         new("xUnit", "2.9.3", "Apache-2.0",
-            "单元测试（仅开发构建）",
-            "https://xunit.net/"),
+            "app.ui.licenses.usage.xunit", "https://xunit.net/"),
         new("xunit.runner.visualstudio", "3.1.4", "Apache-2.0",
-            "测试运行器（仅开发构建）",
-            "https://xunit.net/"),
+            "app.ui.licenses.usage.xunitRunnerVisualstudio", "https://xunit.net/"),
         new("Microsoft.NET.Test.Sdk", "17.14.1", "MIT",
-            "测试宿主（仅开发构建）",
-            "https://github.com/microsoft/vstest"),
+            "app.ui.licenses.usage.microsoftNetTestSdk", "https://github.com/microsoft/vstest"),
         new("coverlet.collector", "6.0.4", "MIT",
-            "代码覆盖率（仅开发构建）",
-            "https://github.com/coverlet-coverage/coverlet"),
+            "app.ui.licenses.usage.coverletCollector", "https://github.com/coverlet-coverage/coverlet"),
         new("Parisian", "Kevin MacLeod", "CC BY 4.0",
-            "菜单 BGM（lobby.wav，已做音量调整）",
-            "https://incompetech.com/music/royalty-free/"),
-        new("音效与语音素材", "本仓合成/本机生成", "随项目 MIT",
-            "音效由 AudioGen 合成；语音本机 SAPI 生成，不随包分发",
-            "—"),
-        new("Tiisu Mahjong 本项目代码", "见版本行", "MIT",
-            "仓库内自有代码与文档",
-            "https://github.com/Pub-Polaris/Tiisu-Mahjong-CSharp"),
-        new("Alice in Cradle", "闭源商业作品", "EULA（仅参考）",
-            "空间音频架构调研；未使用代码、中间件、素材或衍生产物",
-            "—", true),
-        new("明星三缺一 2002", "IGS 商业作品", "EULA（仅参考）",
-            "音效包络/时长/密度特征分析；未使用原音频、代码或美术",
-            "—", true),
-        new("天凤 Tenhou", "在线服务", "服务条款（仅参考）",
-            "人类听牌形参考；未使用代码、数据或素材",
-            "—", true),
+            "app.ui.licenses.usage.parisian", "https://incompetech.com/music/royalty-free/"),
+        new("app.ui.licenses.name.audioVoiceAssets", "app.ui.licenses.version.audioVoiceAssets", "app.ui.licenses.license.audioVoiceAssets",
+            "app.ui.licenses.usage.audioVoiceAssets", "—"),
+        new("app.ui.licenses.name.tiisuMahjongSource", "app.ui.licenses.version.tiisuMahjongSource", "MIT",
+            "app.ui.licenses.usage.tiisuMahjongSource", "https://github.com/Pub-Polaris/Tiisu-Mahjong-CSharp"),
+        new("Alice in Cradle", "app.ui.licenses.version.aliceInCradle", "app.ui.licenses.license.aliceInCradle",
+            "app.ui.licenses.usage.aliceInCradle", "—", true),
+        new("app.ui.licenses.name.starMahjong2002", "app.ui.licenses.version.starMahjong2002", "app.ui.licenses.license.starMahjong2002",
+            "app.ui.licenses.usage.starMahjong2002", "—", true),
+        new("app.ui.licenses.name.tenhou", "app.ui.licenses.version.tenhou", "app.ui.licenses.license.tenhou",
+            "app.ui.licenses.usage.tenhou", "—", true),
     };
 
     private const int TextLinesPerPage = 24;
@@ -150,37 +122,19 @@ public sealed class LicensesScreen : Screen
             return;
         }
 
-        c.DrawText(UiText.Tr("开源许可与参考鸣谢"), new RectF(0, 54, Width, 56),
+        c.DrawText(L.T("app.ui.licenses.title"), new RectF(0, 54, Width, 56),
             Color.Rgb(242, 230, 190), new TextStyle(42, Bold: true, Center: true));
-        c.DrawText(UiText.IsEnglish ? "Open-source components + closed references · " + (_page + 1) + " / " + Entries.Length
-            : UiText.IsJapanese ? "オープンソース + クローズド参考 · " + (_page + 1) + " / " + Entries.Length + " 項目"
-            : "开源组件 + 闭源参考项目 · 第 " + (_page + 1) + " / " + Entries.Length + " 项",
+        c.DrawText(L.T("app.ui.licenses.pageIndicator", ("current", _page + 1), ("total", Entries.Length)),
             new RectF(0, 108, Width, 26), Color.Rgb(159, 180, 170), new TextStyle(16, Center: true));
 
         var entry = Entries[_page];
-        string[] lines = UiText.IsEnglish
-            ? new[]
-            {
-                "Version: " + entry.Version,
-                "License: " + UiText.Tr(entry.License),
-                "Usage: " + UiText.Tr(entry.Usage),
-                "Link: " + entry.Url,
-            }
-            : UiText.IsJapanese
-                ? new[]
-                {
-                    "バージョン：" + entry.Version,
-                    "ライセンス：" + UiText.Tr(entry.License),
-                    "用途：" + UiText.Tr(entry.Usage),
-                    "リンク：" + entry.Url,
-                }
-                : new[]
-                {
-                    "版本：" + entry.Version,
-                    "许可：" + entry.License,
-                    "用途：" + entry.Usage,
-                    "链接：" + entry.Url,
-                };
+        string[] lines =
+        {
+            L.T("app.ui.licenses.line.version", ("value", Text(entry.Version))),
+            L.T("app.ui.licenses.line.license", ("value", Text(entry.License))),
+            L.T("app.ui.licenses.line.usage", ("value", Text(entry.Usage))),
+            L.T("app.ui.licenses.line.link", ("value", entry.Url)),
+        };
 
         float y = 156;
         const float lineH = 34f;
@@ -190,13 +144,13 @@ public sealed class LicensesScreen : Screen
         c.FillRoundRect(box, 14, Color.Rgb(26, 38, 34));
         c.StrokeRoundRect(box, 14, Color.Rgb(96, 122, 108), 1.2f);
 
-        c.DrawText((entry.Reference ? UiText.Tr("参考") + " · " : string.Empty) + UiText.Tr(entry.Name),
+        c.DrawText((entry.Reference ? L.T("app.ui.licenses.reference") + " · " : string.Empty) + Text(entry.Name),
             new RectF(box.X + 26, box.Y + 10, box.W - 52, 28),
             entry.Reference ? Color.Rgb(196, 232, 190) : Color.Rgb(242, 201, 76),
             new TextStyle(20, Bold: true, Center: false));
 
         string[] body = entry.Reference
-            ? new[] { UiText.Tr("性质：闭源/EULA 参考鸣谢，未使用其代码或素材") }.Concat(lines).ToArray()
+            ? new[] { L.T("app.ui.licenses.referenceNote") }.Concat(lines).ToArray()
             : lines;
         float ly = box.Y + 42;
         foreach (string line in body)
@@ -206,28 +160,28 @@ public sealed class LicensesScreen : Screen
             ly += lineH;
         }
 
-        c.DrawText(UiText.Tr("按 ← / → 翻页 · Esc 返回菜单"),
+        c.DrawText(L.T("app.ui.licenses.footer"),
             new RectF(0, 558, Width, 22), Color.Rgb(127, 145, 137), new TextStyle(14, Center: true));
 
         _textButton = new RectF(Width / 2f - 140, 510, 280, 40);
-        DrawButton(c, _textButton, "查看本页许可全文", _textHover, true);
+        DrawButton(c, _textButton, "app.ui.licenses.viewText", _textHover, true);
 
         _docsButton = new RectF(Width / 2f - 140, 458, 280, 40);
-        DrawButton(c, _docsButton, "参考与合规说明", _docsHover, _openMarkdown is not null);
+        DrawButton(c, _docsButton, "app.ui.licenses.docs", _docsHover, _openMarkdown is not null);
 
         _prevButton = new RectF(Width / 2f - 330, 596, 150, 44);
         _backButton = new RectF(Width / 2f - 75, 596, 150, 44);
         _nextButton = new RectF(Width / 2f + 120, 596, 150, 44);
-        DrawButton(c, _prevButton, "上一页", _prevHover, _page > 0);
-        DrawButton(c, _backButton, "返回菜单", _backHover, true);
-        DrawButton(c, _nextButton, "下一页", _nextHover, _page < Entries.Length - 1);
+        DrawButton(c, _prevButton, "app.ui.licenses.prev", _prevHover, _page > 0);
+        DrawButton(c, _backButton, "app.ui.licenses.back", _backHover, true);
+        DrawButton(c, _nextButton, "app.ui.licenses.next", _nextHover, _page < Entries.Length - 1);
     }
 
     private void DrawTextMode(ICanvas c)
     {
         c.DrawText(_textTitle, new RectF(0, 40, Width, 48),
             Color.Rgb(242, 230, 190), new TextStyle(34, Bold: true, Center: true));
-        c.DrawText(UiText.IsEnglish ? "License text · Page " + (_textPage + 1) + " / " + _textPages : UiText.IsJapanese ? "ライセンス全文 · " + (_textPage + 1) + " / " + _textPages + " ページ" : "许可全文 · 第 " + (_textPage + 1) + " / " + _textPages + " 页",
+        c.DrawText(L.T("app.ui.licenses.textPageIndicator", ("current", _textPage + 1), ("total", _textPages)),
             new RectF(0, 88, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(15, Center: true));
 
         var box = new RectF(90, 122, Width - 180, 480);
@@ -245,10 +199,14 @@ public sealed class LicensesScreen : Screen
         _prevButton = new RectF(Width / 2f - 270, 620, 150, 44);
         _backButton = new RectF(Width / 2f - 75, 620, 150, 44);
         _nextButton = new RectF(Width / 2f + 120, 620, 150, 44);
-        DrawButton(c, _prevButton, "上一页", _prevHover, _textPage > 0);
-        DrawButton(c, _backButton, "返回列表", _backHover, true);
-        DrawButton(c, _nextButton, "下一页", _nextHover, _textPage < _textPages - 1);
+        DrawButton(c, _prevButton, "app.ui.licenses.prev", _prevHover, _textPage > 0);
+        DrawButton(c, _backButton, "app.ui.licenses.backToList", _backHover, true);
+        DrawButton(c, _nextButton, "app.ui.licenses.next", _nextHover, _textPage < _textPages - 1);
     }
+
+    /// <summary>数据表里的显示串：app.* 走 L.T，其余（产品名 / 标准许可名）原样显示。</summary>
+    private static string Text(string value) =>
+        value.StartsWith("app.", StringComparison.Ordinal) ? L.T(value) : value;
 
     private static void DrawButton(ICanvas c, RectF rect, string label, bool hover, bool enabled)
     {
@@ -258,7 +216,7 @@ public sealed class LicensesScreen : Screen
             : Color.Rgb(28, 36, 32);
         c.FillRoundRect(rect, 10, fill);
         c.StrokeRoundRect(rect, 10, border, 1.3f);
-        c.DrawText(UiText.Tr(label), rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
+        c.DrawText(L.T(label), rect, enabled ? Color.Rgb(242, 230, 190) : Color.Rgb(110, 124, 116),
             new TextStyle(17, Bold: true, Center: true));
     }
 
@@ -386,10 +344,10 @@ public sealed class LicensesScreen : Screen
     private void OpenText()
     {
         var entry = Entries[_page];
-        _textTitle = entry.Name + " · " + entry.License;
+        _textTitle = Text(entry.Name) + " · " + Text(entry.License);
         string file = entry.Reference
             ? "REFERENCES.txt"
-            : entry.Name.StartsWith("lietxia/", StringComparison.Ordinal) ? "TILES-LICENSE.txt"
+            : entry.Url.Contains("lietxia/mahjong_graphic", StringComparison.Ordinal) ? "TILES-LICENSE.txt"
             : entry.License.Contains("OFL", StringComparison.Ordinal) ? "OFL-1.1.txt"
             : entry.License.Contains("Apache", StringComparison.Ordinal) ? "Apache-2.0.txt"
             : entry.License.Contains("CC BY", StringComparison.Ordinal) ? "CC-BY-4.0.txt"
@@ -404,7 +362,7 @@ public sealed class LicensesScreen : Screen
         }
         catch
         {
-            text = "未找到许可全文：" + file;
+            text = L.T("app.ui.licenses.textNotFound", ("file", file));
         }
 
         var wrapped = new List<string>();

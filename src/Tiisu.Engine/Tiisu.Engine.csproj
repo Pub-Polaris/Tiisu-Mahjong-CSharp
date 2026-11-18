@@ -18,4 +18,8 @@
     <InternalsVisibleTo Include="Tiisu.Engine.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Tiisu.Localization\Tiisu.Localization.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "name": "示例 · 青苔木台",
+  "author": "Tiisu 牌桌美术示例（由 art/table/skin-demo/generate.py 生成，可替换）",
+  "scale": 2,
+  "atlas": "skin-atlas.png",
+  "background": "#0d1512",
+  "regions": {
+    "table": {
+      "src": [0, 0, 512, 512],
+      "slice": [96, 96, 96, 96]
+    },
+    "center-plate": {
+      "src": [520, 0, 320, 200],
+      "slice": [40, 40, 40, 40]
+    },
+    "river-bed": {
+      "src": [520, 208, 240, 160],
+      "slice": [32, 32, 32, 32]
+    },
+    "button": {
+      "src": [520, 376, 160, 64],
+      "slice": [20, 20, 20, 20]
+    },
+    "shadow": {
+      "src": [520, 448, 256, 256],
+      "slice": [80, 80, 80, 80],
+      "inflate": 40
+    },
+    "frame": {
+      "src": [0, 520, 320, 320],
+      "slice": [88, 88, 88, 88]
+    }
+  }
+}

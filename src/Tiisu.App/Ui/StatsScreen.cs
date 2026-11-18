@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows.Forms;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
+using Tiisu.Localization;
 using Color = Tiisu.App.Rendering.Color;
 
 namespace Tiisu.App.Ui;
@@ -39,22 +40,22 @@ public sealed class StatsScreen : Screen
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(18, 26, 30), Color.Rgb(8, 12, 16));
 
-        c.DrawText(UiText.Tr("战绩统计"), new RectF(0, 32, Width, 50), Gold,
+        c.DrawText(L.T("app.ui.stats.title"), new RectF(0, 32, Width, 50), Gold,
             new TextStyle(36, Bold: true, Center: true));
-        c.DrawText(UiText.Tr("本机累计 · " + _stats.Rounds + " 个小局"), new RectF(0, 82, Width, 24), Muted,
+        c.DrawText(L.T("app.ui.stats.totalRounds", ("rounds", _stats.Rounds)), new RectF(0, 82, Width, 24), Muted,
             new TextStyle(15, Center: true));
 
-        DrawCard(c, new RectF(100, 126, 250, 90), "总局数", _stats.Rounds.ToString(CultureInfo.InvariantCulture));
-        DrawCard(c, new RectF(370, 126, 250, 90), "和牌率", Percent(_stats.WinRate));
-        DrawCard(c, new RectF(640, 126, 250, 90), "自摸 / 荣和",
+        DrawCard(c, new RectF(100, 126, 250, 90), "app.ui.stats.card.rounds", _stats.Rounds.ToString(CultureInfo.InvariantCulture));
+        DrawCard(c, new RectF(370, 126, 250, 90), "app.ui.stats.card.winRate", Percent(_stats.WinRate));
+        DrawCard(c, new RectF(640, 126, 250, 90), "app.ui.stats.card.tsumoRon",
             _stats.TsumoWins + " / " + _stats.RonWins);
-        DrawCard(c, new RectF(910, 126, 250, 90), "流局率", Percent(_stats.DrawRate));
+        DrawCard(c, new RectF(910, 126, 250, 90), "app.ui.stats.card.drawRate", Percent(_stats.DrawRate));
 
-        DrawCard(c, new RectF(100, 238, 250, 90), "大七星", _stats.TiisuinCount.ToString(CultureInfo.InvariantCulture));
-        DrawCard(c, new RectF(370, 238, 250, 90), "见证", _stats.WitnessCount.ToString(CultureInfo.InvariantCulture));
-        DrawCard(c, new RectF(640, 238, 250, 90), "累计点数",
+        DrawCard(c, new RectF(100, 238, 250, 90), "app.ui.stats.card.tiisuin", _stats.TiisuinCount.ToString(CultureInfo.InvariantCulture));
+        DrawCard(c, new RectF(370, 238, 250, 90), "app.ui.stats.card.witness", _stats.WitnessCount.ToString(CultureInfo.InvariantCulture));
+        DrawCard(c, new RectF(640, 238, 250, 90), "app.ui.stats.card.points",
             _stats.CumulativePoints.ToString("+0;-0;0", CultureInfo.InvariantCulture));
-        DrawCard(c, new RectF(910, 238, 250, 90), "特殊流局",
+        DrawCard(c, new RectF(910, 238, 250, 90), "app.ui.stats.card.specialDraw",
             _stats.SpecialFlowRounds.ToString(CultureInfo.InvariantCulture));
 
         var table = new RectF(100, 358, 1060, 244);
@@ -63,7 +64,7 @@ public sealed class StatsScreen : Screen
 
         if (_stats.Players.Count == 0)
         {
-            c.DrawText(UiText.Tr(_stats.Rounds == 0 ? "还没有对局记录，先打一局。" : "还没有玩家统计。"),
+            c.DrawText(L.T(_stats.Rounds == 0 ? "app.ui.stats.empty.noRounds" : "app.ui.stats.empty.noPlayers"),
                 new RectF(table.X, table.CenterY - 18, table.W, 28), Muted,
                 new TextStyle(18, Center: true));
         }
@@ -71,11 +72,11 @@ public sealed class StatsScreen : Screen
         {
             float x = table.X + 24;
             float y = table.Y + 16;
-            c.DrawText(UiText.Tr("玩家"), new RectF(x, y, 260, 24), Gold, new TextStyle(15, Bold: true));
-            c.DrawText(UiText.Tr("和牌次数"), new RectF(x + 280, y, 80, 24), Gold, new TextStyle(15, Bold: true, Right: true));
-            c.DrawText(UiText.Tr("大七星"), new RectF(x + 370, y, 160, 24), Gold, new TextStyle(15, Bold: true, Right: true));
-            c.DrawText(UiText.Tr("见证"), new RectF(x + 540, y, 100, 24), Gold, new TextStyle(15, Bold: true, Right: true));
-            c.DrawText(UiText.Tr("累计点数"), new RectF(x + 650, y, 190, 24), Gold, new TextStyle(15, Bold: true, Right: true));
+            c.DrawText(L.T("app.ui.stats.table.player"), new RectF(x, y, 260, 24), Gold, new TextStyle(15, Bold: true));
+            c.DrawText(L.T("app.ui.stats.table.wins"), new RectF(x + 280, y, 80, 24), Gold, new TextStyle(15, Bold: true, Right: true));
+            c.DrawText(L.T("app.ui.stats.table.tiisuin"), new RectF(x + 370, y, 160, 24), Gold, new TextStyle(15, Bold: true, Right: true));
+            c.DrawText(L.T("app.ui.stats.table.witness"), new RectF(x + 540, y, 100, 24), Gold, new TextStyle(15, Bold: true, Right: true));
+            c.DrawText(L.T("app.ui.stats.table.points"), new RectF(x + 650, y, 190, 24), Gold, new TextStyle(15, Bold: true, Right: true));
 
             y += 34;
             foreach (PlayerStats player in _stats.Players)
@@ -99,9 +100,9 @@ public sealed class StatsScreen : Screen
         }
 
         _backButton = new RectF(Width / 2f - 190, 628, 180, 44);
-        DrawButton(c, _backButton, "返回菜单", _backHover);
+        DrawButton(c, _backButton, "app.ui.stats.back", _backHover);
         _achievementsButton = new RectF(Width / 2f + 10, 628, 180, 44);
-        DrawButton(c, _achievementsButton, "成就", _achievementsHover);
+        DrawButton(c, _achievementsButton, "app.ui.stats.achievements", _achievementsHover);
     }
 
     private static string Percent(double value) =>
@@ -111,7 +112,7 @@ public sealed class StatsScreen : Screen
     {
         c.FillRoundRect(rect, 12, Color.Rgb(26, 38, 34));
         c.StrokeRoundRect(rect, 12, Color.Rgb(74, 96, 84), 1.1f);
-        c.DrawText(UiText.Tr(label), new RectF(rect.X + 16, rect.Y + 12, rect.W - 32, 22), Muted,
+        c.DrawText(L.T(label), new RectF(rect.X + 16, rect.Y + 12, rect.W - 32, 22), Muted,
             new TextStyle(14));
         c.DrawText(value, new RectF(rect.X + 16, rect.Y + 42, rect.W - 32, 34), Text,
             new TextStyle(24, Bold: true));
@@ -121,7 +122,7 @@ public sealed class StatsScreen : Screen
     {
         c.FillRoundRect(rect, 10, hover ? Color.Rgb(52, 86, 78) : Color.Rgb(40, 58, 48));
         c.StrokeRoundRect(rect, 10, hover ? Gold : Color.Rgb(196, 168, 96), 1.3f);
-        c.DrawText(UiText.Tr(label), rect, Color.Rgb(242, 230, 190), new TextStyle(17, Bold: true, Center: true));
+        c.DrawText(L.T(label), rect, Color.Rgb(242, 230, 190), new TextStyle(17, Bold: true, Center: true));
     }
 
     public override bool OnClick(float x, float y)

@@ -1,4 +1,5 @@
 using System;
+using Tiisu.Localization;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -291,7 +292,7 @@ public sealed class MatchRuntime
                 && command.Kind is not (GameCommandKind.StartMatch or GameCommandKind.ResetAll
                     or GameCommandKind.ApplySettings or GameCommandKind.Resume))
             {
-                Notify("画面还没跟上（快照版本不一致），刚才的操作已忽略，请再按一次", true);
+                Notify(L.T("app.runtime.msg.snapshotStale"), true);
                 EmitState();
                 return;
             }
@@ -347,7 +348,7 @@ public sealed class MatchRuntime
                     ApplySettings(command.Settings);
                     break;
                 default:
-                    Notify("未知命令：" + command.Kind, true);
+                    Notify(L.T("app.runtime.msg.unknownCommand", ("kind", command.Kind)), true);
                     break;
             }
         }
@@ -385,7 +386,7 @@ public sealed class MatchRuntime
     {
         if (save is null || !save.InProgress)
         {
-            Notify("没有可恢复的存档", false);
+            Notify(L.T("app.runtime.msg.noSave"), false);
             return;
         }
 
@@ -419,7 +420,7 @@ public sealed class MatchRuntime
 
         AssignAiLineup();
         StartNewRoundInternal();
-        Emit(new MessageEvent("已恢复存档继续 · " + _engine.RoundLabel(), false));
+        Emit(new MessageEvent(L.T("app.runtime.msg.resumed", ("label", _engine.RoundLabel())), false));
         RunLoop();    }
 
     /// <summary>完整重置（回到未开局）。</summary>
@@ -431,7 +432,7 @@ public sealed class MatchRuntime
         _phase = MatchPhase.Idle;
         _lastOutcome = null;
         _firstDeal = true;
-        _message = "已重置";
+        _message = L.T("app.runtime.msg.reset");
         // 规则集可能在设置里切过：重置时按当前设置重建判役器与引擎，否则会退回默认七子。
         var ruleset = CurrentRuleset;
         _checker = CreateChecker();
@@ -444,7 +445,7 @@ public sealed class MatchRuntime
         ResetCounters();
         _roundLog?.Clear();
         EmitState();
-        Emit(new MessageEvent("已重置", false));
+        Emit(new MessageEvent(L.T("app.runtime.msg.reset"), false));
     }
 
     /// <summary>hot-apply 设置（可选役 / recordTiles / 长考秒数）。</summary>
@@ -470,13 +471,13 @@ public sealed class MatchRuntime
     {
         if (_engine.MatchOver || _phase == MatchPhase.MatchOver)
         {
-            Notify("整场已结束", false);
+            Notify(L.T("app.runtime.msg.matchOver"), false);
             return;
         }
 
         if (!_engine.GameOver)
         {
-            Notify("本局尚未结束", false);
+            Notify(L.T("app.runtime.msg.roundNotOver"), false);
             return;
         }
 
@@ -494,7 +495,7 @@ public sealed class MatchRuntime
         if (!_roundGate.AllConfirmed)
         {
             _phase = MatchPhase.RoundEnded;
-            _message = "等待其他玩家确认";
+            _message = L.T("app.runtime.msg.waitingOthers");
             EmitState();
             return;
         }
@@ -555,7 +556,7 @@ public sealed class MatchRuntime
         {
             if (++guard > 200_000)
             {
-                throw new InvalidOperationException("对局动作数超过 200000，疑似死循环");
+                throw new InvalidOperationException(L.T("app.runtime.err.deadloop"));
             }
 
             if (_phase is MatchPhase.RoundEnded or MatchPhase.MatchOver)
@@ -775,7 +776,7 @@ public sealed class MatchRuntime
             RecordCall(pi, "discard");
             _aiCallDeclarations++;
             _aiCallDeclarationsBySeat[pi]++;
-            _message = "已报听 · 听 " + string.Join(" ", SnapshotBuilder.TenpaiTileIds(_engine, player));
+            _message = WaitText(player);
         }
 
         EmitState();
@@ -956,7 +957,7 @@ public sealed class MatchRuntime
                 _pendingRon = new PendingRon(discarded, result, discPlayer);
                 _pendingChiList.Clear();
                 _phase = MatchPhase.HumanRon;
-                _message = "荣和机会：别人打出 " + Display(discarded) + " · " + (result.TotalFu ?? 0) + "赋可和";
+                _message = L.T("app.runtime.msg.ronChance", ("tile", Display(discarded)), ("fu", result.TotalFu ?? 0));
                 return;
             }
 
@@ -967,7 +968,7 @@ public sealed class MatchRuntime
                 _pendingRon = new PendingRon(discarded, null, discPlayer, misfireFu);
                 _pendingChiList.Clear();
                 _phase = MatchPhase.HumanRon;
-                _message = "报听错和风险：这手只有 " + misfireFu + " 赋（不足 " + _engine.BaseFu + "）· 点荣和按错和罚";
+                _message = L.T("app.runtime.msg.misfireRisk", ("fu", misfireFu), ("base", _engine.BaseFu));
                 return;
             }
         }
@@ -1002,7 +1003,7 @@ public sealed class MatchRuntime
 
                 _pendingMeld = new PendingMeld(discarded, discPlayer);
                 _phase = MatchPhase.HumanMeld;
-                _message = "副露机会：别人打出 " + Display(discarded);
+                _message = L.T("app.runtime.msg.meldChance", ("tile", Display(discarded)));
                 return;
             }
         }
@@ -1053,7 +1054,7 @@ public sealed class MatchRuntime
     {
         if (_phase != MatchPhase.HumanMeld || _pendingMeld is null)
         {
-            Notify("现在没有可副露的机会", false);
+            Notify(L.T("app.runtime.msg.noMeldChance"), false);
             return;
         }
 
@@ -1070,7 +1071,7 @@ public sealed class MatchRuntime
 
         if (!CanSelfDrawAtStartOfTurn(HumanIndex))
         {
-            Notify("吃/碰后必须先打出一张牌", false);
+            Notify(L.T("app.runtime.msg.mustDiscardAfterMeld"), false);
             EmitState();
             return;
         }
@@ -1089,7 +1090,7 @@ public sealed class MatchRuntime
         // 碰/吃/明杠之后没有摸牌动作：必须先打出一张，不能直接和牌。
         if (!CanSelfDrawAtStartOfTurn(HumanIndex))
         {
-            Notify("吃/碰后必须先打出一张牌", false);
+            Notify(L.T("app.runtime.msg.mustDiscardAfterMeld"), false);
             EmitState();
             return;
         }
@@ -1102,7 +1103,7 @@ public sealed class MatchRuntime
     {
         if (_phase != MatchPhase.HumanRon || _pendingRon is null)
         {
-            Notify("现在没有可荣和的牌", false);
+            Notify(L.T("app.runtime.msg.noRonChance"), false);
             return;
         }
 
@@ -1125,7 +1126,7 @@ public sealed class MatchRuntime
         var player = _engine.Players[human];
         if (player.IsCalled)
         {
-            Notify("已经报听，不能重复宣言", false);
+            Notify(L.T("app.runtime.msg.alreadyCalled"), false);
             return;
         }
 
@@ -1138,26 +1139,26 @@ public sealed class MatchRuntime
 
             if (!_engine.DeclareCallWithHand(player, hand))
             {
-                Notify("手牌没有听牌，不能报听", false);
+                Notify(L.T("app.runtime.msg.handNotTenpai"), false);
                 EmitState();
                 return;
             }
 
             RecordCall(human, "window");
-            _message = "已报听 · 听 " + string.Join(" ", SnapshotBuilder.TenpaiTileIds(_engine, player));
+            _message = WaitText(player);
             EmitState();
             return;
         }
 
         if (_phase != MatchPhase.HumanDiscard || _engine.TurnIndex != human)
         {
-            Notify("现在不能报听", false);
+            Notify(L.T("app.runtime.msg.cannotCallNow"), false);
             return;
         }
 
         if (index < 0 || index >= player.Hand.Count)
         {
-            Notify("请选择要打出的那张牌完成报听", false);
+            Notify(L.T("app.runtime.msg.pickTileToCall"), false);
             return;
         }
 
@@ -1167,7 +1168,7 @@ public sealed class MatchRuntime
         // 失败时不弃牌：按钮可用性与这里用同一套判定（MahjongEngine.CanDeclareCall）。
         if (!_engine.DeclareCallAfterDiscard(player, tile))
         {
-            Notify("打出这张后不听牌，不能报听", false);
+            Notify(L.T("app.runtime.msg.breaksTenpai"), false);
             EmitState();
             return;
         }
@@ -1177,7 +1178,7 @@ public sealed class MatchRuntime
         RecordStep(human, "discard", tile);
 
         RecordCall(human, "discard");
-        _message = "已报听 · 听 " + string.Join(" ", SnapshotBuilder.TenpaiTileIds(_engine, player));
+        _message = WaitText(player);
         EmitState();
         AfterDiscard(tile, human);
 
@@ -1220,7 +1221,7 @@ public sealed class MatchRuntime
                 RunLoop();
                 break;
             default:
-                Notify("当前没有待决动作", false);
+                Notify(L.T("app.runtime.msg.noPendingAction"), false);
                 break;
         }
     }
@@ -1245,7 +1246,7 @@ public sealed class MatchRuntime
         int human = HumanIndex;
         if (_phase != MatchPhase.HumanDiscard || human < 0 || _engine.TurnIndex != human)
         {
-            Notify("现在不是你的出牌阶段", false);
+            Notify(L.T("app.runtime.msg.notYourDiscard"), false);
             return false;
         }
 
@@ -1263,21 +1264,21 @@ public sealed class MatchRuntime
         var player = _engine.Players[human];
         if (index < 0 || index >= player.Hand.Count)
         {
-            Notify("出牌下标越界", false);
+            Notify(L.T("app.runtime.msg.discardIndexOutOfRange"), false);
             return false;
         }
 
         // 报听锁手：打这张会改听牌张 → 拒绝并提示（引擎里还有一层兜底）。
         if (!_engine.CallAllowsDiscard(player, player.Hand[index], out string? callReason))
         {
-            Notify(callReason ?? "报听后听牌张不能变", false);
+            Notify(callReason ?? L.T("app.runtime.msg.callLocksWait"), false);
             return false;
         }
 
         var discarded = _engine.Discard(player, player.Hand[index]);
         if (discarded is null)
         {
-            Notify("这张牌不在手里", false);
+            Notify(L.T("app.runtime.msg.tileNotInHand"), false);
             return false;
         }
 
@@ -1301,7 +1302,7 @@ public sealed class MatchRuntime
         var player = _engine.Players[human];
         if (player.TotalTiles() != 14 + player.KongCount())
         {
-            Notify("手牌不是 14 张，不能自摸", false);
+            Notify(L.T("app.runtime.msg.handNot14"), false);
             return false;
         }
 
@@ -1324,13 +1325,13 @@ public sealed class MatchRuntime
                 return true;
             }
 
-            Notify("手牌不能和", false);
+            Notify(L.T("app.runtime.msg.handCannotWin"), false);
             return false;
         }
 
         if (_engine.IsWinBanned(player))
         {
-            Notify("本局禁和（或本巡禁和），不能宣布和牌", false);
+            Notify(L.T("app.runtime.msg.winBanned"), false);
             return false;
         }
 
@@ -1363,8 +1364,8 @@ public sealed class MatchRuntime
         }
 
         _message = penalty.Severe
-            ? "报听错和（重罚）：赋 " + fu + " 不足起和线 · 本局 + 下局禁和"
-            : "报听错和：赋 " + fu + " 不足起和线 · 向三家各付 " + penalty.Z;
+            ? L.T("app.runtime.msg.misfireSevere", ("fu", fu))
+            : L.T("app.runtime.msg.misfireMinor", ("fu", fu), ("z", penalty.Z));
         RecordEvent(
             GameEventTypes.Call,
             playerIndex,
@@ -1401,7 +1402,9 @@ public sealed class MatchRuntime
         Tile? tile = requested == MeldType.Ankan ? ankan : kakan;
         if (tile is null)
         {
-            Notify(requested == MeldType.Ankan ? "没有可暗杠的牌" : "没有可加杠的牌", false);
+            Notify(requested == MeldType.Ankan
+                ? L.T("app.runtime.msg.noAnkan")
+                : L.T("app.runtime.msg.noKakan"), false);
             return false;
         }
 
@@ -1567,7 +1570,7 @@ public sealed class MatchRuntime
         {
             _pendingChiList.Clear();
             _phase = MatchPhase.Idle;
-            Notify("这个副露不可用", false);
+            Notify(L.T("app.runtime.msg.meldUnavailable"), false);
             EmitState();
             return false;
         }
@@ -1597,7 +1600,7 @@ public sealed class MatchRuntime
         var options = _engine.FlowOptions(_engine.Players[human].Hand);
         if (options.Count == 0)
         {
-            Notify("当前手牌不满足推牌流局条件", false);
+            Notify(L.T("app.runtime.msg.pushFlowUnavailable"), false);
             return false;
         }
 
@@ -1775,8 +1778,8 @@ public sealed class MatchRuntime
                           ?? ((dealer ? MahjongEngine.DealerBonus(subPoints) : subPoints) + honbaBonus);
         var (each, remainder) = _engine.SplitPayment(finalPoints);
         string payment = selfDraw
-            ? $"自摸 · 三家合计付 {finalPoints}（余数 {remainder} 分摊）"
-            : $"荣和 · 放铳者付 {finalPoints}";
+            ? L.T("app.runtime.payment.tsumo", ("points", finalPoints), ("remainder", remainder))
+            : L.T("app.runtime.payment.ron", ("points", finalPoints));
 
         return new SettlementDetail
         {
@@ -1833,7 +1836,7 @@ public sealed class MatchRuntime
         // 报听：禁吃碰明杠（规则层兜底提示，正常路径上面已经不给窗口）。
         if (!_engine.CallAllowsMeld(_engine.Players[playerIndex], type, out string? callReason))
         {
-            Notify(callReason ?? "报听后禁止吃碰", false);
+            Notify(callReason ?? L.T("app.runtime.msg.callBlocksMeld"), false);
             EmitState();
             return;
         }
@@ -1879,7 +1882,7 @@ public sealed class MatchRuntime
             if (robbers.Count >= 3)
             {
                 _lastOutcome = MakeOutcome("special_flow", Array.Empty<int>(), "triple_ron_chankan");
-                _engine.DeclareSpecialFlow("三家和牌（抢杠）→ 自动流局");
+                _engine.DeclareSpecialFlow(L.T("app.runtime.msg.tripleRonChankan"));
                 return false;
             }
 
@@ -2109,8 +2112,7 @@ public sealed class MatchRuntime
         int expectedSum = sumBefore + potAwarded + adjustmentsNet;
         if (expectedSum != sumAfter)
         {
-            issues.Add("总分不守恒: before=" + sumBefore + " after=" + sumAfter
-                + " 场供发出=" + potAwarded);
+            issues.Add(L.T("app.runtime.audit.scoreMismatch", ("before", sumBefore), ("after", sumAfter), ("pot", potAwarded)));
         }
 
         bool win = result.Kind is "tsumo" or "ron";
@@ -2134,9 +2136,10 @@ public sealed class MatchRuntime
                 int actual = result.Scores[i] - flowBefore[i];
                 if (actual != flowExpected[i])
                 {
-                    issues.Add(
-                        _engine.Players[i].Name + ": 实际Δ" + actual.ToString("+#;-#;0", CultureInfo.InvariantCulture)
-                        + "，账本Δ" + flowExpected[i].ToString("+#;-#;0", CultureInfo.InvariantCulture));
+                    issues.Add(L.T("app.runtime.audit.playerLedger",
+                        ("name", _engine.Players[i].Name),
+                        ("actual", actual.ToString("+#;-#;0", CultureInfo.InvariantCulture)),
+                        ("expected", flowExpected[i].ToString("+#;-#;0", CultureInfo.InvariantCulture))));
                 }
             }
         }
@@ -2185,9 +2188,10 @@ public sealed class MatchRuntime
                 int actual = result.Scores[i] - before[i];
                 if (actual != expected[i])
                 {
-                    issues.Add(
-                        _engine.Players[i].Name + ": 实际Δ" + actual.ToString("+#;-#;0", CultureInfo.InvariantCulture)
-                        + "，明细Δ" + expected[i].ToString("+#;-#;0", CultureInfo.InvariantCulture));
+                    issues.Add(L.T("app.runtime.audit.playerDetail",
+                        ("name", _engine.Players[i].Name),
+                        ("actual", actual.ToString("+#;-#;0", CultureInfo.InvariantCulture)),
+                        ("expected", expected[i].ToString("+#;-#;0", CultureInfo.InvariantCulture))));
                 }
             }
         }
@@ -2212,7 +2216,7 @@ public sealed class MatchRuntime
         {
             System.IO.File.AppendAllText(
                 System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tiisu-error.log"),
-                DateTime.Now.ToString("HH:mm:ss.fff") + " 结算自检: " + line + Environment.NewLine);
+                DateTime.Now.ToString("HH:mm:ss.fff") + L.T("app.runtime.audit.logPrefix") + line + Environment.NewLine);
         }
         catch
         {
@@ -2290,7 +2294,7 @@ public sealed class MatchRuntime
             {
                 System.IO.File.AppendAllText(
                     System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tiisu-error.log"),
-                    DateTime.Now.ToString("HH:mm:ss.fff") + " 流局罚项账本与分数不一致：" +
+                    DateTime.Now.ToString("HH:mm:ss.fff") + L.T("app.runtime.audit.flowPenaltyMismatch") +
                     string.Join(" | ", result.PenaltyAudit) + Environment.NewLine);
             }
             catch
@@ -2564,7 +2568,7 @@ public sealed class MatchRuntime
             }
 
             var nums = string.Concat(trio.Select(t => t.Num.ToString(CultureInfo.InvariantCulture)));
-            labels.Add("吃 " + nums + TileNotation.SuitChar(trio[0].Suit));
+            labels.Add(L.T("app.runtime.chiLabel", ("tiles", nums + TileNotation.SuitChar(trio[0].Suit))));
         }
 
         return labels;
@@ -2798,21 +2802,25 @@ public sealed class MatchRuntime
 
     private static string Display(Tile tile) => tile.Suit switch
     {
-        Suit.Man => tile.Num + "万",
-        Suit.Pin => tile.Num + "饼",
-        Suit.Sou => tile.Num + "索",
+        Suit.Man => L.T("app.runtime.tile.man", ("num", tile.Num)),
+        Suit.Pin => L.T("app.runtime.tile.pin", ("num", tile.Num)),
+        Suit.Sou => L.T("app.runtime.tile.sou", ("num", tile.Num)),
         _ => tile.Num switch
         {
-            1 => "东",
-            2 => "南",
-            3 => "西",
-            4 => "北",
-            5 => "白",
-            6 => "发",
-            7 => "中",
+            1 => L.T("app.runtime.tile.honor.east"),
+            2 => L.T("app.runtime.tile.honor.south"),
+            3 => L.T("app.runtime.tile.honor.west"),
+            4 => L.T("app.runtime.tile.honor.north"),
+            5 => L.T("app.runtime.tile.honor.white"),
+            6 => L.T("app.runtime.tile.honor.green"),
+            7 => L.T("app.runtime.tile.honor.red"),
             _ => tile.Num.ToString(CultureInfo.InvariantCulture),
         },
     };
+
+    /// <summary>报听后的等待牌文案（engine 侧的待牌 id 列表）。</summary>
+    private string WaitText(Player player) =>
+        L.T("app.runtime.msg.calledWait", ("wait", string.Join(" ", SnapshotBuilder.TenpaiTileIds(_engine, player))));
 
     private sealed class SharedRandomSource : IRandomSource
     {

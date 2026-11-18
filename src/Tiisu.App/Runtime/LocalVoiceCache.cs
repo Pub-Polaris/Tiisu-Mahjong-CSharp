@@ -1,4 +1,5 @@
 using System;
+using Tiisu.Localization;
 using System.Collections.Generic;
 using System.IO;
 using System.Speech.Synthesis;
@@ -255,7 +256,7 @@ internal sealed class LocalVoiceCache
             byte[] bytes = File.ReadAllBytes(path);
             if (bytes.Length < 12 || BitConverter.ToInt32(bytes, 0) != 0x46464952)
             {
-                throw new InvalidDataException("不是 RIFF/WAV");
+                throw new InvalidDataException(L.T("app.runtime.wav.notRiff"));
             }
 
             int pos = 12;
@@ -284,7 +285,7 @@ internal sealed class LocalVoiceCache
 
             if (payload is null)
             {
-                throw new InvalidDataException("WAV 缺 data");
+                throw new InvalidDataException(L.T("app.runtime.wav.missingData"));
             }
 
             int bytesPerSample = Math.Max(1, bits / 8);
