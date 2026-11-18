@@ -161,7 +161,10 @@ public static class SnapshotBuilder
 
         bool selfCalled = false;
         bool selfBanned = false;
-          string winHint = string.Empty;
+        int? selfWinFu = null;
+        bool selfWinShape = false;
+        int selfWinThreshold = engine.BaseFu;
+        string winHint = string.Empty;
         string tenpaiSummary = string.Empty;
         if (selfIndex >= 0)
         {
@@ -174,10 +177,17 @@ public static class SnapshotBuilder
             tenpai.AddRange(hints.Tiles);
             tenpaiSummary = hints.Summary;
 
-            // 14 张形和牌不可用时的可见提示：不能再静默。
+            // 14 张形和牌时顺手把当前总赋/门槛赋投影给 UI；13 张形只显示起和线。
             if (phase == "human_discard" && self.TotalTiles() == 14 + self.KongCount())
             {
                 var eval = engine.EvaluateWinFor(self, self.Hand, selfDraw: true, self.LastDraw);
+                if (eval.Success || eval.Reason == "no_yaku")
+                {
+                    selfWinShape = true;
+                    selfWinFu = eval.TotalFu;
+                    selfWinThreshold = eval.ThresholdFu > 0 ? eval.ThresholdFu : engine.BaseFu;
+                }
+
                 if (!eval.Success)
                 {
                     if (engine.IsWinBanned(self))
@@ -234,6 +244,10 @@ public static class SnapshotBuilder
             IsCalled = selfCalled,
               WinHint = winHint,
             WinBanned = selfBanned,
+            BaseFu = engine.BaseFu,
+            WinFu = selfWinFu,
+            WinThresholdFu = selfWinThreshold,
+            WinShape = selfWinShape,
             DrawnTileId = selfIndex >= 0 ? engine.Players[selfIndex].LastDraw?.Id : null,
             DiceDealerText = diceDealerText,
             DiceCutText = diceCutText,

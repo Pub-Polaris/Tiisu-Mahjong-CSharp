@@ -398,6 +398,31 @@ public sealed class TableScreen : Screen
             new RectF(btn.Right + 10, btn.Y + 8, 90, 20),
             Color.Rgb(170, 186, 172), new TextStyle(14, Center: false));
 
+        // 起和线 / 当前和形赋：让「够不够和」成为常驻信息，而不是灰按钮。
+        if (vm.BaseFu > 0)
+        {
+            var fuBox = new RectF(_layout.CanvasW - 206, 58, 190, 32);
+            string fuText;
+            Color fuColor;
+            if (vm.WinShape)
+            {
+                int fu = vm.WinFu ?? 0;
+                fuText = UiText.Tr("赋") + " " + fu.ToString(CultureInfo.InvariantCulture)
+                         + " / " + vm.WinThresholdFu.ToString(CultureInfo.InvariantCulture);
+                fuColor = fu >= vm.WinThresholdFu ? Color.Rgb(242, 201, 76) : Color.Rgb(240, 150, 140);
+            }
+            else
+            {
+                fuText = UiText.Tr("起和") + " " + vm.BaseFu.ToString(CultureInfo.InvariantCulture)
+                         + " " + UiText.Tr("赋");
+                fuColor = Color.Rgb(174, 198, 184);
+            }
+
+            c.FillRoundRect(fuBox, 9, Color.Black.WithAlpha(150));
+            c.StrokeRoundRect(fuBox, 9, Color.Rgb(110, 144, 126).WithAlpha(150), 1.0f);
+            c.DrawText(fuText, fuBox, fuColor, new TextStyle(15, Bold: vm.WinShape, Center: true));
+        }
+
         // 顶部中央：提示消息（和牌 / 流局 / 窗口提示）
         if (!string.IsNullOrEmpty(vm.Message))
         {

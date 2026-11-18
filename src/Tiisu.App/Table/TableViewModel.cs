@@ -182,6 +182,18 @@ public sealed record TableViewModel
     /// </summary>
     public string WinHint { get; init; } = string.Empty;
 
+    /// <summary>起和线（七子默认 7 赋；推倒胡为 0）。</summary>
+    public int BaseFu { get; init; } = 7;
+
+    /// <summary>当前手牌已成和形时：总赋（含可选役）；未成和形为 null。</summary>
+    public int? WinFu { get; init; }
+
+    /// <summary>当前和形的门槛赋（不含可选役）；用于和 BaseFu 对比。</summary>
+    public int WinThresholdFu { get; init; } = 7;
+
+    /// <summary>当前手牌是否已成和形（哪怕赋不足，也可用于显示「差多少」）。</summary>
+    public bool WinShape { get; init; }
+
     /// <summary>本巡刚摸进来的那张牌（摸切 / 长考超时自动切走用）；没有则为 null。</summary>
     public string? DrawnTileId { get; init; }
 
