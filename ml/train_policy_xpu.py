@@ -31,16 +31,31 @@ class PolicyNet(nn.Module):
         return self.fc3(x)
 
 
-def load_shards(root: Path):
+def load_shards(root: Path, use_mmap: bool = True):
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     shards = []
     for meta in manifest:
+        mode = "r" if use_mmap else None
         shards.append({
-            "x": np.load(meta["x"], mmap_mode="r"),
-            "y": np.load(meta["y"], mmap_mode="r"),
-            "g": np.load(meta["g"], mmap_mode="r"),
+            "x": np.load(meta["x"], mmap_mode=mode),
+            "y": np.load(meta["y"], mmap_mode=mode),
+            "g": np.load(meta["g"], mmap_mode=mode),
         })
     return shards
+
+
+def mlock_array(a: np.ndarray) -> bool:
+    """Best-effort VirtualLock; failure is reported, not fatal."""
+    try:
+        import ctypes
+        if hasattr(ctypes, "windll"):
+            return bool(ctypes.windll.kernel32.VirtualLock(
+                ctypes.c_void_p(a.ctypes.data), ctypes.c_size_t(a.nbytes)))
+        import ctypes.util
+        libc = ctypes.CDLL(ctypes.util.find_library("c"))
+        return libc.mlock(a.ctypes.data_as(ctypes.c_void_p), a.nbytes) == 0
+    except Exception:
+        return False
 
 
 def normalize_stats(shards, features: int) -> tuple[np.ndarray, np.ndarray]:
@@ -151,6 +166,8 @@ def main() -> None:
     ap.add_argument("--val-fraction", type=float, default=0.05)
     ap.add_argument("--max-samples", type=int, default=0)
     ap.add_argument("--device", default="auto", choices=["auto", "xpu", "cpu"])
+    ap.add_argument("--storage", default="vram", choices=["vram", "cpu"])
+    ap.add_argument("--mlock", action="store_true")
     args = ap.parse_args()
 
     if args.device == "auto":
@@ -166,13 +183,20 @@ def main() -> None:
           f"xpu_available={torch.xpu.is_available()}", flush=True)
 
     root = Path(args.dataset)
-    shards = load_shards(root)
+    shards = load_shards(root, use_mmap=args.storage != "vram")
     lengths = [len(s["x"]) for s in shards]
+    offsets = np.cumsum([0] + lengths[:-1]).tolist()
     total = sum(lengths)
     features = shards[0]["x"].shape[1]
     if features != 339:
         raise SystemExit(f"dataset features={features}, expected 339")
-    print(f"dataset shards={len(shards)} samples={total:,}", flush=True)
+    print(f"dataset shards={len(shards)} samples={total:,} storage={args.storage}", flush=True)
+    if args.storage == "vram":
+        required = total * features * 4
+        if required > 9 * 1024 ** 3:
+            raise SystemExit(
+                f"VRAM dataset too large ({required / 1024 ** 3:.1f} GiB); "
+                "rebuild with --sample-every 10 or use --storage cpu")
 
     # Global game ids are already unique across shards.
     rng = np.random.default_rng(1)
@@ -204,6 +228,68 @@ def main() -> None:
     best = 0.0
     stale = 0
     start = time.time()
+
+    if args.storage == "vram":
+        x_all = np.concatenate([np.asarray(s["x"]) for s in shards], axis=0)
+        y_all = np.concatenate([np.asarray(s["y"]) for s in shards], axis=0)
+        g_all = np.concatenate([np.asarray(s["g"]) for s in shards], axis=0)
+        train_idx = np.asarray([offsets[si] + i for si, i in train], dtype=np.int64)
+        val_idx = np.asarray([offsets[si] + i for si, i in val], dtype=np.int64)
+        if args.mlock:
+            locked = mlock_array(x_all)
+            print(f"mlock X={locked} bytes={x_all.nbytes:,}", flush=True)
+        x_norm = (x_all - mean) / std
+        x_t = torch.from_numpy(x_norm).to(device)
+        y_t = torch.from_numpy(y_all.astype(np.int64)).to(device)
+        train_t = torch.from_numpy(train_idx).to(device)
+        val_t = torch.from_numpy(val_idx).to(device)
+        print(f"vram features={x_t.nbytes / 1024 ** 3:.2f} GiB "
+              f"train={len(train_t):,} val={len(val_t):,}", flush=True)
+        del x_all, y_all, g_all, x_norm, shards
+        for epoch in range(args.epochs):
+            perm = torch.randperm(len(train_t), device=device)
+            model.train()
+            running = 0.0
+            for step, begin in enumerate(range(0, len(train_t), args.batch), 1):
+                sel = train_t[perm[begin:begin + args.batch]]
+                xb = x_t[sel]
+                yb = y_t[sel]
+                logits = model(xb)
+                loss = F.cross_entropy(logits, yb, label_smoothing=0.02)
+                if not torch.isfinite(loss):
+                    raise SystemExit(f"non-finite loss epoch={epoch + 1} step={step}")
+                opt.zero_grad(set_to_none=True)
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+                for p in model.parameters():
+                    if not torch.isfinite(p).all():
+                        raise SystemExit(f"non-finite parameter epoch={epoch + 1} step={step}")
+                opt.step()
+                running += float(loss.item())
+                if step % 100 == 0:
+                    print(f"epoch {epoch + 1} step {step} loss={running / 100:.4f} "
+                          f"elapsed={time.time() - start:.0f}s", flush=True)
+                    running = 0.0
+            correct = 0
+            for begin in range(0, len(val_t), args.batch):
+                sel = val_t[begin:begin + args.batch]
+                pred = model(x_t[sel]).argmax(dim=1)
+                correct += int((pred == y_t[sel]).sum().item())
+            val_acc = correct / max(1, len(val_t))
+            print(f"epoch {epoch + 1}/{args.epochs} val_top1={val_acc:.4f} "
+                  f"elapsed={time.time() - start:.0f}s", flush=True)
+            if val_acc > best:
+                best = val_acc
+                stale = 0
+            else:
+                stale += 1
+                if stale >= 1:
+                    print("early stop")
+                    break
+        export(model, features, args.hidden, mean, std, Path(args.out), args, best)
+        print(f"saved {args.out}")
+        return
+
     for epoch in range(args.epochs):
         rng.shuffle(train)
         model.train()

@@ -239,10 +239,43 @@ public static class NeuralPolicyAi
     }
 
     /// <summary>
-    /// 从已加好 bonus 的分数里按 softmax(1/T) 采一个下标。T ≤ 0 / 非有限时退化为 argmax。
-    /// 供 <see cref="ChooseDiscard(AiDecisionContext, AiStyle, PursuitState, IRandomSource, string?)"/> 与单测使用。
+    /// 从策略网的 34 类 logits 中按温度/top-k 采样一个弃牌，用于探索增广数据。
+    /// 生产对局仍使用 <see cref="ChooseDiscard(AiDecisionContext, string?)"/> 的 argmax。
     /// </summary>
-    internal static int SampleScores(double[] scores, double temperature, IRandomSource rng)
+    public static int SampleDiscard(
+        AiDecisionContext ctx,
+        string? weightsPath,
+        double temperature,
+        int topK,
+        IRandomSource rng)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+        ArgumentNullException.ThrowIfNull(rng);
+        var picks = ScoreDiscards(ctx, weightsPath);
+        if (picks.Count == 0)
+        {
+            return -1;
+        }
+
+        var scores = new double[picks.Count];
+        for (int i = 0; i < picks.Count; i++)
+        {
+            scores[i] = picks[i].Logit;
+            if (!double.IsFinite(scores[i]))
+            {
+                return Argmax(picks);
+            }
+        }
+
+        int sampled = SampleScores(scores, temperature, rng, topK);
+        return sampled < 0 ? Argmax(picks) : picks[sampled].Index;
+    }
+
+    /// <summary>
+    /// 从已加好 bonus 的分数里按 softmax(1/T) 采一个下标。T ≤ 0 / 非有限时退化为 argmax。
+    /// topK &gt; 0 时只保留分数最高的 K 个候选。
+    /// </summary>
+    internal static int SampleScores(double[] scores, double temperature, IRandomSource rng, int topK = 0)
     {
         ArgumentNullException.ThrowIfNull(scores);
         ArgumentNullException.ThrowIfNull(rng);
@@ -273,11 +306,47 @@ public static class NeuralPolicyAi
             return best;
         }
 
+        var allowed = new bool[scores.Length];
+        if (topK > 0 && topK < scores.Length)
+        {
+            // 小数组（<=14 张手牌），简单选择 topK，不引入额外分配复杂度。
+            for (int rank = 0; rank < topK; rank++)
+            {
+                int pick = -1;
+                for (int i = 0; i < scores.Length; i++)
+                {
+                    if (allowed[i])
+                    {
+                        continue;
+                    }
+
+                    if (pick < 0 || scores[i] > scores[pick])
+                    {
+                        pick = i;
+                    }
+                }
+
+                if (pick >= 0)
+                {
+                    allowed[pick] = true;
+                }
+            }
+        }
+        else
+        {
+            Array.Fill(allowed, true);
+        }
+
         double max = scores[best];
         var weights = new double[scores.Length];
         double total = 0.0;
         for (int i = 0; i < scores.Length; i++)
         {
+            if (!allowed[i])
+            {
+                continue;
+            }
+
             double z = (scores[i] - max) / t;
             double weight = z < -40.0 ? 0.0 : Math.Exp(z);
             weights[i] = weight;

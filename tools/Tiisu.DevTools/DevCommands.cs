@@ -52,6 +52,9 @@ internal static class DevCommands
         int jobs = 1;
         int sampleEvery = 1;
         double explore = 0;
+        string policy = "argmax";
+        double temperature = 1.0;
+        int topK = 0;
         for (int i = 1; i < args.Length; i++)
         {
             if (args[i] == "--games" && i + 1 < args.Length && int.TryParse(args[i + 1], out int g)) games = Math.Max(1, g);
@@ -60,6 +63,9 @@ internal static class DevCommands
             if (args[i] == "--jobs" && i + 1 < args.Length && int.TryParse(args[i + 1], out int j)) jobs = Math.Clamp(j, 1, Environment.ProcessorCount);
             if (args[i] == "--sample-every" && i + 1 < args.Length && int.TryParse(args[i + 1], out int se)) sampleEvery = Math.Max(1, se);
             if (args[i] == "--explore" && i + 1 < args.Length && double.TryParse(args[i + 1], out double ex)) explore = Math.Clamp(ex, 0, 0.9);
+            if (args[i] == "--policy" && i + 1 < args.Length) policy = args[++i].ToLowerInvariant();
+            if (args[i] == "--temperature" && i + 1 < args.Length && double.TryParse(args[i + 1], out double temp)) temperature = Math.Clamp(temp, 0.05, 5.0);
+            if (args[i] == "--top-k" && i + 1 < args.Length && int.TryParse(args[i + 1], out int k)) topK = Math.Clamp(k, 0, 14);
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath))!);
@@ -93,6 +99,14 @@ internal static class DevCommands
                         ShantenAfter = afterShanten,
                     });
                 },
+                DiscardPolicy = policy == "neural"
+                    ? (engine, player, rng) => Tiisu.Engine.Ai.NeuralPolicyAi.SampleDiscard(
+                        Tiisu.Engine.SelfPlay.SelfPlayDriver.BuildNeuralContext(engine, player),
+                        null,
+                        temperature,
+                        topK,
+                        rng)
+                    : null,
             };
             var result = Tiisu.Engine.SelfPlay.SelfPlayDriver.Run((uint)(gameSeed + g), opts);
             int initial = mode >= 16 ? 77000 : 49000;

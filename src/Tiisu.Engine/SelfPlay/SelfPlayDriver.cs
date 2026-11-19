@@ -1,4 +1,5 @@
 using Tiisu.Core;
+using Tiisu.Engine.Ai;
 using Tiisu.Engine.Deal;
 using Tiisu.Engine.Random;
 
@@ -24,6 +25,12 @@ public sealed class SelfPlayOptions
 
     /// <summary>探索率：按概率随机换一张合法弃牌，用于生成带探索的自博弈样本。</summary>
     public double ExploreRate { get; init; }
+
+    /// <summary>
+    /// 可选的弃牌策略（引擎、玩家、随机源 -> 手牌下标）。
+    /// null = 既有 <see cref="AiPlayer.ChooseDiscardIndex"/>；非 null 用于神经策略的温度/top-k 探索增广。
+    /// </summary>
+    public Func<MahjongEngine, int, IRandomSource, int>? DiscardPolicy { get; init; }
 }
 
 /// <summary>
@@ -275,7 +282,9 @@ public static class SelfPlayDriver
             }
 
             // ── 出牌（每个 discard 决策恰好消耗一次随机值）──
-            int discardIndex = AiPlayer.ChooseDiscardIndex(player.Hand, random.NextDouble());
+            int discardIndex = options.DiscardPolicy is { } policy
+                ? policy(engine, pi, random)
+                : AiPlayer.ChooseDiscardIndex(player.Hand, random.NextDouble());
             if (discardIndex < 0 || discardIndex >= player.Hand.Count)
             {
                 throw new InvalidOperationException($"玩家 {pi} 弃牌下标越界: {discardIndex}（手牌 {player.Hand.Count}）");
@@ -428,6 +437,49 @@ public static class SelfPlayDriver
     // ─────────────────────────────────────────────────────────────
     // 观察 / 结算 / 不变量
     // ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 把引擎状态投影成策略网决策上下文（探索增广用；不暴露别家手牌/牌山）。
+    /// </summary>
+    public static AiDecisionContext BuildNeuralContext(MahjongEngine engine, int playerIndex)
+    {
+        ArgumentNullException.ThrowIfNull(engine);
+        if (playerIndex is < 0 or >= MahjongEngine.PlayerCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playerIndex));
+        }
+
+        var me = engine.Players[playerIndex];
+        var allDiscards = engine.Players.Select(player => (IReadOnlyList<Tile>)player.Discards).ToArray();
+        var allMelds = engine.Players.Select(player => (IReadOnlyList<Meld>)player.Melds).ToArray();
+        var opponentMelds = new List<Meld>();
+        for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+        {
+            if (i != playerIndex)
+            {
+                opponentMelds.AddRange(engine.Players[i].Melds);
+            }
+        }
+
+        return new AiDecisionContext(
+            me.Hand,
+            me.Melds,
+            me.Discards,
+            allDiscards,
+            opponentMelds,
+            engine.Honba,
+            engine.Wall.Count,
+            engine.Scores.ToArray(),
+            me.SeatWind,
+            engine.RoundWind,
+            me.AnkanCount,
+            me.MinkanCount)
+        {
+            PlayerIndex = playerIndex,
+            AllMelds = allMelds,
+            FirstTurn = me.FirstTurn,
+        };
+    }
 
     /// <summary>
     /// 把引擎状态投影成 AiPlayer 的决策输入（与 AiGoldenTests 的语料重建逐字段一致）。
