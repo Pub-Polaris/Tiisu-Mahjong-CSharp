@@ -1539,7 +1539,8 @@
         "back": "メニューへ戻る",
         "next": "次ページ",
         "textPageIndicator": "ライセンス全文 · {current} / {total} ページ",
-        "textNotFound": "ライセンス全文が見つかりません：{file}"
+        "textNotFound": "ライセンス全文が見つかりません：{file}",
+        "backToList": "一覧へ戻る"
       },
       "settlement": {
         "title": {

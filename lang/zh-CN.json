@@ -1539,7 +1539,8 @@
         "back": "返回菜单",
         "next": "下一页",
         "textPageIndicator": "许可全文 · 第 {current} / {total} 页",
-        "textNotFound": "未找到许可全文：{file}"
+        "textNotFound": "未找到许可全文：{file}",
+        "backToList": "返回列表"
       },
       "settlement": {
         "title": {

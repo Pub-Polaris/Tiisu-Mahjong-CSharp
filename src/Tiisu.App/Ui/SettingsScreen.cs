@@ -231,13 +231,29 @@ public sealed class SettingsScreen : Screen
             return true;
         }
 
+        // 拖动滑条结束后 WinForms 还会补一次 Click；不能让它把行值再改一次。
+        if (_sliderHit)
+        {
+            _sliderHit = false;
+            return true;
+        }
+
+        var visible = VisibleRows();
+        for (int i = 0; i < visible.Count; i++)
+        {
+            if (visible[i].Slider is { } slider && slider.Contains(x, y))
+            {
+                _selected = i;
+                return true;
+            }
+        }
+
         int index = RowAt(x, y);
         if (index < 0)
         {
             return false;
         }
 
-        var visible = VisibleRows();
         _selected = index;
         visible[index].Change(1);
         return true;
@@ -245,14 +261,19 @@ public sealed class SettingsScreen : Screen
 
       public override bool OnPointerDown(float x, float y)
       {
-          int index = RowAt(x, y);
+          _sliderHit = false;
           var visible = VisibleRows();
-          if (index >= 0 && index < visible.Count && visible[index].Slider is { } slider && slider.OnPointerDown(x, y))
+
+          // 滑条按自身几何命中，不依赖行索引；这样点/拖轨道任意位置都能生效。
+          for (int i = 0; i < visible.Count; i++)
           {
-              _activeSlider = slider;
-              _sliderHit = true;
-              _selected = index;
-              return true;
+              if (visible[i].Slider is { } candidate && candidate.OnPointerDown(x, y))
+              {
+                  _activeSlider = candidate;
+                  _sliderHit = true;
+                  _selected = i;
+                  return true;
+              }
           }
 
           return false;

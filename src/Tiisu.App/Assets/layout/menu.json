@@ -36,10 +36,10 @@
       { "id": "btnReplay", "type": "button", "x": 950, "y": 520, "w": 155, "h": 56, "radius": 12,
         "text": "牌谱回看", "action": "replay", "fontSize": 19 },
 
-      { "id": "btnYaku", "type": "button", "x": 75, "y": 590, "w": 155, "h": 48, "radius": 12,
-        "text": "役种表", "action": "yaku", "fontSize": 18 },
-      { "id": "btnGuide", "type": "button", "x": 250, "y": 590, "w": 155, "h": 48, "radius": 12,
-        "text": "打牌指南", "action": "guide", "fontSize": 18 },
+      { "id": "btnYaku", "type": "button", "x": 75, "y": 590, "w": 180, "h": 48, "radius": 12,
+        "text": "役种表", "action": "yaku", "fontSize": 16 },
+      { "id": "btnGuide", "type": "button", "x": 280, "y": 590, "w": 180, "h": 48, "radius": 12,
+        "text": "打牌指南", "action": "guide", "fontSize": 16 },
 
     { "id": "buildInfo", "type": "text", "x": 24, "y": 670, "w": 1232, "h": 24,
       "text": "", "fontSize": 16, "fontColor": "#7f9189", "align": "right" },

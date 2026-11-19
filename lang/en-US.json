@@ -1539,7 +1539,8 @@
         "back": "Back to Menu",
         "next": "Next Page",
         "textPageIndicator": "License text · Page {current} / {total}",
-        "textNotFound": "License text not found: {file}"
+        "textNotFound": "License text not found: {file}",
+        "backToList": "Back to list"
       },
       "settlement": {
         "title": {

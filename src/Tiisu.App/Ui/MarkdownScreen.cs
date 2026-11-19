@@ -22,6 +22,11 @@ public sealed class MarkdownScreen : Screen
     private readonly string _title;
     private float _scroll;
     private float _maxScroll;
+    private RectF _scrollTrack;
+    private RectF _scrollHit;
+    private RectF _scrollThumb;
+    private bool _scrollDragging;
+    private float _scrollDragOffset;
     private int _page;
 
     private RectF _prev;
@@ -103,10 +108,18 @@ public sealed class MarkdownScreen : Screen
                 float trackHeight = card.H - 36;
                 float thumbHeight = Math.Max(36, trackHeight * (card.H / (card.H + _maxScroll)));
                 float thumbTop = trackTop + (trackHeight - thumbHeight) * (_scroll / _maxScroll);
-                c.FillRoundRect(new RectF(card.Right - 9, trackTop, 4, trackHeight), 2,
+                _scrollTrack = new RectF(card.Right - 9, trackTop, 4, trackHeight);
+                _scrollHit = new RectF(card.Right - 26, trackTop, 26, trackHeight);
+                _scrollThumb = new RectF(card.Right - 9, thumbTop, 4, thumbHeight);
+                c.FillRoundRect(_scrollTrack, 2,
                     Color.Rgb(80, 100, 92).WithAlpha(100));
-                c.FillRoundRect(new RectF(card.Right - 9, thumbTop, 4, thumbHeight), 2,
+                c.FillRoundRect(_scrollThumb, 2,
                     Color.Rgb(196, 168, 96).WithAlpha(210));
+            }
+            else
+            {
+                _scrollHit = default;
+                _scrollThumb = default;
             }
         }
 
@@ -168,12 +181,56 @@ public sealed class MarkdownScreen : Screen
         return false;
     }
 
+    public override bool OnPointerDown(float x, float y)
+    {
+        if (_maxScroll <= 0 || !_scrollHit.Contains(x, y))
+        {
+            return false;
+        }
+
+        _scrollDragging = true;
+        if (_scrollThumb.Contains(x, y))
+        {
+            _scrollDragOffset = y - _scrollThumb.Y;
+        }
+        else
+        {
+            _scrollDragOffset = _scrollThumb.H / 2f;
+            ScrollToPointer(y);
+        }
+
+        return true;
+    }
+
     public override bool OnPointerMove(float x, float y)
     {
+        if (_scrollDragging)
+        {
+            ScrollToPointer(y - _scrollDragOffset);
+            return true;
+        }
+
         _prevHover = _scroll > 0 && _prev.Contains(x, y);
         _nextHover = _scroll < _maxScroll && _next.Contains(x, y);
         _backHover = _backButton.Contains(x, y);
         return _prevHover || _nextHover || _backHover;
+    }
+
+    public override bool OnPointerUp(float x, float y)
+    {
+        if (!_scrollDragging)
+        {
+            return false;
+        }
+
+        _scrollDragging = false;
+        return true;
+    }
+
+    private void ScrollToPointer(float y)
+    {
+        float span = Math.Max(1f, _scrollTrack.H - _scrollThumb.H);
+        _scroll = Math.Clamp((y - _scrollTrack.Y) / span, 0f, 1f) * _maxScroll;
     }
 
     public override bool OnWheel(float x, float y, int delta, bool shift)

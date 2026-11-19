@@ -179,8 +179,8 @@ public sealed class LicensesScreen : Screen
 
     private void DrawTextMode(ICanvas c)
     {
-        c.DrawText(_textTitle, new RectF(0, 40, Width, 48),
-            Color.Rgb(242, 230, 190), new TextStyle(34, Bold: true, Center: true));
+        c.DrawText(_textTitle, new RectF(30, 40, Width - 60, 48),
+            Color.Rgb(242, 230, 190), new TextStyle(28, Bold: true, Center: true));
         c.DrawText(L.T("app.ui.licenses.textPageIndicator", ("current", _textPage + 1), ("total", _textPages)),
             new RectF(0, 88, Width, 24), Color.Rgb(159, 180, 170), new TextStyle(15, Center: true));
 
@@ -344,7 +344,7 @@ public sealed class LicensesScreen : Screen
     private void OpenText()
     {
         var entry = Entries[_page];
-        _textTitle = Text(entry.Name) + " · " + Text(entry.License);
+        _textTitle = Text(entry.Name);
         string file = entry.Reference
             ? "REFERENCES.txt"
             : entry.Url.Contains("lietxia/mahjong_graphic", StringComparison.Ordinal) ? "TILES-LICENSE.txt"
