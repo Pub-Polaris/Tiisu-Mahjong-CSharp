@@ -1437,7 +1437,14 @@
           "ruleset": "Ruleset (Tuidao Hu = no yaku/points)",
           "aiWeights": "AI difficulty weights",
           "mcts": "Shura MCTS",
-          "tableDifficulty": "Table AI difficulty (quick)"
+          "tableDifficulty": "Table AI difficulty (quick)",
+          "aiPursuit": "7Neuu auto-pursuit (prototype)",
+          "aiStylePreset": "AI style preset",
+          "aiStyleAttack": "Attack",
+          "aiStyleDefense": "Defense",
+          "aiStyleMeld": "Calls",
+          "aiStyleValue": "Value",
+          "aiStylePursuit": "Pursuit"
         },
         "ruleset": {
           "qizi": "Tiisu",
@@ -1450,6 +1457,12 @@
           "normal": "Normal",
           "hard": "Hard",
           "shura": "Shura"
+        },
+        "aiStyle": {
+          "steady": "Steady",
+          "balanced": "Balanced",
+          "pursuit": "Pursuit",
+          "custom": "Custom"
         }
       },
       "licenses": {

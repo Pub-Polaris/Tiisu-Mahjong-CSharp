@@ -87,6 +87,20 @@ public sealed class Settings
     public bool AiMctsEnabled { get; set; }
 
     /// <summary>
+    /// 7Neuu 自动追役原型开关（默认关闭）。关闭时 7Neuu 决策与旧版逐位一致；
+    /// 打开后只有 7Neuu 会跑追役判定，其他档位不受影响。旧 settings.json 缺字段即关闭。
+    /// </summary>
+    [JsonPropertyName("aiPursuitEnabled")]
+    public bool AiPursuitEnabled { get; set; }
+
+    /// <summary>
+    /// 五项 AI 风格权重（进攻 / 防守 / 副露 / 打点 / 追役，0..2，默认全 1.0）。
+    /// 只在 7Neuu 追役原型里生效；旧 settings.json 缺字段时落默认中性风格。
+    /// </summary>
+    [JsonPropertyName("aiStyle")]
+    public Tiisu.Engine.Ai.AiStyle AiStyle { get; set; } = new();
+
+    /// <summary>
     /// 牌桌观感：Mixed（默认，方案 C）/ Flat / Light25D / Medium25D。只影响绘制，不改布局与命中测试。
     /// 旧 settings.json 没有这个键、或新装第一次写盘，都落到 Mixed；
     /// 想回平面写 <c>"tableRenderStyle": "Flat"</c> 即可（重启生效）。
@@ -114,6 +128,7 @@ public sealed class Settings
             loaded.OptionalYaku ??= new List<string>();
             loaded.AiWeights = NormalizeWeights(loaded.AiWeights);
             loaded.AiSeatLocks = NormalizeLocks(loaded.AiSeatLocks);
+            loaded.AiStyle = (loaded.AiStyle ?? Tiisu.Engine.Ai.AiStyle.Default).Clamped();
             loaded.UiTextScale = Math.Clamp(loaded.UiTextScale, 1.0, 1.3);
             loaded.Language = Tiisu.App.Ui.UiText.Normalize(loaded.Language);
             return loaded;
@@ -171,6 +186,8 @@ public sealed class Settings
         AiWeights = NormalizeWeights(other.AiWeights);
         AiSeatLocks = NormalizeLocks(other.AiSeatLocks);
         AiMctsEnabled = other.AiMctsEnabled;
+        AiPursuitEnabled = other.AiPursuitEnabled;
+        AiStyle = (other.AiStyle ?? Tiisu.Engine.Ai.AiStyle.Default).Clamped();
         TableRender = other.TableRender;
     }
 

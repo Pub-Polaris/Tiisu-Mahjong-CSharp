@@ -4,13 +4,23 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Tiisu.Engine.Random;
 using Tiisu.Engine.SelfPlay;
 
 namespace Tiisu.Engine.Ai;
 
+/// <summary>策略网对一张手牌的原始打分（手牌下标 + 牌 + 34 类 logit）。</summary>
+public readonly record struct NeuralDiscardScore(int Index, Tile Tile, float Logit);
+
 /// <summary>
 /// 小策略网推理（P2-1）：支持 v2（181 维）与 v4（339 维，自博弈特征）权重。
 /// 权重由 <c>ml/train_policy.py</c> 导出；文件缺失时返回 -1，调用方回退 <see cref="TieredAi"/>。
+///
+/// <para>
+/// 默认路径（<see cref="ChooseDiscard(AiDecisionContext)"/>）是纯 argmax，行为与旧版完全一致；
+/// 追役原型走 <see cref="ChooseDiscard(AiDecisionContext, AiStyle, PursuitState, IRandomSource)"/>：
+/// 普通状态仍 argmax，只有 <see cref="PursuitState.Active"/> 时才按温度采样并叠加目标进度 bonus。
+/// </para>
 /// </summary>
 public static class NeuralPolicyAi
 {
@@ -19,6 +29,9 @@ public static class NeuralPolicyAi
     private static Weights? _weights;
     private static bool _loadTried;
     private static string? _loadedFrom;
+
+    /// <summary>追役采样里放铳危险度的权重（危险度 0..1 → 分数单位）。</summary>
+    private const double PursuitDangerWeight = 1.2;
 
     /// <summary>当前权重来源（调试用）。</summary>
     public static string? LoadedFrom => _loadedFrom;
@@ -36,35 +49,212 @@ public static class NeuralPolicyAi
     public static int ChooseDiscard(AiDecisionContext ctx)
     {
         EnsureLoaded();
-        if (_weights is { } w)
+        return _weights is { } w ? Argmax(ScoreDiscardsWith(ctx, w)) : -1;
+    }
+
+    /// <summary>
+    /// 策略网对每张手牌的原始 logit（按手牌下标，与 <see cref="AiDecisionContext.Hand"/> 一一对应）；
+    /// 无权重时为空列表。供测试 / 诊断与追役采样复用。
+    /// </summary>
+    public static IReadOnlyList<NeuralDiscardScore> ScoreDiscards(AiDecisionContext ctx)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+        EnsureLoaded();
+        return _weights is { } w ? ScoreDiscardsWith(ctx, w) : Array.Empty<NeuralDiscardScore>();
+    }
+
+    /// <summary>
+    /// 7Neuu + 自动追役原型的弃牌：
+    /// <list type="bullet">
+    /// <item>普通状态（<see cref="PursuitState.Active"/> = false）：与 <see cref="ChooseDiscard(AiDecisionContext)"/>
+    /// 完全相同的 argmax（玩家五项风格权重不改变普通弃牌）。</item>
+    /// <item>追役状态：logit 做 z-score 归一化后，叠加 <see cref="AiPursuit.DiscardBonus"/> 与防守危险惩罚，
+    /// 用 <see cref="PursuitState.Temperature"/> 做 softmax 温度采样。</item>
+    /// </list>
+    /// 无权重返回 -1（调用方回退 <see cref="TieredAi"/>）。
+    /// </summary>
+    public static int ChooseDiscard(
+        AiDecisionContext ctx,
+        AiStyle style,
+        PursuitState pursuit,
+        IRandomSource rng)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+        ArgumentNullException.ThrowIfNull(rng);
+        style = (style ?? AiStyle.Default).Clamped();
+
+        var picks = ScoreDiscards(ctx);
+        if (picks.Count == 0)
         {
-            float[] x = Normalize(BuildFeatures(ctx, w.Features), w);
-            float[] h1 = Dense(w.L1, w.B1, x, w.Hidden);
-            float[] h2 = Dense(w.L2, w.B2, h1, w.Hidden);
-            float[] logits = Dense(w.L3, w.B3, h2, 34);
+            return -1;
+        }
 
-            int best = -1;
-            float bestScore = float.NegativeInfinity;
-            for (int i = 0; i < ctx.Hand.Count; i++)
+        // 普通强度模式：argmax（与旧版行为逐位一致）。
+        if (!pursuit.Active)
+        {
+            return Argmax(picks);
+        }
+
+        int n = picks.Count;
+        var values = new double[n];
+        double mean = 0.0;
+        for (int i = 0; i < n; i++)
+        {
+            values[i] = picks[i].Logit;
+            mean += values[i];
+        }
+
+        mean /= n;
+        double variance = 0.0;
+        for (int i = 0; i < n; i++)
+        {
+            double delta = values[i] - mean;
+            variance += delta * delta;
+        }
+
+        double std = Math.Sqrt(variance / n);
+        double inverseStd = std > 1e-6 ? 1.0 / std : 0.0;
+
+        ThreatInput? threat = null;
+        double defense = Math.Clamp(style.Defense, AiStyle.Min, AiStyle.Max);
+        if (defense > 1e-6)
+        {
+            threat = TieredAi.BuildThreatInput(ctx, TieredAi.Rivers(ctx));
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            values[i] = (values[i] - mean) * inverseStd;
+            values[i] += AiPursuit.DiscardBonus(pursuit, ctx, picks[i].Tile, style);
+            if (threat is not null)
             {
-                int idx = TileIndex(ctx.Hand[i]);
-                if (idx < 0)
-                {
-                    continue;
-                }
-
-                float s = logits[idx];
-                if (s > bestScore)
-                {
-                    bestScore = s;
-                    best = i;
-                }
+                values[i] -= ThreatModel.Danger(picks[i].Tile, threat) * PursuitDangerWeight * defense;
             }
 
+            if (!double.IsFinite(values[i]))
+            {
+                // finite 检查：任何 NaN / ∞ 都退回 argmax，不让坏值污染采样。
+                return Argmax(picks);
+            }
+        }
+
+        int sampled = SampleScores(values, pursuit.Temperature, rng);
+        return sampled < 0 ? Argmax(picks) : picks[sampled].Index;
+    }
+
+    /// <summary>
+    /// 从已加好 bonus 的分数里按 softmax(1/T) 采一个下标。T ≤ 0 / 非有限时退化为 argmax。
+    /// 供 <see cref="ChooseDiscard(AiDecisionContext, AiStyle, PursuitState, IRandomSource)"/> 与单测使用。
+    /// </summary>
+    internal static int SampleScores(double[] scores, double temperature, IRandomSource rng)
+    {
+        ArgumentNullException.ThrowIfNull(scores);
+        ArgumentNullException.ThrowIfNull(rng);
+        if (scores.Length == 0)
+        {
+            return -1;
+        }
+
+        int best = 0;
+        for (int i = 0; i < scores.Length; i++)
+        {
+            if (!double.IsFinite(scores[i]))
+            {
+                return BestIndex(scores);
+            }
+
+            if (scores[i] > scores[best])
+            {
+                best = i;
+            }
+        }
+
+        double t = double.IsFinite(temperature) && temperature > 0.0
+            ? Math.Clamp(temperature, 0.05, 5.0)
+            : 0.0;
+        if (t <= 0.0)
+        {
             return best;
         }
 
-        return -1;
+        double max = scores[best];
+        var weights = new double[scores.Length];
+        double total = 0.0;
+        for (int i = 0; i < scores.Length; i++)
+        {
+            double z = (scores[i] - max) / t;
+            double weight = z < -40.0 ? 0.0 : Math.Exp(z);
+            weights[i] = weight;
+            total += weight;
+        }
+
+        if (!(total > 0.0) || !double.IsFinite(total))
+        {
+            return best;
+        }
+
+        double roll = rng.NextDouble() * total;
+        double accumulated = 0.0;
+        for (int i = 0; i < weights.Length; i++)
+        {
+            accumulated += weights[i];
+            if (roll < accumulated)
+            {
+                return i;
+            }
+        }
+
+        return best;
+    }
+
+    private static int BestIndex(double[] scores)
+    {
+        int best = 0;
+        for (int i = 1; i < scores.Length; i++)
+        {
+            if (scores[i] > scores[best])
+            {
+                best = i;
+            }
+        }
+
+        return best;
+    }
+
+    private static int Argmax(IReadOnlyList<NeuralDiscardScore> picks)
+    {
+        int best = -1;
+        float bestScore = float.NegativeInfinity;
+        foreach (var pick in picks)
+        {
+            if (pick.Logit > bestScore)
+            {
+                bestScore = pick.Logit;
+                best = pick.Index;
+            }
+        }
+
+        return best;
+    }
+
+    private static List<NeuralDiscardScore> ScoreDiscardsWith(AiDecisionContext ctx, Weights w)
+    {
+        float[] x = Normalize(BuildFeatures(ctx, w.Features), w);
+        float[] h1 = Dense(w.L1, w.B1, x, w.Hidden);
+        float[] h2 = Dense(w.L2, w.B2, h1, w.Hidden);
+        float[] logits = Dense(w.L3, w.B3, h2, 34);
+
+        var picks = new List<NeuralDiscardScore>(ctx.Hand.Count);
+        for (int i = 0; i < ctx.Hand.Count; i++)
+        {
+            int idx = TileIndex(ctx.Hand[i]);
+            if (idx >= 0)
+            {
+                picks.Add(new NeuralDiscardScore(i, ctx.Hand[i], logits[idx]));
+            }
+        }
+
+        return picks;
     }
 
       private static float[] BuildFeatures(AiDecisionContext ctx, int featureCount) =>

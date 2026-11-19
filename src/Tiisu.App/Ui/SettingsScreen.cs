@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
+using Tiisu.Engine.Ai;
 using Tiisu.Localization;
 using Tiisu.Core;
 using Color = Tiisu.App.Rendering.Color;
@@ -32,6 +34,33 @@ public sealed class SettingsScreen : Screen
     private const float TabHeight = 30f;
 
     private enum SettingsGroup { Basic, Rules, Ai }
+
+    /// <summary>五项 AI 风格权重（顺序与设置页滑条一致）。</summary>
+    private enum StyleField
+    {
+        Attack = 0,
+        Defense = 1,
+        Meld = 2,
+        Value = 3,
+        Pursuit = 4,
+    }
+
+    private static readonly string[] StyleLabelKeys =
+    {
+        "app.ui.settings.row.aiStyleAttack",
+        "app.ui.settings.row.aiStyleDefense",
+        "app.ui.settings.row.aiStyleMeld",
+        "app.ui.settings.row.aiStyleValue",
+        "app.ui.settings.row.aiStylePursuit",
+    };
+
+    /// <summary>三个预设的名称 key（顺序与 <see cref="AiStyle.Presets"/> 一致）。</summary>
+    private static readonly string[] StylePresetKeys =
+    {
+        "app.ui.settings.aiStyle.steady",
+        "app.ui.settings.aiStyle.balanced",
+        "app.ui.settings.aiStyle.pursuit",
+    };
 
     private static readonly (SettingsGroup Group, string Label)[] Groups =
     {
@@ -77,6 +106,9 @@ public sealed class SettingsScreen : Screen
       private int _tabHover = -1;
       private Slider? _activeSlider;
       private bool _sliderHit;
+
+      /// <summary>五项风格滑条（按 <see cref="StyleField"/> 下标）；应用预设时同步它们。</summary>
+      private readonly Slider?[] _styleSliders = new Slider?[5];
 
     public SettingsScreen(Settings settings, Action<Settings> changed, Action back,
         ISoundEffects? sound = null) : base("settings")
@@ -143,8 +175,20 @@ public sealed class SettingsScreen : Screen
 
               if (row.Slider is { } slider)
               {
-                  slider.Layout(new RectF(rect.Right - 190, rect.Y + 4, 170, rect.H - 8));
-                  slider.Draw(c, selected, hover);
+                  if (row.ShowSliderValue)
+                  {
+                      // 风格权重需要看到数值：滑条让出一段右侧文字区。
+                      slider.Layout(new RectF(rect.Right - 195, rect.Y + 4, 120, rect.H - 8));
+                      slider.Draw(c, selected, hover);
+                      c.DrawText(row.Value(), new RectF(rect.Right - 68, rect.Y, 58, rect.H),
+                          selected ? Color.Rgb(255, 244, 214) : TextColor,
+                          new TextStyle(16, Bold: selected, Center: false, Right: true));
+                  }
+                  else
+                  {
+                      slider.Layout(new RectF(rect.Right - 190, rect.Y + 4, 170, rect.H - 8));
+                      slider.Draw(c, selected, hover);
+                  }
               }
             else
             {
@@ -304,7 +348,8 @@ public sealed class SettingsScreen : Screen
         }
 
         int index = (int)((y - RowTop) / RowStep);
-        if (index < 0 || index >= _rows.Count)
+        // 只命中当前分组实际画出来的行，避免点面板下方空白处索引越界（历史遗留）。
+        if (index < 0 || index >= VisibleRows().Count)
         {
             return -1;
         }
@@ -395,6 +440,24 @@ public sealed class SettingsScreen : Screen
             TableDifficultyName,
             () => TableDifficultyTier() >= 0,
             _ => CycleTableDifficulty()));
+
+        // ── 7Neuu 自动追役原型（A 期）：开关 + 三预设 + 五项风格滑条 ──
+        _rows.Add(new Row(
+            "app.ui.settings.row.aiPursuit",
+            () => OnOff(_settings.AiPursuitEnabled),
+            () => _settings.AiPursuitEnabled,
+            _ => Toggle(() => _settings.AiPursuitEnabled, value => _settings.AiPursuitEnabled = value),
+            group: SettingsGroup.Ai));
+        _rows.Add(new Row(
+            "app.ui.settings.row.aiStylePreset",
+            StylePresetName,
+            () => _settings.AiStyle.MatchingPreset() >= 0,
+            CycleStylePreset,
+            group: SettingsGroup.Ai));
+        for (int field = 0; field < StyleLabelKeys.Length; field++)
+        {
+            AddStyleSlider((StyleField)field, StyleLabelKeys[field]);
+        }
 
         // 按座位锁定：-1 = 随机（∅），0..3 = 简 / 普 / 难 / 修；人类座位只标注「你」。
         for (int seat = 0; seat < 4; seat++)
@@ -570,6 +633,86 @@ public sealed class SettingsScreen : Screen
         return true;
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // 7Neuu 自动追役原型：五项风格权重
+    // ─────────────────────────────────────────────────────────────
+
+    private double GetStyle(StyleField field) => field switch
+    {
+        StyleField.Attack => _settings.AiStyle.Attack,
+        StyleField.Defense => _settings.AiStyle.Defense,
+        StyleField.Meld => _settings.AiStyle.Meld,
+        StyleField.Value => _settings.AiStyle.Value,
+        _ => _settings.AiStyle.Pursuit,
+    };
+
+    private void SetStyle(StyleField field, double value)
+    {
+        double clamped = Math.Clamp(Math.Round(value, 1), AiStyle.Min, AiStyle.Max);
+        _settings.AiStyle = field switch
+        {
+            StyleField.Attack => _settings.AiStyle with { Attack = clamped },
+            StyleField.Defense => _settings.AiStyle with { Defense = clamped },
+            StyleField.Meld => _settings.AiStyle with { Meld = clamped },
+            StyleField.Value => _settings.AiStyle with { Value = clamped },
+            _ => _settings.AiStyle with { Pursuit = clamped },
+        };
+    }
+
+    /// <summary>0..2 滑条，0.1 一档；拖动时实时改值（不写盘），松手 / 键盘步进才 <see cref="Save"/>。</summary>
+    private void AddStyleSlider(StyleField field, string labelKey)
+    {
+        var slider = new Slider(
+            (float)AiStyle.Min,
+            (float)AiStyle.Max,
+            (float)GetStyle(field),
+            value => SetStyle(field, value),
+            Save);
+        _styleSliders[(int)field] = slider;
+        _rows.Add(new Row(
+            labelKey,
+            () => GetStyle(field).ToString("0.0", CultureInfo.InvariantCulture),
+            () => Math.Abs(GetStyle(field) - AiStyle.Neutral) > 1e-6,
+            direction => slider.Step(direction * 0.1f),
+            () => (int)MathF.Round(slider.Value * 10f),
+            slider,
+            SettingsGroup.Ai,
+            showSliderValue: true));
+    }
+
+    private string StylePresetName()
+    {
+        int index = _settings.AiStyle.MatchingPreset();
+        return index >= 0 ? L.T(StylePresetKeys[index]) : L.T("app.ui.settings.aiStyle.custom");
+    }
+
+    /// <summary>←→ 在三个预设之间循环；当前是自定义时，→ 落到稳守、← 落到追役。</summary>
+    private void CycleStylePreset(int direction)
+    {
+        int count = AiStyle.Presets.Count;
+        int current = _settings.AiStyle.MatchingPreset();
+        int next = current < 0
+            ? (direction >= 0 ? 0 : count - 1)
+            : (current + (direction >= 0 ? 1 : -1) + count) % count;
+        ApplyStylePreset(next);
+    }
+
+    private void ApplyStylePreset(int index)
+    {
+        if (index < 0 || index >= AiStyle.Presets.Count)
+        {
+            return;
+        }
+
+        _settings.AiStyle = AiStyle.Presets[index];
+        for (int field = 0; field < _styleSliders.Length; field++)
+        {
+            _styleSliders[field]?.SetValue((float)GetStyle((StyleField)field), notify: false);
+        }
+
+        Save();
+    }
+
     private void CycleThink(int direction)
     {
         int index = Array.IndexOf(ThinkChoices, _settings.ThinkSeconds);
@@ -730,7 +873,8 @@ public sealed class SettingsScreen : Screen
     private sealed class Row
     {
         public Row(string label, Func<string> value, Func<bool> isOn, Action<int> change,
-            Func<int>? percent = null, Slider? slider = null, SettingsGroup group = SettingsGroup.Basic)
+            Func<int>? percent = null, Slider? slider = null, SettingsGroup group = SettingsGroup.Basic,
+            bool showSliderValue = false)
         {
             Label = label;
             Value = value;
@@ -739,6 +883,7 @@ public sealed class SettingsScreen : Screen
             Percent = percent;
             Slider = slider;
             Group = group;
+            ShowSliderValue = showSliderValue;
         }
 
         public string Label { get; }
@@ -754,6 +899,9 @@ public sealed class SettingsScreen : Screen
 
           /// <summary>非 null 时该行绘制并可拖动独立滑条。</summary>
           public Slider? Slider { get; }
+
+        /// <summary>滑条行是否在右侧额外显示 <see cref="Value"/> 文字（风格权重用）。</summary>
+        public bool ShowSliderValue { get; }
 
       public SettingsGroup Group { get; set; }
     }

@@ -112,6 +112,15 @@ public sealed class MatchRuntime
     private readonly int[] _aiCallDeclarationsBySeat = new int[MahjongEngine.PlayerCount];
     private int _aiCallDeclarations;
 
+    /// <summary>7Neuu 自动追役原型：每座位一个判定器（新一手 <see cref="AiPursuit.Reset"/>）。</summary>
+    private readonly AiPursuit[] _aiPursuit =
+    {
+        new(), new(), new(), new(),
+    };
+
+    /// <summary>追役状态下做出的弃牌决策数（本场累计，供 A/B 指标）。</summary>
+    private int _aiPursuitDecisions;
+
     private MahjongEngine _engine;
     private WinChecker _checker;
     private int _modeTarget = 1;
@@ -271,6 +280,19 @@ public sealed class MatchRuntime
     public int NeuralDecisions { get; private set; }
 
     public int NeuralDifferent { get; private set; }
+
+    /// <summary>7Neuu 自动追役原型：本场累计进入追役次数（四家合计）。</summary>
+    public int AiPursuitEntries => _aiPursuit.Sum(tracker => tracker.Entries);
+
+    /// <summary>7Neuu 自动追役原型：本场累计退出追役次数（四家合计）。</summary>
+    public int AiPursuitExits => _aiPursuit.Sum(tracker => tracker.Exits);
+
+    /// <summary>7Neuu 自动追役原型：追役状态下的弃牌决策次数（本场累计）。</summary>
+    public int AiPursuitDecisions => _aiPursuitDecisions;
+
+    /// <summary>四家当前追役状态快照（未开启 / 未追役时全为 <see cref="PursuitState.Inactive"/>）。</summary>
+    public IReadOnlyList<PursuitState> AiPursuitStates =>
+        _aiPursuit.Select(tracker => tracker.Current).ToArray();
 
     // ── 命令入口 ─────────────────────────────────────────────────
 
@@ -745,7 +767,7 @@ public sealed class MatchRuntime
         else
         {
             var call = AiCallPolicy.Evaluate(ctx, _aiLevels[pi], AiTuning.Default, PreferenceOrder(aiDecision));
-            if (call.Declare && call.DiscardIndex >= 0)
+            if (call.Declare && call.DiscardIndex >= 0 && PursuitAllowsCall(pi))
             {
                 discardIndex = call.DiscardIndex;
                 declareCall = true;
@@ -871,7 +893,21 @@ public sealed class MatchRuntime
 
             if (NeuralSeats.Contains(seatIndex) || _aiLevels[player.Index] == AiLevel.Neural)
             {
-                int idx = NeuralPolicyAi.ChooseDiscard(ctx);
+                // 7Neuu 自动追役原型：只有该座位档位是 Neural 且设置开启时才跑追役判定；
+                // 其余情况（含 A/B 用 NeuralSeats 指定的座位）保持旧路径，行为逐位不变。
+                PursuitState pursuit = PursuitState.Inactive;
+                if (_settings.AiPursuitEnabled && _aiLevels[player.Index] == AiLevel.Neural)
+                {
+                    pursuit = _aiPursuit[player.Index].Observe(ctx, _settings.AiStyle);
+                    if (pursuit.Active)
+                    {
+                        _aiPursuitDecisions++;
+                    }
+                }
+
+                int idx = pursuit.Active
+                    ? NeuralPolicyAi.ChooseDiscard(ctx, _settings.AiStyle, pursuit, _random)
+                    : NeuralPolicyAi.ChooseDiscard(ctx);
                 if (idx >= 0)
                 {
                     var fallback = TieredAi.Decide(ctx, _aiLevels[player.Index], _random);
@@ -894,6 +930,47 @@ public sealed class MatchRuntime
             _aiDecisionTotalMilliseconds +=
                 (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
         }
+    }
+
+    /// <summary>
+    /// 追役原型：该座位此刻是否允许报听。未开启 / 非 7Neuu / 不在追役状态时恒为 true
+    /// （= 旧行为）；门清目标接近成型才允许锁手报听。
+    /// </summary>
+    private bool PursuitAllowsCall(int seat)
+    {
+        if (!_settings.AiPursuitEnabled || _aiLevels[seat] != AiLevel.Neural)
+        {
+            return true;
+        }
+
+        var state = _aiPursuit[seat].Current;
+        return !state.Active || AiPursuit.AllowsCall(state, _settings.AiStyle);
+    }
+
+    /// <summary>
+    /// 追役原型：该座位此刻是否允许这副露。字一色永远允许（唯一例外）；
+    /// 门清目标一律拒绝；混一色 / 清一色按副露 / 追役权重折算，目标花色以外的副露拒绝。
+    /// </summary>
+    private bool PursuitAllowsMeld(int seat, IReadOnlyList<Tile>? meldTiles)
+    {
+        if (!_settings.AiPursuitEnabled || _aiLevels[seat] != AiLevel.Neural)
+        {
+            return true;
+        }
+
+        var state = _aiPursuit[seat].Current;
+        return !state.Active || AiPursuit.AllowsMeld(state, _settings.AiStyle, meldTiles);
+    }
+
+    /// <summary>一副露涉及的牌（吃取三张组合，碰 / 杠按三张同牌近似）。</summary>
+    private static IReadOnlyList<Tile> MeldTiles(AiMeldDecision decision, Tile discarded)
+    {
+        if (decision.ChiTrio is { Count: > 0 } trio)
+        {
+            return trio;
+        }
+
+        return new[] { discarded, discarded, discarded };
     }
 
     /// <summary>用「该玩家可见」的信息构造新 AI 的弃牌输入（不含别家手牌 / 牌山）。</summary>
@@ -1017,7 +1094,9 @@ public sealed class MatchRuntime
         }
 
         // 报听后禁吃碰（含明杠）：AI 决策层直接避开，不依赖规则层抛异常。
-        if (_engine.Players[decision.Target].IsCalled)
+        // 追役原型：7Neuu 在追役状态（门清目标 / 高追役权重）下同样拒绝副露。
+        if (_engine.Players[decision.Target].IsCalled
+            || !PursuitAllowsMeld(decision.Target, MeldTiles(decision, discarded)))
         {
             NextTurnInternal();
             return;
@@ -1537,7 +1616,9 @@ public sealed class MatchRuntime
         }
 
         // 报听后禁吃碰（含明杠）：AI 决策层直接避开。
-        if (_engine.Players[decision.Target].IsCalled)
+        // 追役原型：7Neuu 追役状态下的副露约束与 CheckMelds 同口径。
+        if (_engine.Players[decision.Target].IsCalled
+            || !PursuitAllowsMeld(decision.Target, MeldTiles(decision, pending.Tile)))
         {
             NextTurnInternal();
             return true;
@@ -2656,6 +2737,12 @@ public sealed class MatchRuntime
         _message = null;
         _roundLog?.Clear();
 
+        // 新的一手：追役目标不跨手携带（累计指标保留到整场结束）。
+        foreach (var pursuit in _aiPursuit)
+        {
+            pursuit.Reset();
+        }
+
         int dealer = _engine.DealerIndex;
         if (_firstDeal)
         {
@@ -2693,6 +2780,12 @@ public sealed class MatchRuntime
         _pendingChiList.Clear();
         Array.Clear(_aiCallDeclarationsBySeat);
         _aiCallDeclarations = 0;
+        _aiPursuitDecisions = 0;
+        foreach (var pursuit in _aiPursuit)
+        {
+            pursuit.Reset();
+            pursuit.ResetStatistics();
+        }
     }
 
     private void ApplyOptionalYaku()

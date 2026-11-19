@@ -1437,7 +1437,14 @@
           "ruleset": "规则集（推倒胡=无役/无点数）",
           "aiWeights": "AI 难度权重",
           "mcts": "修罗 MCTS",
-          "tableDifficulty": "全桌 AI 难度（快捷）"
+          "tableDifficulty": "全桌 AI 难度（快捷）",
+          "aiPursuit": "7Neuu 自动追役（原型）",
+          "aiStylePreset": "AI 风格预设",
+          "aiStyleAttack": "进攻",
+          "aiStyleDefense": "防守",
+          "aiStyleMeld": "副露",
+          "aiStyleValue": "打点",
+          "aiStylePursuit": "追役"
         },
         "ruleset": {
           "qizi": "七子",
@@ -1450,6 +1457,12 @@
           "normal": "普通",
           "hard": "困难",
           "shura": "修罗"
+        },
+        "aiStyle": {
+          "steady": "稳守",
+          "balanced": "均衡",
+          "pursuit": "追役",
+          "custom": "自定义"
         }
       },
       "licenses": {

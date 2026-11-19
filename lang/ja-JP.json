@@ -1437,7 +1437,14 @@
           "ruleset": "ルールセット（推倒胡＝役なし／点数なし）",
           "aiWeights": "AI難易度の重み",
           "mcts": "修羅 MCTS",
-          "tableDifficulty": "全卓AI難易度（クイック）"
+          "tableDifficulty": "全卓AI難易度（クイック）",
+          "aiPursuit": "7Neuu 自動追い役（試作）",
+          "aiStylePreset": "AIスタイルのプリセット",
+          "aiStyleAttack": "攻め",
+          "aiStyleDefense": "守り",
+          "aiStyleMeld": "副露",
+          "aiStyleValue": "打点",
+          "aiStylePursuit": "追い役"
         },
         "ruleset": {
           "qizi": "七子",
@@ -1450,6 +1457,12 @@
           "normal": "普通",
           "hard": "難しい",
           "shura": "修羅"
+        },
+        "aiStyle": {
+          "steady": "堅守",
+          "balanced": "均衡",
+          "pursuit": "追い役",
+          "custom": "カスタム"
         }
       },
       "licenses": {
