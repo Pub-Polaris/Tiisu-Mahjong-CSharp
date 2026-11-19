@@ -40,6 +40,8 @@ def load_shards(root: Path, use_mmap: bool = True):
             "x": np.load(meta["x"], mmap_mode=mode),
             "y": np.load(meta["y"], mmap_mode=mode),
             "g": np.load(meta["g"], mmap_mode=mode),
+            "w": np.load(meta["w"], mmap_mode=mode) if meta.get("w")
+            else np.ones(len(np.load(meta["x"], mmap_mode=mode)), dtype=np.float16),
         })
     return shards
 
@@ -79,13 +81,16 @@ def normalize_stats(shards, features: int) -> tuple[np.ndarray, np.ndarray]:
 def sample_batch(shards, indices, mean, std):
     xs = []
     ys = []
+    ws = []
     for idx in indices:
         shard_index, local = idx
         x = shards[shard_index]["x"]
         xs.append(x[local])
         ys.append(int(shards[shard_index]["y"][local]))
+        ws.append(float(shards[shard_index]["w"][local]))
     x = (np.asarray(xs, dtype=np.float32) - mean) / std
-    return torch.from_numpy(x), torch.from_numpy(np.asarray(ys, dtype=np.int64))
+    return (torch.from_numpy(x), torch.from_numpy(np.asarray(ys, dtype=np.int64)),
+            torch.from_numpy(np.asarray(ws, dtype=np.float32)))
 
 
 def evaluate(model, shards, indices, mean, std, batch_size, device):
@@ -94,7 +99,7 @@ def evaluate(model, shards, indices, mean, std, batch_size, device):
     with torch.no_grad():
         for start in range(0, len(indices), batch_size):
             part = indices[start:start + batch_size]
-            x, y = sample_batch(shards, part, mean, std)
+            x, y, _ = sample_batch(shards, part, mean, std)
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
             pred = model(x).argmax(dim=1)
@@ -233,6 +238,7 @@ def main() -> None:
         x_all = np.concatenate([np.asarray(s["x"]) for s in shards], axis=0)
         y_all = np.concatenate([np.asarray(s["y"]) for s in shards], axis=0)
         g_all = np.concatenate([np.asarray(s["g"]) for s in shards], axis=0)
+        w_all = np.concatenate([np.asarray(s["w"]) for s in shards], axis=0)
         train_idx = np.asarray([offsets[si] + i for si, i in train], dtype=np.int64)
         val_idx = np.asarray([offsets[si] + i for si, i in val], dtype=np.int64)
         if args.mlock:
@@ -241,11 +247,12 @@ def main() -> None:
         x_norm = (x_all - mean) / std
         x_t = torch.from_numpy(x_norm).to(device)
         y_t = torch.from_numpy(y_all.astype(np.int64)).to(device)
+        w_t = torch.from_numpy(w_all.astype(np.float32)).to(device)
         train_t = torch.from_numpy(train_idx).to(device)
         val_t = torch.from_numpy(val_idx).to(device)
         print(f"vram features={x_t.nbytes / 1024 ** 3:.2f} GiB "
               f"train={len(train_t):,} val={len(val_t):,}", flush=True)
-        del x_all, y_all, g_all, x_norm, shards
+        del x_all, y_all, g_all, w_all, x_norm, shards
         for epoch in range(args.epochs):
             perm = torch.randperm(len(train_t), device=device)
             model.train()
@@ -254,8 +261,10 @@ def main() -> None:
                 sel = train_t[perm[begin:begin + args.batch]]
                 xb = x_t[sel]
                 yb = y_t[sel]
+                wb = w_t[sel]
                 logits = model(xb)
-                loss = F.cross_entropy(logits, yb, label_smoothing=0.02)
+                raw = F.cross_entropy(logits, yb, label_smoothing=0.02, reduction="none")
+                loss = (raw * wb).sum() / wb.sum().clamp_min(1e-6)
                 if not torch.isfinite(loss):
                     raise SystemExit(f"non-finite loss epoch={epoch + 1} step={step}")
                 opt.zero_grad(set_to_none=True)
@@ -296,11 +305,13 @@ def main() -> None:
         running = 0.0
         for step, begin in enumerate(range(0, len(train), args.batch), 1):
             part = train[begin:begin + args.batch]
-            x, y = sample_batch(shards, part, mean, std)
+            x, y, w = sample_batch(shards, part, mean, std)
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
+            w = w.to(device, non_blocking=True)
             logits = model(x)
-            loss = F.cross_entropy(logits, y, label_smoothing=0.02)
+            raw = F.cross_entropy(logits, y, label_smoothing=0.02, reduction="none")
+            loss = (raw * w).sum() / w.sum().clamp_min(1e-6)
             if not torch.isfinite(loss):
                 raise SystemExit(f"non-finite loss epoch={epoch + 1} step={step}")
             opt.zero_grad(set_to_none=True)

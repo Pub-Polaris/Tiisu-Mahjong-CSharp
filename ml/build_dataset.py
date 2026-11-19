@@ -25,13 +25,15 @@ def count_lines(path: Path) -> int:
     return n
 
 
-def convert_shard(src: Path, out_dir: Path, game_offset: int, sample_every: int = 1) -> dict:
+def convert_shard(src: Path, out_dir: Path, game_offset: int, sample_every: int = 1,
+                  sample_weight: float = 1.0) -> dict:
     n = count_lines(src)
     out_n = (n + sample_every - 1) // sample_every
     out_dir.mkdir(parents=True, exist_ok=True)
     x_path = out_dir / "X.npy"
     y_path = out_dir / "y.npy"
     g_path = out_dir / "g.npy"
+    w_path = out_dir / "w.npy"
 
     first = None
     with src.open("r", encoding="utf-8") as f:
@@ -48,6 +50,7 @@ def convert_shard(src: Path, out_dir: Path, game_offset: int, sample_every: int 
     x = np.lib.format.open_memmap(x_path, mode="w+", dtype=np.float32, shape=(out_n, features))
     y = np.lib.format.open_memmap(y_path, mode="w+", dtype=np.int8, shape=(out_n,))
     g = np.lib.format.open_memmap(g_path, mode="w+", dtype=np.int32, shape=(out_n,))
+    w = np.lib.format.open_memmap(w_path, mode="w+", dtype=np.float16, shape=(out_n,))
 
     i = 0
     read = 0
@@ -66,6 +69,7 @@ def convert_shard(src: Path, out_dir: Path, game_offset: int, sample_every: int 
                 x[i] = feat
                 y[i] = action
                 g[i] = game_offset + int(row.get("Game", 0))
+                w[i] = sample_weight
                 i += 1
                 if i % 500_000 == 0:
                     print(f"{src.name}: {i:,}/{out_n:,}", flush=True)
@@ -73,17 +77,19 @@ def convert_shard(src: Path, out_dir: Path, game_offset: int, sample_every: int 
 
     if i != out_n:
         raise SystemExit(f"{src}: expected {out_n} sampled rows, wrote {i}")
-    x.flush(); y.flush(); g.flush()
+    x.flush(); y.flush(); g.flush(); w.flush()
     meta = {
         "source": str(src),
         "samples": out_n,
         "sourceLines": n,
         "sampleEvery": sample_every,
+        "sampleWeight": sample_weight,
         "features": features,
         "gameOffset": game_offset,
         "x": str(x_path),
         "y": str(y_path),
         "g": str(g_path),
+        "w": str(w_path),
     }
     (out_dir / "shard.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -97,6 +103,7 @@ def main() -> None:
     ap.add_argument("--out", required=True, help="dataset output directory")
     ap.add_argument("--game-offset", type=int, default=0)
     ap.add_argument("--sample-every", type=int, default=1)
+    ap.add_argument("--weight", type=float, default=1.0)
     args = ap.parse_args()
     sample_every = max(1, args.sample_every)
 
@@ -110,7 +117,8 @@ def main() -> None:
     for idx, src in enumerate(shards):
         print(f"[{idx + 1}/{len(shards)}] {src}", flush=True)
         metas.append(convert_shard(src, out / src.parent.name,
-                                   args.game_offset + idx * 10_000, sample_every))
+                                   args.game_offset + idx * 10_000, sample_every,
+                                   args.weight))
     (out / "manifest.json").write_text(
         json.dumps(metas, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"dataset: {len(metas)} shards, {sum(m['samples'] for m in metas):,} samples")
