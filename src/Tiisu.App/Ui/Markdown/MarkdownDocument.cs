@@ -20,7 +20,8 @@ public sealed record MarkdownBlock(
     MarkdownBlockKind Kind,
     string Text,
     int Level = 0,
-    bool Header = false);
+    bool Header = false,
+    IReadOnlyList<string>? Cells = null);
 
 /// <summary>
 /// 游戏内文档用的 Markdown 子集解析器：标题 / 段落 / 列表 / 引用 / 代码块 / 简单表格。
@@ -133,12 +134,16 @@ public static class MarkdownDocument
             if (line.Contains('|') && i + 1 < lines.Length && TableSeparator.IsMatch(lines[i + 1]))
             {
                 FlushParagraph();
-                blocks.Add(new MarkdownBlock(MarkdownBlockKind.Table, Inline(ParseRow(line)), Header: true));
+                var cells = ParseCells(line);
+                blocks.Add(new MarkdownBlock(MarkdownBlockKind.Table, string.Join("    ", cells),
+                    Header: true, Cells: cells));
                 i++;
                 while (i + 1 < lines.Length && lines[i + 1].Contains('|') && !string.IsNullOrWhiteSpace(lines[i + 1]))
                 {
                     i++;
-                    blocks.Add(new MarkdownBlock(MarkdownBlockKind.Table, Inline(ParseRow(lines[i]))));
+                    var rowCells = ParseCells(lines[i]);
+                    blocks.Add(new MarkdownBlock(MarkdownBlockKind.Table, string.Join("    ", rowCells),
+                        Cells: rowCells));
                 }
 
                 continue;
@@ -164,6 +169,15 @@ public static class MarkdownDocument
         string trimmed = line.Trim().Trim('|');
         var cells = trimmed.Split('|').Select(c => c.Trim());
         return string.Join("    ", cells.Where(c => c.Length > 0));
+    }
+
+    private static IReadOnlyList<string> ParseCells(string line)
+    {
+        string trimmed = line.Trim().Trim('|');
+        return trimmed.Split('|')
+            .Select(c => Inline(c.Trim()))
+            .Where(c => c.Length > 0)
+            .ToArray();
     }
 
     /// <summary>去掉行内 Markdown 标记；链接保留「文字 (URL)」。</summary>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
 using Tiisu.App.Rendering;
 using Tiisu.Localization;
@@ -11,12 +12,16 @@ namespace Tiisu.App.Ui;
 /// <summary>七子风 Markdown 文档页：深色卡片、金色标题、圆体正文，分页阅读。</summary>
 public sealed class MarkdownScreen : Screen
 {
-    private sealed record Line(string Text, TextStyle Style, float Indent, float Height, Color Color);
+    private sealed record Line(
+        string Text, TextStyle Style, float Indent, float Height, Color Color,
+        IReadOnlyList<string>? Cells = null, float[]? Widths = null, bool Rule = false);
 
     private readonly Action _back;
     private readonly List<Line> _lines = new();
     private readonly List<(int Start, int Count)> _pages = new();
     private readonly string _title;
+    private float _scroll;
+    private float _maxScroll;
     private int _page;
 
     private RectF _prev;
@@ -51,17 +56,57 @@ public sealed class MarkdownScreen : Screen
         c.FillRoundRect(card, 16, Color.Rgb(24, 36, 32));
         c.StrokeRoundRect(card, 16, Color.Rgb(90, 114, 100), 1.2f);
 
-        if (_pages.Count > 0)
+        if (_lines.Count > 0)
         {
-            var (start, count) = _pages[_page];
-            float y = card.Y + 16;
-            for (int i = start; i < start + count && i < _lines.Count; i++)
+            float contentHeight = 16;
+            foreach (Line line in _lines)
             {
-                Line line = _lines[i];
-                c.DrawText(line.Text,
-                    new RectF(card.X + 24 + line.Indent, y, card.W - 48 - line.Indent, line.Height),
-                    line.Color, line.Style);
+                contentHeight += line.Height + LineGap;
+            }
+
+            _maxScroll = Math.Max(0, contentHeight - card.H + 16);
+            _scroll = Math.Clamp(_scroll, 0, _maxScroll);
+            _page = _pages.Count <= 0
+                ? 0
+                : Math.Clamp((int)(_scroll / PageHeight), 0, _pages.Count - 1);
+
+            c.Save();
+            c.ClipRect(new RectF(card.X + 1, card.Y + 1, card.W - 2, card.H - 2));
+            c.Translate(0, -_scroll);
+            float y = card.Y + 16;
+            foreach (Line line in _lines)
+            {
+                if (line.Rule)
+                {
+                    c.FillRect(new RectF(card.X + 24, y + 1, card.W - 48, 1),
+                        Color.Rgb(90, 114, 100).WithAlpha(150));
+                }
+                else if (line.Cells is { Count: > 0 } cells && line.Widths is { Length: > 0 } widths)
+                {
+                    DrawTableRow(c, card, y, line, cells, widths);
+                }
+                else
+                {
+                    c.DrawText(line.Text,
+                        new RectF(card.X + 24 + line.Indent, y, card.W - 48 - line.Indent, line.Height),
+                        line.Color, line.Style);
+                }
+
                 y += line.Height + LineGap;
+            }
+
+            c.Restore();
+
+            if (_maxScroll > 0)
+            {
+                float trackTop = card.Y + 18;
+                float trackHeight = card.H - 36;
+                float thumbHeight = Math.Max(36, trackHeight * (card.H / (card.H + _maxScroll)));
+                float thumbTop = trackTop + (trackHeight - thumbHeight) * (_scroll / _maxScroll);
+                c.FillRoundRect(new RectF(card.Right - 9, trackTop, 4, trackHeight), 2,
+                    Color.Rgb(80, 100, 92).WithAlpha(100));
+                c.FillRoundRect(new RectF(card.Right - 9, thumbTop, 4, thumbHeight), 2,
+                    Color.Rgb(196, 168, 96).WithAlpha(210));
             }
         }
 
@@ -71,9 +116,21 @@ public sealed class MarkdownScreen : Screen
         _prev = new RectF(Width / 2f - 270, 650, 150, 44);
         _backButton = new RectF(Width / 2f - 75, 650, 150, 44);
         _next = new RectF(Width / 2f + 120, 650, 150, 44);
-        DrawButton(c, _prev, "app.ui.markdown.prev", _prevHover, _page > 0);
+        DrawButton(c, _prev, "app.ui.markdown.prev", _prevHover, _scroll > 0);
         DrawButton(c, _backButton, "app.ui.markdown.back", _backHover, true);
-        DrawButton(c, _next, "app.ui.markdown.next", _nextHover, _page < _pages.Count - 1);
+        DrawButton(c, _next, "app.ui.markdown.next", _nextHover, _scroll < _maxScroll);
+    }
+
+    private static void DrawTableRow(ICanvas c, RectF card, float y, Line line,
+        IReadOnlyList<string> cells, float[] widths)
+    {
+        float x = card.X + 24 + line.Indent;
+        for (int i = 0; i < cells.Count && i < widths.Length; i++)
+        {
+            c.DrawText(cells[i], new RectF(x, y, Math.Max(1, widths[i] - 12), line.Height),
+                line.Color, line.Style);
+            x += widths[i];
+        }
     }
 
     private static void DrawButton(ICanvas c, RectF rect, string label, bool hover, bool enabled)
@@ -96,15 +153,15 @@ public sealed class MarkdownScreen : Screen
             return true;
         }
 
-        if (_prev.Contains(x, y) && _page > 0)
+        if (_prev.Contains(x, y) && _scroll > 0)
         {
-            _page--;
+            _scroll = Math.Max(0, _scroll - PageHeight);
             return true;
         }
 
-        if (_next.Contains(x, y) && _page < _pages.Count - 1)
+        if (_next.Contains(x, y) && _scroll < _maxScroll)
         {
-            _page++;
+            _scroll = Math.Min(_maxScroll, _scroll + PageHeight);
             return true;
         }
 
@@ -113,8 +170,8 @@ public sealed class MarkdownScreen : Screen
 
     public override bool OnPointerMove(float x, float y)
     {
-        _prevHover = _page > 0 && _prev.Contains(x, y);
-        _nextHover = _page < _pages.Count - 1 && _next.Contains(x, y);
+        _prevHover = _scroll > 0 && _prev.Contains(x, y);
+        _nextHover = _scroll < _maxScroll && _next.Contains(x, y);
         _backHover = _backButton.Contains(x, y);
         return _prevHover || _nextHover || _backHover;
     }
@@ -126,15 +183,7 @@ public sealed class MarkdownScreen : Screen
             return false;
         }
 
-        if (delta < 0 && _page < _pages.Count - 1)
-        {
-            _page++;
-        }
-        else if (delta > 0 && _page > 0)
-        {
-            _page--;
-        }
-
+        _scroll = Math.Clamp(_scroll - delta * 0.55f, 0, _maxScroll);
         return true;
     }
 
@@ -147,19 +196,11 @@ public sealed class MarkdownScreen : Screen
                 return true;
             case Keys.Left:
             case Keys.PageUp:
-                if (_page > 0)
-                {
-                    _page--;
-                }
-
+                _scroll = Math.Max(0, _scroll - PageHeight);
                 return true;
             case Keys.Right:
             case Keys.PageDown:
-                if (_page < _pages.Count - 1)
-                {
-                    _page++;
-                }
-
+                _scroll = Math.Min(_maxScroll, _scroll + PageHeight);
                 return true;
             default:
                 return false;
@@ -172,8 +213,9 @@ public sealed class MarkdownScreen : Screen
         var text = Color.Rgb(220, 228, 220);
         var muted = Color.Rgb(159, 180, 170);
 
-        foreach (MarkdownBlock block in blocks)
+        for (int blockIndex = 0; blockIndex < blocks.Count; blockIndex++)
         {
+            MarkdownBlock block = blocks[blockIndex];
             switch (block.Kind)
             {
                 case MarkdownBlockKind.Heading:
@@ -219,13 +261,32 @@ public sealed class MarkdownScreen : Screen
 
                 case MarkdownBlockKind.Table:
                 {
-                    var style = new TextStyle(14, Bold: block.Header, Center: false);
-                    foreach (string line in Wrap(block.Text, style, ContentWidth - 22))
+                    var rows = new List<MarkdownBlock>();
+                    while (blockIndex < blocks.Count && blocks[blockIndex].Kind == MarkdownBlockKind.Table)
                     {
-                        Add(new Line(line, style, 8, 21, block.Header ? heading : text));
+                        rows.Add(blocks[blockIndex]);
+                        blockIndex++;
                     }
 
-                    AddBlank(3);
+                    blockIndex--;
+                    if (rows.Count == 0 || rows[0].Cells is not { Count: > 0 })
+                    {
+                        break;
+                    }
+
+                    var widths = TableWidths(rows.Select(r => r.Cells!));
+                    foreach (MarkdownBlock row in rows)
+                    {
+                        var style = new TextStyle(14, Bold: row.Header, Center: false);
+                        Add(new Line(string.Empty, style, 8, 25,
+                            row.Header ? heading : text, Cells: row.Cells, Widths: widths));
+                        if (row.Header)
+                        {
+                            Add(new Line(string.Empty, style, 0, 1, muted, Rule: true));
+                        }
+                    }
+
+                    AddBlank(4);
                     break;
                 }
 
@@ -237,6 +298,39 @@ public sealed class MarkdownScreen : Screen
         }
 
         BuildPages();
+    }
+
+    private static float[] TableWidths(IEnumerable<IReadOnlyList<string>> rows)
+    {
+        var all = rows.ToList();
+        int columns = all.Count == 0 ? 0 : all.Max(r => r.Count);
+        if (columns == 0)
+        {
+            return Array.Empty<float>();
+        }
+
+        var style = new TextStyle(14, Center: false);
+        var widths = new float[columns];
+        for (int i = 0; i < all.Count; i++)
+        {
+            for (int c = 0; c < all[i].Count; c++)
+            {
+                widths[c] = Math.Max(widths[c], SkiaCanvas.Measure(all[i][c], style) + 24);
+            }
+        }
+
+        float total = widths.Sum();
+        float available = ContentWidth - 48;
+        if (total > available)
+        {
+            float scale = available / total;
+            for (int i = 0; i < widths.Length; i++)
+            {
+                widths[i] = Math.Max(48, widths[i] * scale);
+            }
+        }
+
+        return widths;
     }
 
     private void AddWrapped(string value, TextStyle style, float indent, Color color)
