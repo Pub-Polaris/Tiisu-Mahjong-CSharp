@@ -4,10 +4,11 @@
   "weights": "policy_weights_v4.json",
   "features": 4,
   "candidate": {
-    "path": "artifacts/ml/policy_weights_384.json",
+    "path": "artifacts/ml/policy_weights_384_100k.json",
     "hidden": 384,
-    "training": "2000 selfplay games, warm-start from v4, 3 epochs, grad-clip 5.0",
-    "val_top1": 0.9619,
+    "training": "100k games, sample-every=10, +500 top-k/temperature exploration games, XPU VRAM, mlock",
+    "samples": 2446137,
+    "val_top1": 0.9653,
     "note": "候选模型；只用于 A/B，不替换 production v4"
   },
   "note": "模型版本；游戏发行版本仍为 r6/6.x，不随模型预发布改动。"

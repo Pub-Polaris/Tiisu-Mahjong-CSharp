@@ -47,15 +47,53 @@ def load_shards(root: Path, use_mmap: bool = True):
 
 
 def mlock_array(a: np.ndarray) -> bool:
-    """Best-effort VirtualLock; failure is reported, not fatal."""
+    """Best-effort Windows VirtualLock; enables SeLockMemoryPrivilege first."""
     try:
         import ctypes
-        if hasattr(ctypes, "windll"):
-            return bool(ctypes.windll.kernel32.VirtualLock(
-                ctypes.c_void_p(a.ctypes.data), ctypes.c_size_t(a.nbytes)))
-        import ctypes.util
-        libc = ctypes.CDLL(ctypes.util.find_library("c"))
-        return libc.mlock(a.ctypes.data_as(ctypes.c_void_p), a.nbytes) == 0
+        from ctypes import wintypes as w
+
+        if not hasattr(ctypes, "windll"):
+            import ctypes.util
+            libc = ctypes.CDLL(ctypes.util.find_library("c"))
+            return libc.mlock(a.ctypes.data_as(ctypes.c_void_p), a.nbytes) == 0
+
+        k = ctypes.WinDLL("kernel32", use_last_error=True)
+        adv = ctypes.WinDLL("advapi32", use_last_error=True)
+        k.GetCurrentProcess.restype = w.HANDLE
+        adv.OpenProcessToken.argtypes = [w.HANDLE, w.DWORD, ctypes.POINTER(w.HANDLE)]
+        adv.OpenProcessToken.restype = w.BOOL
+
+        class Luid(ctypes.Structure):
+            _fields_ = [("LowPart", w.DWORD), ("HighPart", w.LONG)]
+
+        class TokenPrivilege(ctypes.Structure):
+            _fields_ = [("Luid", Luid), ("Attributes", w.DWORD)]
+
+        class TokenPrivileges(ctypes.Structure):
+            _fields_ = [("PrivilegeCount", w.DWORD), ("Privileges", TokenPrivilege * 1)]
+
+        token = w.HANDLE()
+        if not adv.OpenProcessToken(k.GetCurrentProcess(), 0x28, ctypes.byref(token)):
+            return False
+        luid = Luid()
+        if not adv.LookupPrivilegeValueW(None, "SeLockMemoryPrivilege", ctypes.byref(luid)):
+            return False
+        privileges = TokenPrivileges()
+        privileges.PrivilegeCount = 1
+        privileges.Privileges[0].Luid = luid
+        privileges.Privileges[0].Attributes = 2  # SE_PRIVILEGE_ENABLED
+        if not adv.AdjustTokenPrivileges(token, False, ctypes.byref(privileges), 0, None, None):
+            return False
+
+        # VirtualLock needs a working-set quota large enough for the array.
+        reserve = max(2 * 1024 ** 3, a.nbytes + 512 * 1024 ** 2)
+        k.SetProcessWorkingSetSize.argtypes = [w.HANDLE, ctypes.c_size_t, ctypes.c_size_t]
+        k.SetProcessWorkingSetSize.restype = w.BOOL
+        k.SetProcessWorkingSetSize(k.GetCurrentProcess(), ctypes.c_size_t(reserve),
+                                   ctypes.c_size_t(reserve + 1024 ** 3))
+        k.VirtualLock.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+        k.VirtualLock.restype = w.BOOL
+        return bool(k.VirtualLock(ctypes.c_void_p(a.ctypes.data), a.nbytes))
     except Exception:
         return False
 
@@ -161,6 +199,7 @@ def export(model, features, hidden, mean, std, out_path: Path, args, val_acc):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", required=True)
+    ap.add_argument("--extra-dataset", action="append", default=[])
     ap.add_argument("--out", required=True)
     ap.add_argument("--init-weights", default=None)
     ap.add_argument("--hidden", type=int, default=384)
@@ -189,6 +228,12 @@ def main() -> None:
 
     root = Path(args.dataset)
     shards = load_shards(root, use_mmap=args.storage != "vram")
+    for extra in args.extra_dataset:
+        extra_root = Path(extra)
+        if not (extra_root / "manifest.json").exists():
+            raise SystemExit(f"extra dataset missing manifest: {extra_root}")
+        shards.extend(load_shards(extra_root, use_mmap=args.storage != "vram"))
+        print(f"extra dataset: {extra_root}", flush=True)
     lengths = [len(s["x"]) for s in shards]
     offsets = np.cumsum([0] + lengths[:-1]).tolist()
     total = sum(lengths)
