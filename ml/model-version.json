@@ -1,0 +1,7 @@
+{
+  "version": "0.0.7-pre",
+  "status": "pre",
+  "weights": "policy_weights_v4.json",
+  "features": 4,
+  "note": "模型版本；游戏发行版本仍为 r6/6.x，不随模型预发布改动。"
+}

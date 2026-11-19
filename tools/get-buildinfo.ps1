@@ -1,4 +1,4 @@
-﻿# 构建时生成 Generated/BuildInfo.g.cs（显示版本 = 0.0.7-pre；日期+hash 保留为 BuildTag）。
+﻿# 构建时生成 Generated/BuildInfo.g.cs（版本号 = git 提交日期 yymmdd + short hash）。
 # 工作区有未提交改动时在版本号后加 +；没有 git / 取不到信息时降级为 dev。
 # 由 src/Tiisu.App/Tiisu.App.csproj 的 GenerateBuildInfo Target 调用。
 param(
@@ -22,9 +22,7 @@ function Invoke-Git {
     }
 }
 
-$semanticVersion = '0.0.7-pre'
-$version = $semanticVersion
-$buildTag = 'dev'
+$version = 'dev'
 
 # 可选代号：tools/codename.txt 存在时前缀到版本号（只给需要的版本用，删文件即恢复）。
 $codenamePath = Join-Path $ProjectDir 'tools\codename.txt'
@@ -37,14 +35,14 @@ $hash = Invoke-Git @('rev-parse', '--short', 'HEAD')
 if (-not [string]::IsNullOrWhiteSpace($hash)) {
     $date = Invoke-Git @('log', '-1', '--date=format:%y%m%d', '--format=%cd')
     if (-not [string]::IsNullOrWhiteSpace($date)) {
-        $buildTag = $date + '-' + $hash
+        $version = $date + '-' + $hash
         if (-not [string]::IsNullOrWhiteSpace($codename)) {
-            $buildTag = $codename + ' ' + $buildTag
+            $version = $codename + ' ' + $version
         }
 
         $status = Invoke-Git @('status', '--porcelain', '--untracked-files=no')
         if (-not [string]::IsNullOrWhiteSpace($status)) {
-            $buildTag = $buildTag + '+'
+            $version = $version + '+'
         }
     }
 }
@@ -56,7 +54,6 @@ $lines = @(
     'internal static class BuildInfo',
     '{',
     ('    internal const string Version = "{0}";' -f $version),
-    ('    internal const string BuildTag = "{0}";' -f $buildTag),
     '}',
     '}'
 )

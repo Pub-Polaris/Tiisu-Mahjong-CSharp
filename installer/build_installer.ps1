@@ -1,4 +1,4 @@
-﻿# Build the NSIS installer for Tiisu Mahjong (PowerShell 5.1)
+# Build the NSIS installer for Tiisu Mahjong (PowerShell 5.1)
 #
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File NET\installer\build_installer.ps1
@@ -66,7 +66,7 @@ if (-not (Test-Path $exe)) {
 
 # version.json：替换式更新用它记录版本/更新时间
 $version = @{
-    version   = '0.0.7-pre'
+    version   = '0.1.0'
     buildTime = (Get-Date).ToString('s')
     app       = $AppExe
 } | ConvertTo-Json -Compress
