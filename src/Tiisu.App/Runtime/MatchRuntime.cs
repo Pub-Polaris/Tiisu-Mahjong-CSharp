@@ -73,6 +73,42 @@ internal sealed record PendingRon(Tile Tile, WinResult? Result, int Discarder, i
 internal sealed record PendingMeld(Tile Tile, int Discarder);
 
 /// <summary>
+/// 一局结束时的统计快照（A/B 评测 / 和牌巡目指标用；不进入 UI 事件流，纯附加数据）。
+/// </summary>
+/// <param name="HandNumber">局号（引擎 <c>HandNumber</c>）。</param>
+/// <param name="Kind">结果种类：<c>tsumo</c> / <c>ron</c> / <c>tiisuin</c> / <c>flow</c> / <c>special_flow</c>。</param>
+/// <param name="Winners">和牌者座位（流局为空）。</param>
+/// <param name="Payers">放铳者座位（自摸 / 流局为空；多家荣和逐个列出）。</param>
+/// <param name="TotalDiscards">局末四家牌河张数之和（荣和铳张计入放铳者牌河）。</param>
+/// <param name="Wall">局末活牌山剩余张数。</param>
+/// <param name="YakuNames">本局成立的役名（去重；不含「表外赋 / 赐马」这类加计项）。</param>
+/// <param name="DiscardsBySeat">各家牌河张数。</param>
+/// <param name="MeldsBySeat">局末各家副露组数（含杠）。</param>
+/// <param name="ScoresAfter">局末四家点数。</param>
+public sealed record RoundStat(
+    int HandNumber,
+    string Kind,
+    IReadOnlyList<int> Winners,
+    IReadOnlyList<int> Payers,
+    int TotalDiscards,
+    int Wall,
+    IReadOnlyList<string> YakuNames,
+    int[] DiscardsBySeat,
+    int[] MeldsBySeat,
+    int[] ScoresAfter)
+{
+    /// <summary>
+    /// 巡目口径（与 A/B 输出里的 <c>turnDefinition</c> 字段一致）：
+    /// <c>巡目 = ceil(总弃牌数 / 4)</c>，总弃牌数 = <see cref="TotalDiscards"/>；
+    /// 0 张弃牌记第 1 巡。和牌局同时保留 <see cref="Wall"/> 供复核。
+    /// </summary>
+    public int Turn => (TotalDiscards + 3) / 4;
+
+    /// <summary>本局和牌人数（流局 0，多家荣和 &gt; 1）。</summary>
+    public int WinCount => Winners.Count;
+}
+
+/// <summary>
 /// 对局驱动（<c>engine.js</c> 的回合编排 + <c>game.js</c> 的人类操作语义）。
 ///
 /// 调用顺序照 <c>SelfPlayDriver.Run</c>：<b>摸牌 → 自摸 → 暗杠/加杠（含岭上补摸与杠后自摸）→ 出牌 →
@@ -84,6 +120,25 @@ internal sealed record PendingMeld(Tile Tile, int Discarder);
 /// </summary>
 public sealed class MatchRuntime
 {
+    /// <summary>
+    /// A/B 评测：只覆盖焦点座位的配置（其余座位仍按 <see cref="Settings"/> 的档位 / 权重）。
+    /// 同一进程里可以让焦点座位用 v2 权重、其余三家仍用默认 v4 —— 权重按座位 / 路径传入，
+    /// 不存在全局 override；<see cref="AiAbOverride"/> 为 null 时生产行为完全不变。
+    /// </summary>
+    /// <param name="Seat">焦点座位 0..3（同组内由 DevTools 轮换）。</param>
+    /// <param name="Level">焦点座位档位：Neural = 策略网；Shura + <see cref="MctsEnabled"/> = MCTS；Simple / Normal = 打分机。</param>
+    /// <param name="PolicyWeightsPath">焦点座位策略网权重文件；null = 默认 v4。</param>
+    /// <param name="PursuitEnabled">焦点座位是否开启 7Neuu 自动追役。</param>
+    /// <param name="Style">焦点座位五项风格权重。</param>
+    /// <param name="MctsEnabled">焦点座位为 Shura 时是否启用 MCTS。</param>
+    public sealed record AiSeatAbOverride(
+        int Seat,
+        AiLevel Level,
+        string? PolicyWeightsPath,
+        bool PursuitEnabled,
+        AiStyle Style,
+        bool MctsEnabled);
+
     private static readonly YakuData SharedYaku = YakuData.LoadDefault();
     private static readonly PointsConfig SharedPoints = PointsConfig.LoadDefault();
     private static readonly HashSet<string> OptionalYakuNames = SharedYaku.Yaku
@@ -99,6 +154,9 @@ public sealed class MatchRuntime
     private readonly RoundLogWriter? _roundLog;
     private readonly List<GameEvent> _events = new();
     private readonly List<ChiOption> _pendingChiList = new();
+
+    /// <summary>每局统计快照（A/B 评测读取；随场次重置，不影响事件流）。</summary>
+    private readonly List<RoundStat> _roundStats = new();
 
     /// <summary>四家 AI 档位（人类座位不参与，由 <see cref="AssignAiLineup"/> 每场重算）。</summary>
     private AiLevel[] _aiLevels = { AiLevel.Normal, AiLevel.Normal, AiLevel.Normal, AiLevel.Normal };
@@ -276,6 +334,13 @@ public sealed class MatchRuntime
     /// <summary>A/B 评测：这些座位用 <see cref="NeuralPolicyAi"/> 决策（空 = 全走 TieredAi）。</summary>
     public HashSet<int> NeuralSeats { get; } = new();
 
+    /// <summary>
+    /// A/B 评测：焦点座位覆盖（档位 / 策略权重路径 / 追役开关 / MCTS）。
+    /// null = 生产行为完全不变；设置后只改该座位，其余三家仍按 settings（7Neuu v4）。
+    /// 须在对局开始前设置（<see cref="StartMatch"/> / <see cref="Resume"/> 里重算 AI 档位）。
+    /// </summary>
+    public AiSeatAbOverride? AiAbOverride { get; set; }
+
     /// <summary>A/B 统计：神经座实际决策次数 / 与 TieredAi 不同的次数。</summary>
     public int NeuralDecisions { get; private set; }
 
@@ -293,6 +358,12 @@ public sealed class MatchRuntime
     /// <summary>四家当前追役状态快照（未开启 / 未追役时全为 <see cref="PursuitState.Inactive"/>）。</summary>
     public IReadOnlyList<PursuitState> AiPursuitStates =>
         _aiPursuit.Select(tracker => tracker.Current).ToArray();
+
+    /// <summary>
+    /// 本场每局统计（按局顺序；每局结束追加一条，开新场 / 重置时清空）。
+    /// 供 A/B 评测读取和牌巡目 / 副露率 / 役种覆盖等指标，不改变 UI 事件。
+    /// </summary>
+    public IReadOnlyList<RoundStat> RoundStats => _roundStats;
 
     // ── 命令入口 ─────────────────────────────────────────────────
 
@@ -869,7 +940,27 @@ public sealed class MatchRuntime
 
         var lineup = AiLineup.FromWeights(_settings.AiWeights, MatchSeed, _settings.AiSeatLocks, humans);
         _aiLevels = lineup.Levels.ToArray();
+
+        // A/B 评测：只覆盖焦点座位的档位（其余三家保持 settings 里锁定的 7Neuu / v4）。
+        if (AiAbOverride is { } ab && ab.Seat is >= 0 and <= 3)
+        {
+            _aiLevels[ab.Seat] = ab.Level;
+        }
     }
+
+    /// <summary>该座位的 A/B 焦点覆盖；不是焦点座位返回 null。</summary>
+    private AiSeatAbOverride? AbOverrideFor(int seat) =>
+        AiAbOverride is { } ab && ab.Seat == seat ? ab : null;
+
+    /// <summary>该座位是否开启自动追役（settings 全局开关，或 A/B 焦点座位单独开）。</summary>
+    private bool PursuitEnabledFor(int seat) =>
+        _settings.AiPursuitEnabled || AbOverrideFor(seat)?.PursuitEnabled == true;
+
+    /// <summary>该座位生效的五项风格权重（A/B 焦点座位可单独设）。</summary>
+    private AiStyle StyleFor(int seat) => AbOverrideFor(seat)?.Style ?? _settings.AiStyle;
+
+    /// <summary>该座位策略网权重路径（null = 生产默认 v4）；A/B 焦点座位可指向 v2。</summary>
+    private string? PolicyWeightsFor(int seat) => AbOverrideFor(seat)?.PolicyWeightsPath;
 
     /// <summary>走新 AI（<see cref="TieredAi"/>）做一次弃牌决策，并累计耗时 / 次数。</summary>
     private AiDecision DecideAiDiscard(Player player, AiDecisionContext ctx)
@@ -893,12 +984,15 @@ public sealed class MatchRuntime
 
             if (NeuralSeats.Contains(seatIndex) || _aiLevels[player.Index] == AiLevel.Neural)
             {
-                // 7Neuu 自动追役原型：只有该座位档位是 Neural 且设置开启时才跑追役判定；
-                // 其余情况（含 A/B 用 NeuralSeats 指定的座位）保持旧路径，行为逐位不变。
+                // 7Neuu 自动追役原型：只有该座位档位是 Neural 且开启追役时才跑判定；
+                // A/B 焦点座位可用单独的权重路径（v2）与风格，其余座位仍走默认 v4。
+                int decisiveSeat = player.Index;
+                string? weightsPath = PolicyWeightsFor(decisiveSeat);
+                AiStyle style = StyleFor(decisiveSeat);
                 PursuitState pursuit = PursuitState.Inactive;
-                if (_settings.AiPursuitEnabled && _aiLevels[player.Index] == AiLevel.Neural)
+                if (PursuitEnabledFor(decisiveSeat) && _aiLevels[decisiveSeat] == AiLevel.Neural)
                 {
-                    pursuit = _aiPursuit[player.Index].Observe(ctx, _settings.AiStyle);
+                    pursuit = _aiPursuit[decisiveSeat].Observe(ctx, style);
                     if (pursuit.Active)
                     {
                         _aiPursuitDecisions++;
@@ -906,8 +1000,8 @@ public sealed class MatchRuntime
                 }
 
                 int idx = pursuit.Active
-                    ? NeuralPolicyAi.ChooseDiscard(ctx, _settings.AiStyle, pursuit, _random)
-                    : NeuralPolicyAi.ChooseDiscard(ctx);
+                    ? NeuralPolicyAi.ChooseDiscard(ctx, style, pursuit, _random, weightsPath)
+                    : NeuralPolicyAi.ChooseDiscard(ctx, weightsPath);
                 if (idx >= 0)
                 {
                     var fallback = TieredAi.Decide(ctx, _aiLevels[player.Index], _random);
@@ -938,13 +1032,13 @@ public sealed class MatchRuntime
     /// </summary>
     private bool PursuitAllowsCall(int seat)
     {
-        if (!_settings.AiPursuitEnabled || _aiLevels[seat] != AiLevel.Neural)
+        if (!PursuitEnabledFor(seat) || _aiLevels[seat] != AiLevel.Neural)
         {
             return true;
         }
 
         var state = _aiPursuit[seat].Current;
-        return !state.Active || AiPursuit.AllowsCall(state, _settings.AiStyle);
+        return !state.Active || AiPursuit.AllowsCall(state, StyleFor(seat));
     }
 
     /// <summary>
@@ -953,13 +1047,13 @@ public sealed class MatchRuntime
     /// </summary>
     private bool PursuitAllowsMeld(int seat, IReadOnlyList<Tile>? meldTiles)
     {
-        if (!_settings.AiPursuitEnabled || _aiLevels[seat] != AiLevel.Neural)
+        if (!PursuitEnabledFor(seat) || _aiLevels[seat] != AiLevel.Neural)
         {
             return true;
         }
 
         var state = _aiPursuit[seat].Current;
-        return !state.Active || AiPursuit.AllowsMeld(state, _settings.AiStyle, meldTiles);
+        return !state.Active || AiPursuit.AllowsMeld(state, StyleFor(seat), meldTiles);
     }
 
     /// <summary>一副露涉及的牌（吃取三张组合，碰 / 杠按三张同牌近似）。</summary>
@@ -1006,7 +1100,9 @@ public sealed class MatchRuntime
         {
             PlayerIndex = player.Index,
             AllMelds = allMelds,
-            MctsEnabled = _settings.AiMctsEnabled,
+            // A/B 焦点座位可在 Shura 档单独启用 MCTS；其余座位沿用 settings。
+            MctsEnabled = _settings.AiMctsEnabled
+                || AbOverrideFor(player.Index)?.MctsEnabled == true,
             FirstTurn = player.FirstTurn,
             Checker = _checker,
         };
@@ -2385,6 +2481,7 @@ public sealed class MatchRuntime
         }
 
         AuditRoundResult(result);
+        _roundStats.Add(BuildRoundStat(outcome, details));
 
         _scoresBeforeWin = null;
         _stats?.RecordRound(result, names);
@@ -2432,6 +2529,51 @@ public sealed class MatchRuntime
         }
 
         EmitState();
+    }
+
+    /// <summary>把本局结束时可见状态压成 A/B 用的 <see cref="RoundStat"/>（只读，不改引擎 / 事件流）。</summary>
+    private RoundStat BuildRoundStat(RoundOutcome outcome, IReadOnlyList<SettlementDetail> details)
+    {
+        int playerCount = MahjongEngine.PlayerCount;
+        var discardsBySeat = new int[playerCount];
+        var meldsBySeat = new int[playerCount];
+        int totalDiscards = 0;
+        for (int seat = 0; seat < playerCount; seat++)
+        {
+            var player = _engine.Players[seat];
+            discardsBySeat[seat] = player.Discards.Count;
+            totalDiscards += discardsBySeat[seat];
+            meldsBySeat[seat] = player.Melds.Count;
+        }
+
+        var payers = details
+            .Where(d => !d.SelfDraw && d.PayerIndex is >= 0 and <= 3)
+            .Select(d => d.PayerIndex!.Value)
+            .Distinct()
+            .ToArray();
+
+        // 役种覆盖只算真正的役（排除「表外赋 / 赐马」这类加计项）。
+        var yakuNames = details
+            .SelectMany(d => d.Yaku)
+            .Where(y => y.Flag is SettlementYakuFlag.Normal
+                or SettlementYakuFlag.Optional
+                or SettlementYakuFlag.FixedPoints)
+            .Select(y => y.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        return new RoundStat(
+            _engine.HandNumber,
+            outcome.Kind,
+            outcome.Winners,
+            payers,
+            totalDiscards,
+            _engine.Wall.Count,
+            yakuNames,
+            discardsBySeat,
+            meldsBySeat,
+            _engine.Scores.ToArray());
     }
 
     private void RecordWinRound(string action, string kind, IReadOnlyList<int> winners)
@@ -2778,6 +2920,7 @@ public sealed class MatchRuntime
         _pendingRon = null;
         _pendingMeld = null;
         _pendingChiList.Clear();
+        _roundStats.Clear();
         Array.Clear(_aiCallDeclarationsBySeat);
         _aiCallDeclarations = 0;
         _aiPursuitDecisions = 0;

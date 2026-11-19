@@ -3800,6 +3800,703 @@ internal static class DevCommands
         Console.WriteLine(L.T("tools.cli.devtools.SmokeAb.4", ("p1", string.Join(",", neuralRanks)), ("p2", string.Join(",", baseRanks))));
         return 0;
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // A/B 五组评测：v4 基准 vs v2 / MCTS / 打分机 Simple / 打分机 Normal
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>五组的规范顺序；<c>--variants</c> 可只选其中几组。</summary>
+    internal static readonly string[] AbAiAllVariants = { "baseline", "v2", "mcts", "simple", "normal" };
+
+    /// <summary>稀有役关注列表（按结算面板的役名计数，用于追役 A/B 的「稀有役次数必须上升」）。</summary>
+    internal static readonly string[] AbAiRareYakuNames =
+    {
+        "七对子", "混一色", "清一色", "字一色", "九莲宝灯", "四暗杠", "四明杠", "四杠子",
+        "国士无双", "大三元", "四暗刻", "绿一色", "清老头", "四喜和",
+    };
+
+    /// <summary>和牌巡目口径（原样写进 JSON/Markdown 输出，避免读者误解）。</summary>
+    internal const string AbAiTurnDefinition =
+        "和牌巡目 = ceil(该局总弃牌数 / 4)；总弃牌数 = 四家牌河张数之和（荣和铳张计入放铳者牌河），"
+        + "0 弃牌记第 1 巡。仅统计有和牌者的局；同时保留局末墙牌数（wall）供复核。";
+
+    internal sealed record AbAiOptions(
+        int Games,
+        IReadOnlyList<string> Variants,
+        string? V2Path,
+        bool Pursuit,
+        string Style,
+        int Mode,
+        uint StartSeed,
+        string OutDirectory,
+        bool Quiet);
+
+    internal sealed record AbAiGameRow(
+        uint Seed,
+        int GameIndex,
+        int Seat,
+        int Rank,
+        int Rounds,
+        int FocusWins,
+        int FocusDealIns,
+        int FocusMelds,
+        int NeuralDecisions,
+        int NeuralDifferent,
+        int PursuitEntries,
+        int PursuitDecisions,
+        double FocusEntropy,
+        int[] Scores);
+
+    internal sealed record AbAiRoundRow(
+        uint Seed,
+        int Hand,
+        string Kind,
+        int[] Winners,
+        int[] Payers,
+        int TotalDiscards,
+        int Wall,
+        int Turn,
+        string[] Yaku,
+        int[] ScoresAfter);
+
+    internal sealed record AbAiVariantReport(
+        string Variant,
+        string FocusDescription,
+        int Games,
+        int Rounds,
+        int FocusSeatWins,
+        int FocusSeatDealIns,
+        int FocusSeatMelds,
+        double AvgRank,
+        double Top1Rate,
+        double Top2Rate,
+        double RoundWinRate,
+        double DealInRate,
+        double MeldsPerRound,
+        double AvgWinnersPerRound,
+        double AvgTurnPerRound,
+        double WinTurnMean,
+        double WinTurnP50,
+        double WinTurnP90,
+        double WinWallMean,
+        double FocusWinTurnMean,
+        double FocusWinTurnP50,
+        double FocusWinTurnP90,
+        double StrategyEntropy,
+        int YakuCoverage,
+        IReadOnlyDictionary<string, int> YakuCounts,
+        IReadOnlyDictionary<string, int> RareYakuCounts,
+        int NeuralDecisions,
+        int NeuralDifferent,
+        int PursuitEntries,
+        int PursuitExits,
+        int PursuitDecisions,
+        IReadOnlyList<AbAiGameRow> GameRows,
+        IReadOnlyList<AbAiRoundRow> RoundRows);
+
+    internal sealed record AbAiReport(
+        AbAiOptions Options,
+        string TurnDefinition,
+        IReadOnlyList<AbAiVariantReport> Variants);
+
+    /// <summary>
+    /// 解析 <c>--ab-ai</c> 参数。非法（未知变体 / v2 缺路径 / 未知 preset / 负数局数）抛
+    /// <see cref="ArgumentException"/>，CLI 捕获后返回退出码 2。
+    /// </summary>
+    internal static AbAiOptions ParseAbAiOptions(string[] args)
+    {
+        int games = 100;
+        var variants = new List<string>(AbAiAllVariants);
+        bool variantsSpecified = false;
+        string? v2Path = null;
+        bool pursuit = false;
+        string style = "balanced";
+        int mode = 4;
+        uint startSeed = 1;
+        string outDir = Path.Combine("artifacts", "ab");
+        bool quiet = false;
+
+        for (int i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--games":
+                    if (i + 1 >= args.Length || !int.TryParse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture, out int g) || g <= 0)
+                    {
+                        throw new ArgumentException("--games 需要正整数");
+                    }
+
+                    games = Math.Min(g, 100_000);
+                    break;
+                case "--variants":
+                case "--variant":
+                    if (i + 1 >= args.Length)
+                    {
+                        throw new ArgumentException("--variants 需要逗号分隔的组名");
+                    }
+
+                    variants = ParseAbAiVariants(args[++i]);
+                    variantsSpecified = true;
+                    break;
+                case "--v2":
+                    if (i + 1 >= args.Length)
+                    {
+                        throw new ArgumentException("--v2 需要权重文件路径");
+                    }
+
+                    v2Path = args[++i];
+                    break;
+                case "--pursuit":
+                    pursuit = true;
+                    break;
+                case "--style":
+                    if (i + 1 >= args.Length)
+                    {
+                        throw new ArgumentException("--style 需要 steady|balanced|pursuit");
+                    }
+
+                    style = args[++i];
+                    break;
+                case "--mode":
+                    if (i + 1 >= args.Length || !int.TryParse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture, out int m) || m <= 0)
+                    {
+                        throw new ArgumentException("--mode 需要正整数");
+                    }
+
+                    mode = Math.Min(m, 32);
+                    break;
+                case "--start-seed":
+                    if (i + 1 >= args.Length || !uint.TryParse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint sd))
+                    {
+                        throw new ArgumentException("--start-seed 需要非负整数");
+                    }
+
+                    startSeed = sd;
+                    break;
+                case "--out":
+                    if (i + 1 >= args.Length)
+                    {
+                        throw new ArgumentException("--out 需要输出目录");
+                    }
+
+                    outDir = args[++i];
+                    break;
+                case "--quiet":
+                    quiet = true;
+                    break;
+                default:
+                    // 兼容 `--ab-ai 100` 这种旧写法。
+                    if (int.TryParse(args[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out int legacyGames) && legacyGames > 0)
+                    {
+                        games = Math.Min(legacyGames, 100_000);
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"未知参数: {args[i]}");
+                    }
+
+                    break;
+            }
+        }
+
+        if (!AbAiStylePreset(style, out _))
+        {
+            throw new ArgumentException($"未知 --style: {style}（可选 steady|balanced|pursuit）");
+        }
+
+        // 没显式给 --variants 且没给 v2 权重时，默认跳过 v2 组（否则一条命令都跑不起来）。
+        if (!variantsSpecified && string.IsNullOrWhiteSpace(v2Path))
+        {
+            variants = AbAiAllVariants.Where(v => v != "v2").ToList();
+        }
+
+        if (variants.Contains("v2", StringComparer.Ordinal) && string.IsNullOrWhiteSpace(v2Path))
+        {
+            throw new ArgumentException("选到 v2 组时必须用 --v2 <path> 指定 v2 权重文件");
+        }
+
+        if (!string.IsNullOrWhiteSpace(v2Path) && !File.Exists(v2Path))
+        {
+            throw new ArgumentException($"--v2 权重文件不存在: {v2Path}");
+        }
+
+        return new AbAiOptions(games, variants, v2Path, pursuit, style, mode, startSeed, outDir, quiet);
+    }
+
+    private static List<string> ParseAbAiVariants(string spec)
+    {
+        var result = new List<string>();
+        foreach (string raw in spec.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            string name = raw.ToLowerInvariant() switch
+            {
+                "all" => null!,
+                "v4" or "b" or "neural" => "baseline",
+                _ => raw.ToLowerInvariant(),
+            };
+
+            if (name is null)
+            {
+                foreach (string all in AbAiAllVariants)
+                {
+                    if (!result.Contains(all, StringComparer.Ordinal))
+                    {
+                        result.Add(all);
+                    }
+                }
+
+                continue;
+            }
+
+            if (!AbAiAllVariants.Contains(name, StringComparer.Ordinal))
+            {
+                throw new ArgumentException($"未知 A/B 组: {raw}（可选 {string.Join(",", AbAiAllVariants)} 或 all）");
+            }
+
+            if (!result.Contains(name, StringComparer.Ordinal))
+            {
+                result.Add(name);
+            }
+        }
+
+        if (result.Count == 0)
+        {
+            throw new ArgumentException("--variants 为空");
+        }
+
+        // 保持规范顺序（baseline, v2, mcts, simple, normal），输出稳定。
+        return AbAiAllVariants.Where(v => result.Contains(v, StringComparer.Ordinal)).ToList();
+    }
+
+    private static bool AbAiStylePreset(string name, out AiStyle style)
+    {
+        switch (name.ToLowerInvariant())
+        {
+            case "steady":
+                style = AiStyle.Steady;
+                return true;
+            case "balanced":
+                style = AiStyle.Balanced;
+                return true;
+            case "pursuit":
+                style = AiStyle.PursuitFocused;
+                return true;
+            default:
+                style = AiStyle.Default;
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// 跑五组（或 --variants 指定组）A/B：同一批 seed，组内焦点座位轮换 0..3；
+    /// 焦点座位用该组的档位 / 策略权重路径 / 追役开关，其余三家固定 7Neuu + 默认 v4。
+    /// 不写文件（<see cref="WriteAbAiReport"/> 负责落盘），方便单测直接读返回值。
+    /// </summary>
+    internal static AbAiReport RunAbAi(AbAiOptions options, Action<string>? log = null)
+    {
+        AbAiStylePreset(options.Style, out AiStyle style);
+        var variantReports = new List<AbAiVariantReport>();
+
+        // 策略熵诊断：只在本函数执行期间开启（按座位累计，每局前清空），结束恢复关闭。
+        NeuralPolicyAi.CollectDiagnostics = true;
+        try
+        {
+            foreach (string variant in options.Variants)
+            {
+            var gameRows = new List<AbAiGameRow>(options.Games);
+            var roundRows = new List<AbAiRoundRow>(options.Games * 4);
+            var winTurns = new List<double>();
+            var winWalls = new List<double>();
+            var focusWinTurns = new List<double>();
+            var yakuCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            double rankSum = 0;
+            int top1 = 0;
+            int top2 = 0;
+            int rounds = 0;
+            int focusWins = 0;
+            int focusDeals = 0;
+            int focusMelds = 0;
+            double winnersSum = 0;
+            double turnSum = 0;
+            double entropySum = 0;
+            long entropyDecisions = 0;
+            int neuralDecisions = 0;
+            int neuralDifferent = 0;
+            int pursuitEntries = 0;
+            int pursuitExits = 0;
+            int pursuitDecisions = 0;
+
+            var (level, weightsPath, mcts, focusDescription) = AbAiVariantSetup(variant, options.V2Path);
+
+            for (int gameIndex = 0; gameIndex < options.Games; gameIndex++)
+            {
+                uint seed = options.StartSeed + (uint)gameIndex;
+                int seat = (int)((seed - options.StartSeed) % 4);
+
+                var settings = new Settings
+                {
+                    AiSeatLocks = new[] { 4, 4, 4, 4 },
+                    AiStyle = style,
+                };
+
+                var runtime = new MatchRuntime(
+                    settings,
+                    new Mulberry32Random(seed),
+                    _ => { },
+                    saveStore: null,
+                    stats: null,
+                    roundLog: null,
+                    matchSeed: seed)
+                {
+                    AllSeatsAi = true,
+                    AiAbOverride = new MatchRuntime.AiSeatAbOverride(
+                        seat, level, weightsPath, options.Pursuit, style, mcts),
+                };
+
+                NeuralPolicyAi.ResetDiagnostics();
+                runtime.StartMatch(options.Mode);
+                int guard = 0;
+                while (runtime.Phase != MatchPhase.MatchOver && guard++ < 10_000)
+                {
+                    if (runtime.Phase == MatchPhase.RoundEnded)
+                    {
+                        runtime.NextRound();
+                    }
+                    else
+                    {
+                        Thread.Sleep(1);
+                    }
+                }
+
+                var scores = runtime.Engine.Scores.ToArray();
+                int rank = 1 + scores.Count(s => s > scores[seat]);
+                rankSum += rank;
+                if (rank == 1)
+                {
+                    top1++;
+                }
+
+                if (rank <= 2)
+                {
+                    top2++;
+                }
+
+                int gameFocusWins = 0;
+                int gameFocusDeals = 0;
+                int gameFocusMelds = 0;
+                foreach (var round in runtime.RoundStats)
+                {
+                    int[] winners = round.Winners.ToArray();
+                    int[] payers = round.Payers.ToArray();
+                    roundRows.Add(new AbAiRoundRow(
+                        seed, round.HandNumber, round.Kind, winners, payers,
+                        round.TotalDiscards, round.Wall, round.Turn,
+                        round.YakuNames.ToArray(), round.ScoresAfter.ToArray()));
+
+                    rounds++;
+                    winnersSum += winners.Length;
+                    turnSum += round.Turn;
+                    if (winners.Length > 0)
+                    {
+                        winTurns.Add(round.Turn);
+                        winWalls.Add(round.Wall);
+                    }
+
+                    if (winners.Contains(seat))
+                    {
+                        focusWins++;
+                        gameFocusWins++;
+                        focusWinTurns.Add(round.Turn);
+                    }
+
+                    if (payers.Contains(seat))
+                    {
+                        focusDeals++;
+                        gameFocusDeals++;
+                    }
+
+                    gameFocusMelds += round.MeldsBySeat[seat];
+                    focusMelds += round.MeldsBySeat[seat];
+                    foreach (string yaku in round.YakuNames)
+                    {
+                        yakuCounts[yaku] = yakuCounts.TryGetValue(yaku, out int count) ? count + 1 : 1;
+                    }
+                }
+
+                double focusEntropy = NeuralPolicyAi.DiagnosticsAverageEntropyForPlayer(seat);
+                long focusEntropyDecisions = NeuralPolicyAi.DiagnosticsDecisionsForPlayer(seat);
+                entropySum += focusEntropy * focusEntropyDecisions;
+                entropyDecisions += focusEntropyDecisions;
+
+                neuralDecisions += runtime.NeuralDecisions;
+                neuralDifferent += runtime.NeuralDifferent;
+                pursuitEntries += runtime.AiPursuitEntries;
+                pursuitExits += runtime.AiPursuitExits;
+                pursuitDecisions += runtime.AiPursuitDecisions;
+
+                gameRows.Add(new AbAiGameRow(
+                    seed, gameIndex, seat, rank, runtime.RoundStats.Count,
+                    gameFocusWins, gameFocusDeals, gameFocusMelds,
+                    runtime.NeuralDecisions, runtime.NeuralDifferent,
+                    runtime.AiPursuitEntries, runtime.AiPursuitDecisions,
+                    focusEntropy, scores));
+
+                log?.Invoke(
+                    $"ab-ai[{variant}] {gameIndex + 1}/{options.Games} seed={seed} seat={seat} rank={rank}");
+            }
+
+            var rareYakuCounts = AbAiRareYakuNames
+                .Where(yakuCounts.ContainsKey)
+                .ToDictionary(name => name, name => yakuCounts[name], StringComparer.Ordinal);
+
+            variantReports.Add(new AbAiVariantReport(
+                variant,
+                focusDescription,
+                options.Games,
+                rounds,
+                focusWins,
+                focusDeals,
+                focusMelds,
+                options.Games == 0 ? 0 : rankSum / options.Games,
+                options.Games == 0 ? 0 : top1 / (double)options.Games,
+                options.Games == 0 ? 0 : top2 / (double)options.Games,
+                rounds == 0 ? 0 : focusWins / (double)rounds,
+                rounds == 0 ? 0 : focusDeals / (double)rounds,
+                rounds == 0 ? 0 : focusMelds / (double)rounds,
+                rounds == 0 ? 0 : winnersSum / rounds,
+                rounds == 0 ? 0 : turnSum / rounds,
+                Mean(winTurns),
+                Percentile(winTurns, 0.5),
+                Percentile(winTurns, 0.9),
+                Mean(winWalls),
+                Mean(focusWinTurns),
+                Percentile(focusWinTurns, 0.5),
+                Percentile(focusWinTurns, 0.9),
+                entropyDecisions == 0 ? 0 : entropySum / entropyDecisions,
+                yakuCounts.Count,
+                yakuCounts,
+                rareYakuCounts,
+                neuralDecisions,
+                neuralDifferent,
+                pursuitEntries,
+                pursuitExits,
+                pursuitDecisions,
+                gameRows,
+                roundRows));
+            }
+        }
+        finally
+        {
+            NeuralPolicyAi.ResetDiagnostics();
+            NeuralPolicyAi.CollectDiagnostics = false;
+        }
+
+        return new AbAiReport(options, AbAiTurnDefinition, variantReports);
+    }
+
+    private static (AiLevel Level, string? WeightsPath, bool Mcts, string Description) AbAiVariantSetup(
+        string variant,
+        string? v2Path) => variant switch
+    {
+        "baseline" => (AiLevel.Neural, null, false, "焦点座位 7Neuu + 默认 v4；其余三家 7Neuu v4"),
+        "v2" => (AiLevel.Neural, v2Path, false, "焦点座位 7Neuu + v2 权重；其余三家 7Neuu v4"),
+        "mcts" => (AiLevel.Shura, null, true, "焦点座位 Shura + MCTS；其余三家 7Neuu v4"),
+        "simple" => (AiLevel.Simple, null, false, "焦点座位打分机 Simple；其余三家 7Neuu v4"),
+        "normal" => (AiLevel.Normal, null, false, "焦点座位打分机 Normal；其余三家 7Neuu v4"),
+        _ => throw new ArgumentException($"未知 A/B 组: {variant}"),
+    };
+
+    private static double Mean(IReadOnlyList<double> values) =>
+        values.Count == 0 ? 0.0 : values.Sum() / values.Count;
+
+    /// <summary>线性插值百分位（p ∈ [0,1]）；空列表返回 0。</summary>
+    internal static double Percentile(IReadOnlyList<double> values, double percentile)
+    {
+        if (values.Count == 0)
+        {
+            return 0.0;
+        }
+
+        double p = Math.Clamp(percentile, 0.0, 1.0);
+        var sorted = values.OrderBy(x => x).ToArray();
+        double position = (sorted.Length - 1) * p;
+        int lower = (int)Math.Floor(position);
+        int upper = (int)Math.Ceiling(position);
+        return lower == upper
+            ? sorted[lower]
+            : sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+    }
+
+    /// <summary>把 A/B 报告落盘为 JSON + CSV + Markdown；返回三个文件路径。</summary>
+    internal static (string Json, string Csv, string Markdown) WriteAbAiReport(AbAiReport report, string outDirectory)
+    {
+        Directory.CreateDirectory(outDirectory);
+        string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
+        string baseName = Path.Combine(outDirectory, "ab-ai_" + stamp);
+
+        var payload = new
+        {
+            generatedAt = DateTime.Now.ToString("o", CultureInfo.InvariantCulture),
+            config = new
+            {
+                games = report.Options.Games,
+                variants = report.Options.Variants,
+                v2 = report.Options.V2Path,
+                pursuit = report.Options.Pursuit,
+                style = report.Options.Style,
+                mode = report.Options.Mode,
+                startSeed = report.Options.StartSeed,
+                focusRotation = "seat = (seed - startSeed) % 4",
+            },
+            turnDefinition = report.TurnDefinition,
+            variants = report.Variants.Select(v => new
+            {
+                variant = v.Variant,
+                focus = v.FocusDescription,
+                games = v.Games,
+                rounds = v.Rounds,
+                avgRank = v.AvgRank,
+                top1Rate = v.Top1Rate,
+                top2Rate = v.Top2Rate,
+                roundWinRate = v.RoundWinRate,
+                dealInRate = v.DealInRate,
+                meldsPerRound = v.MeldsPerRound,
+                avgWinnersPerRound = v.AvgWinnersPerRound,
+                avgTurnPerRound = v.AvgTurnPerRound,
+                winTurn = new { mean = v.WinTurnMean, p50 = v.WinTurnP50, p90 = v.WinTurnP90 },
+                focusWinTurn = new { mean = v.FocusWinTurnMean, p50 = v.FocusWinTurnP50, p90 = v.FocusWinTurnP90 },
+                winWallMean = v.WinWallMean,
+                strategyEntropy = v.StrategyEntropy,
+                yakuCoverage = v.YakuCoverage,
+                yakuCounts = v.YakuCounts,
+                rareYakuCounts = v.RareYakuCounts,
+                neuralDecisions = v.NeuralDecisions,
+                neuralDifferent = v.NeuralDifferent,
+                pursuitEntries = v.PursuitEntries,
+                pursuitExits = v.PursuitExits,
+                pursuitDecisions = v.PursuitDecisions,
+                gameRows = v.GameRows,
+                roundRows = v.RoundRows,
+            }),
+        };
+
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
+        string jsonPath = baseName + ".json";
+        File.WriteAllText(jsonPath, JsonSerializer.Serialize(payload, jsonOptions), new System.Text.UTF8Encoding(false));
+
+        string csvPath = baseName + ".csv";
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("variant,games,rounds,avgRank,top1Rate,top2Rate,roundWinRate,dealInRate,meldsPerRound,"
+            + "avgWinnersPerRound,avgTurnPerRound,winTurnMean,winTurnP50,winTurnP90,focusWinTurnMean,"
+            + "focusWinTurnP50,focusWinTurnP90,winWallMean,strategyEntropy,yakuCoverage,neuralDecisions,"
+            + "pursuitEntries,pursuitDecisions");
+        foreach (var v in report.Variants)
+        {
+            csv.AppendLine(string.Join(",",
+                v.Variant,
+                v.Games.ToString(CultureInfo.InvariantCulture),
+                v.Rounds.ToString(CultureInfo.InvariantCulture),
+                Fmt(v.AvgRank), Fmt(v.Top1Rate), Fmt(v.Top2Rate), Fmt(v.RoundWinRate), Fmt(v.DealInRate),
+                Fmt(v.MeldsPerRound), Fmt(v.AvgWinnersPerRound), Fmt(v.AvgTurnPerRound),
+                Fmt(v.WinTurnMean), Fmt(v.WinTurnP50), Fmt(v.WinTurnP90),
+                Fmt(v.FocusWinTurnMean), Fmt(v.FocusWinTurnP50), Fmt(v.FocusWinTurnP90),
+                Fmt(v.WinWallMean), Fmt(v.StrategyEntropy),
+                v.YakuCoverage.ToString(CultureInfo.InvariantCulture),
+                v.NeuralDecisions.ToString(CultureInfo.InvariantCulture),
+                v.PursuitEntries.ToString(CultureInfo.InvariantCulture),
+                v.PursuitDecisions.ToString(CultureInfo.InvariantCulture)));
+        }
+
+        File.WriteAllText(csvPath, csv.ToString(), new System.Text.UTF8Encoding(false));
+
+        string mdPath = baseName + ".md";
+        var md = new System.Text.StringBuilder();
+        md.AppendLine("# 7Neuu A/B 五组评测报告");
+        md.AppendLine();
+        md.AppendLine($"- 生成时间：{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)}");
+        md.AppendLine($"- 命令：`--ab-ai --games {report.Options.Games} --variants {string.Join(",", report.Options.Variants)}"
+            + (report.Options.V2Path is null ? string.Empty : $" --v2 {report.Options.V2Path}")
+            + (report.Options.Pursuit ? " --pursuit" : string.Empty)
+            + $" --style {report.Options.Style} --mode {report.Options.Mode} --start-seed {report.Options.StartSeed}`");
+        md.AppendLine($"- 焦点座位轮换：seat = (seed - startSeed) % 4；其余三家固定 7Neuu + 默认 v4。");
+        md.AppendLine($"- 追役：{(report.Options.Pursuit ? "焦点座位开启（仅 v4/v2 组生效）" : "关闭")}；风格预设：{report.Options.Style}。");
+        md.AppendLine($"- 巡目定义：{report.TurnDefinition}");
+        md.AppendLine();
+        md.AppendLine("| 组 | 局数 | 平均顺位 | top1 | top2 | 和牌率 | 放铳率 | 副露/局 | 和牌巡目 mean/p50/p90 | 每局和牌数 | 平均巡目 | 策略熵 | 役种覆盖 |");
+        md.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+        foreach (var v in report.Variants)
+        {
+            md.AppendLine($"| {v.Variant} | {v.Games} | {Fmt(v.AvgRank)} | {Fmt(v.Top1Rate)} | {Fmt(v.Top2Rate)} | "
+                + $"{Fmt(v.RoundWinRate)} | {Fmt(v.DealInRate)} | {Fmt(v.MeldsPerRound)} | "
+                + $"{Fmt(v.WinTurnMean)}/{Fmt(v.WinTurnP50)}/{Fmt(v.WinTurnP90)} | {Fmt(v.AvgWinnersPerRound)} | "
+                + $"{Fmt(v.AvgTurnPerRound)} | {Fmt(v.StrategyEntropy)} | {v.YakuCoverage} |");
+        }
+
+        md.AppendLine();
+        md.AppendLine("> 和牌巡目只统计有和牌者的局；`mean/p50/p90` 为巡目分布。`策略熵` 为焦点座位策略网动作分布熵（非策略网组为 0）。");
+        File.WriteAllText(mdPath, md.ToString(), new System.Text.UTF8Encoding(false));
+
+        return (jsonPath, csvPath, mdPath);
+    }
+
+    private static string Fmt(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    /// <summary><c>--ab-ai</c>：五组 A/B（v4 基准 + v2 / MCTS / Simple / Normal），输出 JSON/CSV/Markdown。</summary>
+    private static int AbAi(string[] args)
+    {
+        Tiisu.App.Program.TryUseUtf8Console();
+        AbAiOptions options;
+        try
+        {
+            options = ParseAbAiOptions(args);
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine("ab-ai: " + ex.Message);
+            return 2;
+        }
+
+        try
+        {
+            var report = RunAbAi(options, line =>
+            {
+                if (!options.Quiet)
+                {
+                    Console.WriteLine(line);
+                }
+            });
+            var (json, csv, md) = WriteAbAiReport(report, options.OutDirectory);
+
+            Console.WriteLine(
+                $"ab-ai: variants={string.Join(",", options.Variants)} games={options.Games} "
+                + $"pursuit={options.Pursuit} style={options.Style}");
+            Console.WriteLine("variant\tavgRank\ttop1\ttop2\twin\tdelIn\tmelds\twinTurn(mean/p50/p90)\tentropy\tYaku");
+            foreach (var v in report.Variants)
+            {
+                Console.WriteLine(
+                    $"{v.Variant}\t{Fmt(v.AvgRank)}\t{Fmt(v.Top1Rate)}\t{Fmt(v.Top2Rate)}\t"
+                    + $"{Fmt(v.RoundWinRate)}\t{Fmt(v.DealInRate)}\t{Fmt(v.MeldsPerRound)}\t"
+                    + $"{Fmt(v.WinTurnMean)}/{Fmt(v.WinTurnP50)}/{Fmt(v.WinTurnP90)}\t"
+                    + $"{Fmt(v.StrategyEntropy)}\t{v.YakuCoverage}");
+            }
+
+            Console.WriteLine("json: " + json);
+            Console.WriteLine("csv:  " + csv);
+            Console.WriteLine("md:   " + md);
+            return 0;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Console.Error.WriteLine("ab-ai failed: " + ex.Message);
+            return 3;
+        }
+    }
+
     /// <summary><c>--smoke-ruleset-switch</c>：设置切到推倒胡并重置后，引擎必须真的换成推倒胡。</summary>
     private static int SmokeRulesetSwitch()
     {
@@ -4970,6 +5667,8 @@ internal static class DevCommands
                 return YakuStats(args);
             case "--smoke-ab":
                 return SmokeAb(args);
+            case "--ab-ai":
+                return AbAi(args);
             case "--smoke-ruleset-switch":
                 return SmokeRulesetSwitch();
             case "--smoke-neural":

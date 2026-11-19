@@ -18,49 +18,116 @@ public readonly record struct NeuralDiscardScore(int Index, Tile Tile, float Log
 ///
 /// <para>
 /// 默认路径（<see cref="ChooseDiscard(AiDecisionContext)"/>）是纯 argmax，行为与旧版完全一致；
-/// 追役原型走 <see cref="ChooseDiscard(AiDecisionContext, AiStyle, PursuitState, IRandomSource)"/>：
+/// 追役原型走 <see cref="ChooseDiscard(AiDecisionContext, AiStyle, PursuitState, IRandomSource, string?)"/>：
 /// 普通状态仍 argmax，只有 <see cref="PursuitState.Active"/> 时才按温度采样并叠加目标进度 bonus。
 /// </para>
 /// </summary>
 public static class NeuralPolicyAi
 {
     private const int V2FeatureCount = 181;
-
-    private static Weights? _weights;
-    private static bool _loadTried;
-    private static string? _loadedFrom;
+    private const int PlayerSlots = 4;
 
     /// <summary>追役采样里放铳危险度的权重（危险度 0..1 → 分数单位）。</summary>
     private const double PursuitDangerWeight = 1.2;
 
-    /// <summary>当前权重来源（调试用）。</summary>
-    public static string? LoadedFrom => _loadedFrom;
+    private static readonly object WeightLock = new();
+    private static readonly object DiagnosticsLock = new();
 
-    public static bool Available
+    /// <summary>按权重文件绝对路径缓存（A/B 同一进程里不同座位用不同文件时复用）。</summary>
+    private static readonly Dictionary<string, Weights> WeightCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private static Weights? _defaultWeights;
+    private static bool _defaultLoadTried;
+    private static string? _defaultLoadedFrom;
+
+    /// <summary>默认权重来源（生产 = v4；A/B 按座位传路径不会改这个值）。</summary>
+    public static string? LoadedFrom
     {
         get
         {
-            EnsureLoaded();
-            return _weights is not null;
+            lock (WeightLock)
+            {
+                return _defaultLoadedFrom;
+            }
         }
     }
 
-    /// <summary>返回弃牌在 <see cref="AiDecisionContext.Hand"/> 里的下标；无权重返回 -1。</summary>
-    public static int ChooseDiscard(AiDecisionContext ctx)
+    /// <summary>评测开关：为 true 时按座位累计每次策略网推理的动作分布熵（正常游戏默认 false）。</summary>
+    public static bool CollectDiagnostics { get; set; }
+
+    private static readonly double[] EntropySumByPlayer = new double[PlayerSlots];
+    private static readonly long[] DecisionsByPlayer = new long[PlayerSlots];
+
+    /// <summary>某座位累计参与熵统计的策略网决策次数。</summary>
+    public static long DiagnosticsDecisionsForPlayer(int player)
     {
-        EnsureLoaded();
-        return _weights is { } w ? Argmax(ScoreDiscardsWith(ctx, w)) : -1;
+        if (player is < 0 or >= PlayerSlots)
+        {
+            return 0;
+        }
+
+        lock (DiagnosticsLock)
+        {
+            return DecisionsByPlayer[player];
+        }
+    }
+
+    /// <summary>某座位的平均动作分布熵（自然对数；34 类 softmax）；没有决策时为 0。</summary>
+    public static double DiagnosticsAverageEntropyForPlayer(int player)
+    {
+        if (player is < 0 or >= PlayerSlots)
+        {
+            return 0.0;
+        }
+
+        lock (DiagnosticsLock)
+        {
+            return DecisionsByPlayer[player] == 0
+                ? 0.0
+                : EntropySumByPlayer[player] / DecisionsByPlayer[player];
+        }
+    }
+
+    /// <summary>清空全部座位的熵统计。</summary>
+    public static void ResetDiagnostics()
+    {
+        lock (DiagnosticsLock)
+        {
+            Array.Clear(EntropySumByPlayer);
+            Array.Clear(DecisionsByPlayer);
+        }
+    }
+
+    public static bool Available => DefaultWeights() is not null;
+
+    /// <summary>返回弃牌在 <see cref="AiDecisionContext.Hand"/> 里的下标；无权重返回 -1（生产默认路径）。</summary>
+    public static int ChooseDiscard(AiDecisionContext ctx) => ChooseDiscard(ctx, weightsPath: null);
+
+    /// <summary>
+    /// 返回弃牌下标。权重按 <paramref name="weightsPath"/> 选：
+    /// <list type="bullet">
+    /// <item>null = 生产默认发现顺序（v4 优先），行为与旧版完全一致；</item>
+    /// <item>非 null = 显式权重文件（按 JSON 的 <c>features</c> 字段自动选 v2 181 维 / v4 339 维），
+    /// 按文件绝对路径缓存，同一个进程/对局里可以让焦点座位用 v2、其余三家仍用 v4（没有全局 override）。</item>
+    /// </list>
+    /// 默认权重缺失返回 -1（调用方回退 <see cref="TieredAi"/>）；显式路径缺失 / 非法抛异常（A/B 配置错误必须炸）。
+    /// </summary>
+    public static int ChooseDiscard(AiDecisionContext ctx, string? weightsPath)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+        var weights = ResolveWeights(weightsPath);
+        return weights is null ? -1 : Argmax(ScoreDiscardsWith(ctx, weights));
     }
 
     /// <summary>
     /// 策略网对每张手牌的原始 logit（按手牌下标，与 <see cref="AiDecisionContext.Hand"/> 一一对应）；
-    /// 无权重时为空列表。供测试 / 诊断与追役采样复用。
+    /// <paramref name="weightsPath"/> 语义同 <see cref="ChooseDiscard(AiDecisionContext, string?)"/>。
     /// </summary>
-    public static IReadOnlyList<NeuralDiscardScore> ScoreDiscards(AiDecisionContext ctx)
+    public static IReadOnlyList<NeuralDiscardScore> ScoreDiscards(AiDecisionContext ctx, string? weightsPath = null)
     {
         ArgumentNullException.ThrowIfNull(ctx);
-        EnsureLoaded();
-        return _weights is { } w ? ScoreDiscardsWith(ctx, w) : Array.Empty<NeuralDiscardScore>();
+        var weights = ResolveWeights(weightsPath);
+        return weights is null ? Array.Empty<NeuralDiscardScore>() : ScoreDiscardsWith(ctx, weights);
     }
 
     /// <summary>
@@ -71,19 +138,22 @@ public static class NeuralPolicyAi
     /// <item>追役状态：logit 做 z-score 归一化后，叠加 <see cref="AiPursuit.DiscardBonus"/> 与防守危险惩罚，
     /// 用 <see cref="PursuitState.Temperature"/> 做 softmax 温度采样。</item>
     /// </list>
+    /// <paramref name="weightsPath"/> 语义同 <see cref="ChooseDiscard(AiDecisionContext, string?)"/>：
+    /// null = 默认 v4，非 null = 该座位显式权重（A/B 焦点座位 v2）。
     /// 无权重返回 -1（调用方回退 <see cref="TieredAi"/>）。
     /// </summary>
     public static int ChooseDiscard(
         AiDecisionContext ctx,
         AiStyle style,
         PursuitState pursuit,
-        IRandomSource rng)
+        IRandomSource rng,
+        string? weightsPath = null)
     {
         ArgumentNullException.ThrowIfNull(ctx);
         ArgumentNullException.ThrowIfNull(rng);
         style = (style ?? AiStyle.Default).Clamped();
 
-        var picks = ScoreDiscards(ctx);
+        var picks = ScoreDiscards(ctx, weightsPath);
         if (picks.Count == 0)
         {
             return -1;
@@ -144,7 +214,7 @@ public static class NeuralPolicyAi
 
     /// <summary>
     /// 从已加好 bonus 的分数里按 softmax(1/T) 采一个下标。T ≤ 0 / 非有限时退化为 argmax。
-    /// 供 <see cref="ChooseDiscard(AiDecisionContext, AiStyle, PursuitState, IRandomSource)"/> 与单测使用。
+    /// 供 <see cref="ChooseDiscard(AiDecisionContext, AiStyle, PursuitState, IRandomSource, string?)"/> 与单测使用。
     /// </summary>
     internal static int SampleScores(double[] scores, double temperature, IRandomSource rng)
     {
@@ -243,6 +313,7 @@ public static class NeuralPolicyAi
         float[] h1 = Dense(w.L1, w.B1, x, w.Hidden);
         float[] h2 = Dense(w.L2, w.B2, h1, w.Hidden);
         float[] logits = Dense(w.L3, w.B3, h2, 34);
+        AccumulateDiagnostics(logits, ctx.PlayerIndex);
 
         var picks = new List<NeuralDiscardScore>(ctx.Hand.Count);
         for (int i = 0; i < ctx.Hand.Count; i++)
@@ -255,6 +326,66 @@ public static class NeuralPolicyAi
         }
 
         return picks;
+    }
+
+    /// <summary>一次策略网输出的动作分布熵（34 类 softmax，自然对数）；供 A/B 诊断与单测。</summary>
+    internal static double EntropyOf(IReadOnlyList<float> logits)
+    {
+        ArgumentNullException.ThrowIfNull(logits);
+        if (logits.Count == 0)
+        {
+            return 0.0;
+        }
+
+        float max = logits[0];
+        for (int i = 1; i < logits.Count; i++)
+        {
+            if (logits[i] > max)
+            {
+                max = logits[i];
+            }
+        }
+
+        var exp = new double[logits.Count];
+        double total = 0.0;
+        for (int i = 0; i < logits.Count; i++)
+        {
+            double value = Math.Exp(logits[i] - max);
+            exp[i] = value;
+            total += value;
+        }
+
+        if (!(total > 0.0) || !double.IsFinite(total))
+        {
+            return 0.0;
+        }
+
+        double entropy = 0.0;
+        for (int i = 0; i < exp.Length; i++)
+        {
+            double p = exp[i] / total;
+            if (p > 0.0)
+            {
+                entropy -= p * Math.Log(p);
+            }
+        }
+
+        return double.IsFinite(entropy) ? entropy : 0.0;
+    }
+
+    private static void AccumulateDiagnostics(float[] logits, int player)
+    {
+        if (!CollectDiagnostics || player is < 0 or >= PlayerSlots)
+        {
+            return;
+        }
+
+        double entropy = EntropyOf(logits);
+        lock (DiagnosticsLock)
+        {
+            EntropySumByPlayer[player] += entropy;
+            DecisionsByPlayer[player]++;
+        }
     }
 
       private static float[] BuildFeatures(AiDecisionContext ctx, int featureCount) =>
@@ -438,49 +569,113 @@ public static class NeuralPolicyAi
         return y;
     }
 
-    private static void EnsureLoaded()
+    /// <summary>
+    /// 解析本次决策用的权重：
+    /// <list type="bullet">
+    /// <item>路径为空 → 生产默认（v4 优先；缺失返回 null，调用方回退 TieredAi）；</item>
+    /// <item>路径非空 → 该文件的缓存权重（v2 181 维 / v4 339 维按 features 自动选）；缺失 / 非法抛异常。</item>
+    /// </list>
+    /// 关键：路径只影响这一次决策，不做全局覆盖 —— 同一进程里不同座位可以各自用自己的权重文件。
+    /// </summary>
+    private static Weights? ResolveWeights(string? weightsPath)
     {
-        if (_loadTried)
+        if (string.IsNullOrWhiteSpace(weightsPath))
         {
-            return;
+            return DefaultWeights();
         }
 
-        _loadTried = true;
-        foreach (string path in CandidatePaths())
+        string full = Path.GetFullPath(weightsPath);
+        lock (WeightLock)
         {
-            try
+            if (WeightCache.TryGetValue(full, out var cached))
             {
-                if (!File.Exists(path))
-                {
-                    continue;
-                }
-
-                var node = JsonNode.Parse(File.ReadAllText(path));
-                if (node is not JsonObject obj || obj["layers"] is not JsonArray layers || layers.Count < 3)
-                {
-                    continue;
-                }
-
-                _weights = new Weights
-                {
-                    Hidden = (int?)obj["hidden"] ?? 256,
-                          Features = (int?)obj["features"] ?? 181,
-                          FeatureMean = obj["feature_mean"] is JsonArray m ? ReadVector(m) : Array.Empty<float>(),
-                          FeatureStd = obj["feature_std"] is JsonArray st ? ReadVector(st) : Array.Empty<float>(),
-                    L1 = ReadMatrix(layers[0]!["w"]),
-                    B1 = ReadVector(layers[0]!["b"]),
-                    L2 = ReadMatrix(layers[1]!["w"]),
-                    B2 = ReadVector(layers[1]!["b"]),
-                    L3 = ReadMatrix(layers[2]!["w"]),
-                    B3 = ReadVector(layers[2]!["b"]),
-                };
-                _loadedFrom = path;
-                return;
+                return cached;
             }
-            catch
+        }
+
+        var loaded = TryLoadWeights(full)
+            ?? throw new InvalidOperationException($"策略权重文件缺失或非法: {full}");
+        lock (WeightLock)
+        {
+            WeightCache[full] = loaded;
+        }
+
+        return loaded;
+    }
+
+    /// <summary>生产默认权重（v4 优先，其次 v2 / 旧名）；A/B 的按座位路径不影响它。</summary>
+    private static Weights? DefaultWeights()
+    {
+        lock (WeightLock)
+        {
+            if (_defaultLoadTried)
             {
-                // 换下一个候选路径
+                return _defaultWeights;
             }
+
+            _defaultLoadTried = true;
+            foreach (string path in CandidatePaths())
+            {
+                if (TryLoadWeights(path) is { } weights)
+                {
+                    _defaultWeights = weights;
+                    _defaultLoadedFrom = path;
+                    return weights;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>从单个文件读权重；损坏 / 非权重文件返回 null（调用方决定回退还是报错）。</summary>
+    private static Weights? TryLoadWeights(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+
+            var node = JsonNode.Parse(File.ReadAllText(path));
+            if (node is not JsonObject obj || obj["layers"] is not JsonArray layers || layers.Count < 3)
+            {
+                return null;
+            }
+
+            var weights = new Weights
+            {
+                Hidden = (int?)obj["hidden"] ?? 256,
+                Features = (int?)obj["features"] ?? 181,
+                FeatureMean = obj["feature_mean"] is JsonArray m ? ReadVector(m) : Array.Empty<float>(),
+                FeatureStd = obj["feature_std"] is JsonArray st ? ReadVector(st) : Array.Empty<float>(),
+                L1 = ReadMatrix(layers[0]!["w"]),
+                B1 = ReadVector(layers[0]!["b"]),
+                L2 = ReadMatrix(layers[1]!["w"]),
+                B2 = ReadVector(layers[1]!["b"]),
+                L3 = ReadMatrix(layers[2]!["w"]),
+                B3 = ReadVector(layers[2]!["b"]),
+            };
+
+            // 维度校验：坏权重不进入推理（否则 Dense 会越界 / 静默错位）。
+            if (weights.Hidden <= 0 || weights.Features <= 0
+                || weights.L1.Length != weights.Hidden * weights.Features
+                || weights.B1.Length != weights.Hidden
+                || weights.L2.Length != weights.Hidden * weights.Hidden
+                || weights.B2.Length != weights.Hidden
+                || weights.L3.Length != 34 * weights.Hidden
+                || weights.B3.Length != 34)
+            {
+                return null;
+            }
+
+            return weights;
+        }
+        catch
+        {
+            // 坏文件不抛：候选路径循环继续；显式 override 由调用方报错。
+            return null;
         }
     }
 
