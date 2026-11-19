@@ -1344,7 +1344,9 @@
           "ml": "ML Weights Provenance",
           "selfplay": "Self-play Training",
           "release": "Release Compliance",
-          "thirdParty": "Third-party Notices"
+          "thirdParty": "Third-party Notices",
+          "yaku": "Yaku table",
+          "strategy": "Strategy guide"
         }
       },
       "window": {
@@ -1854,5 +1856,7 @@
     "err": {
       "emptyYakuData": "ike.json parsed to an empty result"
     }
-  }
+  },
+  "役种表": "Yaku table",
+  "打牌指南": "Strategy guide"
 }

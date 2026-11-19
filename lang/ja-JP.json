@@ -1344,7 +1344,9 @@
           "ml": "ML重みの出典",
           "selfplay": "自己対戦学習",
           "release": "リリース確認リスト",
-          "thirdParty": "第三者声明"
+          "thirdParty": "第三者声明",
+          "yaku": "役種表",
+          "strategy": "打牌ガイド"
         }
       },
       "window": {
@@ -1854,5 +1856,7 @@
     "err": {
       "emptyYakuData": "ike.json の解析結果が空です"
     }
-  }
+  },
+  "役种表": "役種表",
+  "打牌指南": "打牌ガイド"
 }

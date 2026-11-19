@@ -1344,7 +1344,9 @@
           "ml": "ML 权重来源",
           "selfplay": "自博弈训练",
           "release": "发布合规清单",
-          "thirdParty": "第三方声明"
+          "thirdParty": "第三方声明",
+          "yaku": "役种表",
+          "strategy": "打牌指南"
         }
       },
       "window": {
@@ -1854,5 +1856,7 @@
     "err": {
       "emptyYakuData": "ike.json 解析结果为空"
     }
-  }
+  },
+  "役种表": "役种表",
+  "打牌指南": "打牌指南"
 }

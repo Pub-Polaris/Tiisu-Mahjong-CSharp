@@ -203,6 +203,14 @@ internal sealed class ScreenHostCore : IDisposable
                 SwitchTo(_tutorial);
                 return true;
 
+            case "yaku":
+                OpenGuide("YAKU.md");
+                return true;
+
+            case "guide":
+                OpenGuide("STRATEGY.md");
+                return true;
+
             case "quit":
                 // 菜单「退出」= 关主窗口（退出程序）；ESC 仍只做返回。
                 _close();
@@ -213,8 +221,15 @@ internal sealed class ScreenHostCore : IDisposable
         }
     }
 
-    /// <summary>用系统默认浏览器打开外链（署名 / 许可证 / 仓库）；失败只静默，不影响游戏。</summary>
-    private void OpenMarkdown(string file)
+    /// <summary>打开许可/来源类 Markdown；返回许可页。</summary>
+    private void OpenMarkdown(string file) =>
+        OpenDocument(file, () => SwitchTo(_licenses));
+
+    /// <summary>打开游戏内指南；返回主菜单。</summary>
+    private void OpenGuide(string file) =>
+        OpenDocument(file, () => SwitchTo(_menu));
+
+    private void OpenDocument(string file, Action back)
     {
         string basePath = Path.Combine(AppContext.BaseDirectory, "Assets", "docs");
         string path = UiText.IsEnglish ? Path.Combine(basePath, "en", file)
@@ -243,9 +258,11 @@ internal sealed class ScreenHostCore : IDisposable
             "SELFPLAY_TRAINING.md" => L.T("app.ui.docs.title.selfplay"),
             "RELEASE_COMPLIANCE.md" => L.T("app.ui.docs.title.release"),
             "THIRD-PARTY-NOTICES.md" => L.T("app.ui.docs.title.thirdParty"),
+            "YAKU.md" => L.T("app.ui.docs.title.yaku"),
+            "STRATEGY.md" => L.T("app.ui.docs.title.strategy"),
             _ => Path.GetFileNameWithoutExtension(file),
         };
-        SwitchTo(new MarkdownScreen(title, text, () => SwitchTo(_licenses)));
+        SwitchTo(new MarkdownScreen(title, text, back));
     }
 
     /// <summary>菜单链接：app:licenses 在游戏内打开许可页，其余交给浏览器。</summary>

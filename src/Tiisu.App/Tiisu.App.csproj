@@ -101,7 +101,13 @@
     <None Include="..\..\docs\ja\THIRD-PARTY-NOTICES.md" Link="Assets\docs\ja\THIRD-PARTY-NOTICES.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Assets\**\*">
+    <None Include="..\..\docs\guides\YAKU.md" Link="Assets\docs\YAKU.md">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+  <None Include="..\..\docs\guides\STRATEGY.md" Link="Assets\docs\STRATEGY.md">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+  <None Update="Assets\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
