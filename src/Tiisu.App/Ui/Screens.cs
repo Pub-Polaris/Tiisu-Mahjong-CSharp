@@ -1254,6 +1254,7 @@ public sealed class MenuScreen : Screen
     private int _hoverLinkIndex = -1;
     private readonly List<LayoutElement> _buttons = new();
     private int _focusButton = -1;
+    private float _textScale = 1f;
 
     public MenuScreen(UiLayout layout, Func<string, bool> onAction, Action<string>? openUrl = null) : base("menu")
     {
@@ -1281,6 +1282,11 @@ public sealed class MenuScreen : Screen
 
     public override void Draw(ICanvas c, double time)
     {
+        if (c is SkiaCanvas skia)
+        {
+            _textScale = skia.TextScale;
+        }
+
         c.FillLinearGradient(new RectF(0, 0, Width, Height), 0,
             Color.Rgb(20, 28, 34), Color.Rgb(8, 12, 16));
 
@@ -1317,9 +1323,10 @@ public sealed class MenuScreen : Screen
                     c.StrokeRoundRect(el.Rect, el.Radius <= 0 ? 10 : el.Radius,
                         focused ? Color.Rgb(242, 201, 76) : ParseColor(el.Border, Color.Rgb(196, 168, 96)),
                         focused ? 2.5f : 1.5f);
-                    c.DrawText(UiText.Tr(el.Text ?? el.Id), el.Rect,
-                        ParseColor(el.FontColor, Color.Rgb(240, 236, 220)),
-                        new TextStyle(el.FontSize, Bold: true, Center: true));
+                    string label = UiText.Tr(el.Text ?? el.Id);
+                    var style = FitButtonStyle(c, label, el.Rect, el.FontSize);
+                    c.DrawText(label, el.Rect,
+                        ParseColor(el.FontColor, Color.Rgb(240, 236, 220)), style);
                     break;
             }
         }
@@ -1329,6 +1336,19 @@ public sealed class MenuScreen : Screen
             c.DrawText(L.T("app.ui.menu.navHint"), new RectF(0, Height - 34, Width, 22),
                 Color.Rgb(159, 180, 170), new TextStyle(14, Center: true));
         }
+    }
+
+    private static TextStyle FitButtonStyle(ICanvas c, string text, RectF rect, float size)
+    {
+        float maxWidth = Math.Max(24, rect.W - 18);
+        var style = new TextStyle(size, Bold: true, Center: true);
+        while (size > 12 && c.MeasureText(text, style) > maxWidth)
+        {
+            size -= 1;
+            style = style with { Size = size };
+        }
+
+        return style;
     }
 
     /// <summary>
@@ -1343,7 +1363,7 @@ public sealed class MenuScreen : Screen
         {
             var color = ParseColor(el.FontColor, Color.White);
             var hover = Color.Rgb(242, 230, 190);
-            var rects = LinkRects(el);
+            var rects = LinkRects(el, _textScale);
             for (int i = 0; i < rects.Count; i++)
             {
                 var (link, rect) = rects[i];
@@ -1363,7 +1383,7 @@ public sealed class MenuScreen : Screen
     }
 
     /// <summary>署名片段各自的矩形（与绘制同一套测量，点击区=可见文字区）。</summary>
-    public static IReadOnlyList<(LinkSegment Link, RectF Rect)> LinkRects(LayoutElement el)
+    public static IReadOnlyList<(LinkSegment Link, RectF Rect)> LinkRects(LayoutElement el, float textScale = 1f)
     {
         var result = new List<(LinkSegment, RectF)>();
         if (el.Links is not { Count: > 0 })
@@ -1372,10 +1392,11 @@ public sealed class MenuScreen : Screen
         }
 
         var style = new TextStyle(el.FontSize, Center: false);
+        float scale = Math.Clamp(textScale, 0.8f, 1.5f);
         float total = 0f;
         foreach (var link in el.Links)
         {
-            total += SkiaCanvas.Measure(UiText.Tr(link.Text), style);
+            total += SkiaCanvas.Measure(UiText.Tr(link.Text), style) * scale;
         }
 
         string align = (el.Align ?? "center").Trim().ToLowerInvariant();
@@ -1385,7 +1406,7 @@ public sealed class MenuScreen : Screen
 
         foreach (var link in el.Links)
         {
-            float w = SkiaCanvas.Measure(UiText.Tr(link.Text), style);
+            float w = SkiaCanvas.Measure(UiText.Tr(link.Text), style) * scale;
             result.Add((link, new RectF(x, el.Rect.Y, w, el.Rect.H)));
             x += w;
         }
@@ -1404,7 +1425,7 @@ public sealed class MenuScreen : Screen
         {
             if (el.Links is { Count: > 0 } && el.Rect.Contains(x, y))
             {
-                var rects = LinkRects(el);
+                var rects = LinkRects(el, _textScale);
                 for (int i = 0; i < rects.Count; i++)
                 {
                     if (rects[i].Link.Url.Length > 0 && rects[i].Rect.Contains(x, y))
@@ -1432,7 +1453,7 @@ public sealed class MenuScreen : Screen
             // 署名链接优先于按钮：两者不重叠，顺序只是让 URL 片段先命中。
             if (el.Links is { Count: > 0 } && el.Rect.Contains(x, y))
             {
-                foreach (var (link, rect) in LinkRects(el))
+                foreach (var (link, rect) in LinkRects(el, _textScale))
                 {
                     if (link.Url.Length > 0 && rect.Contains(x, y))
                     {
