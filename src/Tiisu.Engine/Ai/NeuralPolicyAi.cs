@@ -12,6 +12,13 @@ namespace Tiisu.Engine.Ai;
 /// <summary>策略网对一张手牌的原始打分（手牌下标 + 牌 + 34 类 logit）。</summary>
 public readonly record struct NeuralDiscardScore(int Index, Tile Tile, float Logit);
 
+/// <summary>策略网权重元数据（A/B 评测报告用）：文件路径 / 特征维 / 隐藏层 / 层数。</summary>
+/// <param name="Path">权重文件路径（生产默认路径时为实际加载到的 v4 路径）。</param>
+/// <param name="Features">特征维：181 = v2，339 = v4。</param>
+/// <param name="Hidden">隐藏层宽度（v4 = 128，候选模型可能是 384）。</param>
+/// <param name="LayerCount">层数（当前固定 3）。</param>
+public sealed record NeuralModelInfo(string Path, int Features, int Hidden, int LayerCount);
+
 /// <summary>
 /// 小策略网推理（P2-1）：支持 v2（181 维）与 v4（339 维，自博弈特征）权重。
 /// 权重由 <c>ml/train_policy.py</c> 导出；文件缺失时返回 -1，调用方回退 <see cref="TieredAi"/>。
@@ -99,6 +106,25 @@ public static class NeuralPolicyAi
     }
 
     public static bool Available => DefaultWeights() is not null;
+
+    /// <summary>
+    /// 读取某个权重文件的元数据（features / hidden / layers），供 A/B 报告标注模型来源。
+    /// <paramref name="weightsPath"/> 语义同 <see cref="ChooseDiscard(AiDecisionContext, string?)"/>：
+    /// null = 生产默认（v4），非 null = 显式权重文件（非法路径抛异常）。默认权重缺失时返回 null。
+    /// </summary>
+    public static NeuralModelInfo? DescribeWeights(string? weightsPath)
+    {
+        var weights = ResolveWeights(weightsPath);
+        if (weights is null)
+        {
+            return null;
+        }
+
+        string path = string.IsNullOrWhiteSpace(weightsPath)
+            ? LoadedFrom ?? "(unknown)"
+            : Path.GetFullPath(weightsPath);
+        return new NeuralModelInfo(path, weights.Features, weights.Hidden, weights.LayerCount);
+    }
 
     /// <summary>返回弃牌在 <see cref="AiDecisionContext.Hand"/> 里的下标；无权重返回 -1（生产默认路径）。</summary>
     public static int ChooseDiscard(AiDecisionContext ctx) => ChooseDiscard(ctx, weightsPath: null);
@@ -648,6 +674,7 @@ public static class NeuralPolicyAi
             {
                 Hidden = (int?)obj["hidden"] ?? 256,
                 Features = (int?)obj["features"] ?? 181,
+                LayerCount = layers.Count,
                 FeatureMean = obj["feature_mean"] is JsonArray m ? ReadVector(m) : Array.Empty<float>(),
                 FeatureStd = obj["feature_std"] is JsonArray st ? ReadVector(st) : Array.Empty<float>(),
                 L1 = ReadMatrix(layers[0]!["w"]),
@@ -731,6 +758,8 @@ public static class NeuralPolicyAi
     private sealed class Weights
     {
         public int Hidden { get; init; }
+
+        public int LayerCount { get; init; } = 3;
           public int Features { get; init; } = 181;
           public float[] FeatureMean { get; init; } = Array.Empty<float>();
           public float[] FeatureStd { get; init; } = Array.Empty<float>();

@@ -96,6 +96,47 @@ def softmax(z: np.ndarray) -> np.ndarray:
     return e / e.sum(axis=1, keepdims=True)
 
 
+def init_params(feature_count: int, hidden: int, rng_np: np.random.Generator,
+                init_path: str | None) -> list[np.ndarray]:
+    w1 = rng_np.normal(0, math.sqrt(2.0 / feature_count), (hidden, feature_count)).astype(np.float32)
+    b1 = np.zeros(hidden, dtype=np.float32)
+    w2 = rng_np.normal(0, math.sqrt(2.0 / hidden), (hidden, hidden)).astype(np.float32)
+    b2 = np.zeros(hidden, dtype=np.float32)
+    w3 = rng_np.normal(0, math.sqrt(1.0 / hidden), (34, hidden)).astype(np.float32)
+    b3 = np.zeros(34, dtype=np.float32)
+    if not init_path:
+        return [w1, b1, w2, b2, w3, b3]
+
+    with open(init_path, encoding="utf-8") as f:
+        old = json.load(f)
+    layers = old.get("layers") or []
+    if len(layers) < 3:
+        raise SystemExit(f"init weights 缺层: {init_path}")
+    ow1 = np.asarray(layers[0]["w"], dtype=np.float32)
+    ob1 = np.asarray(layers[0]["b"], dtype=np.float32)
+    ow2 = np.asarray(layers[1]["w"], dtype=np.float32)
+    ob2 = np.asarray(layers[1]["b"], dtype=np.float32)
+    ow3 = np.asarray(layers[2]["w"], dtype=np.float32)
+    ob3 = np.asarray(layers[2]["b"], dtype=np.float32)
+    if ow1.shape[1] != feature_count:
+        raise SystemExit(f"init features 不匹配: {ow1.shape[1]} != {feature_count}")
+    old_hidden = min(hidden, ow1.shape[0], ow2.shape[0], ow2.shape[1], ow3.shape[1])
+    w1[:] = 0
+    w2[:] = 0
+    w3[:] = 0
+    b1[:] = 0
+    b2[:] = 0
+    b3[:] = 0
+    w1[:old_hidden] = ow1[:old_hidden]
+    b1[:old_hidden] = ob1[:old_hidden]
+    w2[:old_hidden, :old_hidden] = ow2[:old_hidden, :old_hidden]
+    b2[:old_hidden] = ob2[:old_hidden]
+    w3[:, :old_hidden] = ow3[:, :old_hidden]
+    b3[:] = ob3
+    print(f"warm-start {init_path}: old_hidden={old_hidden} new_hidden={hidden}")
+    return [w1, b1, w2, b2, w3, b3]
+
+
 def train(args: argparse.Namespace) -> None:
     rows = load_rows(args.data)
     if not rows:
@@ -109,11 +150,18 @@ def train(args: argparse.Namespace) -> None:
     # 数值归一化：tanh 压到 [-1,1]，不把 -80 这种极值直接喂给权重。
     rewards = np.tanh(raw_rewards / max(1.0, float(args.reward_scale)))
     x = np.asarray([r["Features"] for r in rows], dtype=np.float32)
+    y = np.asarray([r["Action"] for r in rows], dtype=np.int64)
+    if not np.isfinite(x).all():
+        bad = int(np.argwhere(~np.isfinite(x))[0][0])
+        raise SystemExit(f"特征含 NaN/Inf，第 {bad} 行")
+    if y.min() < 0 or y.max() >= 34:
+        raise SystemExit(f"Action 越界: [{y.min()}, {y.max()}]")
     feature_mean = x.mean(axis=0)
     feature_std = x.std(axis=0)
     feature_std[feature_std < 1e-6] = 1.0
     x = (x - feature_mean) / feature_std
-    y = np.asarray([r["Action"] for r in rows], dtype=np.int64)
+    if not np.isfinite(x).all():
+        raise SystemExit("标准化后出现 NaN/Inf")
     weights = np.exp(np.clip(rewards, -2.0, 2.0)).astype(np.float32)
     weights /= weights.mean()
 
@@ -128,14 +176,8 @@ def train(args: argparse.Namespace) -> None:
 
     rng_np = np.random.default_rng(args.seed)
     hidden = args.hidden
-    w1 = rng_np.normal(0, math.sqrt(2.0 / feature_count), (hidden, feature_count)).astype(np.float32)
-    b1 = np.zeros(hidden, dtype=np.float32)
-    w2 = rng_np.normal(0, math.sqrt(2.0 / hidden), (hidden, hidden)).astype(np.float32)
-    b2 = np.zeros(hidden, dtype=np.float32)
-    w3 = rng_np.normal(0, math.sqrt(1.0 / hidden), (34, hidden)).astype(np.float32)
-    b3 = np.zeros(34, dtype=np.float32)
-
-    params = [w1, b1, w2, b2, w3, b3]
+    params = init_params(feature_count, hidden, rng_np, args.init_weights)
+    w1, b1, w2, b2, w3, b3 = params
     m = [np.zeros_like(p) for p in params]
     v = [np.zeros_like(p) for p in params]
     beta1, beta2, eps = 0.9, 0.999, 1e-8
@@ -143,6 +185,8 @@ def train(args: argparse.Namespace) -> None:
     batch = args.batch
 
     best_acc = 0.0
+    best_params: list[np.ndarray] | None = None
+    stale_epochs = 0
     for epoch in range(args.epochs):
         idx = np.where(tr)[0]
         rng_np.shuffle(idx)
@@ -171,14 +215,19 @@ def train(args: argparse.Namespace) -> None:
             dw1 = dh1.T @ xb
             db1 = dh1.sum(axis=0)
             grads = [dw1, db1, dw2, db2, dw3, db3]
+            if not all(np.isfinite(g).all() for g in grads):
+                raise SystemExit(f"梯度出现 NaN/Inf（epoch={epoch + 1}, step={t + 1}）")
 
             t += 1
             for i in range(len(params)):
-                m[i] = beta1 * m[i] + (1 - beta1) * grads[i]
-                v[i] = beta2 * v[i] + (1 - beta2) * (grads[i] ** 2)
+                g = np.clip(grads[i], -args.grad_clip, args.grad_clip)
+                m[i] = beta1 * m[i] + (1 - beta1) * g
+                v[i] = beta2 * v[i] + (1 - beta2) * (g ** 2)
                 mh = m[i] / (1 - beta1 ** t)
                 vh = v[i] / (1 - beta2 ** t)
                 params[i] -= args.lr * mh / (np.sqrt(vh) + eps)
+            if not all(np.isfinite(p).all() for p in params):
+                raise SystemExit(f"参数出现 NaN/Inf（epoch={epoch + 1}, step={t}）")
 
         if val.any():
             hv1 = np.maximum(x[val] @ w1.T + b1, 0)
@@ -188,10 +237,23 @@ def train(args: argparse.Namespace) -> None:
         else:
             acc = 0.0
         print(f"epoch {epoch + 1}/{args.epochs} loss={loss:.4f} val_top1={acc:.4f}")
-        best_acc = max(best_acc, acc)
+        if acc > best_acc:
+            best_acc = acc
+            best_params = [p.copy() for p in params]
+            stale_epochs = 0
+        else:
+            stale_epochs += 1
+            if stale_epochs >= args.patience:
+                print(f"early stop: val_top1 连续 {stale_epochs} 轮未提升")
+                break
+
+    if best_params is not None:
+        w1, b1, w2, b2, w3, b3 = best_params
+        print(f"restore best val_top1={best_acc:.4f}")
 
     out = {
         "version": 4,
+        "model_version": "0.0.7-pre",
         "features": feature_count,
         "hidden": hidden,
         "layers": [
@@ -204,6 +266,11 @@ def train(args: argparse.Namespace) -> None:
         "feature_mean": feature_mean.tolist(),
         "feature_std": feature_std.tolist(),
         "selfplay": True,
+        "training": {
+            "grad_clip": args.grad_clip,
+            "patience": args.patience,
+            "init_weights": args.init_weights,
+        },
     }
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False)
@@ -221,6 +288,9 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--reward-scale", type=float, default=20.0)
     parser.add_argument("--label-smoothing", type=float, default=0.02)
+    parser.add_argument("--grad-clip", type=float, default=5.0)
+    parser.add_argument("--patience", type=int, default=2)
+    parser.add_argument("--init-weights", default=None)
     train(parser.parse_args())
 
 

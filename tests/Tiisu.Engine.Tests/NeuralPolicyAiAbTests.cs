@@ -135,6 +135,36 @@ public sealed class NeuralPolicyAiAbTests
         Assert.Equal(0.0, NeuralPolicyAi.EntropyOf(Array.Empty<float>()));
     }
 
+    [Fact]
+    public void 模型元数据_默认v4与显式tiny()
+    {
+        Assert.True(NeuralPolicyAi.Available, "测试环境应能找到 ml/policy_weights_v4.json");
+        var v4 = NeuralPolicyAi.DescribeWeights(null);
+        Assert.NotNull(v4);
+        Assert.Equal(339, v4!.Features);
+        Assert.Equal(128, v4.Hidden);
+        Assert.Equal(3, v4.LayerCount);
+        Assert.Contains("policy_weights_v4.json", v4.Path);
+
+        string dir = TempDir();
+        try
+        {
+            string tiny = Path.Combine(dir, "tiny_v2.json");
+            WriteTinyWeights(tiny, features: 181, hidden: 4, bestTileIndex: 0);
+
+            var meta = NeuralPolicyAi.DescribeWeights(tiny);
+            Assert.NotNull(meta);
+            Assert.Equal(181, meta!.Features);
+            Assert.Equal(4, meta.Hidden);
+            Assert.Equal(3, meta.LayerCount);
+            Assert.Equal(Path.GetFullPath(tiny), Path.GetFullPath(meta.Path));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────
     // 辅助
     // ─────────────────────────────────────────────────────────────
