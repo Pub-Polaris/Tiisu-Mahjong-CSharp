@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows.Forms;
 using Tiisu.App.Rendering;
 using Tiisu.Localization;
+using Tiisu.App.Table;
 using Tiisu.App.Ui.Markdown;
 using Color = Tiisu.App.Rendering.Color;
 
@@ -12,14 +13,18 @@ namespace Tiisu.App.Ui;
 /// <summary>七子风 Markdown 文档页：深色卡片、金色标题、圆体正文，分页阅读。</summary>
 public sealed class MarkdownScreen : Screen
 {
+    private sealed record LinePart(string? Text, string? TileId, float ExtraGapBefore);
+
     private sealed record Line(
         string Text, TextStyle Style, float Indent, float Height, Color Color,
-        IReadOnlyList<string>? Cells = null, float[]? Widths = null, bool Rule = false);
+        IReadOnlyList<string>? Cells = null, float[]? Widths = null, bool Rule = false,
+        IReadOnlyList<LinePart>? Parts = null);
 
     private readonly Action _back;
     private readonly List<Line> _lines = new();
     private readonly List<(int Start, int Count)> _pages = new();
     private readonly string _title;
+    private readonly TableLayoutSpec _tileLayout = new();
     private float _scroll;
     private float _maxScroll;
     private RectF _scrollTrack;
@@ -86,6 +91,10 @@ public sealed class MarkdownScreen : Screen
                     c.FillRect(new RectF(card.X + 24, y + 1, card.W - 48, 1),
                         Color.Rgb(90, 114, 100).WithAlpha(150));
                 }
+                else if (line.Parts is { Count: > 0 } parts)
+                {
+                    DrawParts(c, card, y, line, parts);
+                }
                 else if (line.Cells is { Count: > 0 } cells && line.Widths is { Length: > 0 } widths)
                 {
                     DrawTableRow(c, card, y, line, cells, widths);
@@ -132,6 +141,44 @@ public sealed class MarkdownScreen : Screen
         DrawButton(c, _prev, "app.ui.markdown.prev", _prevHover, _scroll > 0);
         DrawButton(c, _backButton, "app.ui.markdown.back", _backHover, true);
         DrawButton(c, _next, "app.ui.markdown.next", _nextHover, _scroll < _maxScroll);
+    }
+
+    private void DrawParts(ICanvas c, RectF card, float y, Line line, IReadOnlyList<LinePart> parts)
+    {
+        float x = card.X + 24 + line.Indent;
+        bool first = true;
+        float textHeight = 26f;
+        foreach (LinePart part in parts)
+        {
+            if (part.TileId is null && part.Text is null)
+            {
+                x += part.ExtraGapBefore;
+                continue;
+            }
+
+            if (!first)
+            {
+                x += _tileLayout.HandGap;
+            }
+
+            if (part.TileId is { } tileId)
+            {
+                x += part.ExtraGapBefore;
+                c.DrawTile(tileId, new RectF(x, y, _tileLayout.HandW, _tileLayout.HandH));
+                x += _tileLayout.HandW;
+            }
+            else
+            {
+                var textStyle = line.Style with { Size = Math.Min(line.Style.Size, 16f) };
+                string text = part.Text ?? string.Empty;
+                float width = c.MeasureText(text, textStyle);
+                c.DrawText(text, new RectF(x, y + (line.Height - textHeight) / 2f, width, textHeight),
+                    line.Color, textStyle);
+                x += width;
+            }
+
+            first = false;
+        }
     }
 
     private static void DrawTableRow(ICanvas c, RectF card, float y, Line line,
@@ -284,11 +331,25 @@ public sealed class MarkdownScreen : Screen
                 }
 
                 case MarkdownBlockKind.Paragraph:
-                    AddWrapped(block.Text, new TextStyle(16, Center: false), 0, text);
-                    AddBlank(8);
+                    if (TryAddInlineBlock(block, new TextStyle(16, Center: false), 0, text))
+                    {
+                        AddBlank(8);
+                    }
+                    else
+                    {
+                        AddWrapped(block.Text, new TextStyle(16, Center: false), 0, text);
+                        AddBlank(8);
+                    }
+
                     break;
 
                 case MarkdownBlockKind.Bullet:
+                    if (TryAddInlineBlock(block, new TextStyle(16, Center: false), 20, text, "· "))
+                    {
+                        AddBlank(4);
+                        break;
+                    }
+
                     foreach (string line in Wrap("· " + block.Text, new TextStyle(16, Center: false), ContentWidth - 22))
                     {
                         Add(new Line(line, new TextStyle(16, Center: false), 20, 24, text));
@@ -298,6 +359,12 @@ public sealed class MarkdownScreen : Screen
                     break;
 
                 case MarkdownBlockKind.Quote:
+                    if (TryAddInlineBlock(block, new TextStyle(15, Center: false), 18, muted, "│ "))
+                    {
+                        AddBlank(6);
+                        break;
+                    }
+
                     foreach (string line in Wrap("│ " + block.Text, new TextStyle(15, Center: false), ContentWidth - 22))
                     {
                         Add(new Line(line, new TextStyle(15, Center: false), 18, 23, muted));
@@ -355,6 +422,54 @@ public sealed class MarkdownScreen : Screen
         }
 
         BuildPages();
+    }
+
+    private bool TryAddInlineBlock(
+        MarkdownBlock block, TextStyle style, float indent, Color color, string prefix = "")
+    {
+        if (block.Inlines is not { Count: > 0 })
+        {
+            return false;
+        }
+
+        var parts = new List<LinePart>();
+        if (prefix.Length > 0)
+        {
+            parts.Add(new LinePart(prefix, null, 0f));
+        }
+
+        bool anyTile = false;
+        foreach (MarkdownInline inline in block.Inlines)
+        {
+            if (inline.Kind == MarkdownInlineKind.Code
+                && TileNotationParser.TryParse(inline.Text, out IReadOnlyList<TileRun> runs))
+            {
+                foreach (TileRun run in runs)
+                {
+                    if (run.Id is null)
+                    {
+                        parts.Add(new LinePart(null, null, run.ExtraGapBefore));
+                    }
+                    else
+                    {
+                        parts.Add(new LinePart(null, run.Id, run.ExtraGapBefore));
+                        anyTile = true;
+                    }
+                }
+            }
+            else if (inline.Text.Length > 0)
+            {
+                parts.Add(new LinePart(inline.Text, null, 0f));
+            }
+        }
+
+        if (!anyTile)
+        {
+            return false;
+        }
+
+        Add(new Line(string.Empty, style, indent, _tileLayout.HandH, color, Parts: parts));
+        return true;
     }
 
     private static float[] TableWidths(IEnumerable<IReadOnlyList<string>> rows)

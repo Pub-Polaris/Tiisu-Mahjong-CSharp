@@ -16,12 +16,22 @@ public enum MarkdownBlockKind
     Rule,
 }
 
+public enum MarkdownInlineKind
+{
+    Text,
+    Code,
+}
+
+/// <summary>行内片段：普通文字或反引号代码 span。Code 片段保留原文，供牌型渲染识别。</summary>
+public sealed record MarkdownInline(MarkdownInlineKind Kind, string Text);
+
 public sealed record MarkdownBlock(
     MarkdownBlockKind Kind,
     string Text,
     int Level = 0,
     bool Header = false,
-    IReadOnlyList<string>? Cells = null);
+    IReadOnlyList<string>? Cells = null,
+    IReadOnlyList<MarkdownInline>? Inlines = null);
 
 /// <summary>
 /// 游戏内文档用的 Markdown 子集解析器：标题 / 段落 / 列表 / 引用 / 代码块 / 简单表格。
@@ -34,6 +44,7 @@ public static class MarkdownDocument
     private static readonly Regex Ordered = new(@"^\d+[.)]\s+(.+)$", RegexOptions.Compiled);
     private static readonly Regex Rule = new(@"^\s*([-*_])(\s*\1){2,}\s*$", RegexOptions.Compiled);
     private static readonly Regex TableSeparator = new(@"^\s*\|?[\s:|-]+\|[\s:|-]*$", RegexOptions.Compiled);
+    private static readonly Regex CodeSpan = new(@"`([^`\n]+)`", RegexOptions.Compiled);
 
     public static IReadOnlyList<MarkdownBlock> Parse(string? markdown)
     {
@@ -55,7 +66,9 @@ public static class MarkdownDocument
                 return;
             }
 
-            blocks.Add(new MarkdownBlock(MarkdownBlockKind.Paragraph, Inline(string.Join(" ", paragraph))));
+            string raw = string.Join(" ", paragraph);
+            blocks.Add(new MarkdownBlock(MarkdownBlockKind.Paragraph, Inline(raw),
+                Inlines: ParseInlines(raw)));
             paragraph.Clear();
         }
 
@@ -111,7 +124,9 @@ public static class MarkdownDocument
             if (line.TrimStart().StartsWith('>'))
             {
                 FlushParagraph();
-                blocks.Add(new MarkdownBlock(MarkdownBlockKind.Quote, Inline(line.TrimStart()[1..].TrimStart())));
+                string quote = line.TrimStart()[1..].TrimStart();
+                blocks.Add(new MarkdownBlock(MarkdownBlockKind.Quote, Inline(quote),
+                    Inlines: ParseInlines(quote)));
                 continue;
             }
 
@@ -119,7 +134,9 @@ public static class MarkdownDocument
             if (bullet.Success)
             {
                 FlushParagraph();
-                blocks.Add(new MarkdownBlock(MarkdownBlockKind.Bullet, Inline(bullet.Groups[1].Value)));
+                string text = bullet.Groups[1].Value;
+                blocks.Add(new MarkdownBlock(MarkdownBlockKind.Bullet, Inline(text),
+                    Inlines: ParseInlines(text)));
                 continue;
             }
 
@@ -127,7 +144,9 @@ public static class MarkdownDocument
             if (ordered.Success)
             {
                 FlushParagraph();
-                blocks.Add(new MarkdownBlock(MarkdownBlockKind.Bullet, Inline(ordered.Groups[1].Value)));
+                string text = ordered.Groups[1].Value;
+                blocks.Add(new MarkdownBlock(MarkdownBlockKind.Bullet, Inline(text),
+                    Inlines: ParseInlines(text)));
                 continue;
             }
 
@@ -163,6 +182,51 @@ public static class MarkdownDocument
 
     public static string PlainText(string? markdown) =>
         string.Join("\n", Parse(markdown).Select(b => b.Text));
+
+    private static IReadOnlyList<MarkdownInline> ParseInlines(string text)
+    {
+        var result = new List<MarkdownInline>();
+        int start = 0;
+        foreach (Match match in CodeSpan.Matches(text))
+        {
+            if (match.Index > start)
+            {
+                string before = Inline(text[start..match.Index]);
+                if (before.Length > 0)
+                {
+                    result.Add(new MarkdownInline(MarkdownInlineKind.Text, before));
+                }
+            }
+
+            string code = match.Groups[1].Value.Trim();
+            if (code.Length > 0)
+            {
+                result.Add(new MarkdownInline(MarkdownInlineKind.Code, code));
+            }
+
+            start = match.Index + match.Length;
+        }
+
+        if (start < text.Length)
+        {
+            string after = Inline(text[start..]);
+            if (after.Length > 0)
+            {
+                result.Add(new MarkdownInline(MarkdownInlineKind.Text, after));
+            }
+        }
+
+        if (result.Count == 0)
+        {
+            string plain = Inline(text);
+            if (plain.Length > 0)
+            {
+                result.Add(new MarkdownInline(MarkdownInlineKind.Text, plain));
+            }
+        }
+
+        return result;
+    }
 
     private static string ParseRow(string line)
     {

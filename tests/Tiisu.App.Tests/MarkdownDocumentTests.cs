@@ -44,6 +44,17 @@ public sealed class MarkdownDocumentTests
     }
 
     [Fact]
+    public void Parse_InlineCodeSpan_IsPreservedForTileRendering()
+    {
+        var blocks = MarkdownDocument.Parse("牌型：`123z456z` 结束");
+        var paragraph = Assert.Single(blocks, b => b.Kind == MarkdownBlockKind.Paragraph);
+
+        Assert.NotNull(paragraph.Inlines);
+        Assert.Contains(paragraph.Inlines!, part =>
+            part.Kind == MarkdownInlineKind.Code && part.Text == "123z456z");
+    }
+
+    [Fact]
     public void Parse_Empty()
     {
         Assert.Empty(MarkdownDocument.Parse(""));
