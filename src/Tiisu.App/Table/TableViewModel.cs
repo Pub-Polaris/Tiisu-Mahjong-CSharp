@@ -8,6 +8,12 @@ namespace Tiisu.App.Table;
 /// <summary>牌的极简快照（渲染只需要 id 与是否已知）。</summary>
 public readonly record struct TileView(string Id, bool Hidden = false);
 
+/// <summary>一张待牌的荣和赋区间；两端都为空表示当前没有合法荣和。</summary>
+public readonly record struct TenpaiFuRange(int? Min, int? Max)
+{
+    public bool HasValue => Min.HasValue && Max.HasValue;
+}
+
 /// <summary>
 /// 副露快照。暗杠（<see cref="IsAnkan"/>）有两条展示规则：
 /// <para>1. 对局中只翻第 2、4 张（索引 1、3），另外两张盖牌背；</para>
@@ -163,8 +169,8 @@ public sealed record TableViewModel
     /// <summary>听牌提示：当前可和的牌（牌面图集 id，如 1m / 5z）。真听牌时常显，不限阶段。</summary>
     public IReadOnlyList<string> TenpaiTiles { get; init; } = Array.Empty<string>();
 
-    /// <summary>逐张待牌的荣和最小赋；与 <see cref="TenpaiTiles"/> 对齐，null = 荣和无役/不能和。</summary>
-    public IReadOnlyList<int?> TenpaiFu { get; init; } = Array.Empty<int?>();
+    /// <summary>逐张待牌的荣和赋区间；与 <see cref="TenpaiTiles"/> 对齐；无荣和时为两端 null。</summary>
+    public IReadOnlyList<TenpaiFuRange> TenpaiFu { get; init; } = Array.Empty<TenpaiFuRange>();
 
     /// <summary>听牌摘要：余张 / 打点范围，画在待听牌上方。</summary>
     public string TenpaiSummary { get; init; } = string.Empty;

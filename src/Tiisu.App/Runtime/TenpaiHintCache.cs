@@ -7,18 +7,19 @@ using Tiisu.Engine;
 
 namespace Tiisu.App.Runtime;
 
-/// <summary>听牌提示的两块数据：牌 id 列表 + 顶部摘要（余张/打点），以及逐张荣和最小赋。</summary>
+/// <summary>听牌提示：牌 id 列表、顶部摘要，以及逐张荣和赋区间。</summary>
 public sealed record TenpaiHints(
     IReadOnlyList<string> Tiles,
     string Summary,
-    IReadOnlyList<int?> MinFu)
+    IReadOnlyList<TenpaiFuRange> Fu)
 {
     public TenpaiHints(IReadOnlyList<string> tiles, string summary)
-        : this(tiles, summary, Array.Empty<int?>())
+        : this(tiles, summary, Array.Empty<TenpaiFuRange>())
     {
     }
 
-    public static readonly TenpaiHints Empty = new(Array.Empty<string>(), string.Empty, Array.Empty<int?>());
+    public static readonly TenpaiHints Empty =
+        new(Array.Empty<string>(), string.Empty, Array.Empty<TenpaiFuRange>());
 }
 
 /// <summary>

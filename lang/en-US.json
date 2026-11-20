@@ -1716,7 +1716,8 @@
         "points": " · points {min}",
         "pointsRange": " · points {min}–{max}",
         "fu": "Fu {fu}",
-        "noFu": "—"
+        "noFu": "—",
+        "fuRange": "Fu {min}–{max}"
       },
       "tile": {
         "man": "{num}m",

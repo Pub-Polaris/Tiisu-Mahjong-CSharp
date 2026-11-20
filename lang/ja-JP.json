@@ -1716,7 +1716,8 @@
         "points": "・打点 {min}",
         "pointsRange": "・打点 {min}–{max}",
         "fu": "賦 {fu}",
-        "noFu": "—"
+        "noFu": "—",
+        "fuRange": "賦 {min}–{max}"
       },
       "tile": {
         "man": "{num}万",

@@ -22,6 +22,9 @@ public sealed record TenpaiEntry(Tile Tile, bool Success, int TotalFu, int NoYak
     /// <c>null</c> = 这张牌荣和无役/不能和，不能显示一个赋数。
     /// </summary>
     public int? MinRonFu { get; init; }
+
+    /// <summary>荣和口径下的最高赋；仅提示路径请求时计算。</summary>
+    public int? MaxRonFu { get; init; }
 }
 
 /// <summary>listTenpai 的入参（engine.js 里给 <c>listTenpai</c> 的第二层 opts）。</summary>
@@ -103,11 +106,14 @@ public static class TenpaiCalculator
 
             if (options.IncludeMinRonFu && win.Success)
             {
-                var ron = CheckCandidate(checker, hand, melds, options, candidate,
+                var ronMin = CheckCandidate(checker, hand, melds, options, candidate,
                     selfDraw: false, preferLowestFu: true);
+                var ronMax = CheckCandidate(checker, hand, melds, options, candidate,
+                    selfDraw: false, preferLowestFu: false);
                 entry = entry with
                 {
-                    MinRonFu = ron is { Success: true } ? ron.TotalFu : null,
+                    MinRonFu = ronMin is { Success: true } ? ronMin.TotalFu : null,
+                    MaxRonFu = ronMax is { Success: true } ? ronMax.TotalFu : null,
                 };
             }
 

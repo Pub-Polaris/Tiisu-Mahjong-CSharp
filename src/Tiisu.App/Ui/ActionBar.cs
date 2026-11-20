@@ -302,9 +302,13 @@ public sealed class ActionBar
             c.DrawTile(vm.TenpaiTiles[i], new RectF(tx, y, tw, th));
             if (i < vm.TenpaiFu.Count)
             {
-                string fu = vm.TenpaiFu[i] is int value
-                    ? L.T("app.runtime.tenpai.fu", ("fu", value))
-                    : L.T("app.runtime.tenpai.noFu");
+                var range = vm.TenpaiFu[i];
+                string fu = !range.HasValue
+                    ? L.T("app.runtime.tenpai.noFu")
+                    : range.Min == range.Max
+                        ? L.T("app.runtime.tenpai.fu", ("fu", range.Min!.Value))
+                        : L.T("app.runtime.tenpai.fuRange",
+                            ("min", range.Min!.Value), ("max", range.Max!.Value));
                 c.DrawText(fu, new RectF(tx, y - 22, tw, 16),
                     Color.Rgb(255, 226, 140), new TextStyle(12, Bold: true, Center: true));
             }

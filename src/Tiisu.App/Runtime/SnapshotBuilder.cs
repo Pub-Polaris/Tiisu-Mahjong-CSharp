@@ -150,7 +150,7 @@ public static class SnapshotBuilder
 
         // 待听牌提示：真听牌就常显（不再限定 human_discard 阶段）。
         var tenpai = new List<string>();
-        var tenpaiFu = new List<int?>();
+        var tenpaiFu = new List<TenpaiFuRange>();
         int selfIndex = -1;
         for (int i = 0; i < MahjongEngine.PlayerCount; i++)
         {
@@ -178,7 +178,7 @@ public static class SnapshotBuilder
                 ? BuildTenpaiHints(engine, self)
                 : tenpaiCache.Get(engine, self, settings ?? new Settings());
             tenpai.AddRange(hints.Tiles);
-            tenpaiFu.AddRange(hints.MinFu);
+            tenpaiFu.AddRange(hints.Fu);
             tenpaiSummary = hints.Summary;
 
             // 14 张形和牌时顺手把当前总赋/门槛赋投影给 UI；13 张形只显示起和线。
@@ -317,7 +317,7 @@ public static class SnapshotBuilder
             bool shape = player.IsCalled;
             var ids = new List<string>();
             var remain = new List<int>();
-            var minFu = new List<int?>();
+            var minFu = new List<TenpaiFuRange>();
             int minPoints = int.MaxValue;
             int maxPoints = int.MinValue;
             var visible = new int[36];
@@ -351,7 +351,9 @@ public static class SnapshotBuilder
 
                 ids.Add(TileNotation.AtlasId(entry.Tile));
                 remain.Add(Math.Max(0, 4 - visible[entry.Tile.Index]));
-                minFu.Add(engine.Ruleset == Ruleset.TuidaoHu ? null : entry.MinRonFu);
+                minFu.Add(engine.Ruleset == Ruleset.TuidaoHu
+                    ? default
+                    : new TenpaiFuRange(entry.MinRonFu, entry.MaxRonFu));
                 if (entry.Success && entry.Result is { } result)
                 {
                     int sub = engine.CalcFinalPoints(EngineSettlement.From(result), entry.TotalFu);

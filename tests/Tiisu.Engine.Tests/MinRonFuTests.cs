@@ -78,5 +78,7 @@ public sealed class MinRonFuTests
         var wait = Assert.Single(entries, e => e.Tile == new Tile(Suit.Man, 5));
         Assert.True(wait.Success);
         Assert.True(wait.MinRonFu is > 0);
+        Assert.True(wait.MaxRonFu is > 0);
+        Assert.True(wait.MinRonFu <= wait.MaxRonFu);
     }
 }
