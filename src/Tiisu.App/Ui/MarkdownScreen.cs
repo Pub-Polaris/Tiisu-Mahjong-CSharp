@@ -44,6 +44,12 @@ public sealed class MarkdownScreen : Screen
     private const float ContentWidth = 950f;
     private const float PageHeight = 470f;
     private const float LineGap = 4f;
+    // 文档牌面按手牌尺寸的 25% 显示；间距与 _ 空位同步缩放。
+    private const float TileScale = 0.25f;
+
+    private float TileW => _tileLayout.HandW * TileScale;
+    private float TileH => _tileLayout.HandH * TileScale;
+    private float TileGap => _tileLayout.HandGap * TileScale;
 
     public MarkdownScreen(string title, string markdown, Action back) : base("markdown")
     {
@@ -152,20 +158,20 @@ public sealed class MarkdownScreen : Screen
         {
             if (part.TileId is null && part.Text is null)
             {
-                x += part.ExtraGapBefore;
+                x += part.ExtraGapBefore * TileScale;
                 continue;
             }
 
             if (!first)
             {
-                x += _tileLayout.HandGap;
+                x += TileGap;
             }
 
             if (part.TileId is { } tileId)
             {
-                x += part.ExtraGapBefore;
-                c.DrawTile(tileId, new RectF(x, y, _tileLayout.HandW, _tileLayout.HandH));
-                x += _tileLayout.HandW;
+                x += part.ExtraGapBefore * TileScale;
+                c.DrawTile(tileId, new RectF(x, y, TileW, TileH));
+                x += TileW;
             }
             else
             {
@@ -468,7 +474,7 @@ public sealed class MarkdownScreen : Screen
             return false;
         }
 
-        Add(new Line(string.Empty, style, indent, _tileLayout.HandH, color, Parts: parts));
+        Add(new Line(string.Empty, style, indent, TileH, color, Parts: parts));
         return true;
     }
 
