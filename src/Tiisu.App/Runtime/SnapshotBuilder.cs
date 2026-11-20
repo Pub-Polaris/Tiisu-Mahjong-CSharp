@@ -425,6 +425,22 @@ public static class SnapshotBuilder
 /// 牌面记号（与 Web 侧 <c>notation.js</c> 同口径）：单张 <c>1m</c>、手牌 <c>123m456p789s1122z</c>。
 /// 日志与快照共用，保证 ASCII。
 /// </summary>
+/// <remarks>
+/// 牌型文本规范 v1（详见 <c>docs/DSH/牌型文本规范_261121.md</c>）：
+/// <para>
+/// 数字串 + 花色（m/p/s/z）；花色作用于它前面、上一个花色之后的全部数字。
+/// 数字串内部分组、空格、<c>/</c>、<c>|</c>、<c>-</c>、<c>_</c> 只影响阅读，不影响牌型。
+/// </para>
+/// <para>
+/// 边界：<c>123333p</c> 只表示 1p + 2p + 3p×4，不推断为 <c>12p+3333p</c> 或 <c>123p+333p</c>；
+/// 面子拆分必须由判和/听牌算法计算，解析阶段不得猜。
+/// </para>
+/// <para>
+/// 副露 token：<c>c</c>=吃、<c>b</c>=碰（避免与筒子 <c>p</c> 混淆）、<c>a</c>=暗杠、<c>k</c>=明杠。
+/// canonical 形式必须带花色，例如 <c>c123m</c>、<c>b777z</c>、<c>a222z</c>、<c>k333p</c>。
+/// 缺花色的 <c>c123</c>/<c>k333</c> 只能作为有上下文的显示短形式，不能作为自足解析输入。
+/// </para>
+/// </remarks>
 public static class TileNotation
 {
     public static string SuitChar(Suit suit) => suit switch
