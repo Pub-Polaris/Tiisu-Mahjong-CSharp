@@ -156,9 +156,11 @@ public sealed partial class WinChecker
         IReadOnlyList<Meld>? melds = null,
         bool firstTurn = false,
         Tile? winTile = null,
-        WinContext? context = null)
+        WinContext? context = null,
+        bool preferLowestFu = false)
     {
-        return CheckWinCore(hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, firstTurn, winTile, context);
+        return CheckWinCore(hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, firstTurn, winTile, context,
+            preferLowestFu);
     }
 
     private WinResult CheckWinCore(
@@ -170,7 +172,8 @@ public sealed partial class WinChecker
         IReadOnlyList<Meld>? melds,
         bool firstTurn,
         Tile? winTile,
-        WinContext? context)
+        WinContext? context,
+        bool preferLowestFu)
     {
         ArgumentNullException.ThrowIfNull(hand);
         _ = firstTurn;
@@ -238,7 +241,10 @@ public sealed partial class WinChecker
             {
                 int fu = result.TotalFu ?? 0;
                 int yakuCount = result.ActiveYaku.Count;
-                if (fu > bestFu || (fu == bestFu && yakuCount > bestCount))
+                bool better = preferLowestFu
+                    ? fu < bestFu || (fu == bestFu && yakuCount < bestCount)
+                    : fu > bestFu || (fu == bestFu && yakuCount > bestCount);
+                if (better)
                 {
                     best = result;
                     bestFu = fu;

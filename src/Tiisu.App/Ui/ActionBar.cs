@@ -287,7 +287,7 @@ public sealed class ActionBar
         if (!string.IsNullOrEmpty(vm.TenpaiSummary))
         {
             c.DrawText(UiText.Tr(vm.TenpaiSummary),
-                new RectF(x, y - 30, Math.Max(totalW, 360f), 22),
+                new RectF(x, y - 48, Math.Max(totalW, 360f), 22),
                 Color.Rgb(255, 226, 140), new TextStyle(14, Bold: true, Center: false));
         }
 
@@ -297,9 +297,18 @@ public sealed class ActionBar
             Color.Rgb(255, 226, 140), new TextStyle(16, Bold: true, Center: false));
 
         float tx = x + labelW;
-        foreach (var id in vm.TenpaiTiles)
+        for (int i = 0; i < vm.TenpaiTiles.Count; i++)
         {
-            c.DrawTile(id, new RectF(tx, y, tw, th));
+            c.DrawTile(vm.TenpaiTiles[i], new RectF(tx, y, tw, th));
+            if (i < vm.TenpaiFu.Count)
+            {
+                string fu = vm.TenpaiFu[i] is int value
+                    ? L.T("app.runtime.tenpai.fu", ("fu", value))
+                    : L.T("app.runtime.tenpai.noFu");
+                c.DrawText(fu, new RectF(tx, y - 22, tw, 16),
+                    Color.Rgb(255, 226, 140), new TextStyle(12, Bold: true, Center: true));
+            }
+
             tx += tw + gap;
         }
     }

@@ -1714,7 +1714,9 @@
       "tenpai": {
         "summary": "Waiting: {wait} · {left} left{points}",
         "points": " · points {min}",
-        "pointsRange": " · points {min}–{max}"
+        "pointsRange": " · points {min}–{max}",
+        "fu": "Fu {fu}",
+        "noFu": "—"
       },
       "tile": {
         "man": "{num}m",

@@ -163,6 +163,9 @@ public sealed record TableViewModel
     /// <summary>听牌提示：当前可和的牌（牌面图集 id，如 1m / 5z）。真听牌时常显，不限阶段。</summary>
     public IReadOnlyList<string> TenpaiTiles { get; init; } = Array.Empty<string>();
 
+    /// <summary>逐张待牌的荣和最小赋；与 <see cref="TenpaiTiles"/> 对齐，null = 荣和无役/不能和。</summary>
+    public IReadOnlyList<int?> TenpaiFu { get; init; } = Array.Empty<int?>();
+
     /// <summary>听牌摘要：余张 / 打点范围，画在待听牌上方。</summary>
     public string TenpaiSummary { get; init; } = string.Empty;
 

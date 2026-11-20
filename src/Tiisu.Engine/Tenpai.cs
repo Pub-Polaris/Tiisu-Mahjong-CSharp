@@ -16,6 +16,12 @@ public sealed record TenpaiEntry(Tile Tile, bool Success, int TotalFu, int NoYak
 
     /// <summary>这张候选牌的完整判和结果（用于算打点）；不可能和时 null。</summary>
     public WinResult? Result { get; init; }
+
+    /// <summary>
+    /// 荣和口径下的最小赋（排除自摸与最后一张加成）；仅提示路径请求时计算。
+    /// <c>null</c> = 这张牌荣和无役/不能和，不能显示一个赋数。
+    /// </summary>
+    public int? MinRonFu { get; init; }
 }
 
 /// <summary>listTenpai 的入参（engine.js 里给 <c>listTenpai</c> 的第二层 opts）。</summary>
@@ -30,6 +36,8 @@ public sealed class TenpaiOptions
     public int MinkanCount { get; init; }
 
     public bool FirstTurn { get; init; }
+
+    public bool IncludeMinRonFu { get; init; }
 
     public SeatWind SeatWind { get; init; }
 
@@ -87,11 +95,23 @@ public static class TenpaiCalculator
             }
 
             int noYakuGap = win.Reason == "no_yaku" ? options.BaseFu - win.ThresholdFu : 0;
-            result.Add(new TenpaiEntry(candidate, win.Success, win.TotalFu ?? 0, noYakuGap)
+            var entry = new TenpaiEntry(candidate, win.Success, win.TotalFu ?? 0, noYakuGap)
             {
                 Formed = win.Reason != "not_formed",
                 ThresholdFu = win.ThresholdFu,
-            });
+            };
+
+            if (options.IncludeMinRonFu && win.Success)
+            {
+                var ron = CheckCandidate(checker, hand, melds, options, candidate,
+                    selfDraw: false, preferLowestFu: true);
+                entry = entry with
+                {
+                    MinRonFu = ron is { Success: true } ? ron.TotalFu : null,
+                };
+            }
+
+            result.Add(entry);
         }
 
         return result;
@@ -111,7 +131,8 @@ public static class TenpaiCalculator
         IReadOnlyList<Tiisu.Core.Meld> melds,
         TenpaiOptions options,
         Tile candidate,
-        bool? selfDraw = null)
+        bool? selfDraw = null,
+        bool preferLowestFu = false)
     {
         var trial = new List<Tile>(hand.Count + 1);
         trial.AddRange(hand);
@@ -136,7 +157,8 @@ public static class TenpaiCalculator
                     LastTileVisible = 0,
                     SeatWind = options.SeatWind.Wire(),
                     RoundWind = options.RoundWind.Wire(),
-                });
+                },
+                preferLowestFu);
         }
         catch
         {

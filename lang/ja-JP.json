@@ -1714,7 +1714,9 @@
       "tenpai": {
         "summary": "待ち {wait}・残り {left} 枚{points}",
         "points": "・打点 {min}",
-        "pointsRange": "・打点 {min}–{max}"
+        "pointsRange": "・打点 {min}–{max}",
+        "fu": "賦 {fu}",
+        "noFu": "—"
       },
       "tile": {
         "man": "{num}万",

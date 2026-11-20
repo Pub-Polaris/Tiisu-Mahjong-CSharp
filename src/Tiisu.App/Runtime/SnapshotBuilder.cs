@@ -150,6 +150,7 @@ public static class SnapshotBuilder
 
         // 待听牌提示：真听牌就常显（不再限定 human_discard 阶段）。
         var tenpai = new List<string>();
+        var tenpaiFu = new List<int?>();
         int selfIndex = -1;
         for (int i = 0; i < MahjongEngine.PlayerCount; i++)
         {
@@ -177,6 +178,7 @@ public static class SnapshotBuilder
                 ? BuildTenpaiHints(engine, self)
                 : tenpaiCache.Get(engine, self, settings ?? new Settings());
             tenpai.AddRange(hints.Tiles);
+            tenpaiFu.AddRange(hints.MinFu);
             tenpaiSummary = hints.Summary;
 
             // 14 张形和牌时顺手把当前总赋/门槛赋投影给 UI；13 张形只显示起和线。
@@ -253,6 +255,7 @@ public static class SnapshotBuilder
             Phase = phase,
             Seats = seats,
             TenpaiTiles = tenpai,
+              TenpaiFu = tenpaiFu,
               TenpaiSummary = tenpaiSummary,
             IsCalled = selfCalled,
               WinHint = winHint,
@@ -309,10 +312,12 @@ public static class SnapshotBuilder
         {
             var hand = engine.TenpaiHandOf(player);
             var entries = engine.ListTenpaiForHand(
-                hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn);
+                hand, player.Melds, player.AnkanCount, player.MinkanCount, player.SeatWind, player.FirstTurn,
+                includeMinRonFu: true);
             bool shape = player.IsCalled;
             var ids = new List<string>();
             var remain = new List<int>();
+            var minFu = new List<int?>();
             int minPoints = int.MaxValue;
             int maxPoints = int.MinValue;
             var visible = new int[36];
@@ -346,6 +351,7 @@ public static class SnapshotBuilder
 
                 ids.Add(TileNotation.AtlasId(entry.Tile));
                 remain.Add(Math.Max(0, 4 - visible[entry.Tile.Index]));
+                minFu.Add(engine.Ruleset == Ruleset.TuidaoHu ? null : entry.MinRonFu);
                 if (entry.Success && entry.Result is { } result)
                 {
                     int sub = engine.CalcFinalPoints(EngineSettlement.From(result), entry.TotalFu);
@@ -369,7 +375,8 @@ public static class SnapshotBuilder
                 : string.Empty;
             return new TenpaiHints(
                 ids,
-                L.T("app.runtime.tenpai.summary", ("wait", listen), ("left", left), ("points", points)));
+                L.T("app.runtime.tenpai.summary", ("wait", listen), ("left", left), ("points", points)),
+                minFu);
         }
         catch
         {

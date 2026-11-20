@@ -120,6 +120,7 @@ public static class TableDemoModel
             Actions = HumanAction.Kan | HumanAction.Tsumo | HumanAction.Pon | HumanAction.Chi | HumanAction.DeclareCall,
             ActionLabels = new[] { "吃" },
             TenpaiTiles = vm.TenpaiTiles,
+            TenpaiFu = vm.TenpaiFu,
             Message = "合并 UI 导出：五个语义动作按钮",
             AiLevels = vm.AiLevels,
         };
@@ -146,6 +147,7 @@ public static class TableDemoModel
             ActionLabels = new[] { "吃 4-5-6", "吃 5-6-7" },
             Message = "副露窗口",
             TenpaiTiles = new[] { "2m", "5p", "8s", "3z" },
+            TenpaiFu = new int?[] { 7, 7, 7, null },
             AiLevels = vm.AiLevels,
         };
     }
@@ -233,6 +235,7 @@ public static class TableDemoModel
             Phase = "human_discard",
             Actions = HumanAction.Discard | (callable ? HumanAction.DeclareCall : HumanAction.None),
             TenpaiTiles = callable ? new[] { "2m", "5p", "8s", "3z" } : Array.Empty<string>(),
+            TenpaiFu = callable ? new int?[] { 7, 7, 7, null } : Array.Empty<int?>(),
             Message = callable ? "真听牌：显示报听按钮" : "不听牌：不显示报听按钮",
             AiLevels = vm.AiLevels,
         };

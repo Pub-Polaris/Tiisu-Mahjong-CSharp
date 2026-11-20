@@ -436,7 +436,8 @@ public sealed partial class MahjongEngine
         int ankanCount,
         int minkanCount,
         SeatWind seatWind,
-        bool firstTurn)
+        bool firstTurn,
+        bool includeMinRonFu = false)
     {
         var options = new TenpaiOptions
         {
@@ -445,6 +446,7 @@ public sealed partial class MahjongEngine
             AnkanCount = ankanCount,
             MinkanCount = minkanCount,
             FirstTurn = firstTurn,
+            IncludeMinRonFu = includeMinRonFu,
             SeatWind = seatWind,
             RoundWind = RoundWind,
             BaseFu = _yakuData.BaseFu,
