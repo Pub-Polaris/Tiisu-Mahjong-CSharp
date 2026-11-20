@@ -44,8 +44,8 @@ public sealed class MarkdownScreen : Screen
     private const float ContentWidth = 950f;
     private const float PageHeight = 470f;
     private const float LineGap = 4f;
-    // 文档牌面按手牌尺寸的 25% 显示；间距与 _ 空位同步缩放。
-    private const float TileScale = 0.25f;
+    // 文档牌面按手牌尺寸的 50% 显示；间距与 _ 空位同步缩放。
+    private const float TileScale = 0.5f;
 
     private float TileW => _tileLayout.HandW * TileScale;
     private float TileH => _tileLayout.HandH * TileScale;
