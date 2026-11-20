@@ -1820,7 +1820,8 @@
       "ankanNeeds14": "暗杠要按摸牌后的 14 张形判定",
       "noFourSameTiles": "手里没有四张同样的牌",
       "ankanChangesWait": "这组暗杠会改变听牌形",
-      "callBlocksMeldShort": "报听后禁止吃碰"
+      "callBlocksMeldShort": "报听后禁止吃碰",
+      "chiOnlyFromPrevious": "只能吃上家打出的牌"
     },
     "flow": {
       "fourWind": "四风连打（{tile}）",

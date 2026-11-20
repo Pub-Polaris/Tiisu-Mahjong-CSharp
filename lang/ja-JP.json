@@ -1820,7 +1820,8 @@
       "ankanNeeds14": "暗槓は摸牌後の 14 枚形で判定します",
       "noFourSameTiles": "同じ牌 4 枚が手牌にありません",
       "ankanChangesWait": "その暗槓は待ち形を変えてしまいます",
-      "callBlocksMeldShort": "宣言後はチー・ポン禁止"
+      "callBlocksMeldShort": "宣言後はチー・ポン禁止",
+      "chiOnlyFromPrevious": "食べられるのは上家の捨て牌だけです"
     },
     "flow": {
       "fourWind": "四風連打（{tile}）",

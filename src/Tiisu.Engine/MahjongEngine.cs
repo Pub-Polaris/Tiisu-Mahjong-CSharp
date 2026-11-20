@@ -677,6 +677,11 @@ public sealed partial class MahjongEngine
             throw new InvalidOperationException(callReason ?? L.T("engine.reason.callBlocksMeldShort"));
         }
 
+        if (type == MeldType.Chi && discarder != (playerIndex + PlayerCount - 1) % PlayerCount)
+        {
+            throw new InvalidOperationException(L.T("engine.reason.chiOnlyFromPrevious"));
+        }
+
         switch (type)
         {
             case MeldType.Pon:

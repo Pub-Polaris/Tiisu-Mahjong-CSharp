@@ -1820,7 +1820,8 @@
       "ankanNeeds14": "Ankan must be judged on the 14-tile shape after the draw",
       "noFourSameTiles": "No four identical tiles in hand",
       "ankanChangesWait": "That ankan would change the wait shape",
-      "callBlocksMeldShort": "Chi/pon are forbidden after declaring"
+      "callBlocksMeldShort": "Chi/pon are forbidden after declaring",
+      "chiOnlyFromPrevious": "Chi is only allowed from the previous player"
     },
     "flow": {
       "fourWind": "Four winds discarded ({tile})",
