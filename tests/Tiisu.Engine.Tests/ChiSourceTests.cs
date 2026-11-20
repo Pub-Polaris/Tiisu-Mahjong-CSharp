@@ -44,16 +44,18 @@ public sealed class ChiSourceTests
         return engine;
     }
 
-    [Fact]
-    public void Chi_FromNonPreviousPlayer_IsRejectedByEngine()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Chi_FromNonPreviousPlayer_IsRejectedByEngine(int discarder)
     {
         var engine = NewRound();
         var oneMan = new Tile(Suit.Man, 1);
         var trio = Hand("123m");
 
-        // 玩家 0 的上家是 3；1 是对家，不允许吃。
+        // 玩家 0 的上家是 3；1 / 2 都不是上家，不允许吃。
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            engine.ApplyMeld(0, MeldType.Chi, oneMan, 1, trio));
+            engine.ApplyMeld(0, MeldType.Chi, oneMan, discarder, trio));
         Assert.Contains("上家", ex.Message);
     }
 
