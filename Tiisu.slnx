@@ -4,6 +4,7 @@
     <Project Path="src/Tiisu.Core/Tiisu.Core.csproj" />
     <Project Path="src/Tiisu.Localization/Tiisu.Localization.csproj" />
     <Project Path="src/Tiisu.Engine/Tiisu.Engine.csproj" />
+    <Project Path="src/Tiisu.Net/Tiisu.Net.csproj" />
     <Project Path="src/Tiisu.Updater/Tiisu.Updater.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -11,6 +12,7 @@
     <Project Path="tests/Tiisu.Engine.Tests/Tiisu.Engine.Tests.csproj" />
     <Project Path="tests/Tiisu.App.Tests/Tiisu.App.Tests.csproj" />
     <Project Path="tests/Tiisu.Updater.Tests/Tiisu.Updater.Tests.csproj" />
+    <Project Path="tests/Tiisu.Net.Tests/Tiisu.Net.Tests.csproj" />
       <Project Path="tests/Tiisu.DevTools.Tests/Tiisu.DevTools.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
