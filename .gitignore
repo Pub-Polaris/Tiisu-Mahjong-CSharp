@@ -19,3 +19,6 @@ Generated/
 # 本地跑脚本留下的产物
 artifacts/
 __pycache__/
+
+# 本地计划书：永远不提交、不推送
+docs/DSH/P2P联机计划_261121.md
