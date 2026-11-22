@@ -37,6 +37,8 @@ public sealed class HostRoundTests
             }
 
             var latest = new SnapshotMessage?[clients.Count];
+            var roundEnds = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            clients[0].RoundEndJson += json => roundEnds.TrySetResult(json);
             for (int i = 0; i < clients.Count; i++)
             {
                 int index = i;
@@ -107,6 +109,8 @@ public sealed class HostRoundTests
 
             Assert.True(host.Phase is MatchPhase.RoundEnded or MatchPhase.MatchOver,
                 $"round did not finish; phase={host.Phase}, revision={host.LatestSnapshot.Revision}, error={host.LastError}");
+            string roundEndJson = await roundEnds.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            Assert.Contains("\"kind\"", roundEndJson);
             Assert.False(cheat.Task.IsCompleted);
         }
         finally
