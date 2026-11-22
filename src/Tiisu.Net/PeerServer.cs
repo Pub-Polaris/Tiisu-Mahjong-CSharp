@@ -31,6 +31,9 @@ public sealed class PeerServer : IAsyncDisposable
 
     public RoomInfo Room => CurrentRoom();
 
+    /// <summary>对外展示的房间状态：lobby / playing。playing 时客户端不应再加入。</summary>
+    public string State { get; set; } = "lobby";
+
     public IReadOnlyList<PlayerLobbyInfo> Lobby
     {
         get
@@ -78,7 +81,7 @@ public sealed class PeerServer : IAsyncDisposable
         _room with
         {
             Players = 1 + _connections.Count(c => c.Seat > HostSeat),
-            State = "lobby",
+            State = State,
         };
 
     private async Task AcceptLoopAsync()

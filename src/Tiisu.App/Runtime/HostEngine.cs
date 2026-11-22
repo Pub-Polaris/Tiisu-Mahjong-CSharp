@@ -79,6 +79,7 @@ public sealed class HostEngine : ITableSession
 
         _local.ConfigureNetworkSeats(new[] { true, true, true, true });
         _local.Post(GameCommand.StartMatch(mode));
+        _server.State = "playing";
         _ = _server.BroadcastAsync("start", new { mode });
         MatchStarted?.Invoke(Room.RoomName);
     }
