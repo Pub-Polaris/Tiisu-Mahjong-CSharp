@@ -16,6 +16,8 @@ public static class PeerMessageTypes
     public const string Error = "error";
     public const string CheatDetected = "cheat";
     public const string Bye = "bye";
+    public const string Ready = "ready";
+    public const string Chat = "chat";
 }
 
 public sealed record PlayerLobbyInfo(int Seat, string Name, bool Ready);
@@ -44,6 +46,12 @@ public sealed record CommandRequest(
 public sealed record SnapshotMessage(long Revision, int Seat, string Snapshot);
 
 public sealed record PeerError(string Code, string Message);
+
+public sealed record ReadyRequest(bool Ready);
+
+public sealed record ChatRequest(string Text);
+
+public sealed record ChatMessage(int Seat, string From, string Text, long Timestamp);
 
 public sealed record PeerEnvelope(
     string Protocol,

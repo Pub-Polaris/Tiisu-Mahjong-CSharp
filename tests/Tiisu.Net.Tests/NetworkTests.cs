@@ -144,6 +144,43 @@ public sealed class PeerServerTests
     }
 
     [Fact]
+    public async Task Client_ready_and_chat_reach_host_and_peers()
+    {
+        int port = FreeTcpAndUdpPort();
+        var room = RoomInfo.Create("确认测试", "Host", port, "test");
+        await using var server = new PeerServer(room, port);
+        server.Start();
+        var ready = new TaskCompletionSource<IReadOnlyList<PlayerLobbyInfo>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var hostChat = new TaskCompletionSource<ChatMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        server.LobbyChanged += () =>
+        {
+            if (server.Lobby.Any(p => p.Seat == 1 && p.Ready))
+            {
+                ready.TrySetResult(server.Lobby);
+            }
+        };
+        server.ChatReceived += message => hostChat.TrySetResult(message);
+
+        await using var client = await PeerClient.ConnectAsync("127.0.0.1", "Client", "test", port);
+        var clientChat = new TaskCompletionSource<ChatMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.ChatReceived += message => clientChat.TrySetResult(message);
+
+        await client.SetReadyAsync(true);
+        var lobby = await ready.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.True(lobby.Single(p => p.Seat == 1).Ready);
+        Assert.True(client.IsReady);
+
+        await client.SendChatAsync("  你好  ");
+        ChatMessage hostMessage = await hostChat.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        ChatMessage peerMessage = await clientChat.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.Equal("你好", hostMessage.Text);
+        Assert.Equal("你好", peerMessage.Text);
+        Assert.Equal("Client", hostMessage.From);
+        Assert.Equal(1, hostMessage.Seat);
+    }
+
+    [Fact]
     public async Task WebSocket_handshake_assigns_seat_and_receives_snapshot()
     {
         int port = FreeTcpAndUdpPort();

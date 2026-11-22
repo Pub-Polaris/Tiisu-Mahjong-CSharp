@@ -28,13 +28,19 @@ public sealed class MultiplayerScreen : Screen
     private readonly SynchronizationContext? _ui = SynchronizationContext.Current;
 
     private HostEngine? _host;
+    private PeerClient? _client;
+    private NetworkClientSession? _clientSession;
+    private RoomInfo? _joinedRoom;
+    private readonly List<ChatMessage> _chat = new();
     private string _playerName = "";
     private string _transport = "tcp";
     private string _zone = "A";
     private int _mode = 1;
     private bool _aiFill = true;
     private string _status = "正在查询局域网…";
+    private string _chatDraft = "";
     private bool _editingName;
+    private bool _editingChat;
     private bool _searching;
     private bool _joining;
     private bool _leaving;
@@ -65,6 +71,12 @@ public sealed class MultiplayerScreen : Screen
     public void ResetRoom()
     {
         _host = null;
+        _client = null;
+        _clientSession = null;
+        _joinedRoom = null;
+        _chat.Clear();
+        _chatDraft = "";
+        _editingChat = false;
         _rooms.Clear();
         _status = "正在查询局域网…";
         _nextRefresh = 0;
@@ -140,11 +152,18 @@ public sealed class MultiplayerScreen : Screen
             DrawZone(c, RoomInfo.Zones[i], i);
         }
 
-        DrawHostSettings(c);
+        if (_host is null && _client is null)
+        {
+            DrawHostSettings(c);
+        }
 
         if (_host is not null)
         {
             DrawHostRoom(c);
+        }
+        else if (_client is not null)
+        {
+            DrawClientRoom(c);
         }
         else
         {
@@ -241,8 +260,15 @@ public sealed class MultiplayerScreen : Screen
         float y = panel.Y + 42;
         foreach (var player in _host.Lobby)
         {
-            c.DrawText($"{player.Seat + 1}. {player.Name}", new RectF(panel.X + 20, y, panel.W - 40, 24),
-                Color.Rgb(220, 220, 200), new TextStyle(14));
+            string suffix = player.Seat == PeerServer.HostSeat
+                ? "房主"
+                : player.Ready ? "已确认" : "等待确认";
+            c.DrawText($"{player.Seat + 1}. {player.Name}  [{suffix}]",
+                new RectF(panel.X + 20, y, panel.W - 40, 24),
+                player.Seat == PeerServer.HostSeat || player.Ready
+                    ? Color.Rgb(220, 220, 200)
+                    : Color.Rgb(190, 160, 110),
+                new TextStyle(14));
             y += 24;
         }
 
@@ -253,6 +279,66 @@ public sealed class MultiplayerScreen : Screen
             Color.Rgb(159, 180, 170), new TextStyle(13));
         DrawSmallButton(c, StartRect, "开始对局", true);
         DrawButton(c, BackRect, "返回", Color.Rgb(34, 52, 56));
+        DrawChat(c);
+    }
+
+    private void DrawClientRoom(ICanvas c)
+    {
+        var panel = SettingsRect;
+        c.FillRoundRect(panel, 10, Color.Rgb(24, 38, 40));
+        c.StrokeRoundRect(panel, 10, Color.Rgb(100, 132, 112), 1.1f);
+        RoomInfo room = _joinedRoom ?? _client!.Room ?? RoomInfo.Create("房间", "Host", 0, "v");
+        c.DrawText($"房间 {room.SlotLabel}  ·  {RoomInfo.TransportLabel(room.Transport)}",
+            new RectF(panel.X + 12, panel.Y + 8, panel.W - 24, 26),
+            Color.Rgb(242, 210, 128), new TextStyle(15, Bold: true));
+        float y = panel.Y + 42;
+        foreach (PlayerLobbyInfo player in _client!.Players)
+        {
+            string suffix = player.Seat == PeerServer.HostSeat
+                ? "房主"
+                : player.Ready ? "已确认" : "未确认";
+            c.DrawText($"{player.Seat + 1}. {player.Name}  [{suffix}]",
+                new RectF(panel.X + 20, y, panel.W - 40, 24),
+                player.Ready || player.Seat == PeerServer.HostSeat
+                    ? Color.Rgb(220, 220, 200)
+                    : Color.Rgb(190, 160, 110),
+                new TextStyle(14));
+            y += 24;
+        }
+
+        c.DrawText("等待房主开始；可先确认准备", new RectF(panel.X + 12, panel.Bottom - 120, panel.W - 24, 20),
+            Color.Rgb(159, 180, 170), new TextStyle(13));
+        DrawSmallButton(c, ReadyRect, _client.IsReady ? "取消确认" : "确认准备", true);
+        DrawButton(c, BackRect, "返回", Color.Rgb(34, 52, 56));
+        DrawChat(c);
+    }
+
+    private void DrawChat(ICanvas c)
+    {
+        var panel = ChatRect;
+        c.FillRoundRect(panel, 10, Color.Rgb(22, 34, 38));
+        c.StrokeRoundRect(panel, 10, Color.Rgb(90, 120, 104), 1.0f);
+        c.DrawText("大厅对话", new RectF(panel.X + 12, panel.Y + 8, 160, 22),
+            Color.Rgb(242, 210, 128), new TextStyle(14, Bold: true));
+
+        int start = Math.Max(0, _chat.Count - 4);
+        float y = panel.Y + 34;
+        for (int i = start; i < _chat.Count; i++)
+        {
+            ChatMessage message = _chat[i];
+            c.DrawText($"{message.From}: {message.Text}",
+                new RectF(panel.X + 14, y, panel.W - 28, 20),
+                Color.Rgb(205, 218, 205), new TextStyle(12));
+            y += 20;
+        }
+
+        c.FillRoundRect(ChatInputRect, 6, _editingChat ? Color.Rgb(52, 86, 78) : Color.Rgb(30, 44, 48));
+        c.StrokeRoundRect(ChatInputRect, 6, Color.Rgb(120, 150, 130), 1.0f);
+        string draft = _chatDraft.Length == 0 ? "输入消息，Enter 发送" : _chatDraft;
+        c.DrawText(draft, ChatInputRect, _chatDraft.Length == 0
+            ? Color.Rgb(120, 140, 130)
+            : Color.Rgb(240, 236, 220), new TextStyle(13));
+        DrawSmallButton(c, ChatSendRect, "发送", _chatDraft.Length > 0);
     }
 
     private void DrawSmallButton(ICanvas c, RectF rect, string text, bool active)
@@ -283,6 +369,10 @@ public sealed class MultiplayerScreen : Screen
     private static readonly RectF AiRect = new(1020, 276, 80, 30);
     private static readonly RectF CreateRect = new(960, 320, 240, 40);
     private static readonly RectF StartRect = new(960, 520, 240, 40);
+    private static readonly RectF ReadyRect = new(960, 520, 240, 40);
+    private static readonly RectF ChatRect = new(36, 470, 840, 150);
+    private static readonly RectF ChatInputRect = new(48, 574, 700, 30);
+    private static readonly RectF ChatSendRect = new(756, 574, 108, 30);
 
     private static RectF ZoneButtonRect(int index) => new(960 + index * 52, 168, 44, 28);
 
@@ -325,6 +415,29 @@ public sealed class MultiplayerScreen : Screen
         if (NameRect.Contains(x, y))
         {
             _editingName = true;
+            _editingChat = false;
+            return true;
+        }
+
+        if (_host is not null || _client is not null)
+        {
+            if (ChatInputRect.Contains(x, y))
+            {
+                _editingChat = true;
+                _editingName = false;
+                return true;
+            }
+
+            if (ChatSendRect.Contains(x, y))
+            {
+                SendChat();
+                return true;
+            }
+        }
+
+        if (_client is not null && ReadyRect.Contains(x, y))
+        {
+            _ = ToggleReadyAsync();
             return true;
         }
 
@@ -396,7 +509,7 @@ public sealed class MultiplayerScreen : Screen
                 }
 
                 RoomInfo? room = FindRoom(RoomInfo.Zones[zone], table);
-                if (room is not null && _host is null)
+                if (room is not null && _host is null && _client is null)
                 {
                     _ = JoinAsync(room);
                 }
@@ -435,6 +548,40 @@ public sealed class MultiplayerScreen : Screen
             if (text is not null && _playerName.Length < NetworkConstants.MaxNameLength)
             {
                 _playerName += text;
+                return true;
+            }
+
+            return true;
+        }
+
+        if (_editingChat)
+        {
+            if (key == Keys.Back)
+            {
+                if (_chatDraft.Length > 0)
+                {
+                    _chatDraft = _chatDraft[..^1];
+                }
+
+                return true;
+            }
+
+            if (key == Keys.Enter)
+            {
+                SendChat();
+                return true;
+            }
+
+            if (key == Keys.Escape)
+            {
+                _editingChat = false;
+                return true;
+            }
+
+            string? chatText = KeyText(key, shift);
+            if (chatText is not null && _chatDraft.Length < NetworkConstants.MaxChatLength)
+            {
+                _chatDraft += chatText;
                 return true;
             }
 
@@ -487,6 +634,7 @@ public sealed class MultiplayerScreen : Screen
             _savePlayerName(_playerName);
             _host = await _createHost(_transport, zone, table.Value, _mode, _aiFill);
             _host.StartServer();
+            _host.ChatReceived += message => Post(() => AddChat(message));
             _host.LobbyChanged += _ => Post(() => { });
             _status = $"房间 {zone}{table.Value} 已创建";
         }
@@ -513,15 +661,81 @@ public sealed class MultiplayerScreen : Screen
         {
             _savePlayerName(_playerName);
             var joined = await _joinRoom(room);
-            _onJoined(joined.Client, joined.Session);
+            _client = joined.Client;
+            _clientSession = joined.Session;
+            _joinedRoom = room;
+            _chat.Clear();
+            _client.ChatReceived += message => Post(() => AddChat(message));
+            _client.MatchStarting += () =>
+            {
+                PeerClient client = joined.Client;
+                NetworkClientSession session = joined.Session;
+                Post(() => _onJoined(client, session));
+            };
+            _client.Disconnected += reason => Post(() =>
+            {
+                _status = "连接断开: " + reason;
+                _client = null;
+                _clientSession = null;
+            });
+            _status = "已加入 " + room.SlotLabel + "，等待房主开始";
         }
         catch (Exception ex)
         {
-            _status = "加入失败: " + ex.Message;
-        }
-        finally
-        {
             _joining = false;
+            _status = "加入失败: " + ex.Message;
+            return;
+        }
+
+        _joining = false;
+    }
+
+    private void AddChat(ChatMessage message)
+    {
+        _chat.Add(message);
+        if (_chat.Count > 50)
+        {
+            _chat.RemoveAt(0);
+        }
+    }
+
+    private void SendChat()
+    {
+        string text = _chatDraft.Trim();
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        if (_host is not null)
+        {
+            _host.SendChat(text);
+            AddChat(new ChatMessage(PeerServer.HostSeat, _host.Room.HostName,
+                text, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
+        }
+        else if (_client is not null)
+        {
+            _ = _client.SendChatAsync(text);
+        }
+
+        _chatDraft = "";
+        _editingChat = false;
+    }
+
+    private async Task ToggleReadyAsync()
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _client.SetReadyAsync(!_client.IsReady);
+        }
+        catch (Exception ex)
+        {
+            _status = "确认失败: " + ex.Message;
         }
     }
 
@@ -536,8 +750,12 @@ public sealed class MultiplayerScreen : Screen
         try
         {
             _host = null;
+            _client = null;
+            _clientSession = null;
+            _joinedRoom = null;
             await _leaveRoom();
             _rooms.Clear();
+            _chat.Clear();
             _status = "正在查询局域网…";
             _nextRefresh = 0;
         }

@@ -35,6 +35,7 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
             transport ?? room.Transport);
         _server.CommandReceived += OnCommand;
         _server.CheatDetected += OnCheat;
+        _server.ChatReceived += message => ChatReceived?.Invoke(message);
         _server.LobbyChanged += () => LobbyChanged?.Invoke(Lobby);
         _local.UiEvent += OnLocalEvent;
     }
@@ -56,6 +57,7 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
     public event Action<IReadOnlyList<PlayerLobbyInfo>>? LobbyChanged;
     public event Action<string>? CheatDetected;
     public event Action<string>? MatchStarted;
+    public event Action<ChatMessage>? ChatReceived;
 
     public void StartServer()
     {
@@ -107,6 +109,24 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
         }
 
         return seats;
+    }
+
+    public void SendChat(string text)
+    {
+        string trimmed = (text ?? string.Empty).Trim();
+        if (trimmed.Length == 0)
+        {
+            return;
+        }
+
+        if (trimmed.Length > NetworkConstants.MaxChatLength)
+        {
+            trimmed = trimmed[..NetworkConstants.MaxChatLength];
+        }
+
+        _ = _server.BroadcastAsync(PeerMessageTypes.Chat,
+            new ChatMessage(PeerServer.HostSeat, Room.HostName, trimmed,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
     }
 
     public void Post(GameCommand command)

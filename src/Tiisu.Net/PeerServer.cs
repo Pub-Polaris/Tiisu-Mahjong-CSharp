@@ -72,6 +72,8 @@ public sealed class PeerServer : IAsyncDisposable
 
     public event Action? LobbyChanged;
 
+    public event Action<ChatMessage>? ChatReceived;
+
     public void Start()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -232,6 +234,29 @@ public sealed class PeerServer : IAsyncDisposable
                 else if (envelope.Type == PeerMessageTypes.Bye)
                 {
                     break;
+                }
+                else if (envelope.Type == PeerMessageTypes.Ready)
+                {
+                    ReadyRequest? ready = envelope.GetPayload<ReadyRequest>();
+                    connection.Ready = ready?.Ready ?? false;
+                    BroadcastLobby();
+                }
+                else if (envelope.Type == PeerMessageTypes.Chat)
+                {
+                    ChatRequest? chat = envelope.GetPayload<ChatRequest>();
+                    string text = (chat?.Text ?? string.Empty).Trim();
+                    if (text.Length > NetworkConstants.MaxChatLength)
+                    {
+                        text = text[..NetworkConstants.MaxChatLength];
+                    }
+
+                    if (text.Length > 0)
+                    {
+                        var message = new ChatMessage(seat, hello.Name,
+                            text, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                        ChatReceived?.Invoke(message);
+                        _ = BroadcastAsync(PeerMessageTypes.Chat, message);
+                    }
                 }
             }
         }

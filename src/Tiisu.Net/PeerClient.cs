@@ -30,6 +30,7 @@ public sealed class PeerClient : IAsyncDisposable
     public IReadOnlyList<PlayerLobbyInfo> Players { get; private set; } = Array.Empty<PlayerLobbyInfo>();
     public string? LastError { get; private set; }
     public string Transport => Room?.Transport ?? "tcp";
+    public bool IsReady { get; private set; }
 
     public event Action<ServerWelcome>? Welcome;
     public event Action<IReadOnlyList<PlayerLobbyInfo>>? LobbyChanged;
@@ -39,6 +40,7 @@ public sealed class PeerClient : IAsyncDisposable
     public event Action<string>? Disconnected;
     public event Action? MatchStarting;
     public event Action<string>? RoundEndJson;
+    public event Action<ChatMessage>? ChatReceived;
 
     public static async Task<PeerClient> ConnectAsync(
         string host,
@@ -120,6 +122,28 @@ public sealed class PeerClient : IAsyncDisposable
         return _channel.SendAsync(PeerMessageTypes.Command, command, revision, cancellationToken);
     }
 
+    public Task SetReadyAsync(bool ready)
+    {
+        IsReady = ready;
+        return _channel.SendAsync(PeerMessageTypes.Ready, new ReadyRequest(ready));
+    }
+
+    public Task SendChatAsync(string text)
+    {
+        string trimmed = (text ?? string.Empty).Trim();
+        if (trimmed.Length == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (trimmed.Length > NetworkConstants.MaxChatLength)
+        {
+            trimmed = trimmed[..NetworkConstants.MaxChatLength];
+        }
+
+        return _channel.SendAsync(PeerMessageTypes.Chat, new ChatRequest(trimmed));
+    }
+
     public async Task SendByeAsync()
     {
         try
@@ -151,6 +175,7 @@ public sealed class PeerClient : IAsyncDisposable
                 {
                     case PeerMessageTypes.Lobby:
                         Players = envelope.GetPayload<List<PlayerLobbyInfo>>() ?? new List<PlayerLobbyInfo>();
+                        IsReady = Players.FirstOrDefault(p => p.Seat == Seat)?.Ready ?? IsReady;
                         LobbyChanged?.Invoke(Players);
                         break;
 
@@ -193,6 +218,15 @@ public sealed class PeerClient : IAsyncDisposable
 
                     case "round_end":
                         RoundEndJson?.Invoke(envelope.Payload.GetRawText());
+                        break;
+
+                    case PeerMessageTypes.Chat:
+                        ChatMessage? chat = envelope.GetPayload<ChatMessage>();
+                        if (chat is not null)
+                        {
+                            ChatReceived?.Invoke(chat);
+                        }
+
                         break;
                 }
             }

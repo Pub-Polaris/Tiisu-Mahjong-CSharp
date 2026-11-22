@@ -8,6 +8,7 @@ public static class NetworkConstants
     public const string DiscoveryMagic = "TIISU_DISCOVER/1";
     public const int MaxPlayers = 4;
     public const int MaxNameLength = 24;
+    public const int MaxChatLength = 120;
     public const int MaxMessageBytes = 1024 * 1024;
 }
 
