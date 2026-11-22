@@ -32,7 +32,8 @@ public sealed record CommandRequest(
     string Kind,
     int Index = -1,
     int Option = 0,
-    string? Text = null);
+    string? Text = null,
+    string? SnapshotHash = null);
 
 /// <summary>
 /// 脱敏快照。Host 只填当前接收者可见的内容；客户端不持有牌山/引擎。

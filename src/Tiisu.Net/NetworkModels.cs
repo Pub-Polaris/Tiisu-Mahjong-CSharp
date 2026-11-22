@@ -19,7 +19,8 @@ public sealed record RoomInfo(
     int Players,
     int MaxPlayers,
     string State,
-    string Version)
+    string Version,
+    string HostAddress = "")
 {
     public static RoomInfo Create(string roomName, string hostName, int port, string version,
         int players = 1, string state = "lobby") =>

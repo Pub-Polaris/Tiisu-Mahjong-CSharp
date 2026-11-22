@@ -28,7 +28,8 @@ public static class SnapshotBuilder
         string? message,
         Settings? settings,
         IReadOnlyList<string>? aiLevels = null,
-        TenpaiHintCache? tenpaiCache = null)
+        TenpaiHintCache? tenpaiCache = null,
+        int viewerSeat = -1)
     {
         ArgumentNullException.ThrowIfNull(engine);
 
@@ -36,7 +37,7 @@ public static class SnapshotBuilder
         for (int i = 0; i < MahjongEngine.PlayerCount; i++)
         {
             var player = engine.Players[i];
-            bool self = player.IsHuman;
+            bool self = viewerSeat >= 0 ? i == viewerSeat : player.IsHuman;
             bool reveal = engine.RevealHands || self;
 
             var hand = new List<TileView>(player.Hand.Count);
@@ -94,7 +95,7 @@ public static class SnapshotBuilder
                 Wind = WindNames[(int)player.SeatWind % 4],
                 Score = engine.Scores[i],
                 IsDealer = player.IsDealer,
-                IsHuman = player.IsHuman,
+                IsHuman = self,
                 IsTurn = engine.TurnIndex == i && engine.State is not (EngineState.Idle or EngineState.Ended),
                 IsCalled = player.IsCalled,
                 Noten = i < engine.FlowTenpai.Count && !engine.FlowTenpai[i],
@@ -127,7 +128,7 @@ public static class SnapshotBuilder
         for (int i = 0; i < MahjongEngine.PlayerCount; i++)
         {
             var player = engine.Players[i];
-            if (!player.IsHuman)
+            if (viewerSeat >= 0 ? i != viewerSeat : !player.IsHuman)
             {
                 continue;
             }
@@ -151,13 +152,16 @@ public static class SnapshotBuilder
         // 待听牌提示：真听牌就常显（不再限定 human_discard 阶段）。
         var tenpai = new List<string>();
         var tenpaiFu = new List<TenpaiFuRange>();
-        int selfIndex = -1;
-        for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+        int selfIndex = viewerSeat;
+        if (selfIndex < 0)
         {
-            if (engine.Players[i].IsHuman)
+            for (int i = 0; i < MahjongEngine.PlayerCount; i++)
             {
-                selfIndex = i;
-                break;
+                if (engine.Players[i].IsHuman)
+                {
+                    selfIndex = i;
+                    break;
+                }
             }
         }
 

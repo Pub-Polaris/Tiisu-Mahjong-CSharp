@@ -66,6 +66,19 @@ dotnet run --project tools/Tiisu.DevTools -- --smoke-neural     # v4 策略网�
 dotnet run --project tools/Tiisu.DevTools -- --check-publish dist/publish
 ```
 
+## 局域网 P2P 对战
+
+- 菜单「联机对战」：创建房间或自动查询同一局域网房间
+- 默认 TCP/UDP 17700
+- Host 唯一跑引擎与计分；Client 只接收脱敏快照、发送操作指令
+- 架构与防作弊校验见 [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md)
+
+```powershell
+dotnet build src/Tiisu.Net/Tiisu.Net.csproj
+dotnet test tests/Tiisu.Net.Tests/Tiisu.Net.Tests.csproj
+dotnet test tests/Tiisu.App.Tests/Tiisu.App.Tests.csproj
+```
+
 ## 结构
 
 ```
@@ -74,6 +87,7 @@ NET\
   src\Tiisu.Engine\    # 状态机 + AI（Ai/、SelfPlay/）
   src\Tiisu.App\       # WinForms 宿主 + Skia 绘制（Table/ Ui/ Runtime/）
   src\Tiisu.Updater\   # 替换式更新器（支持 --sha256）
+  src\Tiisu.Net\       # 局域网发现 / P2P 传输 / 脱敏快照协议
   ml\                  # v4 自博弈训练脚本与权重（仅参考）
   tools\Tiisu.Tools\        # golden 重算 / 探针
   tools\Tiisu.AudioGen\     # 音效与语音生成（espeak-ng / SAPI）

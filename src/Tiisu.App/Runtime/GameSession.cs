@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Tiisu.Localization;
 using System.Collections.Concurrent;
 using System.Threading;
@@ -18,7 +19,7 @@ namespace Tiisu.App.Runtime;
 /// <item>UI 只读 <see cref="LatestSnapshot"/>（不可变快照），绝不触碰引擎对象。</item>
 /// </list>
 /// </summary>
-public sealed class GameSession : IDisposable
+public sealed class GameSession : ITableSession
 {
     private readonly BlockingCollection<GameCommand> _queue = new(new ConcurrentQueue<GameCommand>());
     private readonly Thread _worker;
@@ -76,6 +77,19 @@ public sealed class GameSession : IDisposable
 
     /// <summary>UI 每帧只读这个快照。</summary>
     public TableViewModel LatestSnapshot => Volatile.Read(ref _latest);
+
+    /// <summary>当前行动者的座位；Host 用它校验远程指令。</summary>
+    public int ActiveHumanSeat => _runtime.HumanIndex;
+
+    /// <summary>生成指定座位可见的脱敏快照；联机 Host 用。</summary>
+    public TableViewModel SnapshotForSeat(int seat) => _runtime.BuildSnapshotForSeat(seat);
+
+    /// <summary>在 StartMatch 前切换为四座位人类输入源。</summary>
+    public void ConfigureNetworkSeats(IReadOnlyList<bool> humanSeats)
+    {
+        _runtime.ConfigureNetworkSeats(humanSeats);
+        _runtime.AutoConfirmRounds = true;
+    }
 
     /// <summary>运行阶段（只读枚举，供 UI 决定是否画"下一局"等提示）。</summary>
     public MatchPhase Phase => _runtime.Phase;

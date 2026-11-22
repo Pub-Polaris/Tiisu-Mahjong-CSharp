@@ -86,7 +86,7 @@ public sealed class LanDiscovery : IDisposable
                 }
 
                 string key = $"{room.RoomName}:{room.Port}:{room.HostName}";
-                found[key] = room;
+                found[key] = room with { HostAddress = packet.RemoteEndPoint.Address.ToString() };
             }
         }
         catch (SocketException)
@@ -177,6 +177,7 @@ public sealed class LanDiscovery : IDisposable
         private readonly RoomInfo _initial;
         private readonly Func<RoomInfo>? _refresh;
         private readonly JsonSerializerOptions _json;
+        private readonly int _port;
         private readonly CancellationTokenSource _cts = new();
         private readonly Thread _listenThread;
         private readonly Thread _beaconThread;
@@ -186,6 +187,7 @@ public sealed class LanDiscovery : IDisposable
             _initial = initial;
             _refresh = refresh;
             _json = json;
+            _port = port;
             _udp = new UdpClient(AddressFamily.InterNetwork);
             _udp.EnableBroadcast = true;
             _udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
@@ -250,7 +252,7 @@ public sealed class LanDiscovery : IDisposable
                     {
                         try
                         {
-                            _udp.Send(payload, payload.Length, new IPEndPoint(address, NetworkConstants.DefaultPort));
+                            _udp.Send(payload, payload.Length, new IPEndPoint(address, _port));
                         }
                         catch (SocketException)
                         {

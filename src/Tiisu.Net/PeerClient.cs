@@ -31,6 +31,7 @@ public sealed class PeerClient : IAsyncDisposable
     public event Action<PeerError>? Error;
     public event Action<string>? CheatDetected;
     public event Action<string>? Disconnected;
+    public event Action? MatchStarting;
 
     public static async Task<PeerClient> ConnectAsync(
         string host,
@@ -85,9 +86,9 @@ public sealed class PeerClient : IAsyncDisposable
     }
 
     public Task SendCommandAsync(string kind, long revision, int index = -1, int option = 0,
-        string? text = null, CancellationToken cancellationToken = default)
+        string? text = null, string? snapshotHash = null, CancellationToken cancellationToken = default)
     {
-        var command = new CommandRequest(Seat, revision, kind, index, option, text);
+        var command = new CommandRequest(Seat, revision, kind, index, option, text, snapshotHash);
         return _channel.SendAsync(PeerMessageTypes.Command, command, revision, cancellationToken);
     }
 
@@ -154,6 +155,10 @@ public sealed class PeerClient : IAsyncDisposable
                     case PeerMessageTypes.Bye:
                         Disconnected?.Invoke("host closed the room");
                         return;
+
+                    case "start":
+                        MatchStarting?.Invoke();
+                        break;
                 }
             }
         }

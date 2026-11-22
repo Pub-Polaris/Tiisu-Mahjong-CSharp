@@ -86,7 +86,7 @@ public sealed class TableScreen : Screen
     }
 
     /// <summary>正式牌桌：只读会话快照 + 投递命令。</summary>
-    public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu = null,
+    public TableScreen(ITableSession session, TileAtlas? atlas, Action? backToMenu = null,
         Action? openSettings = null, TableRenderStyle renderStyle = TableRenderStyle.Flat, Settings? settings = null,
         ISoundEffects? sound = null)
         : this(() => session.LatestSnapshot, session.Post, backToMenu, openSettings, atlas, renderStyle, settings, sound)
@@ -95,7 +95,7 @@ public sealed class TableScreen : Screen
     }
 
     /// <summary>兼容旧调用：不带设置页回调。</summary>
-    public TableScreen(GameSession session, TileAtlas? atlas, Action? backToMenu,
+    public TableScreen(ITableSession session, TileAtlas? atlas, Action? backToMenu,
         TableRenderStyle renderStyle, Settings? settings = null)
         : this(session, atlas, backToMenu, null, renderStyle, settings)
     {

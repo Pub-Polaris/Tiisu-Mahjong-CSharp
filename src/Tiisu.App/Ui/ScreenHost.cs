@@ -7,6 +7,7 @@ using Tiisu.App.Assets;
 using Tiisu.App.Rendering;
 using Tiisu.App.Runtime;
 using Tiisu.Localization;
+using Tiisu.Net;
 
 namespace Tiisu.App.Ui;
 
@@ -33,7 +34,11 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly SteamAchievementSync _steamAchievements;
     private bool _steamMatchSynced;
     private string _appliedLanguage;
-    private readonly TableScreen _table;
+    private TableScreen _table;
+    private MultiplayerScreen? _multiplayer;
+    private HostEngine? _networkHost;
+    private PeerClient? _peerClient;
+    private NetworkClientSession? _networkClient;
     private readonly MenuScreen _menu;
     private readonly SettingsScreen _settingsScreen;
     private readonly RulesScreen _rules;
@@ -110,6 +115,12 @@ internal sealed class ScreenHostCore : IDisposable
             _settingsReturn = _table;
             SwitchTo(_settingsScreen);
         }, _settings.TableRender, _settings);
+        _multiplayer = new MultiplayerScreen(
+            () => SwitchTo(_menu),
+            CreateNetworkHostAsync,
+            JoinRoomAsync,
+            ShowHostTable,
+            ShowClientTable);
 
         _current = _menu;
 
@@ -126,11 +137,59 @@ internal sealed class ScreenHostCore : IDisposable
         }
 
         _disposed = true;
+        _multiplayer?.Dispose();
+        _networkHost?.Dispose();
+        _networkClient?.Dispose();
+        _peerClient?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         _session.UiEvent -= OnSteamSyncEvent;
         _steam.Shutdown();
         _frameTimer.Stop();
         _frameTimer.Dispose();
         _session.Dispose();
+    }
+
+    private async Task<HostEngine> CreateNetworkHostAsync()
+    {
+        string name = string.IsNullOrWhiteSpace(Environment.UserName) ? "房主" : Environment.UserName.Trim();
+        var room = RoomInfo.Create(name + "的七子房", name,
+            NetworkConstants.DefaultPort, BuildInfo.Version);
+        _networkHost?.Dispose();
+        _networkHost = new HostEngine(_settings, room);
+        _networkHost.CheatDetected += reason =>
+        {
+            _multiplayer?.SetStatus("发现作弊者，本局取消：" + reason);
+        };
+        return _networkHost;
+    }
+
+    private async Task<(PeerClient Client, NetworkClientSession Session)> JoinRoomAsync(RoomInfo room)
+    {
+        string name = string.IsNullOrWhiteSpace(Environment.UserName) ? "玩家" : Environment.UserName.Trim();
+        string host = string.IsNullOrWhiteSpace(room.HostAddress) ? "127.0.0.1" : room.HostAddress;
+        PeerClient client = await PeerClient.ConnectAsync(host, name, BuildInfo.Version, room.Port);
+        _peerClient = client;
+        _networkClient = new NetworkClientSession(client);
+        return (client, _networkClient);
+    }
+
+    private void ShowHostTable(HostEngine host)
+    {
+        ShowNetworkTable(host);
+    }
+
+    private void ShowClientTable(PeerClient peer, NetworkClientSession session)
+    {
+        ShowNetworkTable(session);
+    }
+
+    private void ShowNetworkTable(ITableSession session)
+    {
+        _table = new TableScreen(session, _atlas, () => SwitchTo(_menu), () =>
+        {
+            _settingsReturn = _table;
+            SwitchTo(_settingsScreen);
+        }, _settings.TableRender, _settings);
+        SwitchTo(_table);
     }
 
     private void OnSteamSyncEvent(UiEvent uiEvent)
@@ -179,6 +238,14 @@ internal sealed class ScreenHostCore : IDisposable
             case "next":
                 SwitchTo(_table);
                 _session.Post(GameCommand.NextRound());
+                return true;
+
+            case "multiplayer":
+                if (_multiplayer is not null)
+                {
+                    SwitchTo(_multiplayer);
+                }
+
                 return true;
 
             case "settings":

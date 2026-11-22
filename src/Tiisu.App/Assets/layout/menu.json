@@ -21,6 +21,9 @@
     { "id": "btnMode16", "type": "button", "x": 870, "y": 420, "w": 200, "h": 64, "radius": 14,
       "text": "全庄", "action": "mode:16", "fontSize": 24 },
 
+    { "id": "btnMultiplayer", "type": "button", "x": 1100, "y": 420, "w": 155, "h": 64, "radius": 14,
+      "text": "联机对战", "action": "multiplayer", "fontSize": 20 },
+
       { "id": "btnRules", "type": "button", "x": 775, "y": 520, "w": 155, "h": 56, "radius": 12,
           "text": "规则速查", "action": "rules", "fontSize": 19 },
 

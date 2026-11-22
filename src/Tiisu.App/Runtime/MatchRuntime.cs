@@ -197,6 +197,11 @@ public sealed class MatchRuntime
     private long _snapshotRevision;
     private RoundOutcome? _lastOutcome;
 
+    /// <summary>联机模式：四个座位都可由人操作，但同一时刻只有一个行动者。</summary>
+    private bool _networkMode;
+    private int _activeHuman = -1;
+    private readonly bool[] _humanSeats = { true, false, false, false };
+
     /// <summary>结算自检发现的问题数（虚拟对局回归用；正常应为 0）。</summary>
     public int AuditIssueCount { get; private set; }
 
@@ -256,7 +261,7 @@ public sealed class MatchRuntime
         _checker = CreateChecker();
         _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random, ruleset);
         _engine.SetMode(_modeTarget);
-        _engine.Players[0].IsHuman = !AllSeatsAi;
+        ApplySeatModes();
         _engine.Players[0].IsDealer = true;
         _engine.UpdateSeatWinds();
         _scoresAtRoundStart = _engine.Scores.ToArray();
@@ -272,6 +277,24 @@ public sealed class MatchRuntime
     public MatchPhase Phase => _phase;
 
     public TableViewModel Snapshot => _snapshot;
+
+    /// <summary>Host 生成指定客户端可见的脱敏快照；其他座位手牌不会出现在 JSON 里。</summary>
+    public TableViewModel BuildSnapshotForSeat(int seat)
+    {
+        return SnapshotBuilder.Build(
+            _engine,
+            PhaseWire,
+            AvailableActions(),
+            ActionLabels(),
+            _message,
+            _settings,
+            AiLevelWires(),
+            _tenpaiCache,
+            viewerSeat: seat) with
+        {
+            Revision = _snapshotRevision,
+        };
+    }
 
     /// <summary>最近一局结算明细；局末统计/回放用。流局为空。</summary>
     public IReadOnlyList<SettlementDetail> LastSettlementDetails => _lastDetails;
@@ -471,7 +494,10 @@ public sealed class MatchRuntime
     /// <summary>人类座位开关（smoke 的 <c>--smoke-ai-call</c> 需要四家全 AI）。</summary>
     private void ApplySeatModes()
     {
-        _engine.Players[0].IsHuman = !AllSeatsAi;
+        for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+        {
+            _engine.Players[i].IsHuman = !AllSeatsAi && _humanSeats[i];
+        }
     }
 
     /// <summary>会话恢复：应用存档头 → handNumber++ → 开新局（与 Web 侧 <c>maybeResume</c> 同序）。</summary>
@@ -531,7 +557,7 @@ public sealed class MatchRuntime
         _checker = CreateChecker();
         _engine = new MahjongEngine(SharedPoints, _checker, SharedYaku, _random, ruleset);
         _engine.SetMode(_modeTarget);
-        _engine.Players[0].IsHuman = !AllSeatsAi;
+        ApplySeatModes();
         _engine.Players[0].IsDealer = true;
         _engine.UpdateSeatWinds();
         _scoresAtRoundStart = _engine.Scores.ToArray();
@@ -576,7 +602,7 @@ public sealed class MatchRuntime
 
         // 局末确认闸门：AI 在 FinishRound 已自动确认；人类按键才确认。
         // 未全部确认前不推进、不摸下一局的牌。
-        if (AutoPilot || AllSeatsAi)
+        if (AutoConfirmRounds || AutoPilot || AllSeatsAi)
         {
             _roundGate.ConfirmAll();
         }
@@ -694,6 +720,7 @@ public sealed class MatchRuntime
 
             if (player.IsHuman)
             {
+                _activeHuman = turn;
                 if (!PrepareHumanTurn(player))
                 {
                     return;
@@ -1121,12 +1148,13 @@ public sealed class MatchRuntime
             return;
         }
 
-        int human = HumanIndex;
+        int human = FindHumanResponse(discPlayer);
         if (human >= 0 && human != discPlayer && !_engine.IsWinBanned(_engine.Players[human]))
         {
             var result = TryRon(human, discarded);
             if (result is not null)
             {
+                _activeHuman = human;
                 _pendingRon = new PendingRon(discarded, result, discPlayer);
                 _pendingChiList.Clear();
                 _phase = MatchPhase.HumanRon;
@@ -1138,6 +1166,7 @@ public sealed class MatchRuntime
             int misfireFu = RonMisfireFu(human, discarded);
             if (misfireFu > 0)
             {
+                _activeHuman = human;
                 _pendingRon = new PendingRon(discarded, null, discPlayer, misfireFu);
                 _pendingChiList.Clear();
                 _phase = MatchPhase.HumanRon;
@@ -1158,7 +1187,7 @@ public sealed class MatchRuntime
 
     private void CheckMelds(Tile discarded, int discPlayer)
     {
-        int human = HumanIndex;
+        int human = FindHumanResponse(discPlayer);
         if (human >= 0 && human != discPlayer && !_engine.Players[human].IsCalled)
         {
             var observation = SelfPlayDriver.BuildObservation(_engine, -1, discPlayer, discarded);
@@ -1175,6 +1204,7 @@ public sealed class MatchRuntime
                 }
 
                 _pendingMeld = new PendingMeld(discarded, discPlayer);
+                _activeHuman = human;
                 _phase = MatchPhase.HumanMeld;
                 _message = L.T("app.runtime.msg.meldChance", ("tile", Display(discarded)));
                 return;
@@ -2854,6 +2884,11 @@ public sealed class MatchRuntime
     {
         get
         {
+            if (_activeHuman >= 0 && _activeHuman < MahjongEngine.PlayerCount)
+            {
+                return _activeHuman;
+            }
+
             for (int i = 0; i < MahjongEngine.PlayerCount; i++)
             {
                 if (_engine.Players[i].IsHuman)
@@ -2866,6 +2901,42 @@ public sealed class MatchRuntime
         }
     }
 
+    private int FindHumanResponse(int discPlayer)
+    {
+        if (!_networkMode)
+        {
+            return HumanIndex;
+        }
+
+        for (int i = 0; i < MahjongEngine.PlayerCount; i++)
+        {
+            if (i != discPlayer && _engine.Players[i].IsHuman)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Host 模式：四个座位都是人类输入源，按行动者切换 <see cref="HumanIndex"/>。
+    /// 只应在 StartMatch 前调用。
+    /// </summary>
+    public void ConfigureNetworkSeats(IReadOnlyList<bool> humanSeats)
+    {
+        _networkMode = true;
+        for (int i = 0; i < _humanSeats.Length; i++)
+        {
+            _humanSeats[i] = humanSeats.Count > i && humanSeats[i];
+        }
+
+        ApplySeatModes();
+    }
+
+    /// <summary>联机局末由 Host 统一确认，不等待每个客户端各按一次。</summary>
+    public bool AutoConfirmRounds { get; set; }
+
     private void StartNewRoundInternal()
     {
         _roundGate.Reset();
@@ -2876,6 +2947,7 @@ public sealed class MatchRuntime
         _lastDetails = Array.Empty<SettlementDetail>();
         _scoresAtRoundStart = _engine.Scores.ToArray();
         _phase = MatchPhase.Idle;
+        _activeHuman = -1;
         _message = null;
         _roundLog?.Clear();
 
