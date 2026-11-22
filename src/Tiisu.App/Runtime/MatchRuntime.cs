@@ -221,6 +221,34 @@ public sealed class MatchRuntime
         new(kind, winners, reason);
     private PendingRon? _pendingRon;
     private PendingMeld? _pendingMeld;
+
+    /// <summary>
+    /// 同一张弃牌上等待人类表态的荣和候选（按离放铳者的距离排序；当前窗口在
+    /// <see cref="_pendingRon"/>，其余在这里）。联机多家可和时逐个开窗，全部表态后一起结算。
+    /// </summary>
+    private readonly List<RonWindow> _ronWindows = new();
+
+    /// <summary>本轮已经点「荣和」的人类座位；全部窗口结束后与 AI 荣和一起结算。</summary>
+    private readonly List<RonAccepted> _ronAccepted = new();
+
+    /// <summary>碰/杠的候选座位（人类与 AI 混合，按距放铳者距离排序），逐个表态。</summary>
+    private readonly List<int> _claimSeats = new();
+
+    private Tile? _ronTile;
+    private int _ronDiscarder = -1;
+    private Tile _meldTile;
+    private int _meldDiscarder = -1;
+
+    /// <summary>当前副露窗口是否允许碰/杠（false = 只允许吃）。</summary>
+    private bool _meldAllowsClaim;
+
+    /// <summary>联机模式下按座位缓存的脱敏快照（引擎线程生成，网络线程只读）。</summary>
+    private TableViewModel[]? _seatSnapshots;
+
+    private sealed record RonWindow(int Seat, PendingRon Ron);
+
+    private sealed record RonAccepted(int Seat, WinResult Result);
+
     private string? _message;
     private TableViewModel _snapshot;
     private bool _matchStatsRecorded;
@@ -280,6 +308,19 @@ public sealed class MatchRuntime
 
     /// <summary>Host 生成指定客户端可见的脱敏快照；其他座位手牌不会出现在 JSON 里。</summary>
     public TableViewModel BuildSnapshotForSeat(int seat)
+    {
+        // 联机模式下的快照在引擎线程的 EmitState 里一次性生成并按座位缓存，
+        // 网络线程只读缓存，避免与引擎线程并发读活体状态（撕裂快照）。
+        if (seat >= 0 && Volatile.Read(ref _seatSnapshots) is { } cached
+            && seat < cached.Length && cached[seat] is { } snapshot)
+        {
+            return snapshot;
+        }
+
+        return BuildSeatSnapshot(seat);
+    }
+
+    private TableViewModel BuildSeatSnapshot(int seat)
     {
         return SnapshotBuilder.Build(
             _engine,
@@ -542,12 +583,24 @@ public sealed class MatchRuntime
         Emit(new MessageEvent(L.T("app.runtime.msg.resumed", ("label", _engine.RoundLabel())), false));
         RunLoop();    }
 
-    /// <summary>完整重置（回到未开局）。</summary>
-    public void ResetAll()
+    /// <summary>清掉所有待决响应（荣和/副露窗口、候选队列与结算暂存）。</summary>
+    private void ResetPendingResponses()
     {
         _pendingRon = null;
         _pendingMeld = null;
         _pendingChiList.Clear();
+        _ronWindows.Clear();
+        _ronAccepted.Clear();
+        _claimSeats.Clear();
+        _ronTile = null;
+        _ronDiscarder = -1;
+        _meldAllowsClaim = false;
+    }
+
+    /// <summary>完整重置（回到未开局）。</summary>
+    public void ResetAll()
+    {
+        ResetPendingResponses();
         _phase = MatchPhase.Idle;
         _lastOutcome = null;
         _firstDeal = true;
@@ -620,9 +673,7 @@ public sealed class MatchRuntime
         }
 
         _roundGate.Reset();
-        _pendingRon = null;
-        _pendingMeld = null;
-        _pendingChiList.Clear();
+        ResetPendingResponses();
         _lastOutcome = null;
         _message = null;
         _phase = MatchPhase.Idle;
@@ -1083,17 +1134,6 @@ public sealed class MatchRuntime
         return !state.Active || AiPursuit.AllowsMeld(state, StyleFor(seat), meldTiles);
     }
 
-    /// <summary>一副露涉及的牌（吃取三张组合，碰 / 杠按三张同牌近似）。</summary>
-    private static IReadOnlyList<Tile> MeldTiles(AiMeldDecision decision, Tile discarded)
-    {
-        if (decision.ChiTrio is { Count: > 0 } trio)
-        {
-            return trio;
-        }
-
-        return new[] { discarded, discarded, discarded };
-    }
-
     /// <summary>用「该玩家可见」的信息构造新 AI 的弃牌输入（不含别家手牌 / 牌山）。</summary>
     private AiDecisionContext BuildAiDecisionContext(Player player)
     {
@@ -1139,7 +1179,7 @@ public sealed class MatchRuntime
     private IReadOnlyList<string> AiLevelWires() =>
         _aiLevels.Select(level => level.ToString()).ToArray();
 
-    /// <summary>出牌后的反应链：特殊流局 → 人类荣和 → 他家荣和 → 杠/碰/吃（<c>afterDiscard</c>）。</summary>
+    /// <summary>出牌后的反应链：特殊流局 → 人类荣和（多家逐个开窗） → AI 荣和 → 杠/碰/吃（<c>afterDiscard</c>）。</summary>
     private void AfterDiscard(Tile discarded, int discPlayer)
     {
         if (_engine.CheckSpecialFlow())
@@ -1148,31 +1188,41 @@ public sealed class MatchRuntime
             return;
         }
 
-        int human = FindHumanResponse(discPlayer);
-        if (human >= 0 && human != discPlayer && !_engine.IsWinBanned(_engine.Players[human]))
+        // 同一张弃牌上所有人类座位都可能荣和（或报听错和）。按离放铳者的距离逐个开窗，
+        // 全部表态后把「点了荣和的人」与自动和牌的 AI 一起结算；不是只看座位号最小的那一家。
+        var windows = new List<RonWindow>();
+        foreach (int seat in ResponseOrder(discPlayer))
         {
-            var result = TryRon(human, discarded);
+            if (seat == discPlayer || !_engine.Players[seat].IsHuman
+                || _engine.IsWinBanned(_engine.Players[seat]))
+            {
+                continue;
+            }
+
+            WinResult? result = TryRon(seat, discarded);
             if (result is not null)
             {
-                _activeHuman = human;
-                _pendingRon = new PendingRon(discarded, result, discPlayer);
-                _pendingChiList.Clear();
-                _phase = MatchPhase.HumanRon;
-                _message = L.T("app.runtime.msg.ronChance", ("tile", Display(discarded)), ("fu", result.TotalFu ?? 0));
-                return;
+                windows.Add(new RonWindow(seat, new PendingRon(discarded, result, discPlayer)));
+                continue;
             }
 
             // 报听错和：手牌成和形但赋不足起和线，照样给荣和窗口（点了就走错和罚）。
-            int misfireFu = RonMisfireFu(human, discarded);
+            int misfireFu = RonMisfireFu(seat, discarded);
             if (misfireFu > 0)
             {
-                _activeHuman = human;
-                _pendingRon = new PendingRon(discarded, null, discPlayer, misfireFu);
-                _pendingChiList.Clear();
-                _phase = MatchPhase.HumanRon;
-                _message = L.T("app.runtime.msg.misfireRisk", ("fu", misfireFu), ("base", _engine.BaseFu));
-                return;
+                windows.Add(new RonWindow(seat, new PendingRon(discarded, null, discPlayer, misfireFu)));
             }
+        }
+
+        if (windows.Count > 0)
+        {
+            _ronTile = discarded;
+            _ronDiscarder = discPlayer;
+            _ronAccepted.Clear();
+            _ronWindows.Clear();
+            _ronWindows.AddRange(windows);
+            OpenNextRonWindow();
+            return;
         }
 
         var candidates = CheckRonForAi(discarded, discPlayer);
@@ -1185,50 +1235,216 @@ public sealed class MatchRuntime
         CheckMelds(discarded, discPlayer);
     }
 
+    /// <summary>放铳者之后的响应顺序（联机按座位距离；单机只有当前人类座位）。</summary>
+    private IEnumerable<int> ResponseOrder(int discPlayer)
+    {
+        if (!_networkMode)
+        {
+            int human = HumanIndex;
+            if (human >= 0)
+            {
+                yield return human;
+            }
+
+            yield break;
+        }
+
+        for (int distance = 1; distance < MahjongEngine.PlayerCount; distance++)
+        {
+            yield return (discPlayer + distance) % MahjongEngine.PlayerCount;
+        }
+    }
+
+    private void OpenNextRonWindow()
+    {
+        if (_ronWindows.Count == 0)
+        {
+            FinishRonWindows();
+            return;
+        }
+
+        RonWindow window = _ronWindows[0];
+        _ronWindows.RemoveAt(0);
+        _pendingRon = window.Ron;
+        _pendingChiList.Clear();
+        _activeHuman = window.Seat;
+        _phase = MatchPhase.HumanRon;
+        _message = window.Ron.IsMisfire
+            ? L.T("app.runtime.msg.misfireRisk", ("fu", window.Ron.MisfireFu), ("base", _engine.BaseFu))
+            : L.T("app.runtime.msg.ronChance", ("tile", Display(window.Ron.Tile)), ("fu", window.Ron.Result?.TotalFu ?? 0));
+    }
+
+    /// <summary>
+    /// 所有人类荣和窗口都表态完：把点了荣和的人（和 AI 的和牌者）一起结算；
+    /// 无人荣和则回到副露判定。
+    /// </summary>
+    private void FinishRonWindows()
+    {
+        _pendingRon = null;
+        _pendingChiList.Clear();
+        _phase = MatchPhase.Idle;
+        _message = null;
+
+        if (_ronTile is not Tile tile || _ronDiscarder < 0)
+        {
+            return;
+        }
+
+        int discarder = _ronDiscarder;
+        _ronTile = null;
+        _ronDiscarder = -1;
+
+        var winners = new List<RonWinner>(_ronAccepted.Count + 2);
+        foreach (RonAccepted accepted in _ronAccepted)
+        {
+            var player = _engine.Players[accepted.Seat];
+            player.Hand.Add(tile);
+            player.Hand.Sort();
+            winners.Add(new RonWinner(accepted.Seat, EngineSettlement.From(accepted.Result)));
+        }
+
+        _ronAccepted.Clear();
+
+        foreach (var candidate in CheckRonForAi(tile, discarder))
+        {
+            var player = _engine.Players[candidate.PlayerIndex];
+            player.Hand.Add(tile);
+            player.Hand.Sort();
+            winners.Add(new RonWinner(candidate.PlayerIndex, EngineSettlement.From(candidate.Result)));
+        }
+
+        if (winners.Count == 0)
+        {
+            CheckMelds(tile, discarder);
+            return;
+        }
+
+        // 与 AI 多家荣和同口径：按座位号升序结算，避免「谁先被问」影响结算顺序。
+        winners.Sort((a, b) => a.PlayerIndex.CompareTo(b.PlayerIndex));
+
+        _lastOutcome = winners.Count >= 3
+            ? MakeOutcome("special_flow", Array.Empty<int>(), "triple_ron")
+            : MakeOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
+        int honba = _engine.Honba;
+        int pot = _engine.PotPoints;
+        _scoresBeforeWin = _engine.Scores.ToArray();
+        _engine.DeclareMultiRon(winners, discarder);
+        CaptureRonDetails(discarder, honba, pot);
+    }
+
+    /// <summary>
+    /// 副露判定：碰/杠按离放铳者距离逐个问（人类开窗，AI 直接表态），全部不取才轮到吃。
+    /// 任何人类座位都不会被 <see cref="AiPlayer.DecideMeld"/> 代办。
+    /// </summary>
     private void CheckMelds(Tile discarded, int discPlayer)
     {
-        int human = FindHumanResponse(discPlayer);
-        if (human >= 0 && human != discPlayer && !_engine.Players[human].IsCalled)
+        _meldTile = discarded;
+        _meldDiscarder = discPlayer;
+        _meldAllowsClaim = true;
+        _claimSeats.Clear();
+
+        var observation = SelfPlayDriver.BuildObservation(_engine, -1, discPlayer, discarded);
+        var options = AiPlayer.GetMeldOptions(observation);
+        var seats = new List<int>(options.Kan.Count + options.Pon.Count);
+        seats.AddRange(options.Kan);
+        seats.AddRange(options.Pon);
+        foreach (int seat in seats
+                     .Distinct()
+                     .Where(seat => !_engine.Players[seat].IsCalled)
+                     .OrderBy(seat => (seat - discPlayer + MahjongEngine.PlayerCount) % MahjongEngine.PlayerCount))
         {
-            var observation = SelfPlayDriver.BuildObservation(_engine, -1, discPlayer, discarded);
-            var options = AiPlayer.GetMeldOptions(observation);
-            bool canKan = options.Kan.Contains(human);
-            bool canPon = options.Pon.Contains(human);
-            bool canChi = options.Chi == human;
-            if (canKan || canPon || canChi)
+            _claimSeats.Add(seat);
+        }
+
+        ResolveClaims();
+    }
+
+    private void ResolveClaims()
+    {
+        while (_claimSeats.Count > 0)
+        {
+            int seat = _claimSeats[0];
+            _claimSeats.RemoveAt(0);
+            var player = _engine.Players[seat];
+            if (player.IsCalled)
+            {
+                continue;
+            }
+
+            if (player.IsHuman)
             {
                 _pendingChiList.Clear();
-                if (canChi)
+                _pendingMeld = new PendingMeld(_meldTile, _meldDiscarder);
+                _meldAllowsClaim = true;
+                _activeHuman = seat;
+                _phase = MatchPhase.HumanMeld;
+                _message = L.T("app.runtime.msg.meldChance", ("tile", Display(_meldTile)));
+                return;
+            }
+
+            // AI 碰/杠：同优先级按距离，最近的先取；追役 / 报听约束与 CheckMelds 同口径。
+            MeldType type = Count(player.Hand, _meldTile) >= 3 ? MeldType.Minkan : MeldType.Pon;
+            if (!PursuitAllowsMeld(seat, new[] { _meldTile, _meldTile, _meldTile }))
+            {
+                continue;
+            }
+
+            ApplyMeldCore(seat, type, _meldTile, _meldDiscarder, null);
+            return;
+        }
+
+        ResolveChi();
+    }
+
+    private void ResolveChi()
+    {
+        int seat = (_meldDiscarder + 1) % MahjongEngine.PlayerCount;
+        var player = _engine.Players[seat];
+        if (!player.IsCalled && AiPlayer.CanChi(player.Hand, _meldTile))
+        {
+            if (player.IsHuman)
+            {
+                var chi = AiPlayer.ChiOptions(player.Hand, _meldTile);
+                if (chi.Count > 0)
                 {
-                    _pendingChiList.AddRange(AiPlayer.ChiOptions(_engine.Players[human].Hand, discarded));
+                    _pendingChiList.Clear();
+                    _pendingChiList.AddRange(chi);
+                    _pendingMeld = new PendingMeld(_meldTile, _meldDiscarder);
+                    _meldAllowsClaim = false;
+                    _activeHuman = seat;
+                    _phase = MatchPhase.HumanMeld;
+                    _message = L.T("app.runtime.msg.meldChance", ("tile", Display(_meldTile)));
+                    return;
+                }
+            }
+            else
+            {
+                int suitCount = 0;
+                foreach (var tile in player.Hand)
+                {
+                    if (tile.Suit == _meldTile.Suit)
+                    {
+                        suitCount++;
+                    }
                 }
 
-                _pendingMeld = new PendingMeld(discarded, discPlayer);
-                _activeHuman = human;
-                _phase = MatchPhase.HumanMeld;
-                _message = L.T("app.runtime.msg.meldChance", ("tile", Display(discarded)));
-                return;
+                if (suitCount >= 5)
+                {
+                    var list = AiPlayer.ChiOptions(player.Hand, _meldTile);
+                    if (list.Count > 0)
+                    {
+                        IReadOnlyList<Tile> trio = list[(int)Math.Floor(_random.NextDouble() * list.Count)].Trio;
+                        if (PursuitAllowsMeld(seat, trio))
+                        {
+                            ApplyMeldCore(seat, MeldType.Chi, _meldTile, _meldDiscarder, trio);
+                            return;
+                        }
+                    }
+                }
             }
         }
 
-        var meldObservation = SelfPlayDriver.BuildObservation(_engine, -1, discPlayer, discarded);
-        var decision = AiPlayer.DecideMeld(meldObservation, _random.NextDouble());
-        if (!decision.Applied)
-        {
-            NextTurnInternal();
-            return;
-        }
-
-        // 报听后禁吃碰（含明杠）：AI 决策层直接避开，不依赖规则层抛异常。
-        // 追役原型：7Neuu 在追役状态（门清目标 / 高追役权重）下同样拒绝副露。
-        if (_engine.Players[decision.Target].IsCalled
-            || !PursuitAllowsMeld(decision.Target, MeldTiles(decision, discarded)))
-        {
-            NextTurnInternal();
-            return;
-        }
-
-        ApplyMeldCore(decision.Target, decision.Type, discarded, discPlayer, decision.ChiTrio);
+        NextTurnInternal();
     }
 
     private void NextTurnInternal()
@@ -1335,12 +1551,11 @@ public sealed class MatchRuntime
             return;
         }
 
-        // 副露窗口（吃碰杠）/ 荣和窗口：手牌已是 13 张形（荣和窗口临时留着待牌，按去掉待牌算）。
+        // 副露窗口（吃碰杠）/ 荣和窗口：手牌已是 13 张形。
+        // 荣和窗口的铳张留在牌河、不在手里，不能再从手牌里减一张。
         if (_phase is MatchPhase.HumanMeld or MatchPhase.HumanRon)
         {
-            var hand = _phase == MatchPhase.HumanRon && _pendingRon is PendingRon pending && !pending.IsMisfire
-                ? WithoutTile(player.Hand, pending.Tile)
-                : new List<Tile>(player.Hand);
+            var hand = new List<Tile>(player.Hand);
 
             if (!_engine.DeclareCallWithHand(player, hand))
             {
@@ -1398,19 +1613,6 @@ public sealed class MatchRuntime
     {
         RecordEvent(GameEventTypes.Call, playerIndex, null, "call:" + via);
         RecordStep(playerIndex, "call", null, "via=" + via);
-    }
-
-    /// <summary>手牌去掉一张指定牌（不改原列表）。</summary>
-    private static List<Tile> WithoutTile(IReadOnlyList<Tile> hand, Tile tile)
-    {
-        var copy = new List<Tile>(hand);
-        int index = copy.IndexOf(tile);
-        if (index >= 0)
-        {
-            copy.RemoveAt(index);
-        }
-
-        return copy;
     }
 
     public void Pass()
@@ -1638,62 +1840,40 @@ public sealed class MatchRuntime
             return false;
         }
 
-        int human = HumanIndex;
+        int human = _activeHuman >= 0 ? _activeHuman : HumanIndex;
+        _ronTile ??= pending.Tile;
+        if (_ronDiscarder < 0)
+        {
+            _ronDiscarder = pending.Discarder;
+        }
+
         _pendingRon = null;
         _pendingChiList.Clear();
         _phase = MatchPhase.Idle;
         _message = null;
 
-        var ronResult = pending.Result;
-        if (ronResult is null)
+        if (pending.Result is null)
         {
             // 报听错和：本次和牌不成立（错和家不算和），解除报听并判罚；
             // 同一张牌上其他家的真和牌照常结算（含双和子 / 过庄）。
             ApplyMisfire(human, pending.MisfireFu, selfDraw: false);
             if (_engine.MatchOver)
             {
+                _ronWindows.Clear();
+                _ronAccepted.Clear();
+                _ronTile = null;
+                _ronDiscarder = -1;
                 _lastOutcome = MakeOutcome("special_flow", Array.Empty<int>(), "call_foul");
                 return true;
             }
 
-            EmitState();
-
-            var others = CheckRonForAi(pending.Tile, pending.Discarder);
-            if (others.Count > 0)
-            {
-                DeclareMultiRon(others, pending.Discarder, pending.Tile);
-                return true;
-            }
-
-            CheckMelds(pending.Tile, pending.Discarder);
+            OpenNextRonWindow();
             return true;
         }
 
-        var humanPlayer = _engine.Players[human];
-        humanPlayer.Hand.Add(pending.Tile);
-        humanPlayer.Hand.Sort();
-
-        var winners = new List<RonWinner>
-        {
-            new(human, EngineSettlement.From(ronResult)),
-        };
-
-        foreach (var candidate in CheckRonForAi(pending.Tile, pending.Discarder))
-        {
-            var player = _engine.Players[candidate.PlayerIndex];
-            player.Hand.Add(pending.Tile);
-            player.Hand.Sort();
-            winners.Add(new RonWinner(candidate.PlayerIndex, EngineSettlement.From(candidate.Result)));
-        }
-
-        _lastOutcome = winners.Count >= 3
-            ? MakeOutcome("special_flow", Array.Empty<int>(), "triple_ron")
-            : MakeOutcome("ron", winners.Select(w => w.PlayerIndex).ToArray(), null);
-        int honba = _engine.Honba;
-        int pot = _engine.PotPoints;
-        _scoresBeforeWin = _engine.Scores.ToArray();
-        _engine.DeclareMultiRon(winners, pending.Discarder);
-        CaptureRonDetails(pending.Discarder, honba, pot);
+        // 先记下这一家，等其他人类窗口都表态后再一起结算（多家荣和）。
+        _ronAccepted.Add(new RonAccepted(human, pending.Result));
+        OpenNextRonWindow();
         return true;
     }
 
@@ -1704,26 +1884,25 @@ public sealed class MatchRuntime
             return false;
         }
 
-        int human = HumanIndex;
+        _ronTile ??= pending.Tile;
+        if (_ronDiscarder < 0)
+        {
+            _ronDiscarder = pending.Discarder;
+        }
+
         _pendingRon = null;
         _phase = MatchPhase.Idle;
         _message = null;
+        _pendingChiList.Clear();
 
-        // 荣和试探不再改动玩家手牌（铳张留在牌河），过牌时无事可回滚。
-        var candidates = CheckRonForAi(pending.Tile, pending.Discarder);
-        if (candidates.Count > 0)
-        {
-            DeclareMultiRon(candidates, pending.Discarder, pending.Tile);
-            return true;
-        }
-
-        CheckMelds(pending.Tile, pending.Discarder);
+        // 荣和试探不改动玩家手牌（铳张留在牌河），过牌时无事可回滚；继续问下一家。
+        OpenNextRonWindow();
         return true;
     }
 
     private bool PassMeldCore()
     {
-        if (_pendingMeld is not PendingMeld pending)
+        if (_pendingMeld is null)
         {
             return false;
         }
@@ -1733,24 +1912,17 @@ public sealed class MatchRuntime
         _phase = MatchPhase.Idle;
         _message = null;
 
-        var observation = SelfPlayDriver.BuildObservation(_engine, -1, pending.Discarder, pending.Tile);
-        var decision = AiPlayer.DecideMeld(observation, _random.NextDouble());
-        if (!decision.Applied)
+        if (_meldAllowsClaim)
         {
+            // 这一家不要，继续问下一个碰/杠候选；全部不要才轮到吃。
+            ResolveClaims();
+        }
+        else
+        {
+            // 已经问过吃（最后一项），过牌即本张弃牌无人副露。
             NextTurnInternal();
-            return true;
         }
 
-        // 报听后禁吃碰（含明杠）：AI 决策层直接避开。
-        // 追役原型：7Neuu 追役状态下的副露约束与 CheckMelds 同口径。
-        if (_engine.Players[decision.Target].IsCalled
-            || !PursuitAllowsMeld(decision.Target, MeldTiles(decision, pending.Tile)))
-        {
-            NextTurnInternal();
-            return true;
-        }
-
-        ApplyMeldCore(decision.Target, decision.Type, pending.Tile, pending.Discarder, decision.ChiTrio);
         return true;
     }
 
@@ -1766,9 +1938,9 @@ public sealed class MatchRuntime
         var options = AiPlayer.GetMeldOptions(observation);
         bool allowed = type switch
         {
-            MeldType.Chi => options.Chi == human,
-            MeldType.Pon => options.Pon.Contains(human),
-            MeldType.Minkan => options.Kan.Contains(human),
+            MeldType.Chi => _pendingChiList.Count > 0 && options.Chi == human,
+            MeldType.Pon => _meldAllowsClaim && options.Pon.Contains(human),
+            MeldType.Minkan => _meldAllowsClaim && options.Kan.Contains(human),
             _ => false,
         };
 
@@ -2527,9 +2699,7 @@ public sealed class MatchRuntime
                 _engine.Honba,
                 _engine.DealerIndex));
 
-        _pendingRon = null;
-        _pendingMeld = null;
-        _pendingChiList.Clear();
+        ResetPendingResponses();
         Emit(new RoundEndEvent(result));
 
         if (_engine.MatchOver)
@@ -2744,7 +2914,7 @@ public sealed class MatchRuntime
             case MatchPhase.HumanRon:
                 actions |= HumanAction.Ron | HumanAction.Pass;
                 if (!_engine.Players[human].IsCalled && _pendingRon is PendingRon ron && !ron.IsMisfire
-                    && ReturnsTenpai(_engine.Players[human], ron.Tile))
+                    && ReturnsTenpai(_engine.Players[human]))
                 {
                     actions |= HumanAction.DeclareCall;
                 }
@@ -2755,12 +2925,12 @@ public sealed class MatchRuntime
                 if (_pendingMeld is PendingMeld pending)
                 {
                     var player = _engine.Players[human];
-                    var observation = SelfPlayDriver.BuildObservation(_engine, -1, pending.Discarder, pending.Tile);
-                    var options = AiPlayer.GetMeldOptions(observation);
 
                     // 报听后禁止吃碰（含明杠），只留「过」。
-                    if (!player.IsCalled)
+                    if (!player.IsCalled && _meldAllowsClaim)
                     {
+                        var observation = SelfPlayDriver.BuildObservation(_engine, -1, pending.Discarder, pending.Tile);
+                        var options = AiPlayer.GetMeldOptions(observation);
                         if (options.Kan.Contains(human))
                         {
                             actions |= HumanAction.Kan;
@@ -2770,11 +2940,11 @@ public sealed class MatchRuntime
                         {
                             actions |= HumanAction.Pon;
                         }
+                    }
 
-                        if (options.Chi == human)
-                        {
-                            actions |= HumanAction.Chi;
-                        }
+                    if (!player.IsCalled && _pendingChiList.Count > 0)
+                    {
+                        actions |= HumanAction.Chi;
                     }
 
                     actions |= HumanAction.Pass;
@@ -2791,10 +2961,10 @@ public sealed class MatchRuntime
         return actions;
     }
 
-    /// <summary>荣和窗口里「去掉待牌」后是否已是听牌形（报听按钮用）。</summary>
-    private bool ReturnsTenpai(Player player, Tile pendingTile)
+    /// <summary>荣和窗口里 13 张手牌是否已是听牌形（报听按钮用）。</summary>
+    private bool ReturnsTenpai(Player player)
     {
-        var hand = WithoutTile(player.Hand, pendingTile);
+        var hand = player.Hand;
         if (hand.Count + player.MeldTiles() != 13 + player.KongCount())
         {
             return false;
@@ -2834,18 +3004,46 @@ public sealed class MatchRuntime
     private void EmitState()
     {
         using var perfSnapshot = PerfProbe.Measure("snapshot.build");
+        _snapshotRevision++;
+        int localViewer = _networkMode ? 0 : HumanIndex;
         _snapshot = SnapshotBuilder.Build(
             _engine,
             PhaseWire,
-            AvailableActions(),
-            ActionLabels(),
+            AvailableActionsFor(localViewer),
+            ActionLabelsFor(localViewer),
             _message,
             _settings,
             AiLevelWires(),
-            _tenpaiCache) with
+            _tenpaiCache,
+            viewerSeat: localViewer) with
         {
-            Revision = ++_snapshotRevision,
+            Revision = _snapshotRevision,
         };
+
+        if (_networkMode)
+        {
+            // 在引擎线程一次性生成四个座位的脱敏快照；网络线程只读这份缓存，
+            // 不再跨线程回读活体引擎（避免撕裂快照 / 越权字段泄露）。
+            var seats = new TableViewModel[MahjongEngine.PlayerCount];
+            for (int seat = 0; seat < seats.Length; seat++)
+            {
+                seats[seat] = SnapshotBuilder.Build(
+                    _engine,
+                    PhaseWire,
+                    AvailableActionsFor(seat),
+                    ActionLabelsFor(seat),
+                    _message,
+                    _settings,
+                    AiLevelWires(),
+                    _tenpaiCache,
+                    viewerSeat: seat) with
+                {
+                    Revision = _snapshotRevision,
+                };
+            }
+
+            Volatile.Write(ref _seatSnapshots, seats);
+        }
 
         _saveStore?.Save(CaptureSave(!_engine.MatchOver));
         Emit(new StateChangedEvent(_snapshot));
@@ -2888,9 +3086,10 @@ public sealed class MatchRuntime
     {
         get
         {
-            if (_activeHuman >= 0 && _activeHuman < MahjongEngine.PlayerCount)
+            int active = Volatile.Read(ref _activeHuman);
+            if (active >= 0 && active < MahjongEngine.PlayerCount)
             {
-                return _activeHuman;
+                return active;
             }
 
             for (int i = 0; i < MahjongEngine.PlayerCount; i++)
@@ -2903,24 +3102,6 @@ public sealed class MatchRuntime
 
             return -1;
         }
-    }
-
-    private int FindHumanResponse(int discPlayer)
-    {
-        if (!_networkMode)
-        {
-            return HumanIndex;
-        }
-
-        for (int i = 0; i < MahjongEngine.PlayerCount; i++)
-        {
-            if (i != discPlayer && _engine.Players[i].IsHuman)
-            {
-                return i;
-            }
-        }
-
-        return -1;
     }
 
     /// <summary>
@@ -2944,9 +3125,7 @@ public sealed class MatchRuntime
     private void StartNewRoundInternal()
     {
         _roundGate.Reset();
-        _pendingRon = null;
-        _pendingMeld = null;
-        _pendingChiList.Clear();
+        ResetPendingResponses();
         _lastOutcome = null;
         _lastDetails = Array.Empty<SettlementDetail>();
         _scoresAtRoundStart = _engine.Scores.ToArray();
@@ -2993,9 +3172,7 @@ public sealed class MatchRuntime
         _matchStatsRecorded = false;
         _lastOutcome = null;
         _lastDetails = Array.Empty<SettlementDetail>();
-        _pendingRon = null;
-        _pendingMeld = null;
-        _pendingChiList.Clear();
+        ResetPendingResponses();
         _roundStats.Clear();
         Array.Clear(_aiCallDeclarationsBySeat);
         _aiCallDeclarations = 0;

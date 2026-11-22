@@ -686,9 +686,9 @@ public sealed class TableScreen : Screen
                 return true;
             }
 
-            // 鼠标「下一局」按钮（防连点）。
+            // 鼠标「下一局」按钮（防连点）。联机客机由快照标记禁止推进。
             if (_settlement is { } endResult && !_settlementHidden && !endResult.MatchOver
-                && _overlay.HitNextRound(x, y))
+                && _snapshot().CanAdvanceRound && _overlay.HitNextRound(x, y))
             {
                 if (!_nextRoundRequested)
                 {
@@ -1001,7 +1001,7 @@ public sealed class TableScreen : Screen
                 return true;
             }
 
-            if (key is Keys.Enter or Keys.Space or Keys.N)
+            if (vm.CanAdvanceRound && key is Keys.Enter or Keys.Space or Keys.N)
             {
                 _commands?.Invoke(GameCommand.NextRound());
                 return true;
@@ -1101,7 +1101,7 @@ public sealed class TableScreen : Screen
                 return false;
 
             case Keys.N:
-                if (vm.Phase == "round_end")
+                if (vm.Phase == "round_end" && vm.CanAdvanceRound)
                 {
                     _commands(GameCommand.NextRound());
                     return true;

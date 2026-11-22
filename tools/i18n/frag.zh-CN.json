@@ -1232,7 +1232,8 @@
         "footer": {
           "matchOver": "Esc 进入设置",
           "multi": "← / → 或点「下一个」切换和牌者 · 点「下一局」继续 · Esc 设置",
-          "single": "点「下一局」继续 · Esc 设置"
+          "single": "点「下一局」继续 · Esc 设置",
+          "waitHost": "等待房主开始下一局 · Esc 设置"
         },
         "handSub": {
           "tiles": "{count} 张",

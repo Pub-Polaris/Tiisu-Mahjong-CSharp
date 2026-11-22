@@ -93,6 +93,8 @@ internal sealed class TcpJsonLineChannel : IPeerChannel
     private readonly StreamReader _reader;
     private readonly StreamWriter _writer;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly StringBuilder _lineBuffer = new();
+    private readonly char[] _readChars = new char[8 * 1024];
 
     public TcpJsonLineChannel(Stream stream)
     {
@@ -127,7 +129,7 @@ internal sealed class TcpJsonLineChannel : IPeerChannel
 
     public async Task<PeerEnvelope?> ReceiveAsync(CancellationToken cancellationToken = default)
     {
-        string? line = await _reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+        string? line = await ReadLineBoundedAsync(cancellationToken).ConfigureAwait(false);
         if (line is null)
         {
             return null;
@@ -146,6 +148,51 @@ internal sealed class TcpJsonLineChannel : IPeerChannel
         }
 
         return envelope;
+    }
+
+    /// <summary>
+    /// 按行读取，但在读完一整行之前就限制缓冲区大小：超大无换行的输入会在
+    /// <see cref="NetworkConstants.MaxMessageBytes"/> 处直接失败，不会先把内存吃满。
+    /// </summary>
+    private async Task<string?> ReadLineBoundedAsync(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            for (int i = 0; i < _lineBuffer.Length; i++)
+            {
+                if (_lineBuffer[i] != '\n')
+                {
+                    continue;
+                }
+
+                string line = _lineBuffer.ToString(0, i);
+                _lineBuffer.Remove(0, i + 1);
+                if (line.EndsWith('\r'))
+                {
+                    line = line[..^1];
+                }
+
+                return line;
+            }
+
+            if (_lineBuffer.Length > NetworkConstants.MaxMessageBytes)
+            {
+                throw new InvalidDataException("incoming message too large");
+            }
+
+            int read = await _reader.ReadAsync(_readChars.AsMemory(), cancellationToken).ConfigureAwait(false);
+            if (read == 0)
+            {
+                if (_lineBuffer.Length == 0)
+                {
+                    return null;
+                }
+
+                throw new InvalidDataException("truncated message");
+            }
+
+            _lineBuffer.Append(_readChars, 0, read);
+        }
     }
 
     public void Dispose()
@@ -241,7 +288,8 @@ internal sealed class WebSocketPeerChannel : IPeerChannel
 
             if (payload.Length == 0)
             {
-                return null;
+                // 合法的空文本帧（某些实现的 keepalive）：跳过继续读，不能当断线。
+                continue;
             }
 
             string json = Encoding.UTF8.GetString(payload.GetBuffer(), 0, (int)payload.Length);

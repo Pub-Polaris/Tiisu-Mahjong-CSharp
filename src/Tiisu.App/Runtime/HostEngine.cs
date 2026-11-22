@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 using Tiisu.App.Table;
 using Tiisu.Engine.Random;
 using Tiisu.Net;
@@ -19,10 +20,25 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
     private readonly PeerServer _server;
     private readonly long[] _lastSentRevision = new long[NetworkConstants.MaxPlayers];
     private readonly string?[] _lastSentHash = new string?[NetworkConstants.MaxPlayers];
+
+    /// <summary>
+    /// 快照广播串行化：引擎每次状态变化只投递一个信号（容量 1，旧信号被丢弃），
+    /// 单个 pump 依次发送，保证同一座位的 revision 单调且不会被旧任务回写。
+    /// </summary>
+    private readonly Channel<long> _snapshotQueue = Channel.CreateBounded<long>(new BoundedChannelOptions(1)
+    {
+        FullMode = BoundedChannelFullMode.DropOldest,
+        SingleReader = true,
+    });
+
+    private readonly CancellationTokenSource _pumpCts = new();
+    private readonly object _stopLock = new();
+    private Task? _pumpTask;
     private string? _lastError;
     private Task? _stopTask;
     private bool _started;
     private bool _disposed;
+    private bool _networkSeats;
 
     public HostEngine(Settings settings, RoomInfo room, int port = NetworkConstants.DefaultPort,
         IRandomSource? random = null, string? transport = null)
@@ -89,6 +105,7 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
         }
 
         _local.ConfigureNetworkSeats(BuildHumanSeats());
+        _networkSeats = true;
         _local.Post(GameCommand.StartMatch(mode));
         _server.State = "playing";
         _ = _server.BroadcastAsync("start", new { mode });
@@ -136,6 +153,16 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
             return;
         }
 
+        // 联机模式下本机只代表 Seat 0：不是本机行动者的窗口时，忽略本机键鼠命令，
+        // 避免房主在自己的界面上替远程玩家出牌 / 和牌（Host 本地命令不经过 ValidateCommand）。
+        if (_networkSeats
+            && command.Kind is not (GameCommandKind.StartMatch or GameCommandKind.ResetAll
+                or GameCommandKind.ApplySettings or GameCommandKind.Resume or GameCommandKind.NextRound)
+            && _local.ActiveHumanSeat != PeerServer.HostSeat)
+        {
+            return;
+        }
+
         if (command.SnapshotRevision == 0)
         {
             command = command with { SnapshotRevision = LatestSnapshot.Revision };
@@ -168,14 +195,14 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
         }
 
         // 每个客户端只能基于 Host 发给它的最后一份快照操作。
-        if (request.Revision != _lastSentRevision[request.Seat])
+        if (request.Revision != Volatile.Read(ref _lastSentRevision[request.Seat]))
         {
             return false;
         }
 
         // 客户端声称的快照必须与 Host 实际发给它的脱敏快照一致；
         // 任何“本地算牌/改牌山”的结果都会在这里被发现。
-        if (_lastSentHash[request.Seat] is not { } expectedHash
+        if (Volatile.Read(ref _lastSentHash[request.Seat]) is not { } expectedHash
             || !string.Equals(request.SnapshotHash, expectedHash, StringComparison.Ordinal))
         {
             return false;
@@ -218,9 +245,11 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
             return;
         }
 
-        if (uiEvent is StateChangedEvent changed)
+        if (uiEvent is StateChangedEvent)
         {
-            _ = BroadcastSnapshotsAsync(changed.Snapshot.Revision);
+            // 只发「有新状态」的信号；pump 每次发送时取当前最新快照，
+            // 旧信号在容量 1 的队列里被丢弃，不会积压成一串过期快照。
+            QueueSnapshotBroadcast();
         }
         else if (uiEvent is RoundEndEvent roundEnd)
         {
@@ -238,23 +267,48 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
         UiEvent?.Invoke(uiEvent);
     }
 
-    private async Task BroadcastSnapshotsAsync(long revision)
+    private void QueueSnapshotBroadcast()
+    {
+        _pumpTask ??= Task.Run(SnapshotPumpAsync);
+        _snapshotQueue.Writer.TryWrite(0);
+    }
+
+    /// <summary>单线程 pump：串行发送各座位快照，容量 1 的队列天然合并过期状态。</summary>
+    private async Task SnapshotPumpAsync()
     {
         try
         {
-            for (int seat = 1; seat < NetworkConstants.MaxPlayers; seat++)
+            await foreach (long _ in _snapshotQueue.Reader.ReadAllAsync(_pumpCts.Token).ConfigureAwait(false))
             {
-                TableViewModel snapshot = SnapshotRotation.RotateForViewer(
-                    _local.SnapshotForSeat(seat), seat) with { Revision = revision };
-                _lastSentRevision[seat] = revision;
-                string json = JsonSerializer.Serialize(snapshot, SnapshotJson);
-                _lastSentHash[seat] = Hash(json);
-                await _server.SendSnapshotAsync(seat, revision, json).ConfigureAwait(false);
+                await BroadcastSnapshotsAsync().ConfigureAwait(false);
             }
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
             Volatile.Write(ref _lastError, "快照发送失败: " + ex.Message);
+        }
+    }
+
+    private async Task BroadcastSnapshotsAsync()
+    {
+        for (int seat = 1; seat < NetworkConstants.MaxPlayers; seat++)
+        {
+            TableViewModel snapshot = SnapshotRotation.RotateForViewer(
+                _local.SnapshotForSeat(seat), seat) with { CanAdvanceRound = false };
+            string json = JsonSerializer.Serialize(snapshot, SnapshotJson);
+            string hash = Hash(json);
+
+            // 只有真正写出去才算「已发」：发送失败时保留上一份 revision/hash，
+            // 客户端的旧 revision 仍可对上，不会被误判成作弊。
+            if (await _server.SendSnapshotAsync(seat, snapshot.Revision, json, _pumpCts.Token)
+                    .ConfigureAwait(false))
+            {
+                Volatile.Write(ref _lastSentRevision[seat], snapshot.Revision);
+                Volatile.Write(ref _lastSentHash[seat], hash);
+            }
         }
     }
 
@@ -281,7 +335,10 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
 
     private static bool IsCommandAllowed(GameCommand command, HumanAction actions) => command.Kind switch
     {
-        GameCommandKind.Discard or GameCommandKind.DeclareCall => (actions & HumanAction.Discard) != 0,
+        GameCommandKind.Discard => (actions & HumanAction.Discard) != 0,
+
+        // 报听是独立动作：荣和 / 副露窗口里只有 DeclareCall 位，没有 Discard 位。
+        GameCommandKind.DeclareCall => (actions & HumanAction.DeclareCall) != 0,
         GameCommandKind.Tsumo => (actions & HumanAction.Tsumo) != 0,
         GameCommandKind.Ron => (actions & HumanAction.Ron) != 0,
         GameCommandKind.Pon => (actions & HumanAction.Pon) != 0,
@@ -312,16 +369,13 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
         return Convert.ToHexString(bytes);
     }
 
-    /// <summary>幂等停止：先停止监听/广告，再结束本地引擎线程。</summary>
+    /// <summary>幂等停止：先停广播 pump，再停止监听/广告，最后结束本地引擎线程。</summary>
     public Task StopAsync()
     {
-        if (_stopTask is not null)
+        lock (_stopLock)
         {
-            return _stopTask;
+            return _stopTask ??= StopCoreAsync();
         }
-
-        _stopTask = StopCoreAsync();
-        return _stopTask;
     }
 
     private async Task StopCoreAsync()
@@ -331,12 +385,27 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
         _server.CommandReceived -= OnCommand;
         _server.CheatDetected -= OnCheat;
 
+        _snapshotQueue.Writer.TryComplete();
+        _pumpCts.Cancel();
+        if (_pumpTask is not null)
+        {
+            try
+            {
+                await _pumpTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                // pump 已在内部吞掉取消/发送异常。
+            }
+        }
+
         try
         {
             await _server.StopAsync().ConfigureAwait(false);
         }
         finally
         {
+            _pumpCts.Dispose();
             _local.Dispose();
         }
     }

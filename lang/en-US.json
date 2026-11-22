@@ -1601,7 +1601,8 @@
         "footer": {
           "matchOver": "Esc for settings",
           "multi": "← / → or Next to switch winner · Next Round to continue · Esc for settings",
-          "single": "Click Next Round to continue · Esc for settings"
+          "single": "Click Next Round to continue · Esc for settings",
+          "waitHost": "Waiting for the host to start the next round · Esc for settings"
         },
         "handSub": {
           "tiles": "{count} tiles",

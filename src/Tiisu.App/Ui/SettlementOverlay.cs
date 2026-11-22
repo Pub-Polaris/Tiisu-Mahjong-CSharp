@@ -73,6 +73,9 @@ public sealed class SettlementOverlay
     private RectF _nextButton;
     private RectF _nextRoundButton;
 
+    /// <summary>本客户端能否推进下一局（联机客机 false：只由 Host 统一推进）。</summary>
+    private bool _canAdvanceRound = true;
+
     /// <summary>上一帧画出的「下一局」按钮矩形（命中测试 / 自检用）。</summary>
     public RectF NextRoundBounds => _nextRoundButton;
     private bool _nextRoundHover;
@@ -272,9 +275,9 @@ public sealed class SettlementOverlay
             DrawWinnerInfo(c, result, vm, detail!, infoZone, matchOver);
         }
 
+        _canAdvanceRound = vm.CanAdvanceRound;
         DrawFooter(c, details.Count, matchOver, panel);
         c.Restore();
-
         // 命中矩形原本按设计坐标算出；整块放大过就换算回画布坐标，指针命中才对得上。
         if (scale != 1f || offsetX != 0f || offsetY != 0f)
         {
@@ -362,13 +365,15 @@ public sealed class SettlementOverlay
     {
         string footer = matchOver
             ? L.T("app.ui.settlement.footer.matchOver")
-            : winnerCount > 1
-                ? L.T("app.ui.settlement.footer.multi")
-                : L.T("app.ui.settlement.footer.single");
+            : !_canAdvanceRound
+                ? L.T("app.ui.settlement.footer.waitHost")
+                : winnerCount > 1
+                    ? L.T("app.ui.settlement.footer.multi")
+                    : L.T("app.ui.settlement.footer.single");
 
         // 鼠标「下一局」按钮：不依赖键盘。
         _nextRoundButton = default;
-        if (!matchOver)
+        if (!matchOver && _canAdvanceRound)
         {
             var button = new RectF(panel.CenterX - 90f, panel.Bottom - 102f, 180f, 40f);
             _nextRoundButton = button;
@@ -388,7 +393,7 @@ public sealed class SettlementOverlay
 
     private static float MeasureWinnerHand(TableViewModel vm, SettlementDetail detail)
     {
-        var seat = vm.Seats.FirstOrDefault(s => s.Index == detail.WinnerIndex);
+        var seat = SeatIndexMap.ByAbsolute(vm, detail.WinnerIndex);
         int handCount = seat?.Hand.Count ?? 0;
         int rows = handCount == 0 ? 0 : (handCount + TilesPerRow - 1) / TilesPerRow;
         float h = HandHeaderH;
@@ -412,7 +417,7 @@ public sealed class SettlementOverlay
     /// </summary>
     private static void DrawWinnerHand(ICanvas c, TableViewModel vm, SettlementDetail detail, RectF zone)
     {
-        var seat = vm.Seats.FirstOrDefault(s => s.Index == detail.WinnerIndex);
+        var seat = SeatIndexMap.ByAbsolute(vm, detail.WinnerIndex);
         var hand = seat?.Hand ?? Array.Empty<TileView>();
         var melds = (seat?.Melds ?? Array.Empty<MeldView>()).Where(m => m.Tiles.Count > 0).ToList();
 
@@ -601,7 +606,7 @@ public sealed class SettlementOverlay
     private void DrawWinnerInfo(ICanvas c, RoundResult result, TableViewModel vm, SettlementDetail detail,
         RectF zone, bool matchOver)
     {
-        var seat = vm.Seats.FirstOrDefault(s => s.Index == detail.WinnerIndex);
+        var seat = SeatIndexMap.ByAbsolute(vm, detail.WinnerIndex);
         // 199 号规则：门风随庄轮转（庄家=东），所以显示按门风，而不是固定座次名。
         string who = SeatName(vm, detail.WinnerIndex);
         if (seat is { IsDealer: true })
@@ -894,15 +899,14 @@ public sealed class SettlementOverlay
         c.DrawText(L.T("app.ui.settlement.scoreChanges"), new RectF(x, y, width, 24), Muted, new TextStyle(14, Center: false));
         y += 26f;
 
-        for (int i = 0; i < vm.Seats.Count && i < result.Scores.Length; i++)
+        for (int i = 0; i < result.Scores.Length; i++)
         {
-            var seat = vm.Seats[i];
             int after = result.Scores[i];
             int before = result.ScoresBefore is { } scoresBefore && i < scoresBefore.Count
                 ? scoresBefore[i]
                 : after;
 
-            c.DrawText(SeatName(vm, seat.Index), new RectF(x, y, 100, 26), TextColor, new TextStyle(16, Center: false));
+            c.DrawText(SeatName(vm, i), new RectF(x, y, 100, 26), TextColor, new TextStyle(16, Center: false));
             c.DrawText(before.ToString(CultureInfo.InvariantCulture) + " → " +
                        after.ToString(CultureInfo.InvariantCulture),
                 new RectF(x + 104, y, 200, 26), TextColor, new TextStyle(16, Center: false));
@@ -951,7 +955,7 @@ public sealed class SettlementOverlay
     /// <summary>显示名用门风（庄家=东），不用固定座次名。</summary>
     private static string SeatName(TableViewModel vm, int index)
     {
-        var seat = vm.Seats.FirstOrDefault(s => s.Index == index);
+        var seat = SeatIndexMap.ByAbsolute(vm, index);
         if (seat is null)
         {
             return L.T("app.ui.settlement.playerFallback", ("index", index));

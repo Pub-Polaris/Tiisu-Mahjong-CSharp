@@ -58,7 +58,16 @@ public sealed class MeldView
 
 public sealed record SeatView
 {
+    /// <summary>显示序号（0 = 牌桌底部/自己）。联机快照会按观察者旋转。</summary>
     public int Index { get; init; }
+
+    /// <summary>
+    /// 绝对座位号（0..3，与 <c>RoundResult</c> / <c>SettlementDetail</c> 同一口径）。
+    /// 旋转只改 <see cref="Index"/>，不改这个字段；结算页必须按它索引，否则远程客户端会把
+    /// 赢家 / 放铳者 / 分数变化显示到别人位置。
+    /// </summary>
+    public int AbsoluteIndex { get; init; } = -1;
+
     public string Name { get; init; } = "AI";
     public string Wind { get; init; } = "东";
     public int Score { get; init; }
@@ -229,6 +238,12 @@ public sealed record TableViewModel
 
     /// <summary>本快照的观察者座位；0 = 牌桌底部/自己的手牌。</summary>
     public int SelfSeat { get; init; }
+
+    /// <summary>
+    /// 本客户端能否推进「下一局」。单机 / Host 为 true；联机客机为 false
+    /// （局末只由 Host 统一推进，客机不画按钮、不响应 Enter/Space/N）。
+    /// </summary>
+    public bool CanAdvanceRound { get; init; } = true;
 
     /// <summary>运行阶段：idle / human_discard / human_ron / human_meld / round_end / match_over。</summary>
     public string Phase { get; init; } = "idle";

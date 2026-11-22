@@ -1232,7 +1232,8 @@
         "footer": {
           "matchOver": "Esc で設定",
           "multi": "← / → または「次へ」で和了者切替・「次の局」で続行・Esc で設定",
-          "single": "「次の局」で続行・Esc で設定"
+          "single": "「次の局」で続行・Esc で設定",
+          "waitHost": "ホストが次の局を始めるのを待っています · Esc で設定"
         },
         "handSub": {
           "tiles": "{count}枚",

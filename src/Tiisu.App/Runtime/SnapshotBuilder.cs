@@ -91,6 +91,7 @@ public static class SnapshotBuilder
             seats.Add(new SeatView
             {
                 Index = i,
+                AbsoluteIndex = i,
                 Name = player.Name,
                 Wind = WindNames[(int)player.SeatWind % 4],
                 Score = engine.Scores[i],
@@ -119,8 +120,10 @@ public static class SnapshotBuilder
                 continue;
             }
 
+            // 非公开时只发占位（Hidden + 空 id）：牌面 id 不进客户端快照，
+            // 避免改包 / 抓包提前看到杠后补摸与场外牌。
             bool show = revealHands || (settings?.ShowMa ?? false);
-            rinshan.Add(new TileView(TileNotation.AtlasId(value), Hidden: !show));
+            rinshan.Add(new TileView(show ? TileNotation.AtlasId(value) : string.Empty, Hidden: !show));
         }
 
         bool hasAnkan = false;

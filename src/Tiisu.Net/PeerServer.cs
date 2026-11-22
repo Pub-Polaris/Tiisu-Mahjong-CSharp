@@ -19,6 +19,7 @@ public sealed class PeerServer : IAsyncDisposable
     private LanDiscovery.LanAdvertiser? _advertiser;
     private Task? _acceptTask;
     private Task? _stopTask;
+    private readonly object _stopLock = new();
     private bool _started;
     private bool _disposed;
 
@@ -105,13 +106,21 @@ public sealed class PeerServer : IAsyncDisposable
         }
     }
 
-    private RoomInfo CurrentRoom() =>
-        _room with
+    private RoomInfo CurrentRoom()
+    {
+        int players;
+        lock (_lock)
         {
-            Players = 1 + _connections.Count(c => c.Seat > HostSeat),
+            players = 1 + _connections.Count(c => c.Seat > HostSeat);
+        }
+
+        return _room with
+        {
+            Players = players,
             State = State,
             Transport = _transport,
         };
+    }
 
     private async Task AcceptLoopAsync()
     {
@@ -305,13 +314,13 @@ public sealed class PeerServer : IAsyncDisposable
         }
     }
 
-    public async Task SendSnapshotAsync(int seat, long revision, string snapshotJson,
+    public async Task<bool> SendSnapshotAsync(int seat, long revision, string snapshotJson,
         CancellationToken cancellationToken = default)
     {
         PeerConnection? connection = SnapshotConnections().FirstOrDefault(c => c.Seat == seat);
         if (connection is null)
         {
-            return;
+            return false;
         }
 
         try
@@ -319,12 +328,19 @@ public sealed class PeerServer : IAsyncDisposable
             await connection.Channel.SendAsync(PeerMessageTypes.Snapshot,
                 new SnapshotMessage(revision, seat, snapshotJson),
                 revision, cancellationToken).ConfigureAwait(false);
+            return true;
         }
         catch (IOException)
         {
+            return false;
         }
         catch (InvalidOperationException)
         {
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
         }
     }
 
@@ -359,14 +375,17 @@ public sealed class PeerServer : IAsyncDisposable
 
     public Task StopAsync()
     {
-        if (_stopTask is not null)
+        lock (_stopLock)
         {
+            if (_stopTask is not null)
+            {
+                return _stopTask;
+            }
+
+            _disposed = true;
+            _stopTask = StopCoreAsync();
             return _stopTask;
         }
-
-        _disposed = true;
-        _stopTask = StopCoreAsync();
-        return _stopTask;
     }
 
     private async Task StopCoreAsync()
