@@ -34,6 +34,7 @@ public sealed class NetworkClientSession : ITableSession
         _peer.SnapshotReceived += OnSnapshot;
         _peer.Error += OnError;
         _peer.CheatDetected += OnCheat;
+        _peer.RoundEndJson += OnRoundEnd;
     }
 
     public int Seat => _peer.Seat;
@@ -130,6 +131,22 @@ public sealed class NetworkClientSession : ITableSession
         Dispatch(new ErrorEvent(reason));
     }
 
+    private void OnRoundEnd(string json)
+    {
+        try
+        {
+            RoundResult? result = JsonSerializer.Deserialize<RoundResult>(json, SnapshotJson);
+            if (result is not null)
+            {
+                Dispatch(new RoundEndEvent(result));
+            }
+        }
+        catch (JsonException ex)
+        {
+            Dispatch(new ErrorEvent("联机结算解析失败: " + ex.Message));
+        }
+    }
+
     private void Dispatch(UiEvent uiEvent)
     {
         Action<UiEvent>? handler = UiEvent;
@@ -188,5 +205,6 @@ public sealed class NetworkClientSession : ITableSession
         _peer.SnapshotReceived -= OnSnapshot;
         _peer.Error -= OnError;
         _peer.CheatDetected -= OnCheat;
+        _peer.RoundEndJson -= OnRoundEnd;
     }
 }

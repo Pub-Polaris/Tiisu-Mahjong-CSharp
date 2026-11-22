@@ -172,6 +172,14 @@ public sealed class HostEngine : ITableSession
         {
             _ = BroadcastSnapshotsAsync(changed.Snapshot.Revision);
         }
+        else if (uiEvent is RoundEndEvent roundEnd)
+        {
+            _ = BroadcastRoundEndAsync(roundEnd.Result);
+        }
+        else if (uiEvent is MatchOverEvent)
+        {
+            _server.State = "lobby";
+        }
         else if (uiEvent is ErrorEvent error)
         {
             Volatile.Write(ref _lastError, error.Message);
@@ -234,6 +242,18 @@ public sealed class HostEngine : ITableSession
         GameCommandKind.NextRound => true,
         _ => false,
     };
+
+    private async Task BroadcastRoundEndAsync(RoundResult result)
+    {
+        try
+        {
+            await _server.BroadcastAsync("round_end", result).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Volatile.Write(ref _lastError, "结算广播失败: " + ex.Message);
+        }
+    }
 
     private static string Hash(string text)
     {

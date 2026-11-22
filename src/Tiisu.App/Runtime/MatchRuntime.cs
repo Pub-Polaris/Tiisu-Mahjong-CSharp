@@ -284,8 +284,8 @@ public sealed class MatchRuntime
         return SnapshotBuilder.Build(
             _engine,
             PhaseWire,
-            AvailableActions(),
-            ActionLabels(),
+            AvailableActionsFor(seat),
+            ActionLabelsFor(seat),
             _message,
             _settings,
             AiLevelWires(),
@@ -2672,11 +2672,12 @@ public sealed class MatchRuntime
             || (player.IsDealer && player.Hand.Count == 14 && !player.SkipDraw);
     }
 
-    public HumanAction AvailableActions()
+    public HumanAction AvailableActions() => AvailableActionsFor(HumanIndex);
+
+    public HumanAction AvailableActionsFor(int human)
     {
         var actions = HumanAction.None;
-        int human = HumanIndex;
-        if (human < 0)
+        if (human < 0 || ( _activeHuman >= 0 && human != _activeHuman))
         {
             return actions;
         }
@@ -2804,9 +2805,12 @@ public sealed class MatchRuntime
     }
 
     /// <summary>吃牌多选的按钮文案（如「吃 234m」）。</summary>
-    public IReadOnlyList<string> ActionLabels()
+    public IReadOnlyList<string> ActionLabels() => ActionLabelsFor(HumanIndex);
+
+    public IReadOnlyList<string> ActionLabelsFor(int human)
     {
-        if (_phase != MatchPhase.HumanMeld || _pendingChiList.Count == 0)
+        if (_phase != MatchPhase.HumanMeld || _pendingChiList.Count == 0
+            || (_activeHuman >= 0 && human != _activeHuman))
         {
             return Array.Empty<string>();
         }

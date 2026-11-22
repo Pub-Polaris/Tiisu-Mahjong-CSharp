@@ -32,6 +32,7 @@ public sealed class PeerClient : IAsyncDisposable
     public event Action<string>? CheatDetected;
     public event Action<string>? Disconnected;
     public event Action? MatchStarting;
+    public event Action<string>? RoundEndJson;
 
     public static async Task<PeerClient> ConnectAsync(
         string host,
@@ -158,6 +159,10 @@ public sealed class PeerClient : IAsyncDisposable
 
                     case "start":
                         MatchStarting?.Invoke();
+                        break;
+
+                    case "round_end":
+                        RoundEndJson?.Invoke(envelope.Payload.GetRawText());
                         break;
                 }
             }
