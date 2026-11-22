@@ -40,7 +40,7 @@ public static class CustomLayoutStore
     };
 
     public static string PathFor(string? directory = null) =>
-        Path.Combine(directory ?? Settings.DefaultDirectory, FileName);
+        Path.Combine(directory ?? AppData.Current, FileName);
 
     public static bool Exists(string? directory = null) => File.Exists(PathFor(directory));
 

@@ -1528,6 +1528,7 @@ internal static class DevCommands
       "stats" => new StatsScreen(() => { }, () => { }),
       "achievements" => new AchievementsScreen(() => { }),
       "replay" => new ReplayScreen(() => { }),
+      "replay-demo" => CreateReplayDemoScreen(),
         "rules" => new RulesScreen(() => { }),
         "licenses" => new LicensesScreen(() => { }),
         "markdown" => new MarkdownScreen(
@@ -1537,6 +1538,52 @@ internal static class DevCommands
           () => { }),
         _ => new TableScreen(atlas),
     };
+
+    private static UiScreen CreateReplayDemoScreen()
+    {
+        ReplayRound round = CreateDemoReplayRound();
+        var screen = new ReplayScreen(() => { }, new[] { round });
+        screen.ShowStep(1);
+        return screen;
+    }
+
+    private static ReplayRound CreateDemoReplayRound()
+    {
+        var headers = new[]
+        {
+            new ReplayHeader(0, "你", "东", true, true, "你"),
+            new ReplayHeader(1, "AI 南", "南", false, false, null),
+            new ReplayHeader(2, "AI 西", "西", false, false, null),
+            new ReplayHeader(3, "AI 北", "北", false, false, null),
+        };
+
+        IReadOnlyList<ReplayMeld> none = Array.Empty<ReplayMeld>();
+        var noMelds = new[] { none, none, none, none };
+        var rivers = new[] { "", "", "", "" };
+        var allHands = new[]
+        {
+            "123m456p789s1122z5z",
+            "234m567p678s3344z",
+            "345m678p789s5566z",
+            "456m789p123s7788z",
+        };
+        var handCounts = new[] { 14, 13, 13, 13 };
+        var scores = new[] { 25000, 25000, 25000, 25000 };
+
+        var steps = new List<ReplayStep>
+        {
+            new(0, "draw", null, "123m456p789s1122z5z", 69, null, null, rivers,
+                allHands, noMelds, handCounts, scores, 0, none),
+            new(0, "discard", "5z", "123m456p789s1122z", 69, null, null, rivers,
+                allHands, noMelds, new[] { 13, 13, 13, 13 }, scores, 0, none),
+            new(1, "draw", null, "234m567p678s3344z5m", 68, null, null, rivers,
+                allHands, noMelds, new[] { 13, 14, 13, 13 }, scores, 1, none),
+            new(1, "discard", "5m", "234m567p678s3344z", 68, null, null, rivers,
+                allHands, noMelds, new[] { 13, 13, 13, 13 }, scores, 1, none),
+        };
+
+        return new ReplayRound("replay-demo.jsonl", 1, 0, 0, headers, steps);
+    }
 
     private static void RenderToPng(string path, double time, string screenName)
     {

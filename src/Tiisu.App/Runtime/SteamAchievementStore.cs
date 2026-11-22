@@ -18,7 +18,7 @@ public sealed class SteamAchievementStore
 
     public SteamAchievementStore(string? directory = null)
     {
-        string dir = System.IO.Path.GetFullPath(directory ?? Settings.DefaultDirectory);
+        string dir = System.IO.Path.GetFullPath(directory ?? AppData.Current);
         Directory.CreateDirectory(dir);
         _path = System.IO.Path.Combine(dir, "steam-pending.json");
     }

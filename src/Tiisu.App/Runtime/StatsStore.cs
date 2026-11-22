@@ -46,7 +46,7 @@ public sealed class StatsStore
 
     public StatsStore(string? directory = null)
     {
-        DirectoryPath = Path.GetFullPath(directory ?? Settings.DefaultDirectory);
+        DirectoryPath = Path.GetFullPath(directory ?? AppData.Current);
         Directory.CreateDirectory(DirectoryPath);
     }
 

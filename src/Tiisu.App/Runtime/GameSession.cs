@@ -47,7 +47,7 @@ public sealed class GameSession : IDisposable
         settings ??= new Settings();
         _uiContext = uiContext ?? SynchronizationContext.Current;
 
-        string directory = dataDirectory ?? Settings.DefaultDirectory;
+        string directory = dataDirectory ?? AppData.Current;
 
         // 「存档 / 恢复上局」已整体停用：不建 SaveStore，state.json 不读也不写。
         // 统计与牌谱日志不受影响。

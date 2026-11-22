@@ -1255,12 +1255,15 @@ public sealed class MenuScreen : Screen
     private readonly List<LayoutElement> _buttons = new();
     private int _focusButton = -1;
     private float _textScale = 1f;
+    private string _playerName = string.Empty;
 
-    public MenuScreen(UiLayout layout, Func<string, bool> onAction, Action<string>? openUrl = null) : base("menu")
+    public MenuScreen(UiLayout layout, Func<string, bool> onAction, Action<string>? openUrl = null,
+        string? playerName = null) : base("menu")
     {
         _layout = layout;
         _onAction = onAction;
         _openUrl = openUrl;
+        _playerName = playerName ?? string.Empty;
 
         foreach (var el in _layout.Elements)
         {
@@ -1323,7 +1326,9 @@ public sealed class MenuScreen : Screen
                     c.StrokeRoundRect(el.Rect, el.Radius <= 0 ? 10 : el.Radius,
                         focused ? Color.Rgb(242, 201, 76) : ParseColor(el.Border, Color.Rgb(196, 168, 96)),
                         focused ? 2.5f : 1.5f);
-                    string label = UiText.Tr(el.Text ?? el.Id);
+                    string label = string.Equals(el.Id, "btnProfile", StringComparison.Ordinal)
+                        ? L.T("app.ui.menu.profileButton", ("name", _playerName))
+                        : UiText.Tr(el.Text ?? el.Id);
                     var style = FitButtonStyle(c, label, el.Rect, el.FontSize);
                     c.DrawText(label, el.Rect,
                         ParseColor(el.FontColor, Color.Rgb(240, 236, 220)), style);
@@ -1337,6 +1342,11 @@ public sealed class MenuScreen : Screen
                 Color.Rgb(159, 180, 170), new TextStyle(14, Center: true));
         }
     }
+
+    private void SetPlayerName(string name) => _playerName = name ?? string.Empty;
+
+    /// <summary>档案改名/切换后刷新菜单右上角的玩家按钮。</summary>
+    public void RefreshPlayerName(string name) => SetPlayerName(name);
 
     private static TextStyle FitButtonStyle(ICanvas c, string text, RectF rect, float size)
     {

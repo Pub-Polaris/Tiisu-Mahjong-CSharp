@@ -8,8 +8,33 @@ using Tiisu.Engine;
 
 namespace Tiisu.App.Runtime;
 
-public sealed record ReplayHeader(int Player, string Name, string Wind, bool Dealer);
-public sealed record ReplayStep(int Player, string Action, string? Tile, string? Hand, int Wall, string? Reason, string? Via, IReadOnlyList<string> Rivers);
+public sealed record ReplayMeld(string Type, IReadOnlyList<string> Tiles, int ClaimedIndex = -1);
+
+public sealed record ReplayHeader(
+    int Player,
+    string Name,
+    string Wind,
+    bool Dealer,
+    bool Human = false,
+    string? DisplayName = null);
+
+public sealed record ReplayStep(
+    int Player,
+    string Action,
+    string? Tile,
+    string? Hand,
+    int Wall,
+    string? Reason,
+    string? Via,
+    IReadOnlyList<string> Rivers,
+    IReadOnlyList<string?>? AllHands = null,
+    IReadOnlyList<IReadOnlyList<ReplayMeld>>? AllMelds = null,
+    IReadOnlyList<int>? HandCounts = null,
+    IReadOnlyList<int>? Scores = null,
+    int? Turn = null,
+    IReadOnlyList<ReplayMeld>? Melds = null,
+    IReadOnlyList<int>? MeldCounts = null);
+
 public sealed record ReplayRound(string FileName, int Round, int Honba, int RoundWind, IReadOnlyList<ReplayHeader> Headers, IReadOnlyList<ReplayStep> Steps);
 
 /// <summary>读取 roundlog_*.jsonl 的最后一局，供牌谱回看页使用。</summary>
@@ -103,8 +128,10 @@ public static class RoundLogReader
                 headers.Add(new ReplayHeader(
                     Int(node["player"]),
                     SlugName(node["name"]?.GetValue<string>()),
-                    WindName(Int(node["wind"])),
-                    node["dealer"]?.GetValue<bool>() ?? false));
+                    WindName(WindIndex(node["wind"])),
+                    node["dealer"]?.GetValue<bool>() ?? false,
+                    node["human"]?.GetValue<bool>() ?? (Int(node["player"]) == 0),
+                    node["nameText"]?.GetValue<string>()));
                 continue;
             }
 
@@ -134,6 +161,14 @@ public static class RoundLogReader
                 }
             }
 
+            var allHands = StringArray(node["allHands"]);
+            var handCounts = IntArray(node["handCounts"]);
+            var scores = IntArray(node["scores"]);
+            var meldCounts = IntArray(node["meldCounts"]);
+            var allMelds = MeldsMatrix(node["allMelds"]);
+            var melds = Melds(node["melds"]);
+            int? turn = node["turn"] is null ? null : Int(node["turn"]);
+
             steps.Add(new ReplayStep(
                 Int(node["p"]),
                 node["a"]?.GetValue<string>() ?? string.Empty,
@@ -142,11 +177,136 @@ public static class RoundLogReader
                 Int(node["wall"]),
                 node["reason"]?.GetValue<string>(),
                 node["via"]?.GetValue<string>(),
-                rivers));
+                rivers,
+                allHands,
+                allMelds,
+                handCounts,
+                scores,
+                turn ?? Int(node["p"]),
+                melds,
+                meldCounts));
         }
 
         Flush();
         return rounds;
+    }
+
+    private static IReadOnlyList<ReplayMeld>? Melds(JsonNode? node)
+    {
+        if (node is not JsonArray array)
+        {
+            return null;
+        }
+
+        var result = new List<ReplayMeld>(array.Count);
+        foreach (JsonNode? item in array)
+        {
+            if (item is not JsonObject meld)
+            {
+                continue;
+            }
+
+            var tiles = new List<string>();
+            if (meld["tiles"] is JsonArray tileArray)
+            {
+                foreach (JsonNode? tile in tileArray)
+                {
+                    string? value = tile?.GetValue<string>();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        tiles.Add(value!);
+                    }
+                }
+            }
+
+            if (tiles.Count == 0)
+            {
+                string? compact = meld["t"]?.GetValue<string>();
+                if (!string.IsNullOrWhiteSpace(compact))
+                {
+                    tiles.AddRange(ExpandCompactMeld(compact!));
+                }
+            }
+
+            if (tiles.Count == 0)
+            {
+                continue;
+            }
+
+            result.Add(new ReplayMeld(
+                meld["k"]?.GetValue<string>() ?? "pon",
+                tiles,
+                meld["claimed"] is null ? -1 : Int(meld["claimed"])));
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<IReadOnlyList<ReplayMeld>>? MeldsMatrix(JsonNode? node)
+    {
+        if (node is not JsonArray seats)
+        {
+            return null;
+        }
+
+        var result = new List<IReadOnlyList<ReplayMeld>>(seats.Count);
+        foreach (JsonNode? seat in seats)
+        {
+            result.Add(Melds(seat) ?? Array.Empty<ReplayMeld>());
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<string>? StringArray(JsonNode? node)
+    {
+        if (node is not JsonArray array)
+        {
+            return null;
+        }
+
+        var result = new List<string>(array.Count);
+        foreach (JsonNode? item in array)
+        {
+            result.Add(item?.GetValue<string>() ?? string.Empty);
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<int>? IntArray(JsonNode? node)
+    {
+        if (node is not JsonArray array)
+        {
+            return null;
+        }
+
+        var result = new List<int>(array.Count);
+        foreach (JsonNode? item in array)
+        {
+            result.Add(Int(item));
+        }
+
+        return result;
+    }
+
+    /// <summary>旧日志的副露只有 "123m" 这种压缩串，展开成 1m/2m/3m。</summary>
+    private static IEnumerable<string> ExpandCompactMeld(string compact)
+    {
+        if (compact.Length < 2)
+        {
+            yield break;
+        }
+
+        char suit = compact[^1];
+        for (int i = 0; i < compact.Length - 1; i++)
+        {
+            char c = compact[i];
+            if (c is >= '1' and <= '9')
+            {
+                yield return c.ToString() + suit;
+            }
+        }
     }
 
     public static string ActionName(string action) => action switch
@@ -174,7 +334,29 @@ public static class RoundLogReader
     public static string PlayerName(IReadOnlyList<ReplayHeader> headers, int player)
     {
         ReplayHeader? header = headers.FirstOrDefault(h => h.Player == player);
-        return header?.Name ?? ("座位 " + player.ToString(CultureInfo.InvariantCulture));
+        if (header is null)
+        {
+            return "座位 " + player.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return string.IsNullOrWhiteSpace(header.DisplayName) ? header.Name : header.DisplayName!;
+    }
+
+    private static int WindIndex(JsonNode? node)
+    {
+        if (node is JsonValue value && value.TryGetValue<string>(out string? wire))
+        {
+            return wire switch
+            {
+                "east" => 0,
+                "south" => 1,
+                "west" => 2,
+                "north" => 3,
+                _ => 0,
+            };
+        }
+
+        return Int(node);
     }
 
     private static int Int(JsonNode? node)

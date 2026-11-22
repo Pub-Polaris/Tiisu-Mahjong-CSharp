@@ -30,13 +30,15 @@ public sealed class Settings
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    /// <summary>数据目录：<c>%APPDATA%\TiisuMahjong</c>。</summary>
-    public static string DefaultDirectory => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "TiisuMahjong");
+    /// <summary>数据目录：<c>%APPDATA%\TiisuMahjong</c>（旧平铺目录，迁移/共享缓存用）。</summary>
+    public static string DefaultDirectory => AppData.Root;
+
+    /// <summary>本设置对象所属的数据目录；<see cref="Save()"/> 写这里。旧代码 new Settings() 落根目录。</summary>
+    [JsonIgnore]
+    public string DataDirectory { get; set; } = AppData.Root;
 
     public static string SettingsPath(string? directory = null) =>
-        Path.Combine(directory ?? DefaultDirectory, "settings.json");
+        Path.Combine(directory ?? AppData.Root, "settings.json");
 
     /// <summary>规则集：Qizi（默认，七子）或 TuidaoHu（推倒胡，1102工程）。</summary>
     [JsonPropertyName("ruleset")]
@@ -74,8 +76,8 @@ public sealed class Settings
     /// <summary>UI 语言：zh-CN / en-US / ja-JP。</summary>
     public string Language { get; set; } = "zh-CN";
 
-    /// <summary>开启后写牌型日志（ASCII JSONL）。</summary>
-    public bool RecordTiles { get; set; }
+    /// <summary>开启后写牌型日志（ASCII JSONL）。默认开：牌谱复盘依赖它；旧 settings.json 显式 false 时保持关。</summary>
+    public bool RecordTiles { get; set; } = true;
 
     /// <summary>四档 AI 权重：简单 / 普通 / 困难 / 修罗。</summary>
     public int[] AiWeights { get; set; } = { 30, 45, 20, 5 };
@@ -111,10 +113,11 @@ public sealed class Settings
     /// <summary>读 <c>settings.json</c>；文件不存在/损坏时返回默认值（与 Web 侧 <c>/api/settings</c> 同口径）。</summary>
     public static Settings Load(string? directory = null)
     {
-        string path = SettingsPath(directory);
+        string dataDirectory = AppData.Resolve(directory);
+        string path = SettingsPath(dataDirectory);
         if (!File.Exists(path))
         {
-            return new Settings();
+            return new Settings { DataDirectory = dataDirectory };
         }
 
         try
@@ -122,9 +125,10 @@ public sealed class Settings
             var loaded = JsonSerializer.Deserialize<Settings>(File.ReadAllText(path, Encoding.UTF8), ReadOptions);
             if (loaded is null)
             {
-                return new Settings();
+                return new Settings { DataDirectory = dataDirectory };
             }
 
+            loaded.DataDirectory = dataDirectory;
             loaded.OptionalYaku ??= new List<string>();
             loaded.AiWeights = NormalizeWeights(loaded.AiWeights);
             loaded.AiSeatLocks = NormalizeLocks(loaded.AiSeatLocks);
@@ -145,13 +149,14 @@ public sealed class Settings
                 // 改名失败也不阻断启动
             }
 
-            return new Settings();
+            return new Settings { DataDirectory = dataDirectory };
         }
     }
 
     public void Save(string? directory = null)
     {
-        string path = SettingsPath(directory);
+        string dataDirectory = AppData.Resolve(directory ?? DataDirectory);
+        string path = SettingsPath(dataDirectory);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
         // 原子写：先 .tmp 再替换，避免崩溃留下半截设置（P1-4）。
@@ -165,6 +170,8 @@ public sealed class Settings
         {
             File.Move(temp, path);
         }
+
+        DataDirectory = dataDirectory;
     }
 
     /// <summary>把另一份设置的内容复制进来（保留本实例引用，供运行中热更新）。</summary>
@@ -193,7 +200,7 @@ public sealed class Settings
 
     public Settings Clone()
     {
-        var copy = new Settings();
+        var copy = new Settings { DataDirectory = DataDirectory };
         copy.CopyFrom(this);
         return copy;
     }
