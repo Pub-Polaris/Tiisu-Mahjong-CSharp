@@ -308,6 +308,10 @@ public sealed class MultiplayerScreen : Screen
             _status = "正在查询局域网…";
             _nextRefresh = 0;
         }
+        catch (Exception ex)
+        {
+            _status = "离开房间失败: " + ex.Message;
+        }
         finally
         {
             _leaving = false;

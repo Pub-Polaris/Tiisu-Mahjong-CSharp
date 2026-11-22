@@ -187,8 +187,18 @@ internal sealed class ScreenHostCore : IDisposable
 
     private async Task LeaveNetworkToMenuAsync()
     {
-        await CloseNetworkSessionAsync();
-        SwitchTo(_menu);
+        try
+        {
+            await CloseNetworkSessionAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("CloseNetworkSession failed: " + ex);
+        }
+        finally
+        {
+            SwitchTo(_menu);
+        }
     }
 
     /// <summary>关闭当前联机会话并等待 17700 的 TCP/UDP 监听真正释放。</summary>

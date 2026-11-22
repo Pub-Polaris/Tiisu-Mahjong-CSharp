@@ -50,10 +50,15 @@ New-Item -ItemType Directory -Force -Path $pub | Out-Null
 Write-Host "== 2/4 dotnet publish app (framework-dependent) =="
 Push-Location $netRoot
 try {
+    # A previous test/build can leave project.assets.json without the RID target.
+    dotnet restore $Project -r $Runtime -v q --nologo
+    if ($LASTEXITCODE -ne 0) { throw "app restore failed ($LASTEXITCODE)" }
     dotnet publish $Project -c $Configuration -r $Runtime --self-contained false -o $pub -v q --nologo
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed ($LASTEXITCODE)" }
 
     Write-Host "== 3/4 dotnet publish updater =="
+    dotnet restore 'src\Tiisu.Updater' -r $Runtime -v q --nologo
+    if ($LASTEXITCODE -ne 0) { throw "updater restore failed ($LASTEXITCODE)" }
     dotnet publish 'src\Tiisu.Updater' -c $Configuration -r $Runtime --self-contained false -o $pub -v q --nologo
     if ($LASTEXITCODE -ne 0) { throw "updater publish failed ($LASTEXITCODE)" }
 }
