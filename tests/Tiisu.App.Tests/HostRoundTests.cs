@@ -79,7 +79,7 @@ public sealed class HostRoundTests
 
                         using var document = JsonDocument.Parse(message.Snapshot);
                         string phase = document.RootElement.GetProperty("phase").GetString() ?? string.Empty;
-                        JsonElement own = document.RootElement.GetProperty("seats")[message.Seat];
+                        JsonElement own = document.RootElement.GetProperty("seats")[0];
                         int handCount = own.GetProperty("hand").GetArrayLength();
                         int actions = document.RootElement.TryGetProperty("actions", out var a) ? a.GetInt32() : 0;
                         var flags = (HumanAction)actions;

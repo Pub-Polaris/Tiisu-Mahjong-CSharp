@@ -213,7 +213,8 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
         {
             for (int seat = 1; seat < NetworkConstants.MaxPlayers; seat++)
             {
-                TableViewModel snapshot = _local.SnapshotForSeat(seat) with { Revision = revision };
+                TableViewModel snapshot = SnapshotRotation.RotateForViewer(
+                    _local.SnapshotForSeat(seat), seat) with { Revision = revision };
                 _lastSentRevision[seat] = revision;
                 string json = JsonSerializer.Serialize(snapshot, SnapshotJson);
                 _lastSentHash[seat] = Hash(json);

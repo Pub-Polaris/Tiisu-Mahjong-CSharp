@@ -77,7 +77,7 @@ public sealed class HostCommandTests
                     using var document = JsonDocument.Parse(message.Snapshot);
                     string phase = document.RootElement.GetProperty("phase").GetString() ?? "?";
                     JsonElement seats = document.RootElement.GetProperty("seats");
-                    JsonElement own = seats[message.Seat];
+                    JsonElement own = seats[0];
                     int handCount = own.GetProperty("hand").GetArrayLength();
                     bool human = own.GetProperty("isHuman").GetBoolean();
                     int actions = document.RootElement.TryGetProperty("actions", out var a)

@@ -56,7 +56,7 @@ public sealed class MeldView
     }
 }
 
-public sealed class SeatView
+public sealed record SeatView
 {
     public int Index { get; init; }
     public string Name { get; init; } = "AI";
@@ -226,6 +226,9 @@ public sealed record TableViewModel
 
     /// <summary>当前规则集（快照时从运行时设置读取，避免设置热切换后 UI 还拿旧值）。</summary>
     public Ruleset Ruleset { get; init; } = Ruleset.Qizi;
+
+    /// <summary>本快照的观察者座位；0 = 牌桌底部/自己的手牌。</summary>
+    public int SelfSeat { get; init; }
 
     /// <summary>运行阶段：idle / human_discard / human_ron / human_meld / round_end / match_over。</summary>
     public string Phase { get; init; } = "idle";

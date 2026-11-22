@@ -239,6 +239,7 @@ public static class SnapshotBuilder
 
         return new TableViewModel
         {
+            SelfSeat = selfIndex >= 0 ? selfIndex : 0,
             RoundLabel = L.T("app.runtime.hud.roundProgress", ("label", engine.RoundLabel()), ("target", engine.ModeTarget)),
             WallCount = engine.Wall.Count,
             RinshanCount = engine.Rinshan.Count,

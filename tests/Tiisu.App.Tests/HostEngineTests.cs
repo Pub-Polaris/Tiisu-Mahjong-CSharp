@@ -62,12 +62,12 @@ public sealed class HostEngineTests
                 using var document = JsonDocument.Parse(message.Snapshot);
                 JsonElement root = document.RootElement;
                 JsonElement seats = root.GetProperty("seats");
-                JsonElement own = seats[message.Seat];
+                JsonElement own = seats[0];
                 Assert.True(own.GetProperty("isHuman").GetBoolean());
                 Assert.True(own.GetProperty("hand").GetArrayLength() > 0);
                 for (int seat = 0; seat < seats.GetArrayLength(); seat++)
                 {
-                    if (seat != message.Seat)
+                    if (seat != 0)
                     {
                         Assert.Equal(0, seats[seat].GetProperty("hand").GetArrayLength());
                     }
