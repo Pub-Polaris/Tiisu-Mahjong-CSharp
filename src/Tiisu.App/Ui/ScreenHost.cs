@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
@@ -39,6 +40,7 @@ internal sealed class ScreenHostCore : IDisposable
     private HostEngine? _networkHost;
     private PeerClient? _peerClient;
     private NetworkClientSession? _networkClient;
+    private Task? _networkStopTask;
     private readonly MenuScreen _menu;
     private readonly SettingsScreen _settingsScreen;
     private readonly RulesScreen _rules;
@@ -116,7 +118,7 @@ internal sealed class ScreenHostCore : IDisposable
             SwitchTo(_settingsScreen);
         }, _settings.TableRender, _settings);
         _multiplayer = new MultiplayerScreen(
-            () => SwitchTo(_menu),
+            LeaveNetworkToMenuAsync,
             CreateNetworkHostAsync,
             JoinRoomAsync,
             ShowHostTable,
@@ -137,10 +139,20 @@ internal sealed class ScreenHostCore : IDisposable
         }
 
         _disposed = true;
+        try
+        {
+            Task close = CloseNetworkSessionAsync();
+            if (!close.Wait(TimeSpan.FromSeconds(8)))
+            {
+                // 端口释放超时不能阻止程序退出；下次启动会重新绑定。
+            }
+        }
+        catch (AggregateException)
+        {
+            // 关闭失败不能阻止退出。
+        }
+
         _multiplayer?.Dispose();
-        _networkHost?.Dispose();
-        _networkClient?.Dispose();
-        _peerClient?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         _session.UiEvent -= OnSteamSyncEvent;
         _steam.Shutdown();
         _frameTimer.Stop();
@@ -150,10 +162,10 @@ internal sealed class ScreenHostCore : IDisposable
 
     private async Task<HostEngine> CreateNetworkHostAsync()
     {
+        await CloseNetworkSessionAsync();
         string name = string.IsNullOrWhiteSpace(Environment.UserName) ? "房主" : Environment.UserName.Trim();
         var room = RoomInfo.Create(name + "的七子房", name,
             NetworkConstants.DefaultPort, BuildInfo.Version);
-        _networkHost?.Dispose();
         _networkHost = new HostEngine(_settings, room);
         _networkHost.CheatDetected += reason =>
         {
@@ -164,12 +176,54 @@ internal sealed class ScreenHostCore : IDisposable
 
     private async Task<(PeerClient Client, NetworkClientSession Session)> JoinRoomAsync(RoomInfo room)
     {
+        await CloseNetworkSessionAsync();
         string name = string.IsNullOrWhiteSpace(Environment.UserName) ? "玩家" : Environment.UserName.Trim();
         string host = string.IsNullOrWhiteSpace(room.HostAddress) ? "127.0.0.1" : room.HostAddress;
         PeerClient client = await PeerClient.ConnectAsync(host, name, BuildInfo.Version, room.Port);
         _peerClient = client;
         _networkClient = new NetworkClientSession(client);
         return (client, _networkClient);
+    }
+
+    private async Task LeaveNetworkToMenuAsync()
+    {
+        await CloseNetworkSessionAsync();
+        SwitchTo(_menu);
+    }
+
+    /// <summary>关闭当前联机会话并等待 17700 的 TCP/UDP 监听真正释放。</summary>
+    private async Task CloseNetworkSessionAsync()
+    {
+        HostEngine? host = _networkHost;
+        NetworkClientSession? client = _networkClient;
+        PeerClient? peer = _peerClient;
+        _networkHost = null;
+        _networkClient = null;
+        _peerClient = null;
+
+        var tasks = new List<Task>();
+        if (host is not null)
+        {
+            tasks.Add(host.StopAsync());
+        }
+
+        if (client is not null)
+        {
+            tasks.Add(client.CloseAsync().AsTask());
+        }
+        else if (peer is not null)
+        {
+            tasks.Add(peer.DisposeAsync().AsTask());
+        }
+
+        if (tasks.Count > 0)
+        {
+            Task stop = Task.WhenAll(tasks);
+            _networkStopTask = stop;
+            await stop.ConfigureAwait(false);
+        }
+
+        _multiplayer?.ResetRoom();
     }
 
     private void ShowHostTable(HostEngine host)
@@ -184,7 +238,7 @@ internal sealed class ScreenHostCore : IDisposable
 
     private void ShowNetworkTable(ITableSession session)
     {
-        _table = new TableScreen(session, _atlas, () => SwitchTo(_menu), () =>
+        _table = new TableScreen(session, _atlas, () => _ = LeaveNetworkToMenuAsync(), () =>
         {
             _settingsReturn = _table;
             SwitchTo(_settingsScreen);

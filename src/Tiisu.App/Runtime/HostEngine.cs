@@ -12,7 +12,7 @@ namespace Tiisu.App.Runtime;
 /// 远程客户端只通过 <see cref="PeerServer"/> 提交指令、接收按座位脱敏的快照。
 /// Client 不实例化本类，也不引用 Tiisu.Engine 的任何状态机/发牌/计分对象。
 /// </summary>
-public sealed class HostEngine : ITableSession
+public sealed class HostEngine : ITableSession, IAsyncDisposable
 {
     private static readonly JsonSerializerOptions SnapshotJson = new(JsonSerializerDefaults.Web);
     private readonly GameSession _local;
@@ -20,6 +20,7 @@ public sealed class HostEngine : ITableSession
     private readonly long[] _lastSentRevision = new long[NetworkConstants.MaxPlayers];
     private readonly string?[] _lastSentHash = new string?[NetworkConstants.MaxPlayers];
     private string? _lastError;
+    private Task? _stopTask;
     private bool _started;
     private bool _disposed;
 
@@ -54,6 +55,7 @@ public sealed class HostEngine : ITableSession
 
     public void StartServer()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (_started)
         {
             return;
@@ -180,6 +182,11 @@ public sealed class HostEngine : ITableSession
 
     private void OnLocalEvent(UiEvent uiEvent)
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         if (uiEvent is StateChangedEvent changed)
         {
             _ = BroadcastSnapshotsAsync(changed.Snapshot.Revision);
@@ -273,18 +280,49 @@ public sealed class HostEngine : ITableSession
         return Convert.ToHexString(bytes);
     }
 
-    public void Dispose()
+    /// <summary>幂等停止：先停止监听/广告，再结束本地引擎线程。</summary>
+    public Task StopAsync()
     {
-        if (_disposed)
+        if (_stopTask is not null)
         {
-            return;
+            return _stopTask;
         }
 
+        _stopTask = StopCoreAsync();
+        return _stopTask;
+    }
+
+    private async Task StopCoreAsync()
+    {
         _disposed = true;
         _local.UiEvent -= OnLocalEvent;
         _server.CommandReceived -= OnCommand;
         _server.CheatDetected -= OnCheat;
-        _local.Dispose();
-        _ = _server.DisposeAsync();
+
+        try
+        {
+            await _server.StopAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _local.Dispose();
+        }
+    }
+
+    public async ValueTask DisposeAsync() => await StopAsync().ConfigureAwait(false);
+
+    public void Dispose()
+    {
+        try
+        {
+            if (!StopAsync().Wait(TimeSpan.FromSeconds(5)))
+            {
+                Volatile.Write(ref _lastError, "关闭联机房间超时");
+            }
+        }
+        catch (AggregateException ex)
+        {
+            Volatile.Write(ref _lastError, ex.GetBaseException().Message);
+        }
     }
 }

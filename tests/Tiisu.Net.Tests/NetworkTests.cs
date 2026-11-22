@@ -34,6 +34,23 @@ public sealed class LanDiscoveryTests
         Assert.False(room.IsJoinable);
     }
 
+    [Fact]
+    public async Task Advertiser_dispose_releases_udp_port()
+    {
+        int port = FreeUdpPort();
+        using var discovery = new LanDiscovery();
+        RoomInfo room = RoomInfo.Create("旧房", "Host", port, "test");
+        using (var first = discovery.Advertise(room, port: port))
+        {
+        }
+
+        using (var second = discovery.Advertise(room with { RoomName = "新房" }, port: port))
+        {
+        }
+
+        Assert.True(true);
+    }
+
     private static int FreeUdpPort()
     {
         using var socket = new UdpClient(AddressFamily.InterNetwork);
@@ -90,6 +107,26 @@ public sealed class PeerServerTests
         Assert.Equal(serverReason, clientReason);
     }
 
+    [Fact]
+    public async Task Stop_releases_tcp_and_udp_and_allows_restart()
+    {
+        int port = FreeTcpAndUdpPort();
+        var room = RoomInfo.Create("释放测试", "Host", port, "test");
+        await using (var first = new PeerServer(room, port))
+        {
+            first.Start();
+            Assert.Equal(port, first.Port);
+            await first.StopAsync();
+        }
+
+        await using (var second = new PeerServer(room, port))
+        {
+            second.Start();
+            Assert.Equal(port, second.Port);
+            await second.StopAsync();
+        }
+    }
+
     private static int FreeTcpPort()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -97,5 +134,23 @@ public sealed class PeerServerTests
         int port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
+    }
+
+    private static int FreeTcpAndUdpPort()
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            int port = FreeTcpPort();
+            try
+            {
+                using var udp = new UdpClient(new IPEndPoint(IPAddress.Any, port));
+                return port;
+            }
+            catch (SocketException)
+            {
+            }
+        }
+
+        throw new InvalidOperationException("no free TCP+UDP port");
     }
 }

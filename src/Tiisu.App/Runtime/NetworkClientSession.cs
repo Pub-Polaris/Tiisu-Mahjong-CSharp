@@ -194,6 +194,22 @@ public sealed class NetworkClientSession : ITableSession
         Message = "等待房主快照…",
     };
 
+    /// <summary>关闭客户端会话并断开与 Host 的连接。</summary>
+    public async ValueTask CloseAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _peer.SnapshotReceived -= OnSnapshot;
+        _peer.Error -= OnError;
+        _peer.CheatDetected -= OnCheat;
+        _peer.RoundEndJson -= OnRoundEnd;
+        await _peer.DisposeAsync().ConfigureAwait(false);
+    }
+
     public void Dispose()
     {
         if (_disposed)

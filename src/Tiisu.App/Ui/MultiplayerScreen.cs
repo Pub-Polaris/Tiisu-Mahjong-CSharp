@@ -16,7 +16,7 @@ namespace Tiisu.App.Ui;
 /// </summary>
 public sealed class MultiplayerScreen : Screen
 {
-    private readonly Action _back;
+    private readonly Func<Task> _leaveRoom;
     private readonly Func<Task<HostEngine>> _createHost;
     private readonly Func<RoomInfo, Task<(PeerClient Client, NetworkClientSession Session)>> _joinRoom;
     private readonly Action<HostEngine> _onHostStarted;
@@ -28,16 +28,17 @@ public sealed class MultiplayerScreen : Screen
     private string _status = "正在查询局域网…";
     private bool _searching;
     private bool _joining;
+    private bool _leaving;
     private double _nextRefresh;
 
     public MultiplayerScreen(
-        Action back,
+        Func<Task> leaveRoom,
         Func<Task<HostEngine>> createHost,
         Func<RoomInfo, Task<(PeerClient Client, NetworkClientSession Session)>> joinRoom,
         Action<HostEngine> onHostStarted,
         Action<PeerClient, NetworkClientSession> onJoined) : base("multiplayer")
     {
-        _back = back;
+        _leaveRoom = leaveRoom;
         _createHost = createHost;
         _joinRoom = joinRoom;
         _onHostStarted = onHostStarted;
@@ -184,6 +185,15 @@ public sealed class MultiplayerScreen : Screen
 
     public void SetStatus(string status) => _status = status;
 
+    /// <summary>ScreenHost 关闭网络会话后清除本地房间引用，避免再次进入显示旧房间。</summary>
+    public void ResetRoom()
+    {
+        _host = null;
+        _rooms.Clear();
+        _status = "正在查询局域网…";
+        _nextRefresh = 0;
+    }
+
     public override bool OnPointerMove(float x, float y)
     {
         _mouseX = x;
@@ -204,7 +214,7 @@ public sealed class MultiplayerScreen : Screen
 
             if (BackRect.Contains(x, y))
             {
-                _back();
+                _ = LeaveRoomAsync();
                 return true;
             }
 
@@ -213,7 +223,7 @@ public sealed class MultiplayerScreen : Screen
 
         if (BackRect.Contains(x, y))
         {
-            _back();
+            _ = LeaveRoomAsync();
             return true;
         }
 
@@ -281,11 +291,34 @@ public sealed class MultiplayerScreen : Screen
         }
     }
 
+    /// <summary>离开房间：停止自己拥有的房间，或让 ScreenHost 关闭客户端会话。</summary>
+    public async Task LeaveRoomAsync()
+    {
+        if (_leaving)
+        {
+            return;
+        }
+
+        _leaving = true;
+        try
+        {
+            _host = null;
+            await _leaveRoom();
+            _rooms.Clear();
+            _status = "正在查询局域网…";
+            _nextRefresh = 0;
+        }
+        finally
+        {
+            _leaving = false;
+        }
+    }
+
     public override bool OnKey(Keys key)
     {
         if (key == Keys.Escape)
         {
-            _back();
+            _ = LeaveRoomAsync();
             return true;
         }
 

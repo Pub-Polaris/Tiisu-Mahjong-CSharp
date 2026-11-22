@@ -181,6 +181,7 @@ public sealed class LanDiscovery : IDisposable
         private readonly CancellationTokenSource _cts = new();
         private readonly Thread _listenThread;
         private readonly Thread _beaconThread;
+        private bool _disposed;
 
         internal LanAdvertiser(RoomInfo initial, Func<RoomInfo>? refresh, int port, JsonSerializerOptions json)
         {
@@ -297,11 +298,12 @@ public sealed class LanDiscovery : IDisposable
 
         public void Dispose()
         {
-            if (_cts.IsCancellationRequested)
+            if (_disposed)
             {
                 return;
             }
 
+            _disposed = true;
             _cts.Cancel();
             _udp.Dispose();
             _listenThread.Join(500);

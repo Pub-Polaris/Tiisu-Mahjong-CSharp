@@ -13,6 +13,7 @@ public sealed class PeerClient : IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
     private Task? _receiveTask;
     private bool _started;
+    private bool _disposed;
 
     public PeerClient(TcpClient tcp)
     {
@@ -182,6 +183,12 @@ public sealed class PeerClient : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         _cts.Cancel();
         try
         {

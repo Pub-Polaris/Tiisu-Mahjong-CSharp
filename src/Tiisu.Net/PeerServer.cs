@@ -12,10 +12,13 @@ public sealed class PeerServer : IAsyncDisposable
     private readonly LanDiscovery _discovery = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly List<PeerConnection> _connections = new();
+    private readonly List<Task> _clientTasks = new();
     private readonly object _lock = new();
     private LanDiscovery.LanAdvertiser? _advertiser;
     private Task? _acceptTask;
+    private Task? _stopTask;
     private bool _started;
+    private bool _disposed;
 
     /// <summary>Host 自己占 Seat 0；远程客户端从 Seat 1 开始。</summary>
     public const int HostSeat = 0;
@@ -66,15 +69,33 @@ public sealed class PeerServer : IAsyncDisposable
 
     public void Start()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (_started)
         {
             return;
         }
 
-        _started = true;
-        _listener.Start();
-        _advertiser = _discovery.Advertise(_room, CurrentRoom, _port);
-        _acceptTask = AcceptLoopAsync();
+        try
+        {
+            _started = true;
+            _listener.Start();
+            _advertiser = _discovery.Advertise(_room, CurrentRoom, _port);
+            _acceptTask = AcceptLoopAsync();
+        }
+        catch
+        {
+            _started = false;
+            try
+            {
+                _listener.Stop();
+            }
+            catch (SocketException)
+            {
+            }
+
+            _discovery.Dispose();
+            throw;
+        }
     }
 
     private RoomInfo CurrentRoom() =>
@@ -102,8 +123,24 @@ public sealed class PeerServer : IAsyncDisposable
                 return;
             }
 
-            _ = HandleClientAsync(client);
+            TrackClient(HandleClientAsync(client));
         }
+    }
+
+    private void TrackClient(Task task)
+    {
+        lock (_lock)
+        {
+            _clientTasks.Add(task);
+        }
+
+        _ = task.ContinueWith(completed =>
+        {
+            lock (_lock)
+            {
+                _clientTasks.Remove(completed);
+            }
+        }, TaskScheduler.Default);
     }
 
     private async Task HandleClientAsync(TcpClient client)
@@ -263,12 +300,34 @@ public sealed class PeerServer : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public Task StopAsync()
     {
+        if (_stopTask is not null)
+        {
+            return _stopTask;
+        }
+
+        _disposed = true;
+        _stopTask = StopCoreAsync();
+        return _stopTask;
+    }
+
+    private async Task StopCoreAsync()
+    {
+        State = "closed";
         _cts.Cancel();
-        _listener.Stop();
+
+        // Stop discovery first so no new clients can find this room.
         _advertiser?.Dispose();
-        _discovery.Dispose();
+        _advertiser = null;
+        try
+        {
+            _listener.Stop();
+        }
+        catch (SocketException)
+        {
+        }
+
         if (_acceptTask is not null)
         {
             try
@@ -293,10 +352,31 @@ public sealed class PeerServer : IAsyncDisposable
             }
 
             connection.Channel.Dispose();
+            connection.Client.Dispose();
         }
 
+        Task[] clientTasks;
+        lock (_lock)
+        {
+            clientTasks = _clientTasks.ToArray();
+            _clientTasks.Clear();
+            _connections.Clear();
+        }
+
+        try
+        {
+            await Task.WhenAll(clientTasks).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Client tasks are allowed to end by cancellation during shutdown.
+        }
+
+        _discovery.Dispose();
         _cts.Dispose();
     }
+
+    public async ValueTask DisposeAsync() => await StopAsync().ConfigureAwait(false);
 
     internal sealed class PeerConnection
     {
