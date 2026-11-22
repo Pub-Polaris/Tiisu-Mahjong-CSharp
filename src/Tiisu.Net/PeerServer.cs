@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 
 namespace Tiisu.Net;
 
@@ -8,6 +9,7 @@ public sealed class PeerServer : IAsyncDisposable
 {
     private readonly RoomInfo _room;
     private readonly int _port;
+    private readonly string _transport;
     private readonly TcpListener _listener;
     private readonly LanDiscovery _discovery = new();
     private readonly CancellationTokenSource _cts = new();
@@ -23,12 +25,15 @@ public sealed class PeerServer : IAsyncDisposable
     /// <summary>Host 自己占 Seat 0；远程客户端从 Seat 1 开始。</summary>
     public const int HostSeat = 0;
 
-    public PeerServer(RoomInfo room, int port = NetworkConstants.DefaultPort)
+    public PeerServer(RoomInfo room, int port = NetworkConstants.DefaultPort, string? transport = null)
     {
         _room = room;
         _port = port;
+        _transport = RoomInfo.NormalizeTransport(transport ?? room.Transport);
         _listener = new TcpListener(IPAddress.Any, port);
     }
+
+    public string Transport => _transport;
 
     public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
 
@@ -103,6 +108,7 @@ public sealed class PeerServer : IAsyncDisposable
         {
             Players = 1 + _connections.Count(c => c.Seat > HostSeat),
             State = State,
+            Transport = _transport,
         };
 
     private async Task AcceptLoopAsync()
@@ -145,9 +151,27 @@ public sealed class PeerServer : IAsyncDisposable
 
     private async Task HandleClientAsync(TcpClient client)
     {
-        var connection = new PeerConnection(client);
+        PeerConnection? connection = null;
         try
         {
+            IPeerChannel channel;
+            if (string.Equals(_transport, "websocket", StringComparison.OrdinalIgnoreCase))
+            {
+                WebSocket? socket = await WebSocketUpgrade.AcceptAsync(client, _cts.Token)
+                    .ConfigureAwait(false);
+                if (socket is null)
+                {
+                    return;
+                }
+
+                channel = new WebSocketPeerChannel(socket);
+            }
+            else
+            {
+                channel = new TcpJsonLineChannel(client.GetStream());
+            }
+
+            connection = new PeerConnection(client, channel);
             PeerEnvelope? helloEnvelope = await connection.Channel.ReceiveAsync(_cts.Token).ConfigureAwait(false);
             ClientHello? hello = helloEnvelope?.GetPayload<ClientHello>();
             if (hello is null || helloEnvelope?.Type != PeerMessageTypes.Hello)
@@ -222,13 +246,21 @@ public sealed class PeerServer : IAsyncDisposable
         }
         finally
         {
-            lock (_lock)
+            if (connection is not null)
             {
-                _connections.Remove(connection);
-            }
+                lock (_lock)
+                {
+                    _connections.Remove(connection);
+                }
 
-            connection.Channel.Dispose();
-            BroadcastLobby();
+                connection.Channel.Dispose();
+                connection.Client.Dispose();
+                BroadcastLobby();
+            }
+            else
+            {
+                client.Dispose();
+            }
         }
     }
 
@@ -380,14 +412,14 @@ public sealed class PeerServer : IAsyncDisposable
 
     internal sealed class PeerConnection
     {
-        public PeerConnection(TcpClient client)
+        public PeerConnection(TcpClient client, IPeerChannel channel)
         {
             Client = client;
-            Channel = new JsonLineChannel(client.GetStream());
+            Channel = channel;
         }
 
         public TcpClient Client { get; }
-        public JsonLineChannel Channel { get; }
+        public IPeerChannel Channel { get; }
         public int Seat { get; set; } = -1;
         public ClientHello? Hello { get; set; }
         public bool Ready { get; set; }

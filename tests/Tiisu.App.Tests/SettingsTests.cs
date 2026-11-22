@@ -155,6 +155,24 @@ public sealed class SettingsTests
     }
 
     [Fact]
+    public void PlayerName_缺省裁剪并随Clone保留()
+    {
+        string dir = TempDir();
+        try
+        {
+            new Settings { PlayerName = "  测试玩家  " }.Save(dir);
+            Assert.Equal("测试玩家", Settings.Load(dir).PlayerName);
+            Assert.Equal(24, Settings.NormalizePlayerName(new string('名', 40)).Length);
+            Assert.Equal("", new Settings().PlayerName);
+            Assert.Equal("测试玩家", new Settings { PlayerName = "测试玩家" }.Clone().PlayerName);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Load_坏文件改名corrupt并回默认()
     {
         string dir = TempDir();

@@ -51,6 +51,42 @@ public sealed class LanDiscoveryTests
         Assert.True(true);
     }
 
+    [Fact]
+    public void RoomInfo_defaults_to_A1_TCP_and_allocates_first_free_table()
+    {
+        RoomInfo room = RoomInfo.Create("房间", "Host", 17700, "test");
+        Assert.Equal("A", room.Zone);
+        Assert.Equal(1, room.Table);
+        Assert.Equal("tcp", room.Transport);
+        Assert.Equal("A1", room.SlotLabel);
+
+        var rooms = new[]
+        {
+            room,
+            RoomInfo.Create("房间2", "Host2", 17700, "test", zone: "A", table: 1),
+            RoomInfo.Create("房间3", "Host3", 17700, "test", zone: "B", table: 1),
+        };
+        Assert.Equal(2, RoomInfo.FirstFreeTable("A", rooms));
+        Assert.Equal(2, RoomInfo.FirstFreeTable("B", rooms));
+        Assert.Null(RoomInfo.FirstFreeTable("A",
+            new[] { rooms[0], rooms[0] with { Table = 2 } }));
+    }
+
+    [Fact]
+    public void RoomInfo_old_json_without_new_fields_uses_defaults()
+    {
+        const string json = "{\"roomName\":\"旧房间\",\"hostName\":\"Host\",\"port\":17700,"
+            + "\"players\":1,\"maxPlayers\":4,\"state\":\"lobby\",\"version\":\"v\",\"hostAddress\":\"127.0.0.1\"}";
+        RoomInfo? room = System.Text.Json.JsonSerializer.Deserialize<RoomInfo>(
+            json, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Assert.NotNull(room);
+        Assert.Equal("A", room!.Zone);
+        Assert.Equal(1, room.Table);
+        Assert.Equal("tcp", room.Transport);
+        Assert.Equal(1, room.Mode);
+        Assert.True(room.AiFill);
+    }
+
     private static int FreeUdpPort()
     {
         using var socket = new UdpClient(AddressFamily.InterNetwork);
@@ -105,6 +141,48 @@ public sealed class PeerServerTests
         string clientReason = await clientCheat.Task.WaitAsync(TimeSpan.FromSeconds(3));
         Assert.Contains("inconsistent", serverReason);
         Assert.Equal(serverReason, clientReason);
+    }
+
+    [Fact]
+    public async Task WebSocket_handshake_assigns_seat_and_receives_snapshot()
+    {
+        int port = FreeTcpAndUdpPort();
+        var room = RoomInfo.Create("WS测试", "Host", port, "test", transport: "websocket", zone: "B", table: 2);
+        await using var server = new PeerServer(room, port, "websocket");
+        server.Start();
+        var received = new TaskCompletionSource<SnapshotMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var client = await PeerClient.ConnectAsync(
+            "127.0.0.1", "Client", "test", port, "websocket");
+        client.SnapshotReceived += snapshot => received.TrySetResult(snapshot);
+
+        Assert.Equal(1, client.Seat);
+        Assert.Equal("websocket", client.Room!.Transport);
+        Assert.Equal("B2", client.Room.SlotLabel);
+
+        await server.SendSnapshotAsync(1, 8, "{\"phase\":\"human_discard\"}");
+        var snapshot = await received.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.Equal(8, snapshot.Revision);
+        Assert.Equal(1, snapshot.Seat);
+    }
+
+    [Fact]
+    public async Task WebSocket_rejects_plain_http_request()
+    {
+        int port = FreeTcpAndUdpPort();
+        var room = RoomInfo.Create("WS拒绝", "Host", port, "test", transport: "websocket");
+        await using var server = new PeerServer(room, port, "websocket");
+        server.Start();
+        using var tcp = new TcpClient();
+        await tcp.ConnectAsync(IPAddress.Loopback, port);
+        using var stream = tcp.GetStream();
+        byte[] request = System.Text.Encoding.ASCII.GetBytes(
+            "GET /tiisu HTTP/1.1\r\nHost: localhost\r\n\r\n");
+        await stream.WriteAsync(request);
+        byte[] buffer = new byte[256];
+        int read = await stream.ReadAsync(buffer);
+        string response = System.Text.Encoding.ASCII.GetString(buffer, 0, read);
+        Assert.True(response.Contains("400", StringComparison.Ordinal)
+            || response.Contains("426", StringComparison.Ordinal));
     }
 
     [Fact]

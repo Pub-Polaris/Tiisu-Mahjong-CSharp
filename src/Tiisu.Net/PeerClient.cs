@@ -1,30 +1,35 @@
 using System.Net.Sockets;
+using System.Net.WebSockets;
 
 namespace Tiisu.Net;
 
 /// <summary>
 /// 客户端：只维护欢迎信息、大厅和脱敏快照，不引用 Tiisu.Engine，
 /// 不计算发牌/番符；所有操作都以 <see cref="CommandRequest"/> 发给 Host。
+/// 支持 TCP 行协议和 WebSocket，协议由房间的 transport 决定。
 /// </summary>
 public sealed class PeerClient : IAsyncDisposable
 {
-    private readonly JsonLineChannel _channel;
-    private readonly TcpClient _tcp;
+    private readonly IPeerChannel _channel;
+    private readonly TcpClient? _tcp;
+    private readonly ClientWebSocket? _webSocket;
     private readonly CancellationTokenSource _cts = new();
     private Task? _receiveTask;
     private bool _started;
     private bool _disposed;
 
-    public PeerClient(TcpClient tcp)
+    private PeerClient(TcpClient? tcp, ClientWebSocket? webSocket, IPeerChannel channel)
     {
         _tcp = tcp;
-        _channel = new JsonLineChannel(tcp.GetStream());
+        _webSocket = webSocket;
+        _channel = channel;
     }
 
     public int Seat { get; private set; } = -1;
     public RoomInfo? Room { get; private set; }
     public IReadOnlyList<PlayerLobbyInfo> Players { get; private set; } = Array.Empty<PlayerLobbyInfo>();
     public string? LastError { get; private set; }
+    public string Transport => Room?.Transport ?? "tcp";
 
     public event Action<ServerWelcome>? Welcome;
     public event Action<IReadOnlyList<PlayerLobbyInfo>>? LobbyChanged;
@@ -40,19 +45,40 @@ public sealed class PeerClient : IAsyncDisposable
         string name,
         string version,
         int port = NetworkConstants.DefaultPort,
+        string? transport = null,
         CancellationToken cancellationToken = default)
     {
-        var tcp = new TcpClient(AddressFamily.InterNetwork);
+        string selected = RoomInfo.NormalizeTransport(transport);
+        PeerClient? client = null;
         try
         {
-            await tcp.ConnectAsync(host, port, cancellationToken).ConfigureAwait(false);
-            var client = new PeerClient(tcp);
+            if (string.Equals(selected, "websocket", StringComparison.Ordinal))
+            {
+                var socket = new ClientWebSocket();
+                socket.Options.AddSubProtocol("tiisu-peer");
+                socket.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+                await socket.ConnectAsync(new Uri($"ws://{host}:{port}/tiisu"), cancellationToken)
+                    .ConfigureAwait(false);
+                client = new PeerClient(null, socket, new WebSocketPeerChannel(socket));
+            }
+            else
+            {
+                var tcp = new TcpClient(AddressFamily.InterNetwork);
+                tcp.NoDelay = true;
+                await tcp.ConnectAsync(host, port, cancellationToken).ConfigureAwait(false);
+                client = new PeerClient(tcp, null, new TcpJsonLineChannel(tcp.GetStream()));
+            }
+
             await client.StartAsync(name, version, cancellationToken).ConfigureAwait(false);
             return client;
         }
         catch
         {
-            tcp.Dispose();
+            if (client is not null)
+            {
+                await client.DisposeAsync().ConfigureAwait(false);
+            }
+
             throw;
         }
     }
@@ -101,6 +127,9 @@ public sealed class PeerClient : IAsyncDisposable
             await _channel.SendAsync(PeerMessageTypes.Bye, new PeerError("bye", "leave")).ConfigureAwait(false);
         }
         catch (IOException)
+        {
+        }
+        catch (InvalidOperationException)
         {
         }
     }
@@ -199,7 +228,8 @@ public sealed class PeerClient : IAsyncDisposable
         }
 
         _channel.Dispose();
-        _tcp.Dispose();
+        _tcp?.Dispose();
+        _webSocket?.Dispose();
         if (_receiveTask is not null)
         {
             try

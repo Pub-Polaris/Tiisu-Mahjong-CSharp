@@ -71,6 +71,12 @@ public sealed class Settings
     /// <summary>界面字号倍率：1.0 / 1.15 / 1.3（仅非牌桌页面）。</summary>
     public double UiTextScale { get; set; } = 1.0;
 
+    /// <summary>联机玩家名；空 = 使用系统用户名。</summary>
+    public string PlayerName { get; set; } = "";
+
+    public string EffectivePlayerName =>
+        string.IsNullOrWhiteSpace(PlayerName) ? Environment.UserName : PlayerName;
+
     /// <summary>UI 语言：zh-CN / en-US / ja-JP。</summary>
     public string Language { get; set; } = "zh-CN";
 
@@ -131,6 +137,7 @@ public sealed class Settings
             loaded.AiStyle = (loaded.AiStyle ?? Tiisu.Engine.Ai.AiStyle.Default).Clamped();
             loaded.UiTextScale = Math.Clamp(loaded.UiTextScale, 1.0, 1.3);
             loaded.Language = Tiisu.App.Ui.UiText.Normalize(loaded.Language);
+            loaded.PlayerName = NormalizePlayerName(loaded.PlayerName);
             return loaded;
         }
         catch
@@ -183,6 +190,7 @@ public sealed class Settings
         VoiceEnabled = other.VoiceEnabled;
         UiTextScale = other.UiTextScale;
         Language = other.Language;
+        PlayerName = NormalizePlayerName(other.PlayerName);
         AiWeights = NormalizeWeights(other.AiWeights);
         AiSeatLocks = NormalizeLocks(other.AiSeatLocks);
         AiMctsEnabled = other.AiMctsEnabled;
@@ -196,6 +204,12 @@ public sealed class Settings
         var copy = new Settings();
         copy.CopyFrom(this);
         return copy;
+    }
+
+    public static string NormalizePlayerName(string? name)
+    {
+        string value = (name ?? string.Empty).Trim();
+        return value.Length <= 24 ? value : value[..24];
     }
 
     /// <summary>旧 settings.json 缺字段 / 字段非法时回退默认权重（30/45/20/5）。</summary>

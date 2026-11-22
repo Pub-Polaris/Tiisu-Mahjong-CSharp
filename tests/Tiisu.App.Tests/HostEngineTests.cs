@@ -9,16 +9,18 @@ namespace Tiisu.App.Tests;
 
 public sealed class HostEngineTests
 {
-    [Fact]
-    public async Task Host_starts_four_player_match_and_sends_per_seat_snapshots()
+    [Theory]
+    [InlineData("tcp")]
+    [InlineData("websocket")]
+    public async Task Host_starts_four_player_match_and_sends_per_seat_snapshots(string transport)
     {
         var settings = new Settings();
         var previousContext = SynchronizationContext.Current;
         SynchronizationContext.SetSynchronizationContext(null);
         try
         {
-        var room = RoomInfo.Create("测试房", "Host", 0, "test");
-        using var host = new HostEngine(settings, room, port: 0);
+        var room = RoomInfo.Create("测试房", "Host", 0, "test", transport: transport);
+        using var host = new HostEngine(settings, room, port: 0, transport: transport);
         host.StartServer();
 
         var clients = new List<PeerClient>();
@@ -26,7 +28,8 @@ public sealed class HostEngineTests
         {
             for (int i = 0; i < 3; i++)
             {
-                clients.Add(await PeerClient.ConnectAsync("127.0.0.1", "C" + i, "test", host.Port));
+                clients.Add(await PeerClient.ConnectAsync(
+                    "127.0.0.1", "C" + i, "test", host.Port, transport));
             }
 
             var deadline = DateTime.UtcNow.AddSeconds(3);

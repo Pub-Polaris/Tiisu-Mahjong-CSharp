@@ -9,21 +9,24 @@ namespace Tiisu.App.Tests;
 
 public sealed class HostLifecycleTests
 {
-    [Fact]
-    public async Task Stop_disconnects_clients_and_releases_port()
+    [Theory]
+    [InlineData("tcp")]
+    [InlineData("websocket")]
+    public async Task Stop_disconnects_clients_and_releases_port(string transport)
     {
         var previousContext = SynchronizationContext.Current;
         SynchronizationContext.SetSynchronizationContext(null);
         int port = FreeTcpAndUdpPort();
-        var room = RoomInfo.Create("生命周期", "Host", port, "test");
+        var room = RoomInfo.Create("生命周期", "Host", port, "test", transport: transport);
         var clients = new List<PeerClient>();
         try
         {
-            var host = new HostEngine(new Settings(), room, port);
+            var host = new HostEngine(new Settings(), room, port, transport: transport);
             host.StartServer();
             for (int i = 0; i < 3; i++)
             {
-                clients.Add(await PeerClient.ConnectAsync("127.0.0.1", "C" + i, "test", port));
+                clients.Add(await PeerClient.ConnectAsync(
+                    "127.0.0.1", "C" + i, "test", port, transport));
             }
 
             var disconnected = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -38,7 +41,7 @@ public sealed class HostLifecycleTests
             await disconnected.Task.WaitAsync(TimeSpan.FromSeconds(3));
 
             // Rebind both TCP and UDP on the same port immediately.
-            var second = new HostEngine(new Settings(), room, port);
+            var second = new HostEngine(new Settings(), room, port, transport: transport);
             second.StartServer();
             await second.StopAsync();
 

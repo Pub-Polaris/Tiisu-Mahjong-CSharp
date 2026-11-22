@@ -118,11 +118,13 @@ internal sealed class ScreenHostCore : IDisposable
             SwitchTo(_settingsScreen);
         }, _settings.TableRender, _settings);
         _multiplayer = new MultiplayerScreen(
-            LeaveNetworkToMenuAsync,
+            _settings.EffectivePlayerName,
             CreateNetworkHostAsync,
             JoinRoomAsync,
+            LeaveNetworkToMenuAsync,
             ShowHostTable,
-            ShowClientTable);
+            ShowClientTable,
+            SavePlayerName);
 
         _current = _menu;
 
@@ -160,13 +162,15 @@ internal sealed class ScreenHostCore : IDisposable
         _session.Dispose();
     }
 
-    private async Task<HostEngine> CreateNetworkHostAsync()
+    private async Task<HostEngine> CreateNetworkHostAsync(
+        string transport, string zone, int table, int mode, bool aiFill)
     {
         await CloseNetworkSessionAsync();
-        string name = string.IsNullOrWhiteSpace(Environment.UserName) ? "房主" : Environment.UserName.Trim();
+        string name = _settings.EffectivePlayerName;
         var room = RoomInfo.Create(name + "的七子房", name,
-            NetworkConstants.DefaultPort, BuildInfo.Version);
-        _networkHost = new HostEngine(_settings, room);
+            NetworkConstants.DefaultPort, BuildInfo.Version,
+            transport: transport, zone: zone, table: table, mode: mode, aiFill: aiFill);
+        _networkHost = new HostEngine(_settings, room, transport: transport);
         _networkHost.CheatDetected += reason =>
         {
             _multiplayer?.SetStatus("发现作弊者，本局取消：" + reason);
@@ -177,12 +181,19 @@ internal sealed class ScreenHostCore : IDisposable
     private async Task<(PeerClient Client, NetworkClientSession Session)> JoinRoomAsync(RoomInfo room)
     {
         await CloseNetworkSessionAsync();
-        string name = string.IsNullOrWhiteSpace(Environment.UserName) ? "玩家" : Environment.UserName.Trim();
+        string name = _settings.EffectivePlayerName;
         string host = string.IsNullOrWhiteSpace(room.HostAddress) ? "127.0.0.1" : room.HostAddress;
-        PeerClient client = await PeerClient.ConnectAsync(host, name, BuildInfo.Version, room.Port);
+        PeerClient client = await PeerClient.ConnectAsync(
+            host, name, BuildInfo.Version, room.Port, room.Transport);
         _peerClient = client;
         _networkClient = new NetworkClientSession(client);
         return (client, _networkClient);
+    }
+
+    private void SavePlayerName(string name)
+    {
+        _settings.PlayerName = Settings.NormalizePlayerName(name);
+        _settings.Save();
     }
 
     private async Task LeaveNetworkToMenuAsync()

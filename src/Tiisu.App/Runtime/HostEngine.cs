@@ -25,11 +25,14 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
     private bool _disposed;
 
     public HostEngine(Settings settings, RoomInfo room, int port = NetworkConstants.DefaultPort,
-        IRandomSource? random = null)
+        IRandomSource? random = null, string? transport = null)
     {
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _local = new GameSession(settings, useStores: false, aiStepDelayMilliseconds: 0, random: random);
-        _server = new PeerServer(room, port);
+        _server = new PeerServer(
+            room with { Transport = RoomInfo.NormalizeTransport(transport ?? room.Transport) },
+            port,
+            transport ?? room.Transport);
         _server.CommandReceived += OnCommand;
         _server.CheatDetected += OnCheat;
         _server.LobbyChanged += () => LobbyChanged?.Invoke(Lobby);
@@ -40,6 +43,7 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
     public PeerServer Server => _server;
     public int Port => _server.Port;
     public RoomInfo Room => _server.Room;
+    public string Transport => _server.Transport;
     public IReadOnlyList<PlayerLobbyInfo> Lobby => _server.Lobby;
     public GameSession LocalSession => _local;
 
@@ -71,16 +75,23 @@ public sealed class HostEngine : ITableSession, IAsyncDisposable
     /// 至少 Host 一人即可开始；未连接的座位由本地 AI 补位。
     /// 远程座位仍然只接受该座位的脱敏快照/指令。
     /// </summary>
-    public void StartMatch(int mode = 1)
+    public bool StartMatch(int mode = 1)
     {
         StartServer();
         MatchCancelled = false;
         Volatile.Write(ref _lastError, null);
+        if (!Room.AiFill && Lobby.Count < NetworkConstants.MaxPlayers)
+        {
+            Volatile.Write(ref _lastError, $"该桌未开启 AI 补位，需要 {NetworkConstants.MaxPlayers} 人");
+            return false;
+        }
+
         _local.ConfigureNetworkSeats(BuildHumanSeats());
         _local.Post(GameCommand.StartMatch(mode));
         _server.State = "playing";
         _ = _server.BroadcastAsync("start", new { mode });
         MatchStarted?.Invoke(Room.RoomName);
+        return true;
     }
 
     private bool[] BuildHumanSeats()

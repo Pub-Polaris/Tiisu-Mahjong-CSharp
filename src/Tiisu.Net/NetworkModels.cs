@@ -20,10 +20,20 @@ public sealed record RoomInfo(
     int MaxPlayers,
     string State,
     string Version,
-    string HostAddress = "")
+    string HostAddress = "",
+    string Transport = "tcp",
+    string Zone = "A",
+    int Table = 1,
+    int Mode = 1,
+    bool AiFill = true)
 {
+    public static readonly string[] Zones = { "A", "B", "C", "D" };
+    public const int TablesPerZone = 2;
+    public const int MaxTables = 8;
+
     public static RoomInfo Create(string roomName, string hostName, int port, string version,
-        int players = 1, string state = "lobby") =>
+        int players = 1, string state = "lobby", string? transport = null,
+        string? zone = null, int table = 1, int mode = 1, bool aiFill = true) =>
         new(
             Clean(roomName, 32, "七子房间"),
             Clean(hostName, NetworkConstants.MaxNameLength, "Host"),
@@ -31,11 +41,57 @@ public sealed record RoomInfo(
             Math.Clamp(players, 0, NetworkConstants.MaxPlayers),
             NetworkConstants.MaxPlayers,
             Clean(state, 16, "lobby"),
-            Clean(version, 32, "0"));
+            Clean(version, 32, "0"),
+            string.Empty,
+            NormalizeTransport(transport),
+            NormalizeZone(zone),
+            Math.Clamp(table, 1, TablesPerZone),
+            Math.Clamp(mode, 1, 16),
+            aiFill);
 
     public bool IsJoinable =>
         string.Equals(State, "lobby", StringComparison.OrdinalIgnoreCase)
         && Players < MaxPlayers;
+
+    public string SlotLabel => NormalizeZone(Zone) + Table;
+
+    public static string NormalizeZone(string? zone)
+    {
+        string value = (zone ?? string.Empty).Trim().ToUpperInvariant();
+        return Zones.Contains(value, StringComparer.Ordinal) ? value : "A";
+    }
+
+    public static string NormalizeTransport(string? transport)
+    {
+        return string.Equals(transport, "websocket", StringComparison.OrdinalIgnoreCase)
+            ? "websocket"
+            : "tcp";
+    }
+
+    public static bool IsSupportedTransport(string? transport) =>
+        string.Equals(transport, "tcp", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(transport, "websocket", StringComparison.OrdinalIgnoreCase);
+
+    public static string TransportLabel(string transport) =>
+        string.Equals(transport, "websocket", StringComparison.OrdinalIgnoreCase) ? "WS" : "TCP";
+
+    public static int? FirstFreeTable(string? zone, IEnumerable<RoomInfo> rooms)
+    {
+        string normalized = NormalizeZone(zone);
+        var occupied = rooms
+            .Where(r => string.Equals(NormalizeZone(r.Zone), normalized, StringComparison.Ordinal))
+            .Select(r => Math.Clamp(r.Table, 1, TablesPerZone))
+            .ToHashSet();
+        for (int table = 1; table <= TablesPerZone; table++)
+        {
+            if (!occupied.Contains(table))
+            {
+                return table;
+            }
+        }
+
+        return null;
+    }
 
     private static string Clean(string? value, int max, string fallback)
     {
