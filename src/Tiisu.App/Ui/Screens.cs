@@ -181,11 +181,16 @@ public sealed class TableScreen : Screen
     {
         if (vm.Phase is "human_meld" or "human_ron")
         {
-            _commands?.Invoke(GameCommand.Pass());
+            if ((vm.Actions & HumanAction.Pass) != 0)
+            {
+                _commands?.Invoke(GameCommand.Pass());
+            }
+
             return;
         }
 
-        if (vm.Phase != "human_discard" || vm.Seats.Count == 0)
+        if (vm.Phase != "human_discard" || vm.Seats.Count == 0
+            || (vm.Actions & HumanAction.Discard) == 0)
         {
             return;
         }
@@ -708,6 +713,14 @@ public sealed class TableScreen : Screen
         if (index < 0 || _commands is null)
         {
             return index >= 0;
+        }
+
+        // 联机时 phase 是全局的；只有当前行动者才拿到 Discard 权限。
+        // 不检查这里会让非行动者点自己的手牌，Host 却按“当前行动者”出牌。
+        var vm = _snapshot();
+        if ((vm.Actions & HumanAction.Discard) == 0)
+        {
+            return true;
         }
 
         if (_callArmed)
