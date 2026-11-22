@@ -144,7 +144,7 @@ public sealed class HostEngine : ITableSession
             return false;
         }
 
-        if (!IsCommandAllowed(command!, _local.LatestSnapshot.Actions))
+        if (!IsCommandAllowed(command!, _local.SnapshotForSeat(request.Seat).Actions))
         {
             return false;
         }
