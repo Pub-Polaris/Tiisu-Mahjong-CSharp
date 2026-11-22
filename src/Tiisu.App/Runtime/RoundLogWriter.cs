@@ -39,7 +39,7 @@ public sealed class RoundLogWriter
 
     public RoundLogWriter(string? directory = null)
     {
-        DirectoryPath = Path.GetFullPath(directory ?? Settings.DefaultDirectory);
+        DirectoryPath = Path.GetFullPath(directory ?? AppData.Current);
         LogsDirectory = Path.Combine(DirectoryPath, "logs");
     }
 
@@ -87,16 +87,30 @@ public sealed class RoundLogWriter
             ev["discards"] = DiscardsJson(player.Discards);
 
             // 2026-11-04：7Neuu 需要桌面状态——四家牌河 + 四家副露数一起记。
+            // 2026-11-22：复盘需要完整桌面，另记四家暗手 / 副露 / 张数 / 点数 / 行动者。
             var rivers = new JsonArray();
             var meldCounts = new JsonArray();
+            var allHands = new JsonArray();
+            var allMelds = new JsonArray();
+            var handCounts = new JsonArray();
+            var scores = new JsonArray();
             foreach (var seat in engine.Players)
             {
                 rivers.Add(DiscardsJson(seat.Discards));
                 meldCounts.Add(seat.Melds.Count);
+                allHands.Add(TileNotation.HandToStr(seat.Hand));
+                allMelds.Add(MeldsJson(seat.Melds));
+                handCounts.Add(seat.Hand.Count);
+                scores.Add(engine.Scores[seat.Index]);
             }
 
             ev["rivers"] = rivers;
             ev["meldCounts"] = meldCounts;
+            ev["allHands"] = allHands;
+            ev["allMelds"] = allMelds;
+            ev["handCounts"] = handCounts;
+            ev["scores"] = scores;
+            ev["turn"] = engine.TurnIndex;
             ev["wall"] = engine.Wall.Count;
             ev["rinshan"] = engine.Rinshan.Count;
             ev["h"] = engine.Honba;
@@ -188,6 +202,8 @@ public sealed class RoundLogWriter
             ["honba"] = engine.Honba,
             ["player"] = playerIndex,
             ["name"] = PlayerSlug(playerIndex),
+            ["nameText"] = string.IsNullOrWhiteSpace(player.Name) ? PlayerSlug(playerIndex) : player.Name,
+            ["human"] = player.IsHuman,
             ["wind"] = player.SeatWind.Wire(),
             ["dealer"] = player.IsDealer,
             ["riichi"] = false,
@@ -210,15 +226,19 @@ public sealed class RoundLogWriter
             }
 
             var nums = new StringBuilder();
+            var tiles = new JsonArray();
             foreach (var tile in meld.Tiles)
             {
                 nums.Append(tile.Num.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                tiles.Add(TileNotation.TileToStr(tile));
             }
 
             array.Add(new JsonObject
             {
                 ["k"] = meld.Type.Wire(),
                 ["t"] = nums.ToString() + TileNotation.SuitChar(meld.Tiles[0].Suit),
+                ["tiles"] = tiles,
+                ["claimed"] = meld.ClaimedIndex,
             });
         }
 

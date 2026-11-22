@@ -44,7 +44,7 @@ public sealed class SaveStore : IDisposable
 
     public SaveStore(string? directory = null)
     {
-        DirectoryPath = Path.GetFullPath(directory ?? Settings.DefaultDirectory);
+        DirectoryPath = Path.GetFullPath(directory ?? AppData.Current);
         Directory.CreateDirectory(DirectoryPath);
         _timer = new System.Threading.Timer(_ => FlushPending(), null, System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
     }

@@ -5,13 +5,14 @@ using Tiisu.App.Ui;
 namespace Tiisu.App.Runtime;
 
 /// <summary>命令行启动选项：Steam 启动项、QA 截图与排障共用。</summary>
-public sealed record LaunchOptions(bool ForceCpuRender, bool Fullscreen, string? Language)
+public sealed record LaunchOptions(bool ForceCpuRender, bool Fullscreen, string? Language, string? Profile)
 {
     public static LaunchOptions Parse(IReadOnlyList<string> args)
     {
         bool cpu = false;
         bool fullscreen = false;
         string? language = null;
+        string? profile = null;
         for (int i = 0; i < args.Count; i++)
         {
             switch (args[i])
@@ -25,9 +26,12 @@ public sealed record LaunchOptions(bool ForceCpuRender, bool Fullscreen, string?
                 case "--lang" when i + 1 < args.Count:
                     language = UiText.Normalize(args[++i]);
                     break;
+                case "--profile" when i + 1 < args.Count:
+                    profile = args[++i];
+                    break;
             }
         }
 
-        return new LaunchOptions(cpu, fullscreen, language);
+        return new LaunchOptions(cpu, fullscreen, language, profile);
     }
 }

@@ -9,6 +9,10 @@
     { "id": "subtitle", "type": "text", "x": 0, "y": 138, "w": 1280, "h": 32,
       "text": "Tiisu Mahjong", "fontSize": 20, "fontColor": "#9fb4aa" },
 
+    { "id": "btnProfile", "type": "button", "x": 1030, "y": 20, "w": 200, "h": 38, "radius": 10,
+      "text": "玩家", "action": "profiles", "fontSize": 15,
+      "fill": "#1a282e", "border": "#335048", "fontColor": "#dfe7df" },
+
     { "id": "tileA", "type": "tile", "x": 532, "y": 188, "w": 64, "h": 88, "tileId": "7m" },
     { "id": "tileB", "type": "tile", "x": 608, "y": 188, "w": 64, "h": 88, "tileId": "7p" },
     { "id": "tileC", "type": "tile", "x": 684, "y": 188, "w": 64, "h": 88, "tileId": "7s" },

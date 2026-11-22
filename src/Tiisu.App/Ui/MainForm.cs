@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows.Forms;
 using Tiisu.Localization;
 using Tiisu.App.Assets;
+using Tiisu.App.Runtime;
 
 namespace Tiisu.App.Ui;
 
@@ -10,16 +11,28 @@ namespace Tiisu.App.Ui;
 public sealed class MainForm : Form
 {
     private readonly TileAtlas _atlas;
-    private readonly Control _host;
+    private readonly LaunchOptions _options;
+    private readonly PlayerProfileStore _profiles;
+    private readonly bool _forceCpu;
+    private Control _host;
+    private PlayerProfile _profile;
+    private System.Windows.Forms.Timer? _profileSwitchTimer;
     private readonly bool _logKeys = Tiisu.Core.TiisuConfig.Current.LogKeys;
     private bool _fullscreen;
     private System.Drawing.Rectangle _restoreBounds;
     private FormWindowState _restoreState = FormWindowState.Normal;
     private FormBorderStyle _restoreStyle = FormBorderStyle.Sizable;
 
-    public MainForm(TileAtlas atlas, bool forceCpuRender = false, bool startFullscreen = false)
+    public MainForm(TileAtlas atlas, LaunchOptions options)
     {
         _atlas = atlas;
+        _options = options ?? new LaunchOptions(false, false, null, null);
+        _forceCpu = _options.ForceCpuRender;
+
+        // 档案必须在任何 store 读取前确定：AppData.Current 是各 store 的默认根。
+        _profiles = PlayerProfileStore.LoadOrCreate();
+        _profile = _profiles.ResolveLaunchProfile(_options.Profile);
+        AppData.Use(_profile.Directory);
 
         Text = L.T("app.ui.window.title");
 
@@ -49,23 +62,95 @@ public sealed class MainForm : Form
 
         // 退出程序：菜单「退出」按钮 / 窗口关闭按钮；ESC 由各 Screen 处理成「返回」。
         // GPU（SKGLControl + GRContext）优先，不可用时工厂内部自动回退 CPU（SKControl）。
-        _host = ScreenHostFactory.Create(atlas, forceCpuRender);
+        _host = CreateHost(_profile);
         Controls.Add(_host);
         Text = L.T("app.ui.window.title");
 
         // 启动/激活时把焦点交给画布，否则键盘事件没有落点。
         UiText.LanguageChanged += OnLanguageChanged;
-        FormClosed += (_, _) => UiText.LanguageChanged -= OnLanguageChanged;
+        FormClosed += (_, _) =>
+        {
+            UiText.LanguageChanged -= OnLanguageChanged;
+            _profileSwitchTimer?.Stop();
+            _profileSwitchTimer?.Dispose();
+            _profileSwitchTimer = null;
+        };
 
         Shown += (_, _) =>
         {
             _host.Focus();
-            if (startFullscreen)
+            if (_options.Fullscreen)
             {
                 BeginInvoke(ToggleFullscreen);
             }
         };
         Activated += (_, _) => _host.Focus();
+    }
+
+    private Control CreateHost(PlayerProfile profile) =>
+        ScreenHostFactory.Create(_atlas, _forceCpu, profile, _profiles, SwitchProfile);
+
+    /// <summary>
+    /// 档案页请求切换：延迟到本次鼠标点击完全结束后再换 host。
+    /// 若在 OnClick 里直接替换控件，同一次点击的 MouseUp 会落到新菜单上，
+    /// 可能误触「一局/南风场」直接开局。
+    /// </summary>
+    private void SwitchProfile(PlayerProfile profile)
+    {
+        if (profile is null || IsDisposed || !IsHandleCreated || _profileSwitchTimer is not null)
+        {
+            return;
+        }
+
+        var timer = new System.Windows.Forms.Timer { Interval = 90 };
+        _profileSwitchTimer = timer;
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            timer.Dispose();
+            _profileSwitchTimer = null;
+            ApplyProfileSwitch(profile);
+        };
+        timer.Start();
+    }
+
+    private void ApplyProfileSwitch(PlayerProfile profile)
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        PlayerProfile previous = _profile;
+        try
+        {
+            PlayerProfile active = _profiles.SetActive(profile.Id);
+            AppData.Use(active.Directory);
+            Control next = CreateHost(active);
+            Controls.Add(next);
+            Control old = _host;
+            _host = next;
+            Controls.Remove(old);
+            old.Dispose();
+            _profile = active;
+            _host.Focus();
+            Invalidate(true);
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                _profiles.SetActive(previous.Id);
+                AppData.Use(previous.Directory);
+            }
+            catch
+            {
+                // 回滚失败也保留旧 host。
+            }
+
+            MessageBox.Show(this, ex.Message, L.T("app.ui.profile.switchFailed"),
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
 
     private void OnLanguageChanged()
@@ -135,7 +220,7 @@ public sealed class MainForm : Form
       }
 
 
-    /// <summary>IME 提交的文本走 KeyPress；普通按键已在 KeyDown 中处理并 Suppress。</summary>
+    /// <summary>IME / 文本输入：KeyPress 的字符转给当前屏的文本框；控制键仍走 KeyDown。</summary>
     protected override void OnKeyPress(KeyPressEventArgs e)
     {
         if (!char.IsControl(e.KeyChar)

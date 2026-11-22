@@ -2,6 +2,7 @@ using System;
 using System.Windows.Forms;
 using SkiaSharp.Views.Desktop;
 using Tiisu.App.Assets;
+using Tiisu.App.Runtime;
 
 namespace Tiisu.App.Ui;
 
@@ -14,10 +15,14 @@ internal sealed class GlScreenHost : SKGLControl, IKeyRouter, ICharRouter
 {
     private readonly ScreenHostCore _core;
 
-    public GlScreenHost(TileAtlas? atlas)
+    public GlScreenHost(
+        TileAtlas? atlas,
+        PlayerProfile profile,
+        PlayerProfileStore profiles,
+        Action<PlayerProfile> switchProfile)
     {
         Dock = DockStyle.Fill;
-        _core = new ScreenHostCore(atlas, Invalidate, () => FindForm()?.Close());
+        _core = new ScreenHostCore(atlas, Invalidate, () => FindForm()?.Close(), profile, profiles, switchProfile);
     }
 
     protected override void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
@@ -66,6 +71,7 @@ internal sealed class GlScreenHost : SKGLControl, IKeyRouter, ICharRouter
     /// <summary>窗口层转发：即使控件没焦点也能响应按键。</summary>
     public bool RouteKey(Keys key, bool shift) => _core.KeyDown(key, shift);
 
+    /// <summary>窗口层转发：IME 提交的字符。</summary>
     public bool RouteChar(char c) => _core.TextInput(c.ToString());
 
     protected override void OnMouseDown(MouseEventArgs e)

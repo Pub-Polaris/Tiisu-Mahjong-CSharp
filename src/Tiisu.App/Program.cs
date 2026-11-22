@@ -30,7 +30,7 @@ internal static class Program
                 return;
             }
 
-            var known = new[] { "--cpu-render", "--fullscreen", "--lang" };
+            var known = new[] { "--cpu-render", "--fullscreen", "--lang", "--profile" };
             if (args[0] != "--cpu-render" && !known.Contains(args[0]))
             {
                 Console.WriteLine(L.T("app.runtime.cli.unknownArg", ("arg", args[0])));
@@ -48,7 +48,7 @@ internal static class Program
         }
 
         var atlas = new TileAtlas(AssetsDir);   // 所有权交给 MainForm
-        Application.Run(new MainForm(atlas, options.ForceCpuRender, options.Fullscreen));
+        Application.Run(new MainForm(atlas, options));
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]

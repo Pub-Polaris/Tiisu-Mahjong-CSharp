@@ -33,6 +33,9 @@ internal sealed class ScreenHostCore : IDisposable
 {
     private readonly TileAtlas? _atlas;
     private readonly GameSession _session;
+    private readonly PlayerProfile _profile;
+    private readonly PlayerProfileStore _profiles;
+    private readonly Action<PlayerProfile> _switchProfile;
     private Tiisu.Core.Ruleset _appliedRuleset;
     private readonly Settings _settings;
     private float _uiTextScale = 1f;
@@ -55,6 +58,7 @@ internal sealed class ScreenHostCore : IDisposable
     private readonly StatsScreen _stats;
     private readonly AchievementsScreen _achievements;
     private readonly ReplayScreen _replay;
+    private readonly ProfileScreen _profilesScreen;
     private Screen? _settingsReturn;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly System.Windows.Forms.Timer _frameTimer;
@@ -74,13 +78,23 @@ internal sealed class ScreenHostCore : IDisposable
 
     private bool _disposed;
 
-    public ScreenHostCore(TileAtlas? atlas, Action invalidate, Action close)
+    public ScreenHostCore(
+        TileAtlas? atlas,
+        Action invalidate,
+        Action close,
+        PlayerProfile profile,
+        PlayerProfileStore profiles,
+        Action<PlayerProfile> switchProfile)
     {
         _atlas = atlas;
         _close = close ?? (() => { });
+        _profile = profile;
+        _profiles = profiles;
+        _switchProfile = switchProfile;
 
         // 会话必须在 UI 线程构造：它捕获当前 SynchronizationContext 把事件回投到 UI。
-        _settings = Settings.Load();
+        _settings = Settings.Load(profile.Directory);
+        _settings.PlayerName = profile.DisplayName;
         string? launchLanguage = Environment.GetEnvironmentVariable("TIISU_LANG");
         if (!string.IsNullOrWhiteSpace(launchLanguage))
         {
@@ -93,8 +107,8 @@ internal sealed class ScreenHostCore : IDisposable
         _sound.VoiceEnabled = _settings.VoiceEnabled;
         _uiTextScale = (float)_settings.UiTextScale;
         UiText.SetLanguage(_settings.Language);
-        _session = new GameSession(_settings);
-        _steamAchievements = new SteamAchievementSync(_steam, new SteamAchievementStore());
+        _session = new GameSession(_settings, dataDirectory: profile.Directory);
+        _steamAchievements = new SteamAchievementSync(_steam, new SteamAchievementStore(profile.Directory));
         _session.UiEvent += OnSteamSyncEvent;
         var menuLayout = UiLayout.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "layout", "menu.json"));
         _licenses = new LicensesScreen(() => SwitchTo(_menu), OpenMarkdown);
@@ -110,7 +124,13 @@ internal sealed class ScreenHostCore : IDisposable
             SwitchTo(_achievements);
         });
         _replay = new ReplayScreen(() => SwitchTo(_menu));
-        _menu = new MenuScreen(menuLayout, OnMenuAction, HandleLink);
+        _menu = new MenuScreen(menuLayout, OnMenuAction, HandleLink, _settings.EffectivePlayerName);
+        _profilesScreen = new ProfileScreen(
+            _profiles,
+            profile.Id,
+            () => SwitchTo(_menu),
+            p => _switchProfile(p),
+            name => _menu.RefreshPlayerName(name));
         _rules = new RulesScreen(() => SwitchTo(_menu));
         _settingsScreen = new SettingsScreen(_settings, OnSettingsChanged, () =>
         {
@@ -198,8 +218,23 @@ internal sealed class ScreenHostCore : IDisposable
 
     private void SavePlayerName(string name)
     {
-        _settings.PlayerName = Settings.NormalizePlayerName(name);
+        string normalized = Settings.NormalizePlayerName(name);
+        _settings.PlayerName = normalized;
         _settings.Save();
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(normalized)
+                && !string.Equals(normalized, _profile.DisplayName, StringComparison.Ordinal))
+            {
+                _profiles.Rename(_profile.Id, normalized);
+            }
+        }
+        catch
+        {
+            // 档案改名失败不能阻断联机改名。
+        }
+
+        _menu.RefreshPlayerName(normalized);
     }
 
     private async Task LeaveNetworkToMenuAsync()
@@ -302,6 +337,17 @@ internal sealed class ScreenHostCore : IDisposable
         }
     }
 
+    /// <summary>IME / 文本输入：只转给当前屏；没有文本框的屏返回 false。</summary>
+    public bool TextInput(string text)
+    {
+        if (_disposed || string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        return _current.OnTextInput(text);
+    }
+
     private bool OnMenuAction(string action)
     {
         if (action.StartsWith("mode:", StringComparison.Ordinal)
@@ -331,6 +377,11 @@ internal sealed class ScreenHostCore : IDisposable
 
             case "settings":
                 SwitchTo(_settingsScreen);
+                return true;
+
+            case "profiles":
+                _profilesScreen.Reload();
+                SwitchTo(_profilesScreen);
                 return true;
 
             case "rules":
@@ -631,11 +682,6 @@ internal sealed class ScreenHostCore : IDisposable
         }
 
         return _current.OnKey(key, shift);
-    }
-
-    public bool TextInput(string text)
-    {
-        return text.Length > 0 && _current.OnTextInput(text);
     }
 
     private (float X, float Y) ToLogical(int px, int py)

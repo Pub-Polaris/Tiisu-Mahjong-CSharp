@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Forms;
 using Tiisu.App.Assets;
+using Tiisu.App.Runtime;
 
 namespace Tiisu.App.Ui;
 
@@ -10,12 +11,17 @@ namespace Tiisu.App.Ui;
 /// </summary>
 internal static class ScreenHostFactory
 {
-    public static Control Create(TileAtlas? atlas, bool forceCpu)
+    public static Control Create(
+        TileAtlas? atlas,
+        bool forceCpu,
+        PlayerProfile profile,
+        PlayerProfileStore profiles,
+        Action<PlayerProfile> switchProfile)
     {
         if (forceCpu)
         {
             Console.WriteLine("[render] backend=cpu control=SKControl reason=\"--cpu-render 强制\"");
-            return new CpuScreenHost(atlas);
+            return new CpuScreenHost(atlas, profile, profiles, switchProfile);
         }
 
         using (GlHostWindow? probe = GlHostWindow.TryCreate(out string detail, out string? error))
@@ -23,12 +29,12 @@ internal static class ScreenHostFactory
             if (probe is not null)
             {
                 Console.WriteLine($"[render] backend=gpu control=SKGLControl renderer=\"{detail}\"");
-                return new GlScreenHost(atlas);
+                return new GlScreenHost(atlas, profile, profiles, switchProfile);
             }
 
             Console.WriteLine($"[render] backend=cpu control=SKControl reason=\"GL 不可用：{error}\"");
         }
 
-        return new CpuScreenHost(atlas);
+        return new CpuScreenHost(atlas, profile, profiles, switchProfile);
     }
 }

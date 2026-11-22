@@ -1317,7 +1317,7 @@
       },
       "replay": {
         "title": "牌谱回看",
-        "emptyLog": "本机 logs 里还没有牌谱；在设置中开启「记录牌型日志」后打一局。",
+        "emptyLog": "本机还没有牌谱；在设置中开启「记录牌谱（本地）」后打一局。",
         "noSteps": "没有可回看的牌谱。",
         "roundPrefix": "{current}/{total} 局 · ",
         "roundMeta": "{file} · {round} 局 · {honba} 本场",
@@ -1329,7 +1329,14 @@
         "next": "下一手",
         "prevRound": "← 上一局",
         "nextRound": "下一局 →",
-        "wallAnnotation": "（余 {wall}）"
+        "wallAnnotation": "（余 {wall}）",
+        "noLogHint": "没有可回看的牌谱。到「设置 → 记录牌谱（本地）」打开后打一局。",
+        "roundLabel": "{wind}{round}局",
+        "best": "最佳",
+        "bestDiscard": "最佳打 {tile}",
+        "summary": "本局评分",
+        "summaryLegend": "最佳/评分 · 平均向听损失",
+        "playerFallback": "座位 {index}"
       },
       "markdown": {
         "defaultTitle": "文档",
@@ -1405,7 +1412,8 @@
         "pattern": "牌型"
       },
       "menu": {
-        "navHint": "↑↓←→ 选择 · Enter 确认"
+        "navHint": "↑↓←→ 选择 · Enter 确认",
+        "profileButton": "玩家：{name}"
       },
       "settings": {
         "title": "设置",
@@ -1438,7 +1446,7 @@
           "language": "语言 / Language",
           "textScale": "大字号界面",
           "showMa": "显示岭上指示牌",
-          "recordTiles": "记录牌型日志",
+          "recordTiles": "记录牌谱（本地）",
           "diceViewer": "骰子查看器（右下角按钮）",
           "ruleset": "规则集（推倒胡=无役/无点数）",
           "aiWeights": "AI 难度权重",
@@ -1639,6 +1647,29 @@
           "west": "西",
           "north": "北"
         }
+      },
+      "profile": {
+        "title": "本地玩家",
+        "subtitle": "每台机器一个当前玩家，数据保存在本机",
+        "switch": "切换",
+        "new": "新建",
+        "rename": "重命名",
+        "delete": "删除",
+        "back": "返回",
+        "active": "当前",
+        "empty": "还没有本地玩家",
+        "nameHint": "输入名字",
+        "save": "保存",
+        "cancel": "取消",
+        "deleteConfirm": "删除「{name}」？",
+        "confirmDelete": "删除",
+        "createTitle": "新建玩家",
+        "renameTitle": "重命名玩家",
+        "nameRequired": "名字不能为空",
+        "created": "已创建 {name}",
+        "renamed": "已改名为 {name}",
+        "deleted": "已删除 {name}",
+        "switchFailed": "切换玩家失败"
       }
     },
     "runtime": {
