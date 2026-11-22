@@ -13,19 +13,39 @@
 | 通道 | 端口 | 用途 |
 | --- | --- | --- |
 | UDP | 17700 | Minecraft 风格局域网查询/信标 |
-| TCP | 17700 | 长连接、握手、指令、快照 |
+| TCP | 17700 | TCP 行 JSON 或 WebSocket 长连接、握手、指令、快照 |
 
 1. Host 在 UDP 17700 监听 `TIISU_DISCOVER/1` 并每秒广播房间信标。
 2. Client 向回环 + 各网卡广播地址发查询，收集 `RoomInfo`。
-3. Client 用 TCP 17700 连接 Host，发送 `hello`；Host 分配 Seat 1–3，Seat 0 是 Host 自己。
-4. Host 可随时开始；未连接的座位由本地 AI 补位。
+3. Client 用 `RoomInfo.transport` 指定的协议连接 TCP 17700：
+   - `tcp`：行分隔 JSON；
+   - `websocket`：HTTP Upgrade 后 text frame，子协议 `tiisu-peer`。
+4. Host 分配 Seat 1–3，Seat 0 是 Host 自己。
+5. Host 可随时开始；未连接的座位由本地 AI 补位。
+
+## 四区 × 两桌
+
+大厅固定为：
+
+```text
+A 区：A1 A2
+B 区：B1 B2
+C 区：C1 C2
+D 区：D1 D2
+```
+
+- 每个桌位是一个独立 P2P Host；
+- 房主建房时选区域/协议/模式/AI 补位，桌号自动取该区第一个空位；
+- 区域满时创建失败；
+- 大厅只做发现和槽位展示，不做中央房间服务器；
+- 玩家名保存在 `settings.json` 的 `playerName`，空值回退系统用户名。
 
 ## 房间生命周期
 
 房间监听绑定在房间对象上，不绑定在程序生命周期上：
 
 - 主机从房间页/牌桌返回菜单 = 解散房间；
-- 顺序：停止 UDP 广告 → 停止 TCP listener → 取消 accept → 关闭客户端连接 → 结束引擎线程；
+- 顺序：停止 UDP 广告 → 停止 TCP listener → 取消 accept → 关闭 TCP/WebSocket 客户端连接 → 结束引擎线程；
 - `HostEngine.StopAsync()` / `PeerServer.StopAsync()` 幂等；
 - 离开后必须能立刻重新创建房间并重新绑定 TCP/UDP 17700；
 - 程序退出时同样走停止流程，不留下后台监听线程。
