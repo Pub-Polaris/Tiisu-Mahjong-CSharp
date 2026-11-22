@@ -65,23 +65,35 @@ public sealed class HostEngine : ITableSession
         _ = _server.BroadcastAsync(PeerMessageTypes.Lobby, Lobby);
     }
 
-    /// <summary>Host 在四家到齐后从菜单/房间页调用。</summary>
+    /// <summary>
+    /// 至少 Host 一人即可开始；未连接的座位由本地 AI 补位。
+    /// 远程座位仍然只接受该座位的脱敏快照/指令。
+    /// </summary>
     public void StartMatch(int mode = 1)
     {
         StartServer();
         MatchCancelled = false;
         Volatile.Write(ref _lastError, null);
-        if (Lobby.Count < NetworkConstants.MaxPlayers)
-        {
-            Volatile.Write(ref _lastError, $"需要 {NetworkConstants.MaxPlayers} 人，当前 {Lobby.Count} 人");
-            return;
-        }
-
-        _local.ConfigureNetworkSeats(new[] { true, true, true, true });
+        _local.ConfigureNetworkSeats(BuildHumanSeats());
         _local.Post(GameCommand.StartMatch(mode));
         _server.State = "playing";
         _ = _server.BroadcastAsync("start", new { mode });
         MatchStarted?.Invoke(Room.RoomName);
+    }
+
+    private bool[] BuildHumanSeats()
+    {
+        var seats = new bool[NetworkConstants.MaxPlayers];
+        seats[PeerServer.HostSeat] = true;
+        foreach (PlayerLobbyInfo player in Lobby)
+        {
+            if (player.Seat >= 0 && player.Seat < seats.Length)
+            {
+                seats[player.Seat] = true;
+            }
+        }
+
+        return seats;
     }
 
     public void Post(GameCommand command)

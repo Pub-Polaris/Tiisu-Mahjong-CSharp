@@ -156,7 +156,7 @@ public sealed class MultiplayerScreen : Screen
         }
 
         string hint = _host.Lobby.Count < NetworkConstants.MaxPlayers
-            ? $"等待玩家… {_host.Lobby.Count}/{NetworkConstants.MaxPlayers}"
+            ? $"当前 {_host.Lobby.Count} 人，空位由 Host AI 补位"
             : "四人已到齐";
         c.DrawText(hint, new RectF(0, 400, Width, 28), Color.Rgb(159, 180, 170),
             new TextStyle(16, Center: true));
@@ -197,12 +197,8 @@ public sealed class MultiplayerScreen : Screen
         {
             if (StartRect.Contains(x, y))
             {
-                if (_host.Lobby.Count >= NetworkConstants.MaxPlayers)
-                {
-                    _host.StartMatch();
-                    _onHostStarted(_host);
-                }
-
+                _host.StartMatch();
+                _onHostStarted(_host);
                 return true;
             }
 
