@@ -34,6 +34,7 @@ public sealed class TableScreen : Screen
     /// <summary>结算覆盖层：左侧直接画和牌者手牌，右侧只给结果；多人和牌可翻页。</summary>
     private RoundResult? _settlement;
     private bool _settlementHidden;
+    private string? _networkError;
 
     private int _hover = -1;
     private int _lastHandCount = -1;
@@ -307,6 +308,10 @@ public sealed class TableScreen : Screen
             case StateChangedEvent changed when changed.Snapshot.Phase is not ("round_end" or "match_over"):
                 _settlement = null;
                 _settlementHidden = false;
+                _networkError = null;
+                break;
+            case ErrorEvent error:
+                _networkError = error.Message;
                 break;
         }
     }
@@ -437,6 +442,15 @@ public sealed class TableScreen : Screen
             var box = new RectF(_layout.CanvasW / 2f - 330, 18, 660, 38);
             c.FillRoundRect(box, 10, Color.Rgb(0, 0, 0).WithAlpha(150));
             c.DrawText(UiText.Tr(vm.Message), box, Color.Rgb(255, 228, 120), new TextStyle(17, Bold: true));
+        }
+
+        if (!string.IsNullOrEmpty(_networkError))
+        {
+            var box = new RectF(_layout.CanvasW / 2f - 380, 62, 760, 36);
+            c.FillRoundRect(box, 10, Color.Rgb(96, 20, 20).WithAlpha(235));
+            c.StrokeRoundRect(box, 10, Color.Rgb(255, 176, 120), 1.2f);
+            c.DrawText(UiText.Tr(_networkError), box, Color.Rgb(255, 230, 200),
+                new TextStyle(16, Bold: true));
         }
 
         // 报听待弃：点一张手牌打出即完成报听（无二次确认）。

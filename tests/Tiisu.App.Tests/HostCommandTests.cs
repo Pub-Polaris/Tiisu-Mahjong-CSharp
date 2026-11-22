@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Tiisu.App.Runtime;
+using Tiisu.Engine.Random;
 using Tiisu.Net;
 using Xunit;
 
@@ -20,7 +21,7 @@ public sealed class HostCommandTests
         try
         {
             var room = RoomInfo.Create("指令房", "Host", 0, "test");
-            using var host = new HostEngine(settings, room, port: 0);
+            using var host = new HostEngine(settings, room, port: 0, random: new FixedRandom());
             var cheat = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             host.CheatDetected += reason => cheat.TrySetResult(reason);
             host.StartServer();
@@ -79,19 +80,41 @@ public sealed class HostCommandTests
                     JsonElement own = seats[message.Seat];
                     int handCount = own.GetProperty("hand").GetArrayLength();
                     bool human = own.GetProperty("isHuman").GetBoolean();
-                    current.Add($"seat{message.Seat}:{phase}:human={human}:hand={handCount}");
-                    if (phase != "human_discard" || !human || handCount == 0)
+                    int actions = document.RootElement.TryGetProperty("actions", out var a)
+                        ? a.GetInt32()
+                        : 0;
+                    current.Add($"seat{message.Seat}:{phase}:human={human}:hand={handCount}:actions={actions}");
+                    if (!human || handCount == 0)
+                    {
+                        continue;
+                    }
+
+                    string? command = null;
+                    if (phase == "human_discard")
+                    {
+                        command = "discard";
+                    }
+                    else if (phase == "human_meld" && (actions & (int)Tiisu.App.Table.HumanAction.Pass) != 0)
+                    {
+                        command = "pass";
+                    }
+
+                    if (command is null)
                     {
                         continue;
                     }
 
                     string hash = Hash(message.Snapshot);
                     long before = host.LatestSnapshot.Revision;
-                    await clients[i].SendCommandAsync("discard", message.Revision, index: 0, snapshotHash: hash);
+                    await clients[i].SendCommandAsync(command, message.Revision, index: 0, snapshotHash: hash);
                     await Task.Delay(300);
                     Assert.True(!host.MatchCancelled, host.LastError ?? "cancelled");
                     Assert.True(host.LatestSnapshot.Revision > before || host.Phase != MatchPhase.HumanDiscard);
-                    sentSeat = "ok";
+                    if (command == "discard")
+                    {
+                        sentSeat = "ok";
+                    }
+
                     break;
                 }
 
@@ -113,4 +136,9 @@ public sealed class HostCommandTests
 
     private static string Hash(string text) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
+
+    private sealed class FixedRandom : IRandomSource
+    {
+        public double NextDouble() => 0.25;
+    }
 }

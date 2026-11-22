@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Tiisu.App.Table;
+using Tiisu.Engine.Random;
 using Tiisu.Net;
 
 namespace Tiisu.App.Runtime;
@@ -22,10 +23,11 @@ public sealed class HostEngine : ITableSession
     private bool _started;
     private bool _disposed;
 
-    public HostEngine(Settings settings, RoomInfo room, int port = NetworkConstants.DefaultPort)
+    public HostEngine(Settings settings, RoomInfo room, int port = NetworkConstants.DefaultPort,
+        IRandomSource? random = null)
     {
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));
-        _local = new GameSession(settings, useStores: false, aiStepDelayMilliseconds: 0);
+        _local = new GameSession(settings, useStores: false, aiStepDelayMilliseconds: 0, random: random);
         _server = new PeerServer(room, port);
         _server.CommandReceived += OnCommand;
         _server.CheatDetected += OnCheat;
