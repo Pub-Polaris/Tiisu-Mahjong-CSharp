@@ -23,6 +23,12 @@ internal interface IKeyRouter
     bool RouteKey(Keys key, bool shift);
 }
 
+/// <summary>窗口层文本输入路由：IME 提交的中文/日文等字符不走 KeyDown。</summary>
+internal interface ICharRouter
+{
+    bool RouteChar(char c);
+}
+
 internal sealed class ScreenHostCore : IDisposable
 {
     private readonly TileAtlas? _atlas;
@@ -624,8 +630,12 @@ internal sealed class ScreenHostCore : IDisposable
             return true;
         }
 
-        _current.OnKey(key, shift);
-        return false;
+        return _current.OnKey(key, shift);
+    }
+
+    public bool TextInput(string text)
+    {
+        return text.Length > 0 && _current.OnTextInput(text);
     }
 
     private (float X, float Y) ToLogical(int px, int py)

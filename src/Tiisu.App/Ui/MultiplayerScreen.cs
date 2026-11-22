@@ -523,6 +523,38 @@ public sealed class MultiplayerScreen : Screen
 
     public override bool OnKey(Keys key) => OnKey(key, false);
 
+    public override bool OnTextInput(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        if (_editingName)
+        {
+            int room = NetworkConstants.MaxNameLength - _playerName.Length;
+            if (room > 0)
+            {
+                _playerName += text.Length <= room ? text : text[..room];
+            }
+
+            return true;
+        }
+
+        if (_editingChat)
+        {
+            int room = NetworkConstants.MaxChatLength - _chatDraft.Length;
+            if (room > 0)
+            {
+                _chatDraft += text.Length <= room ? text : text[..room];
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
     public override bool OnKey(Keys key, bool shift)
     {
         if (_editingName)
@@ -551,7 +583,7 @@ public sealed class MultiplayerScreen : Screen
                 return true;
             }
 
-            return true;
+            return false;
         }
 
         if (_editingChat)
@@ -585,7 +617,7 @@ public sealed class MultiplayerScreen : Screen
                 return true;
             }
 
-            return true;
+            return false;
         }
 
         if (key == Keys.Escape)

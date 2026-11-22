@@ -7,7 +7,7 @@ using Tiisu.App.Assets;
 namespace Tiisu.App.Ui;
 
 /// <summary>CPU 光栅宿主（原路径）：<see cref="SKControl"/> 的 software surface。</summary>
-internal sealed class CpuScreenHost : SKControl, IKeyRouter
+internal sealed class CpuScreenHost : SKControl, IKeyRouter, ICharRouter
 {
     private readonly ScreenHostCore _core;
 
@@ -42,6 +42,8 @@ internal sealed class CpuScreenHost : SKControl, IKeyRouter
 
     /// <summary>窗口层转发：即使控件没焦点也能响应按键。</summary>
     public bool RouteKey(Keys key, bool shift) => _core.KeyDown(key, shift);
+
+    public bool RouteChar(char c) => _core.TextInput(c.ToString());
 
     protected override void OnMouseDown(MouseEventArgs e)
     {

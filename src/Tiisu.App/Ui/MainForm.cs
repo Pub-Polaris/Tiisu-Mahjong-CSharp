@@ -135,6 +135,20 @@ public sealed class MainForm : Form
       }
 
 
+    /// <summary>IME 提交的文本走 KeyPress；普通按键已在 KeyDown 中处理并 Suppress。</summary>
+    protected override void OnKeyPress(KeyPressEventArgs e)
+    {
+        if (!char.IsControl(e.KeyChar)
+            && _host is ICharRouter router
+            && router.RouteChar(e.KeyChar))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        base.OnKeyPress(e);
+    }
+
     private void RouteKeyCore(KeyEventArgs e)
     {
         if (e.KeyCode == Keys.F11 && !e.Shift)

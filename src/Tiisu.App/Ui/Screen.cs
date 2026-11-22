@@ -44,4 +44,7 @@ public abstract class Screen
 
     /// <summary>带修饰键的键盘入口；默认退回 <see cref="OnKey(Keys)"/>。</summary>
     public virtual bool OnKey(Keys key, bool shift) => OnKey(key);
+
+    /// <summary>IME/文本输入（中文、日文等无法通过 KeyDown 得到的字符）。</summary>
+    public virtual bool OnTextInput(string text) => false;
 }
