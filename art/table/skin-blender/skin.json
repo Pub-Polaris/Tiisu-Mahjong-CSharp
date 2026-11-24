@@ -1,11 +1,12 @@
-{
+﻿{
   "version": 1,
   "name": "Blender 木台·绿呢",
   "author": "DSH",
-  "scale": 1.5,
+  "scale": 1.4971,
   "atlas": "table.png",
   "background": "#0d1512",
   "regions": {
-    "table": { "src": [0, 0, 2048, 2048], "scale": 1.5 }
+    "table": { "src": [0, 0, 2048, 2048], "scale": 1.4971 },
+    "center-plate": { "image": "center-plate.png", "scale": 2 }
   }
 }

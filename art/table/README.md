@@ -10,6 +10,7 @@
 | `src/Tiisu.App/Assets/ui/skin.json` | 随包启用的皮肤清单（放这里构建后自动进 exe 旁 `Assets/ui/`） |
 | `src/Tiisu.App/Assets/ui/skin.example.json` | 带注释的清单样例，不参与加载 |
 | `art/table/skin-demo/` | 示例皮：`skin.json` + `skin-atlas.png` + 生成脚本 |
+| `art/table/skin-blender/` | Blender 预热桌面 + 中央板；PNG/skin.json 交付，详见目录内 README |
 | `artifacts/skin-preview/` | 出图与性能对照 |
 
 ## 清单格式
