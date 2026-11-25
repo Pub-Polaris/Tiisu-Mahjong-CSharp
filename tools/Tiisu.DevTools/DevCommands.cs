@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -2701,6 +2701,125 @@ internal static class DevCommands
     /// <c>--render-table-png &lt;png&gt; --variant mixed|flat|light|medium</c>：按指定观感出 1400×1400 牌桌图。
     /// 与游戏内同一条 TableScreen 绘制路径（含手牌、牌河、动作条、HUD），便于对照可读性。
     /// </summary>
+    /// <summary>
+    /// <c>--render-soft3d-tile &lt;png&gt; [tileId]</c>：用 <see cref="Software3D"/> 画一张 3D 麻将牌。
+    /// 牌身是 CPU 三角形；牌面用 Skia 的 texture-coord 顶点贴到投影后的正面四边形上。
+    /// </summary>
+    private static void RenderSoft3DTile(string[] args)
+    {
+        Tiisu.App.Program.TryUseUtf8Console();
+        string path = args[1];
+        string tileId = args.Length >= 3 ? args[2] : "5z";
+
+        using var atlas = new TileAtlas(Tiisu.App.Program.AssetsDir);
+        if (!atlas.IsLoaded || !atlas.TryGetSource(tileId, out SKRect src) || atlas.Sheet is null)
+        {
+            Console.Error.WriteLine($"tile atlas missing: {tileId}");
+            return;
+        }
+
+        const int size = 800;
+        var info = new SKImageInfo(size, size);
+        using var surface = SKSurface.Create(info);
+        if (surface is null)
+        {
+            return;
+        }
+
+        SKCanvas canvas = surface.Canvas;
+        canvas.Clear(SKColors.Transparent);
+        using (var ctx = new SkiaCanvas(canvas, atlas))
+        {
+            ctx.FillLinearGradient(new RectF(0, 0, size, size), 0,
+                Color.Rgb(24, 31, 36), Color.Rgb(8, 11, 14));
+        }
+
+        var camera = new Software3D.Camera3D(
+            new Software3D.Vertex3(0.78f, 0.52f, 2.25f),
+            new Software3D.Vertex3(0f, 0f, 0f),
+            new Software3D.Vertex3(0f, 1f, 0f),
+            FovDegrees: 33f,
+            Near: 0.05f,
+            Far: 20f);
+
+        var triangles = BuildSoft3DTileTriangles(out Software3D.Vertex3 faceTl, out Software3D.Vertex3 faceTr,
+            out Software3D.Vertex3 faceBr, out Software3D.Vertex3 faceBl);
+        using (var ctx = new SkiaCanvas(canvas, atlas))
+        {
+            Software3D.Render(ctx, triangles, camera, size, size);
+        }
+
+        if (Software3D.TryProject(camera, faceTl, size, size, out CanvasPoint tl, out _)
+            && Software3D.TryProject(camera, faceTr, size, size, out CanvasPoint tr, out _)
+            && Software3D.TryProject(camera, faceBr, size, size, out CanvasPoint br, out _)
+            && Software3D.TryProject(camera, faceBl, size, size, out CanvasPoint bl, out _))
+        {
+            // 左上、右上、右下、左下 + 两个三角形索引。
+            var positions = new[]
+            {
+                new SKPoint(tl.X, tl.Y), new SKPoint(tr.X, tr.Y), new SKPoint(br.X, br.Y),
+                new SKPoint(tl.X, tl.Y), new SKPoint(br.X, br.Y), new SKPoint(bl.X, bl.Y),
+            };
+            var texs = new[]
+            {
+                new SKPoint(src.Left, src.Top), new SKPoint(src.Right, src.Top), new SKPoint(src.Right, src.Bottom),
+                new SKPoint(src.Left, src.Top), new SKPoint(src.Right, src.Bottom), new SKPoint(src.Left, src.Bottom),
+            };
+            var colors = Enumerable.Repeat(SKColors.White, 6).ToArray();
+            using var shader = SKShader.CreateImage(atlas.Sheet, SKShaderTileMode.Clamp, SKShaderTileMode.Clamp);
+            using var paint = new SKPaint { Shader = shader, IsAntialias = false };
+            canvas.DrawVertices(SKVertexMode.Triangles, positions, texs, colors, paint);
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+        Console.WriteLine($"rendered soft3d tile {tileId} -> {path}");
+    }
+
+    private static List<Software3D.Triangle3D> BuildSoft3DTileTriangles(
+        out Software3D.Vertex3 faceTl,
+        out Software3D.Vertex3 faceTr,
+        out Software3D.Vertex3 faceBr,
+        out Software3D.Vertex3 faceBl)
+    {
+        const float w = 0.62f;
+        const float h = 0.90f;
+        const float d = 0.18f;
+        float x = w / 2f;
+        float y = h / 2f;
+        float z = d / 2f;
+
+        faceTl = new Software3D.Vertex3(-x, y, z);
+        faceTr = new Software3D.Vertex3(x, y, z);
+        faceBr = new Software3D.Vertex3(x, -y, z);
+        faceBl = new Software3D.Vertex3(-x, -y, z);
+
+        var backTl = new Software3D.Vertex3(-x, y, -z);
+        var backTr = new Software3D.Vertex3(x, y, -z);
+        var backBr = new Software3D.Vertex3(x, -y, -z);
+        var backBl = new Software3D.Vertex3(-x, -y, -z);
+
+        var white = Color.Rgb(236, 230, 206);
+        var ivory = Color.Rgb(208, 198, 166);
+        var blue = Color.Rgb(31, 118, 196);
+        var list = new List<Software3D.Triangle3D>(24);
+
+        void Quad(Software3D.Vertex3 a, Software3D.Vertex3 b, Software3D.Vertex3 c, Software3D.Vertex3 e, Color color)
+        {
+            list.Add(new Software3D.Triangle3D(a, b, c, color));
+            list.Add(new Software3D.Triangle3D(a, c, e, color));
+        }
+
+        Quad(faceTl, faceTr, faceBr, faceBl, white);
+        Quad(backTl, backBl, backBr, backTr, blue);
+        Quad(faceTl, faceBl, backBl, backTl, ivory);
+        Quad(faceTr, backTr, backBr, faceBr, ivory);
+        Quad(faceTl, backTl, backTr, faceTr, ivory);
+        Quad(faceBl, faceBr, backBr, backBl, ivory);
+        return list;
+    }
+
     private static void Render25DToPng(string[] args)
     {
         string path = args[1];
@@ -6185,6 +6304,13 @@ internal static class DevCommands
         if (args.Length >= 2 && args[0] == "--render-table-png")
         {
             Render25DToPng(args);
+            return 0;
+        }
+
+        // 单张牌 Soft-3D 实验：--render-soft3d-tile <png> [tileId]
+        if (args.Length >= 2 && args[0] == "--render-soft3d-tile")
+        {
+            RenderSoft3DTile(args);
             return 0;
         }
 

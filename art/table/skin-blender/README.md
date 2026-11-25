@@ -15,6 +15,8 @@
 | `preview.png` | 接进 `TableSceneSkia` 后的 1400×1400 预览 |
 | `render_4x3_reference.py` | 按实验相机 25° 出 800×600 预览（参考图本身无 FOV 信息） |
 | `preview-4x3.png` | 4:3 透视预览 |
+| `soft3d-preview.png` | Soft-3D 桌面实验预览（四边形投影，避免三角接缝） |
+| `soft3d-tile-preview.png` | `--render-soft3d-tile` 的单张牌小样 |
 | `REFERENCE.md` | 参考图测点与角度推导 |
 
 ## 重新生成
@@ -31,6 +33,10 @@ blender --background Assets\Table.blend --python art\table\skin-blender\render_4
 $env:TIISU_SKIN = "$PWD\art\table\skin-blender"
 tools\Tiisu.DevTools\bin\Debug\net10.0-windows10.0.19041\Tiisu.DevTools.exe `
   --render-table-png artifacts\3d\table-skin-flat.png --variant flat
+
+# 单张牌 Soft-3D 小样
+tools\Tiisu.DevTools\bin\Debug\net10.0-windows10.0.19041\Tiisu.DevTools.exe `
+  --render-soft3d-tile artifacts\3d\tile.png 1m
 ```
 
 随包启用时，把 `skin.json`、`table.png`、`center-plate.png` 放到
