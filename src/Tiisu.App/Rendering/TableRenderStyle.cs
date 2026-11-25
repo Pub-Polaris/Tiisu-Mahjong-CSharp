@@ -16,6 +16,9 @@ public enum TableRenderStyle
     Mixed,
     Light25D,
     Medium25D,
+
+    /// <summary>实验档：桌面用 Soft-3D 投影一次，之后只贴缓存图；动态牌仍是 2D。</summary>
+    Soft3D,
 }
 
 /// <summary>

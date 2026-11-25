@@ -2718,6 +2718,7 @@ internal static class DevCommands
                 "flat" or "2d" => TableRenderStyle.Flat,
                 "medium" or "medium25d" => TableRenderStyle.Flat,
                 "light" or "light25d" => TableRenderStyle.Flat,
+                "soft3d" or "soft-3d" => TableRenderStyle.Soft3D,
                 var other => throw new ArgumentException(L.T("tools.cli.devtools.Render25DToPng.1", ("p1", other))),
             };
         }

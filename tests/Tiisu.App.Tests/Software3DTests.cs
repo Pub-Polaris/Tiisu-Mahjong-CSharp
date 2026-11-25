@@ -1,4 +1,6 @@
+using System;
 using Tiisu.App.Rendering;
+using Tiisu.App.Table;
 using Xunit;
 using Color = Tiisu.App.Rendering.Color;
 
@@ -39,6 +41,18 @@ public sealed class Software3DTests
     public void EmptyTriangleList_RenderDoesNotThrow()
     {
         Software3D.Render(new NullCanvas(), Array.Empty<Software3D.Triangle3D>(), Camera, 800f, 600f);
+    }
+
+    [Fact]
+    public void Soft3DTable_DrawsOnceWithoutThrowing()
+    {
+        var layout = new TableLayoutSpec();
+        YogaTableLayout.Apply(layout);
+
+        Soft3DTable.Draw(new NullCanvas(), layout);
+
+        Assert.Equal(25f, Soft3DTable.CameraPitchDegrees);
+        Assert.Equal(55f, Soft3DTable.CameraFovDegrees);
     }
 
     private sealed class NullCanvas : ICanvas

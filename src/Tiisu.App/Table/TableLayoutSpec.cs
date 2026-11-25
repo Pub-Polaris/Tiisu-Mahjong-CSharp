@@ -372,6 +372,13 @@ public sealed class TableSceneSkia : ITableScene
     /// </summary>
     private void DrawTableSurface(ICanvas c, TableViewModel vm, TableLayoutSpec l, TableRenderMetrics m)
     {
+        if (Style == TableRenderStyle.Soft3D)
+        {
+            DrawSoft3DSurface(c, l);
+            DrawCenterInfo(c, vm, l.PlateRect);
+            return;
+        }
+
         TableSkin skin = SkinStore.Current;
         bool styled = m.UsePerspective || m.HasTileDepth || m.TableTopInset > 0f;
         if (skin.IsActive || styled)
@@ -393,6 +400,24 @@ public sealed class TableSceneSkia : ITableScene
         }
 
         DrawCenterInfo(c, vm, l.PlateRect);
+    }
+
+    /// <summary>
+    /// Soft-3D 静态层：<see cref="Soft3DTable"/> 的三角形只在这里投影/着色一次，结果由
+    /// <see cref="StaticLayerCache{TKey}"/> 按尺寸/风格缓存；每帧热路径只回放一张位图。
+    /// </summary>
+    private void DrawSoft3DSurface(ICanvas c, TableLayoutSpec l)
+    {
+        TableStaticKey key = TableStaticKey.For(l, Style, TableSkin.None);
+        var bounds = new RectF(0, 0, l.CanvasW, l.CanvasH);
+        if (!StaticLayerCache<TableStaticKey>.TryDraw(c, key, bounds))
+        {
+            StaticLayerCache<TableStaticKey>.Draw(c, key, bounds, ctx =>
+            {
+                using var perf = PerfProbe.Measure("table.soft3d.bake");
+                Soft3DTable.Draw(ctx, l);
+            });
+        }
     }
 
     /// <summary>清空静态层缓存（换皮 / 观感重载时调用，避免回放到已释放的皮肤图）。</summary>
