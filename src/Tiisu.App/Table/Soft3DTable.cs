@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Tiisu.App.Rendering;
 using Color = Tiisu.App.Rendering.Color;
 
@@ -8,7 +8,8 @@ namespace Tiisu.App.Table;
 /// Soft-3D 桌面：几何体只构建一次，投影/着色只做一次（由 <see cref="StaticLayerCache{TKey}"/> 缓存），
 /// 之后每帧只贴缓存图。动态牌仍然是 2D，不进入软 3D 热路径。
 ///
-/// 参考图的俯视角约 25°（4:3 画面、垂直 FOV 按 55° 估算），相机固定，不跟窗口/快照变化。
+/// 参考图是 2002 年的预渲染 2D，FOV 不可知；25° 只是本实验选定的相机，不是参考图测出的角度。
+/// 相机固定，不跟窗口/快照变化。
 /// </summary>
 public static class Soft3DTable
 {
